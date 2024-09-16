@@ -1,0 +1,12 @@
+[package]
+name = "a-minimum"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+esp-hal = { version = "0.20.1", path = "../esp-hal/esp-hal" }
+
+[features]
+default = ["esp32c3"]
+
+esp32c3 = ["esp-hal/esp32c3"]

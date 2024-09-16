@@ -1,0 +1,30 @@
+[package]
+name = "esp-hal"
+version = "0.20.1"
+edition = "2021"
+
+[dependencies]
+
+[target.'cfg(target_arch = "riscv32")'.dependencies]
+esp-riscv-rt = { version = "0.9.0", path = "../esp-riscv-rt" }
+
+[build-dependencies]
+esp-build    = { version = "0.1.0", path = "../esp-build" }
+esp-metadata = { version = "0.3.0", path = "../esp-metadata" }
+
+[features]
+# Chip Support Feature Flags
+# Target the ESP32.
+esp32   = []
+# Target the ESP32-C2.
+esp32c2 = []
+# Target the ESP32-C3.
+esp32c3 = []
+# Target the ESP32-C6.
+esp32c6 = []
+# Target the ESP32-H2.
+esp32h2 = []
+# Target the ESP32-S2.
+esp32s2 = []
+# Target the ESP32-S3.
+esp32s3 = []

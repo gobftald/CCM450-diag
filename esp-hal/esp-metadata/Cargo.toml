@@ -1,0 +1,10 @@
+[package]
+name = "esp-metadata"
+version = "0.3.0"
+edition = "2021"
+
+[dependencies]
+anyhow     = "1.0.86"
+basic-toml  = "0.1.9"
+serde       = { version = "1.0.209", features = ["derive"] }
+strum = { version = "0.26.3",  features = ["derive"] }

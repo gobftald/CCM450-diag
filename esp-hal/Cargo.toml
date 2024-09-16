@@ -1,0 +1,8 @@
+[workspace]
+resolver = "2"
+exclude  = [
+    "esp-build",
+    "esp-hal",
+    "esp-metadata",
+    "esp-riscv-rt",
+]
