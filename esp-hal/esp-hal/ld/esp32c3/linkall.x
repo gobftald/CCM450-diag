@@ -1,0 +1,5 @@
+INCLUDE "memory.x"
+
+REGION_ALIAS("ROTEXT", IROM);
+
+INCLUDE "esp32c3.x"

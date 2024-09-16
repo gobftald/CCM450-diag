@@ -3,3 +3,8 @@ target = "riscv32imc-unknown-none-elf"
 
 [target.riscv32imc-unknown-none-elf]
 runner = "espflash flash --monitor"
+
+rustflags = [
+    "-C", "link-arg=-Tlinkall.x",           # from esp-hal
+    "-C", "link-arg=-Map=riscv32.map",
+]

@@ -1,5 +1,12 @@
 //use std::error::Error;
-use std::{error::Error, str::FromStr};
+use std::{
+    env,
+    error::Error,
+    fs::{self, File},
+    io::{BufRead, Write},
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 
 use esp_build::assert_unique_used_features;
 use esp_metadata::{Chip, Config};
@@ -38,5 +45,84 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Define all necessary configuration symbols for the configured device:
     config.define_symbols();
 
+    #[allow(unused_mut)]
+    let mut config_symbols = config.all().collect::<Vec<_>>();
+
+    // Place all linker scripts in `OUT_DIR`, and instruct Cargo how to find these
+    // files:
+    let out = PathBuf::from(env::var_os("OUT_DIR").unwrap());
+    println!("cargo:rustc-link-search={}", out.display());
+
+    // With the architecture-specific linker scripts taken care of, we can copy all
+    // remaining linker scripts which are common to all devices:
+    copy_dir_all(&config_symbols, "ld/sections", &out)?;
+    copy_dir_all(&config_symbols, format!("ld/{device_name}"), &out)?;
+
+    Ok(())
+}
+
+fn copy_dir_all(
+    config_symbols: &[&str],
+    src: impl AsRef<Path>,
+    dst: impl AsRef<Path>,
+) -> std::io::Result<()> {
+    fs::create_dir_all(&dst)?;
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let ty = entry.file_type()?;
+        if ty.is_dir() {
+            copy_dir_all(
+                config_symbols,
+                entry.path(),
+                dst.as_ref().join(entry.file_name()),
+            )?;
+        } else {
+            preprocess_file(
+                config_symbols,
+                entry.path(),
+                dst.as_ref().join(entry.file_name()),
+            )?;
+        }
+    }
+    Ok(())
+}
+
+/// A naive pre-processor for linker scripts
+fn preprocess_file(
+    config: &[&str],
+    src: impl AsRef<Path>,
+    dst: impl AsRef<Path>,
+) -> std::io::Result<()> {
+    let file = File::open(src)?;
+    let mut out_file = File::create(dst)?;
+
+    let mut take = Vec::new();
+    take.push(true);
+
+    for line in std::io::BufReader::new(file).lines() {
+        let line = line?;
+        let trimmed = line.trim();
+
+        if let Some(condition) = trimmed.strip_prefix("#IF ") {
+            let should_take = take.iter().all(|v| *v);
+            let should_take = should_take && config.contains(&condition);
+            take.push(should_take);
+            continue;
+        } else if trimmed == "#ELSE" {
+            let taken = take.pop().unwrap();
+            let should_take = take.iter().all(|v| *v);
+            let should_take = should_take && !taken;
+            take.push(should_take);
+            continue;
+        } else if trimmed == "#ENDIF" {
+            take.pop();
+            continue;
+        }
+
+        if *take.last().unwrap() {
+            out_file.write_all(line.as_bytes())?;
+            let _ = out_file.write(b"\n")?;
+        }
+    }
     Ok(())
 }
