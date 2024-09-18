@@ -53,6 +53,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let out = PathBuf::from(env::var_os("OUT_DIR").unwrap());
     println!("cargo:rustc-link-search={}", out.display());
 
+    preprocess_file(&config_symbols, "ld/riscv/debug.x", out.join("debug.x"))?;
+
     // With the architecture-specific linker scripts taken care of, we can copy all
     // remaining linker scripts which are common to all devices:
     copy_dir_all(&config_symbols, "ld/sections", &out)?;

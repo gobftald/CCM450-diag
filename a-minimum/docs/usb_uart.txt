@@ -1,0 +1,38 @@
+usb_uart_tx_one_char = 0x400008d8
+0x400008d8:	j	0x4004c8e2
+
+usb_uart_tx_one_char
+0x4004c8e2:	lui	a5,0x3fcdf
+0x4004c8e6:	addi	a3,a5,96
+0x4004c8ea:	lw	a4,0(a3)                // 0x3fcdf060
+0x4004c8ec:	bnez	a4,0x4004c91e
+
+0x4004c8ee:	lui	a4,0x60043
+0x4004c8f2:	lw	a5,4(a4)                // USB_SERIAL_JTAG_EP1_CONF_REG
+                                        // Configuration and control registers for the CDC-ACM FIFOs
+0x4004c8f4:	andi	a5,a5,2             // USB_SERIAL_JTAG_SERIAL_IN_EP_DATA_FREE
+                                        // 1 indicate UART Tx FIFO is not full and data can be written into in
+0x4004c8f6:	beqz	a5,0x4004c8fe       // FIFO full -> goto exit without send
+
+0x4004c8f8:	li	a5,1
+0x4004c8fa:	sw	a5,0(a3)                // 0x3fcdf060
+0x4004c8fc:	sw	a0,0(a4)                // USB_SERIAL_JTAG_EP1_REG
+                                        // FIFO access for the CDC-ACM data IN and OUT endpoints
+                                        // sending data 
+exit:
+0x4004c8fe:	li	a0,0                    // successfull
+0x4004c900:	ret
+
+
+
+
+usb_uart_tx_flush = 0x400008d4
+0x400008d4:	j	0x4004c95a
+
+usb_uart_tx_flush
+0x4004c95a:	lui	a5,0x60043              // USB_SERIAL_JTAG_EP1_CONF_REG
+                                        // Configuration and control registers for the CDC-ACM FIFOs
+0x4004c95e:	li	a4,1                    // USB_SERIAL_JTAG_WR_DONE
+0x4004c960:	sw	a4,4(a5)                // Set this bit to indicate writing byte data to UART Tx FIFO is done.
+                                        // This bit than stays 0 until in UART Tx FIFO is read by the USB Host
+0x4004c962:	ret

@@ -3,6 +3,8 @@ name  = "esp32s2"
 arch  = "xtensa"
 cores = "single_core"
 
-peripherals = []
+peripherals = [
+    "interrupt_core0",
+]
 
 symbols = []

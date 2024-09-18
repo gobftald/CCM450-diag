@@ -3,6 +3,9 @@ name  = "esp32s3"
 arch  = "xtensa"
 cores = "multi_core"
 
-peripherals = []
+peripherals = [
+    "interrupt_core0",
+    "interrupt_core1",
+]
 
 symbols = []

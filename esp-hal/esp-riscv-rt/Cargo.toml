@@ -6,7 +6,3 @@ edition = "2021"
 [dependencies]
 # only for "pub use riscv_rt_macros::entry;" from here (esp-riscv-rt)
 riscv-rt-macros = { version = "0.2.1", path = "../../riscv/riscv-rt/macros", package = "macros"}
-
-[features]
-## Indicate that the device supports `mie` and `mip` instructions.
-has-mie-mip = []

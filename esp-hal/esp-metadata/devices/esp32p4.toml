@@ -3,6 +3,9 @@ name  = "esp32p4"
 arch  = "riscv"
 cores = "multi_core"
 
-peripherals = []
+peripherals = [
+    "interrupt_core0",
+    "interrupt_core1",
+]
 
 symbols = []

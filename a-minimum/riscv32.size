@@ -1,0 +1,23 @@
+.text                                                                               248     0xf8
+    0x42000020
+    _start                                                                   8
+    0x42000028
+    _abs_start                                                             144
+    0x420000b8
+    _start_rust                                                             46
+    0x420000e6
+    abort                                                                    4
+
+    0x420000ea
+    main                                                                    22
+    _setup_interrupts                                                        2
+    hal_main                                                                 8
+    esp_hal::rom_usb_uart_tx                                                12
+    default_post_init                                                        2
+
+.rodata                                                                      4       4      0x4
+
+.data                                                                                0
+
+
+esp_image: segment 0: paddr=00010020 vaddr=42000020 size=00104h (   260) map        252     0xfc
