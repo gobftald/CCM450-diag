@@ -3,9 +3,21 @@ ENTRY(_start)
 PROVIDE(_stext = ORIGIN(ROTEXT));
 PROVIDE(_max_hart_id = 0);
 
+# if ExceptionHandler is not defined in e.g. esp-backtrace
+PROVIDE(ExceptionHandler = DefaultExceptionHandler);
+
 PROVIDE(__post_init = default_post_init);
 
 /* esp32c3 fixups */
+
+SECTIONS {
+  .trap : ALIGN(4)
+  {
+    KEEP(*(.trap));
+    *(.trap.*);
+  } > RWTEXT
+}
+INSERT BEFORE .rwtext;
 
 SECTIONS {
   /**
@@ -25,9 +37,12 @@ SECTIONS {
 }
 INSERT BEFORE .rodata;
 
+/* Shared sections - ordering matters */
 INCLUDE "text.x"
 INCLUDE "rodata.x"
+INCLUDE "rwtext.x"
 INCLUDE "rwdata.x"
 INCLUDE "stack.x"
+/* End of Shared sections */
 
 INCLUDE "debug.x"

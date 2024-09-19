@@ -1,4 +1,4 @@
-.text                                                                               248     0xf8
+.text                                                                               410     0x19a
     0x42000020
     _start                                                                   8
     0x42000028
@@ -8,16 +8,32 @@
     0x420000e6
     abort                                                                    4
 
-    0x420000ea
-    main                                                                    22
+    rust_begin_unwind                                                        2
+    main                                                                    62
     _setup_interrupts                                                        2
     hal_main                                                                 8
-    esp_hal::rom_usb_uart_tx                                                12
+    esp_hal::rom_usb_print                                                  64
+    DefaultExceptionHandler                                                  2
     default_post_init                                                        2
+    core::panicking::panic_fmt                                              66
 
-.rodata                                                                      4       4      0x4
+.rodata                                                                      4      208     0xd0
 
-.data                                                                                0
+.trap                                                                               238     0xee     
+    40380000
+    _start_trap                                                            180
+    _start_trap_rust_hal                                                    58                                                           
 
+.data                                                                               0
 
-esp_image: segment 0: paddr=00010020 vaddr=42000020 size=00104h (   260) map        252     0xfc
+esp_image: segment 0: paddr=00010020 vaddr=3c010020 size=000d0h (   208) map        .rodata
+esp_image: segment 1: paddr=000100f8 vaddr=40380000 size=000f0h (   240) load       .trap
+esp_image: segment 3: paddr=00020020 vaddr=42000020 size=0019ch (   412) map        .text
+
+without panic_immediate_abort                                                       860     0x35a
+
+esp_image: segment 0: paddr=00010020 vaddr=3c010020 size=00004h (     4) map        .rodata
+esp_image: segment 1: paddr=0001002c vaddr=40380000 size=000c8h (   200) load       .trap
+esp_image: segment 3: paddr=00020020 vaddr=42000020 size=00130h (   304) map        .text
+
+with panic_immediate_abort                                                          508     0x1fc

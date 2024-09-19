@@ -1,0 +1,7 @@
+[package]
+name = "riscv"
+version = "0.11.1"
+edition = "2021"
+
+[dependencies]
+riscv-pac = { path = "../riscv-pac", version = "0.1.1", default-features = false }
