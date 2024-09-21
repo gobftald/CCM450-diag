@@ -3,6 +3,7 @@ resolver = "2"
 exclude  = [
     "esp-build",
     "esp-hal",
+    "esp-hal-procmacros",
     "esp-metadata",
     "esp-riscv-rt",
 ]

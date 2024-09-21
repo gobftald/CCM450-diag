@@ -7,4 +7,7 @@ peripherals = [
     "interrupt_core0",
 ]
 
-symbols = []
+symbols = [
+    # Additional peripherals defined by us (the developers):
+    "large_intr_status",
+]

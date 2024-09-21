@@ -13,6 +13,28 @@ pub struct W<REG: RegisterSpec> {
     pub(super) _reg: marker::PhantomData<REG>,
 }
 
+// 11
+pub struct FieldReader<FI = u8>
+where
+    FI: FieldSpec,
+{
+    pub(crate) bits: FI::Ux,
+    _reg: marker::PhantomData<FI>,
+}
+
+// 18
+impl<FI: FieldSpec> FieldReader<FI> {
+    #[doc = " Creates a new instance of the reader."]
+    #[allow(unused)]
+    #[inline(always)]
+    pub(crate) const fn new(bits: FI::Ux) -> Self {
+        Self {
+            bits,
+            _reg: marker::PhantomData,
+        }
+    }
+}
+
 // 44
 pub struct FieldWriter<'a, REG, const WI: u8, FI = u8, Safety = Unsafe>
 where

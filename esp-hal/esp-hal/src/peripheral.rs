@@ -67,6 +67,7 @@ mod peripheral_macros {
 
             /// Contains the generated peripherals which implement [`Peripheral`]
             mod peripherals {
+                pub use super::pac::*;
                 $(
                     $crate::create_peripheral!($(#[$cfg])? $name <= $from_pac);
                 )*
@@ -125,6 +126,7 @@ mod peripheral_macros {
 
             $(
                 $(
+
                     impl peripherals::$name {
                         $(
                             paste::paste!{
@@ -137,7 +139,6 @@ mod peripheral_macros {
                     }
                 )*
             )*
-
         }
     }
 

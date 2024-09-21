@@ -9,5 +9,6 @@ peripherals = [
 
 symbols = [
     # Additional peripherals defined by us (the developers):
+    "large_intr_status",
     "plic",
 ]

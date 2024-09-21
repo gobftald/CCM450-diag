@@ -14,7 +14,7 @@
     0x420000ec
     main                                                                    62  24
     esp32c3::interrupt::Interrupt as core::fmt::Debug                       42  -
-    _setup_interrupts                                                      508
+    _setup_interrupts (init_vectoring inlined)                             508
     EspDefaultHandler                                                       62  2
     hal_main                                                                 8
     esp_hal::rom_usb_print                                                  64

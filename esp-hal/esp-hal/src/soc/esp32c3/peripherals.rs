@@ -12,6 +12,9 @@ use esp32c3 as pac;
 // We need to export this for users to use (e.g. in peripherals! macro)
 pub use pac::Interrupt;
 
+// We need to export this in the hal for the drivers to use
+pub(crate) use self::peripherals::*;
+
 // Note that certain are marked with `virtual` in the invocation of the
 // `peripherals!` macro below. Basically, this indicates there's no physical
 // peripheral (no `PSRAM`, `RADIO`, etc. peripheral in the PACs), so we're

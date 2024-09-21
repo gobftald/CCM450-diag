@@ -1,8 +1,22 @@
+/// Register `CPU_INT_PRI%s` reader
+pub type R = crate::R<CPU_INT_PRI_SPEC>;
+
 /// Register `CPU_INT_PRI%s` writer
 pub type W = crate::W<CPU_INT_PRI_SPEC>;
 
+/// Field `MAP` reader - reg_core0_cpu_pri_0_map
+pub type MAP_R = crate::FieldReader;
+
 /// Field `MAP` writer - reg_core0_cpu_pri_0_map
 pub type MAP_W<'a, REG> = crate::FieldWriter<'a, REG, 4>;
+
+impl R {
+    #[doc = "Bits 0:3 - reg_core0_cpu_pri_0_map"]
+    #[inline(always)]
+    pub fn map(&self) -> MAP_R {
+        MAP_R::new((self.bits & 0x0f) as u8)
+    }
+}
 
 impl W {
     /// Bits 0:3 - reg_core0_cpu_pri_0_map
@@ -19,6 +33,9 @@ pub struct CPU_INT_PRI_SPEC;
 impl crate::RegisterSpec for CPU_INT_PRI_SPEC {
     type Ux = u32;
 }
+
+/// `read()` method returns [`cpu_int_pri::R`](R) reader structure
+impl crate::Readable for CPU_INT_PRI_SPEC {}
 
 /// `write(|w| ..)` method takes [`cpu_int_pri::W`](W) writer structure
 impl crate::Writable for CPU_INT_PRI_SPEC {

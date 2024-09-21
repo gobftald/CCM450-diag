@@ -135,6 +135,21 @@ impl<REG: Writable> W<REG> {
     }
 }
 
+/// Field reader.
+///
+/// Result of the `read` methods of fields.
+// 140
+pub type FieldReader<FI = u8> = raw::FieldReader<FI>;
+
+// 143
+impl<FI: FieldSpec> FieldReader<FI> {
+    #[doc = " Reads raw bits from field."]
+    #[inline(always)]
+    pub const fn bits(&self) -> FI::Ux {
+        self.bits
+    }
+}
+
 /// You should check that value is allowed to pass to register/field writer marked with this
 // 199
 pub struct Unsafe;
