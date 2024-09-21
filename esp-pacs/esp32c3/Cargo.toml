@@ -1,0 +1,12 @@
+[package]
+name = "esp32c3"
+version = "0.25.0"
+edition = "2021"
+
+[dependencies]
+vcell = "0.1.3"
+defmt = { version = "0.3.8", parh = "../defmt", optional = true }
+
+[features]
+impl-register-debug = []
+defmt = ["dep:defmt"]

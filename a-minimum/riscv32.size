@@ -1,39 +1,54 @@
-.text                                                                               410     0x19a
+.text                                                                               1042    0x412
+                                                                                    812     0x32c
     0x42000020
     _start                                                                   8
     0x42000028
-    _abs_start                                                             144
+    _abs_start                                                             144  
     0x420000b8
     _start_rust                                                             46
     0x420000e6
     abort                                                                    4
-
-    rust_begin_unwind                                                        2
-    main                                                                    62
-    _setup_interrupts                                                        2
+    0x420000ea
+    rust_begin_unwind                                                        2  -
+    
+    0x420000ec
+    main                                                                    62  24
+    esp32c3::interrupt::Interrupt as core::fmt::Debug                       42  -
+    _setup_interrupts                                                      508
+    EspDefaultHandler                                                       62  2
     hal_main                                                                 8
     esp_hal::rom_usb_print                                                  64
     DefaultExceptionHandler                                                  2
     default_post_init                                                        2
-    core::panicking::panic_fmt                                              66
+    core::panicking::panic_fmt                                              66  -
+    core::fmt::Formatter as core::fmt::Write::write_str                     22  -
 
-.rodata                                                                      4      208     0xd0
+.rodata                                                                             1368    0x558
+                                                                                    4       0x04
 
-.trap                                                                               238     0xee     
+.trap                                                                               1210    0x4ba
+                                                                                    1170    0x492     
     40380000
-    _start_trap                                                            180
-    _start_trap_rust_hal                                                    58                                                           
+    _handle_priority                                                        40
+    _restore_priority                                                       16
+    padding                                                                200
+    _start_trap_x                                                          456
+    _start_trap_direct                                                     190
+    padding                                                                122
+    _vector_table                                                          128
+    _start_trap_rust_hal                                                    58  18                                                          
 
 .data                                                                               0
 
-esp_image: segment 0: paddr=00010020 vaddr=3c010020 size=000d0h (   208) map        .rodata
-esp_image: segment 1: paddr=000100f8 vaddr=40380000 size=000f0h (   240) load       .trap
-esp_image: segment 3: paddr=00020020 vaddr=42000020 size=0019ch (   412) map        .text
 
-without panic_immediate_abort                                                       860     0x35a
+esp_image: segment 0: paddr=00010020 vaddr=3c010020 size=00558h (  1368) map        .rodata
+esp_image: segment 1: paddr=00010580 vaddr=40380000 size=004bch (  1212) load       .trap
+esp_image: segment 3: paddr=00020020 vaddr=42000020 size=00414h (  1044)            .text
 
-esp_image: segment 0: paddr=00010020 vaddr=3c010020 size=00004h (     4) map        .rodata
-esp_image: segment 1: paddr=0001002c vaddr=40380000 size=000c8h (   200) load       .trap
-esp_image: segment 3: paddr=00020020 vaddr=42000020 size=00130h (   304) map        .text
+without panic_immediate_abort                                                       3624    0xe28
 
-with panic_immediate_abort                                                          508     0x1fc
+esp_image: segment 0: paddr=00010020 vaddr=3c010020 size=00004h (     4)            .rodata
+esp_image: segment 1: paddr=0001002c vaddr=40380000 size=00494h (  1172) load       .trap
+esp_image: segment 3: paddr=00020020 vaddr=42000020 size=0032ch (   812) map        .text
+
+with panic_immediate_abort                                                          1988    0x7c4

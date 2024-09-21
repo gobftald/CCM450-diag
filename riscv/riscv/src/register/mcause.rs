@@ -9,6 +9,13 @@ pub struct Mcause {
 
 // 119
 impl Mcause {
+    /// Returns the code field
+    #[inline]
+    // 128
+    pub fn code(&self) -> usize {
+        self.bits & !(1 << (usize::BITS as usize - 1))
+    }
+
     /// Is trap cause an interrupt.
     #[inline]
     // 144

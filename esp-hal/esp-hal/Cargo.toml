@@ -4,9 +4,15 @@ version = "0.20.1"
 edition = "2021"
 
 [dependencies]
-defmt = { version = "0.3.8", path = "../../defmt/defmt", optional = true }
-log   = { version = "0.4.22", optional = true }
-riscv = { version = "0.11.1", path = "../../riscv/riscv", optional = true }
+critical-section = "1.1.3"
+defmt            = { version = "0.3.8", path = "../../defmt/defmt", optional = true }
+log              = { version = "0.4.22", optional = true }
+riscv            = { version = "0.11.1", path = "../../riscv/riscv", optional = true }
+
+# IMPORTANT:
+# Each supported device MUST have its PAC included below along with a
+# corresponding feature.
+esp32c3 = { version = "0.25.0", path = "../../esp-pacs/esp32c3", optional = true }
 
 [target.'cfg(target_arch = "riscv32")'.dependencies]
 esp-riscv-rt = { version = "0.9.0", path = "../esp-riscv-rt" }
@@ -27,7 +33,7 @@ esp32   = []
 # Target the ESP32-C2.
 esp32c2 = []
 # Target the ESP32-C3.
-esp32c3 = ["riscv"]
+esp32c3 = ["dep:esp32c3", "riscv"]
 # Target the ESP32-C6.
 esp32c6 = []
 # Target the ESP32-H2.
