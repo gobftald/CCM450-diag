@@ -1,5 +1,8 @@
 #![no_std]
 
+#[cfg(feature = "log")]
+pub mod logger;
+
 /// Prints to the selected output, with a newline.
 #[cfg(not(feature = "no-op"))]
 #[macro_export]

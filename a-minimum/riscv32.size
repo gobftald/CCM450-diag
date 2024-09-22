@@ -1,5 +1,5 @@
-.text                                                                               3894    0xf36
-                                                                                    3318    0xcf6
+.text                                                                               6784    0x1a80
+                                                                                    11948   0x2eac
                                                                                     726     0x2d6
     0x42000020
     _start                                                                   8
@@ -10,50 +10,86 @@
     0x420000e6
     abort                                                                    4
 
-    core::fmt::Debug::fmt                                                   40      -
-    core::fmt::Write::write_char                                           174      -
-    core::fmt::Write::write_fmt                                             22  60  -
+    rust_begin_unwind                                                        2
+    main                                                                   430
 
-    rust_begin_unwind                                                        2  -   -
-    main                                                                   168      2
+    as core::fmt::Debug::fmt                                                22
+    as core::ftm::Display::fmt                                              10
+    core::fmt::Write::write_char                                           176
+    core::fmt::Write::write_fmt                                             22
 
-    esp32c3::interrupt::Interrupt as core::fmt::Debug                       42  -   -
+    core::str::pattern::WaySearcher::next                                       410
+    log::SetLoggerError as core::fmt::Debug::fmt                            44
+    esp_println::logger::init_logger_from_env                              108
+    esp_println::logger::EspLogger as log::Log::enabled                      4
+    esp_println::logger::EspLogger as log::Log::log                         94  630
+    esp_println::logger::EspLogger as log::Log::flush                        2
+
+    esp_println::Printer as core::fmt::Write::write_str                     24
+    esp_println::Printer1::write_bytes                                     202
+
+    log::Level as core::fmt::Display::fmt                                   30
+    log::LevelFilter as core::str::traits::FromStr::from_str               640
+    log::NopLogger as log::Log::enabled                                      4
+    log::NopLogger as log::Log::log                                          2
+    log::NopLogger as log::Log::flush                                        2
+    log::set_logger_racy                                                    88
+    log::private_api::log_impl                                             190
+    log::private_api::loc                                                    2
+
+    esp32c3::interrupt::Interrupt as core::fmt::Debug                       42
     _setup_interrupts (init_vectoring inlined)                             508
-    EspDefaultHandler                                                       62  2   2
+    EspDefaultHandler                                                       62
     hal_main                                                                 8
     #esp_hal::rom_usb_print                                                #64
-    _critical_section_1_0_acquire                                           12      -
-    _critical_section_1_0_release                                           16      -
+    _critical_section_1_0_acquire                                           12
+    _critical_section_1_0_release                                           16
     DefaultExceptionHandler                                                  2
     default_post_init                                                        2
-    esp_println::Printer as core::fmt::Write::write_str                     24      -
-    esp_println::Printer1::write_bytes                                     202      -
 
-    core::panicking::panic_fmt                                              66  -   -
-    core::panicking::panic_bounds_check                                     80  -   -
-    core::fmt::write                                                       438  382 -
-    core::fmt::Formatter::pad_integral                                     544  518 -
-    core3::mt::Formatter::pad_integral::write_prefix                        96  86  -
-    core::fmt::Formatter as core::fmt::Write::write_str                     22  -   -
-    core::slice::index::slice_start_index_len_fail                          96  -   -
-    core::str::count::do_count_chars                                       398  378 -
+    core::ops::range::Range::Idx as core::fmt::Debug::fmt                       84
+    core::char::methods impl::char::escape_debug_ext                            784
+    core::option::unwrap_failed                                                 30
 
-    core:fmt::num impl core::fmt::LowerHex for i32
-    core:fmt::num impl core::fmt::LowerHex for usize
-    core:fmt::num impl core::fmt::LowerHex for isize
-    core:fmt::num impl core::fmt::LowerHex for u32                         118  92  -
-    core:fmt::num impl core::fmt::UpperHex for i32
-    core:fmt::num impl core::fmt::UpperHex for usize
-    core:fmt::num impl core::fmt::UpperHex for isize
-    core:fmt::num impl core::fmt::UpperHex for u32                         118  92  -
-    core::fmt::num::imp::fmt_u32                                           356  316 -
+    core::panicking::panic_fmt                                              66
+    core::panicking::panic                                                      58
+    core::panicking::panic_bounds_check                                     80
+    core::result::unwrap_failed                                            112
+    core::fmt::builders::PadAdapter as core::fmt::Write::write_str         492
+    core::fmt::builders::PadAdapter as core::fmt::Write::write_char        110
+    core::fmt::builders::DebugTuple::field                                 300
+    core::fmt::Write::write_fmt                                             36
+    core::fmt::Arguments as core::fmt::Display::fmt                         32
+    core::fmt::write                                                       438
+    core::fmt::Formatter::pad_integral                                     544
+    core::fmt::Formatter::pad_integral::write_prefix                        96
+    core::fmt::Formatter::pad                                              444
+    core::fmt::Formatter as core::fmt::Write::write_str                     22
+    core::fmt::Formatter::debug_tuple_field::finish                        178
+    char as core::fmt::Debug::fmt                                               138
+    core::slice::index::slice_start_index_len_fail                              96
+    core::slice::index::slice_end_index_len_fail                                96
+    core::slice::index::slice_index_order_fail                                  96
+    core::str::count::do_count_chars                                       398
+    core::str::pattern::Searcher::new                                           922
+    core::str::slice_error_fail                                                 16
+    core::str::slice_error_fail_rt                                              754
+    core::unicode::printable::check                                             224
+    core::unicode::printable::is_printable                                      330
+    core::fmt::num impl core::fmt::Debug for u32::fmt                           198
+    core::fmt:num3imp7fmt_u32
+    core::fmt::num::imp::fmt_u32                                           356
     core::fmtLLnum::imp impl core::fmt::Display for i32::fmt
-    core::fmtLLnum::imp impl core::fmt::Display for isize::fmt              48  34  -
+    core::fmtLLnum::imp impl core::fmt::Display for isize::fmt              48
     core::fmt::num::imp impl core::fmt::Display for u32::fmt
-    core::fmt::num::imp impl core::fmt::Display for usize::fmt              28  -   -
+    core::fmt::num::imp impl core::fmt::Display for usize::fmt              28
+    as core::fmt::Debug::fmt                                                22
+    as core::fmt::Display::fmt                                              30
+    core::unicode::unicode_data::grapheme_extend::lookup_slow              336
+    memcmp                                                                  56
 
-.rodata                                                                             1896    0x768
-                                                                                    392     0x188
+.rodata                                                                             6036    0x1794
+                                                                                    6036     0x1794
                                                                                     92      0x5c
 
 .trap                                                                               1210    0x4ba
@@ -78,25 +114,28 @@
     padding                                                                  2
     __EXTERNAL_INTERRUPTS                                                  248
 
-.data                                                                               0
+.data                                                                               8
 
-.bss                                                                                4
+.bss                                                                                c
 
 
-esp_image: segment 0: paddr=00010020 vaddr=3c010020 size=00768h (  1896) map        .rodata
-esp_image: segment 1: paddr=00010790 vaddr=40380000 size=007cch (  1996) load       .trap + .rwtext
-esp_image: segment 3: paddr=00020020 vaddr=42000020 size=00f38h (  3896) map        .text
+esp_image: segment 0: paddr=00010020 vaddr=3c010020 size=00a50h (  2640)            .rodata
+esp_image: segment 1: paddr=00010a78 vaddr=3fc80000 size=00008h (     8) load       .data
+esp_image: segment 2: paddr=00010a88 vaddr=40380000 size=007cch (  1996) load       .trap + .rwtext
+esp_image: segment 4: paddr=00020020 vaddr=42000020 size=01a80h (  6784)            .text
 
-without panic_immediate_abort                                                       7788    0x1e6c
+without panic_immediate_abort + ESP_LOGLEVEL=trace                                   11428    0x2ca4
 
-esp_image: segment 0: paddr=00010020 vaddr=3c010020 size=00188h (   392) map        .rodata
-esp_image: segment 1: paddr=000101b0 vaddr=40380000 size=00750h (  1872) load       .trap + rwtext
-esp_image: segment 3: paddr=00020020 vaddr=42000020 size=00cf8h (  3320) map         .text
+esp_image: segment 0: paddr=00010020 vaddr=3c010020 size=01794h (  6036) map        .rodata
+sp_image: segment 1: paddr=000117bc vaddr=3fc80000 size=00008h (     8) load        .data
+esp_image: segment 2: paddr=000117cc vaddr=40380000 size=007cch (  1996) load       .trap + rwtext
+esp_image: segment 4: paddr=00020020 vaddr=42000020 size=02each ( 11948) map        .text
 
-with panic_immediate_abort                                                          5584    0x15d0
+without panic_immediate_abort + ESP_LOGTARGETS=esp_hal                               19988   0x414
 
-esp_image: segment 0: paddr=00010020 vaddr=3c010020 size=0005ch (    92) map        .rodata
-esp_image: segment 1: paddr=00010084 vaddr=40380000 size=00750h (  1872) load       .trap + rwtext
-esp_image: segment 3: paddr=00020020 vaddr=42000020 size=002d8h (   728) map        .text
+esp_image: segment 0: paddr=00010020 vaddr=3c010020 size=009d0h (  2512) map        .rodata
+esp_image: segment 1: paddr=000109f8 vaddr=3fc80000 size=00008h (     8) load       .data
+esp_image: segment 2: paddr=00010a08 vaddr=40380000 size=007cch (  1996) load       .trap + rwtext
+esp_image: segment 4: paddr=00020020 vaddr=42000020 size=01818h (  6168) map        .text
 
-with panic_immediate_abort + features = esp-println/no-op                           2692    0xa84
+without panic_immediate_abort + ESP_LOGLEVEL=trace + features = no-op               10684   0x29bc
