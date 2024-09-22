@@ -4,9 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-esp-hal = { version = "0.20.1", path = "../esp-hal/esp-hal" }
+esp-hal     = { version = "0.20.1", path = "../esp-hal/esp-hal" }
+esp-println = { path = "../esp-hal/esp-println" }
 
 [features]
 default = ["esp32c3"]
 
-esp32c3 = ["esp-hal/esp32c3"]
+esp32c3 = ["esp-hal/esp32c3", "esp-println/esp32c3"]
+
+no-op = ["esp-println/no-op"]

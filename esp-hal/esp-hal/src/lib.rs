@@ -17,6 +17,9 @@ pub mod interrupt;
 // 201
 pub mod peripheral;
 
+// 240
+mod lock;
+
 // 248
 // The `soc` module contains chip-specific implementation details and should not
 // be directly exposed.

@@ -1,5 +1,6 @@
-.text                                                                               1042    0x412
-                                                                                    812     0x32c
+.text                                                                               3894    0xf36
+                                                                                    3318    0xcf6
+                                                                                    726     0x2d6
     0x42000020
     _start                                                                   8
     0x42000028
@@ -8,25 +9,55 @@
     _start_rust                                                             46
     0x420000e6
     abort                                                                    4
-    0x420000ea
-    rust_begin_unwind                                                        2  -
-    
-    0x420000ec
-    main                                                                    62  24
-    esp32c3::interrupt::Interrupt as core::fmt::Debug                       42  -
+
+    core::fmt::Debug::fmt                                                   40      -
+    core::fmt::Write::write_char                                           174      -
+    core::fmt::Write::write_fmt                                             22  60  -
+
+    rust_begin_unwind                                                        2  -   -
+    main                                                                   168      2
+
+    esp32c3::interrupt::Interrupt as core::fmt::Debug                       42  -   -
     _setup_interrupts (init_vectoring inlined)                             508
-    EspDefaultHandler                                                       62  2
+    EspDefaultHandler                                                       62  2   2
     hal_main                                                                 8
-    esp_hal::rom_usb_print                                                  64
+    #esp_hal::rom_usb_print                                                #64
+    _critical_section_1_0_acquire                                           12      -
+    _critical_section_1_0_release                                           16      -
     DefaultExceptionHandler                                                  2
     default_post_init                                                        2
-    core::panicking::panic_fmt                                              66  -
-    core::fmt::Formatter as core::fmt::Write::write_str                     22  -
+    esp_println::Printer as core::fmt::Write::write_str                     24      -
+    esp_println::Printer1::write_bytes                                     202      -
 
-.rodata                                                                             1368    0x558
-                                                                                    4       0x04
+    core::panicking::panic_fmt                                              66  -   -
+    core::panicking::panic_bounds_check                                     80  -   -
+    core::fmt::write                                                       438  382 -
+    core::fmt::Formatter::pad_integral                                     544  518 -
+    core3::mt::Formatter::pad_integral::write_prefix                        96  86  -
+    core::fmt::Formatter as core::fmt::Write::write_str                     22  -   -
+    core::slice::index::slice_start_index_len_fail                          96  -   -
+    core::str::count::do_count_chars                                       398  378 -
+
+    core:fmt::num impl core::fmt::LowerHex for i32
+    core:fmt::num impl core::fmt::LowerHex for usize
+    core:fmt::num impl core::fmt::LowerHex for isize
+    core:fmt::num impl core::fmt::LowerHex for u32                         118  92  -
+    core:fmt::num impl core::fmt::UpperHex for i32
+    core:fmt::num impl core::fmt::UpperHex for usize
+    core:fmt::num impl core::fmt::UpperHex for isize
+    core:fmt::num impl core::fmt::UpperHex for u32                         118  92  -
+    core::fmt::num::imp::fmt_u32                                           356  316 -
+    core::fmtLLnum::imp impl core::fmt::Display for i32::fmt
+    core::fmtLLnum::imp impl core::fmt::Display for isize::fmt              48  34  -
+    core::fmt::num::imp impl core::fmt::Display for u32::fmt
+    core::fmt::num::imp impl core::fmt::Display for usize::fmt              28  -   -
+
+.rodata                                                                             1896    0x768
+                                                                                    392     0x188
+                                                                                    92      0x5c
 
 .trap                                                                               1210    0x4ba
+                                                                                    1170    0x492
                                                                                     1170    0x492     
     40380000
     _handle_priority                                                        40
@@ -36,19 +67,36 @@
     _start_trap_direct                                                     190
     padding                                                                122
     _vector_table                                                          128
-    _start_trap_rust_hal                                                    58  18                                                          
+    _start_trap_rust_hal                                                    58  18
+
+.rwtext                                                                             784     0x310
+                                                                                    700     0x2bc
+                                                                                    700     0x2bc
+    interrupt1                                                               8
+    interrupt15                                                              8
+    handle_interrupts                                                      518  434
+    padding                                                                  2
+    __EXTERNAL_INTERRUPTS                                                  248
 
 .data                                                                               0
 
+.bss                                                                                4
 
-esp_image: segment 0: paddr=00010020 vaddr=3c010020 size=00558h (  1368) map        .rodata
-esp_image: segment 1: paddr=00010580 vaddr=40380000 size=004bch (  1212) load       .trap
-esp_image: segment 3: paddr=00020020 vaddr=42000020 size=00414h (  1044)            .text
 
-without panic_immediate_abort                                                       3624    0xe28
+esp_image: segment 0: paddr=00010020 vaddr=3c010020 size=00768h (  1896) map        .rodata
+esp_image: segment 1: paddr=00010790 vaddr=40380000 size=007cch (  1996) load       .trap + .rwtext
+esp_image: segment 3: paddr=00020020 vaddr=42000020 size=00f38h (  3896) map        .text
 
-esp_image: segment 0: paddr=00010020 vaddr=3c010020 size=00004h (     4)            .rodata
-esp_image: segment 1: paddr=0001002c vaddr=40380000 size=00494h (  1172) load       .trap
-esp_image: segment 3: paddr=00020020 vaddr=42000020 size=0032ch (   812) map        .text
+without panic_immediate_abort                                                       7788    0x1e6c
 
-with panic_immediate_abort                                                          1988    0x7c4
+esp_image: segment 0: paddr=00010020 vaddr=3c010020 size=00188h (   392) map        .rodata
+esp_image: segment 1: paddr=000101b0 vaddr=40380000 size=00750h (  1872) load       .trap + rwtext
+esp_image: segment 3: paddr=00020020 vaddr=42000020 size=00cf8h (  3320) map         .text
+
+with panic_immediate_abort                                                          5584    0x15d0
+
+esp_image: segment 0: paddr=00010020 vaddr=3c010020 size=0005ch (    92) map        .rodata
+esp_image: segment 1: paddr=00010084 vaddr=40380000 size=00750h (  1872) load       .trap + rwtext
+esp_image: segment 3: paddr=00020020 vaddr=42000020 size=002d8h (   728) map        .text
+
+with panic_immediate_abort + features = esp-println/no-op                           2692    0xa84

@@ -1,6 +1,8 @@
 #![no_std]
 #![no_main]
 
+use esp_println::dbg;
+
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo) -> ! {
     loop {}
@@ -8,8 +10,9 @@ fn panic(_: &core::panic::PanicInfo) -> ! {
 
 #[esp_hal::entry]
 fn main() -> ! {
-    esp_hal::rom_usb_print(b"!\n");
-    core::panic!("haho panic\n");
+    let x = 2024;
+    esp_println::println!("haho espressif {}", x);
+    dbg!(x);
 
-    //loop {}
+    loop {}
 }

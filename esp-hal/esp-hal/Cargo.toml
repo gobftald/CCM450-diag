@@ -23,7 +23,7 @@ esp-build    = { version = "0.1.0", path = "../esp-build" }
 esp-metadata = { version = "0.3.0", path = "../esp-metadata" }
 
 [features]
-riscv  = ["dep:riscv"]
+riscv  = ["dep:riscv", "critical-section/restore-state-u8"]
 
 ## Enable logging output using the `log` crate.
 log = ["dep:log"]
