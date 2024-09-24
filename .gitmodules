@@ -1,0 +1,3 @@
+[submodule "defmt"]
+	path = defmt
+	url = https://github.com/knurling-rs/defmt.git

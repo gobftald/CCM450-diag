@@ -1,5 +1,5 @@
 [package]
-name = "macros"
+name = "riscv-rt-macros"
 version = "0.2.1"
 edition = "2021"
 

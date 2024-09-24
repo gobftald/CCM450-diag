@@ -1,10 +1,22 @@
 #![no_std]
 
-#[cfg(feature = "log")]
-pub mod logger;
+pub mod fmt;
+
+#[cfg(feature = "defmt-espflash")]
+pub mod defmt;
+
+#[cfg(feature = "defmt-espflash")]
+#[macro_export]
+macro_rules! println {
+    ($($arg:tt)*) => {{
+        {
+            ::defmt::println!($($arg)*);
+        }
+    }};
+}
 
 /// Prints to the selected output, with a newline.
-#[cfg(not(feature = "no-op"))]
+#[cfg(all(not(feature = "defmt-espflash"), not(feature = "no-op")))]
 #[macro_export]
 macro_rules! println {
     ($($arg:tt)*) => {{
@@ -28,7 +40,7 @@ macro_rules! print {
 }
 
 /// Prints to the configured output, with a newline.
-#[cfg(feature = "no-op")]
+#[cfg(all(not(feature = "defmt-espflash"), feature = "no-op"))]
 #[macro_export]
 macro_rules! println {
     ($($arg:tt)*) => {{}};

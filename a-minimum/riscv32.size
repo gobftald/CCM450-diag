@@ -1,6 +1,5 @@
-.text                                                                               6784    0x1a80
-                                                                                    11948   0x2eac
-                                                                                    726     0x2d6
+.text                                                                               4286    0x10be
+                                                                                    2418    0x972
     0x42000020
     _start                                                                   8
     0x42000028
@@ -10,36 +9,12 @@
     0x420000e6
     abort                                                                    4
 
-    rust_begin_unwind                                                        2
-    main                                                                   430
+    rust_begin_unwind                                                        2  -
+    main                                                                   124  392 190 46
 
-    as core::fmt::Debug::fmt                                                22
-    as core::ftm::Display::fmt                                              10
-    core::fmt::Write::write_char                                           176
-    core::fmt::Write::write_fmt                                             22
-
-    core::str::pattern::WaySearcher::next                                       410
-    log::SetLoggerError as core::fmt::Debug::fmt                            44
-    esp_println::logger::init_logger_from_env                              108
-    esp_println::logger::EspLogger as log::Log::enabled                      4
-    esp_println::logger::EspLogger as log::Log::log                         94  630
-    esp_println::logger::EspLogger as log::Log::flush                        2
-
-    esp_println::Printer as core::fmt::Write::write_str                     24
-    esp_println::Printer1::write_bytes                                     202
-
-    log::Level as core::fmt::Display::fmt                                   30
-    log::LevelFilter as core::str::traits::FromStr::from_str               640
-    log::NopLogger as log::Log::enabled                                      4
-    log::NopLogger as log::Log::log                                          2
-    log::NopLogger as log::Log::flush                                        2
-    log::set_logger_racy                                                    88
-    log::private_api::log_impl                                             190
-    log::private_api::loc                                                    2
-
-    esp32c3::interrupt::Interrupt as core::fmt::Debug                       42
+    esp32c3::interrupt::Interrupt as core::fmt::Debug                       42  -
     _setup_interrupts (init_vectoring inlined)                             508
-    EspDefaultHandler                                                       62
+    EspDefaultHandler                                                       62  2
     hal_main                                                                 8
     #esp_hal::rom_usb_print                                                #64
     _critical_section_1_0_acquire                                           12
@@ -47,54 +22,39 @@
     DefaultExceptionHandler                                                  2
     default_post_init                                                        2
 
-    core::ops::range::Range::Idx as core::fmt::Debug::fmt                       84
-    core::char::methods impl::char::escape_debug_ext                            784
-    core::option::unwrap_failed                                                 30
+    esp_println::defmt::Logger as defmt::traits::Logger::acquire           452  414
+    esp_println::defmt::Logger as defmt::traits::Logger::release           502
+    esp_println::defmt::Logger as defmt::traits::Logger::write             638
+    _defmt_acquire                                                           8
+    _defmt_release                                                           8
+    _defmt_write                                                             8
+    defmt::export::integers::i32
+    defmt::export::f32
+    defmt::export::integers::usize
+    defmt::export::integers::isize
+    defmt::export::integers::u32                                            26  -
+    defmt::export::istr
+    defmt::export::integers::u16
+    defmt::export::integers::i16                                            32  -
+    defmt::export::header                                                   40
+    __defmt_default_timestamp                                                2
 
-    core::panicking::panic_fmt                                              66
-    core::panicking::panic                                                      58
-    core::panicking::panic_bounds_check                                     80
-    core::result::unwrap_failed                                            112
-    core::fmt::builders::PadAdapter as core::fmt::Write::write_str         492
-    core::fmt::builders::PadAdapter as core::fmt::Write::write_char        110
-    core::fmt::builders::DebugTuple::field                                 300
-    core::fmt::Write::write_fmt                                             36
-    core::fmt::Arguments as core::fmt::Display::fmt                         32
-    core::fmt::write                                                       438
-    core::fmt::Formatter::pad_integral                                     544
-    core::fmt::Formatter::pad_integral::write_prefix                        96
-    core::fmt::Formatter::pad                                              444
-    core::fmt::Formatter as core::fmt::Write::write_str                     22
-    core::fmt::Formatter::debug_tuple_field::finish                        178
-    char as core::fmt::Debug::fmt                                               138
-    core::slice::index::slice_start_index_len_fail                              96
-    core::slice::index::slice_end_index_len_fail                                96
-    core::slice::index::slice_index_order_fail                                  96
-    core::str::count::do_count_chars                                       398
-    core::str::pattern::Searcher::new                                           922
-    core::str::slice_error_fail                                                 16
-    core::str::slice_error_fail_rt                                              754
-    core::unicode::printable::check                                             224
-    core::unicode::printable::is_printable                                      330
-    core::fmt::num impl core::fmt::Debug for u32::fmt                           198
-    core::fmt:num3imp7fmt_u32
-    core::fmt::num::imp::fmt_u32                                           356
-    core::fmtLLnum::imp impl core::fmt::Display for i32::fmt
-    core::fmtLLnum::imp impl core::fmt::Display for isize::fmt              48
+    core::panicking::panic_fmt                                              66  -
+    core::panicking::panic_bounds_check                                     80  -
+    core::fmt::Formatter::pad_integral                                     544  -
+    core::fmt::Formatter::pad_integral::write_prefix                        96  -
+    core::fmt::Formatter::write_str
+    core::fmt::Formatter as core::fmt::Write::write_str                     22  -
+    core::str::count::do_count_chars                                       398  -
+    core::fmt::num::imp::fmt_u32                                           356  -
     core::fmt::num::imp impl core::fmt::Display for u32::fmt
-    core::fmt::num::imp impl core::fmt::Display for usize::fmt              28
-    as core::fmt::Debug::fmt                                                22
-    as core::fmt::Display::fmt                                              30
-    core::unicode::unicode_data::grapheme_extend::lookup_slow              336
-    memcmp                                                                  56
+    core::fmt::num::imp impl core::fmt::Display for usize::fmt              28  -
 
-.rodata                                                                             6036    0x1794
-                                                                                    6036     0x1794
+.rodata                                                                             1804    0x70c
                                                                                     92      0x5c
 
 .trap                                                                               1210    0x4ba
                                                                                     1170    0x492
-                                                                                    1170    0x492     
     40380000
     _handle_priority                                                        40
     _restore_priority                                                       16
@@ -103,39 +63,88 @@
     _start_trap_direct                                                     190
     padding                                                                122
     _vector_table                                                          128
-    _start_trap_rust_hal                                                    58  18
+    _start_trap_rust_hal                                                    58
 
 .rwtext                                                                             784     0x310
                                                                                     700     0x2bc
-                                                                                    700     0x2bc
     interrupt1                                                               8
     interrupt15                                                              8
-    handle_interrupts                                                      518  434
+    handle_interrupts                                                      518
     padding                                                                  2
     __EXTERNAL_INTERRUPTS                                                  248
 
-.data                                                                               8
+.data                                                                               0
 
-.bss                                                                                c
+.bss                                                                                8
 
 
-esp_image: segment 0: paddr=00010020 vaddr=3c010020 size=00a50h (  2640)            .rodata
-esp_image: segment 1: paddr=00010a78 vaddr=3fc80000 size=00008h (     8) load       .data
+esp_image: segment 0: paddr=00010020 vaddr=3c010020 size=0070ch (  1804) map        .rodata
 esp_image: segment 2: paddr=00010a88 vaddr=40380000 size=007cch (  1996) load       .trap + .rwtext
-esp_image: segment 4: paddr=00020020 vaddr=42000020 size=01a80h (  6784)            .text
+esp_image: segment 3: paddr=00020020 vaddr=42000020 size=010c0h (  4288) map        .text
 
-without panic_immediate_abort + ESP_LOGLEVEL=trace                                   11428    0x2ca4
+without panic_immediate_abort                                                       8088     0x1f98
 
-esp_image: segment 0: paddr=00010020 vaddr=3c010020 size=01794h (  6036) map        .rodata
-sp_image: segment 1: paddr=000117bc vaddr=3fc80000 size=00008h (     8) load        .data
-esp_image: segment 2: paddr=000117cc vaddr=40380000 size=007cch (  1996) load       .trap + rwtext
-esp_image: segment 4: paddr=00020020 vaddr=42000020 size=02each ( 11948) map        .text
 
-without panic_immediate_abort + ESP_LOGTARGETS=esp_hal                               19988   0x414
+esp_image: segment 0: paddr=00010020 vaddr=3c010020 size=0070ch (  1804) map        .rodata
+esp_image: segment 1: paddr=00010734 vaddr=40380000 size=007cch (  1996) load       .trap + .rwtext
+esp_image: segment 3: paddr=00020020 vaddr=42000020 size=011cch (  4556) map        .text
 
-esp_image: segment 0: paddr=00010020 vaddr=3c010020 size=009d0h (  2512) map        .rodata
-esp_image: segment 1: paddr=000109f8 vaddr=3fc80000 size=00008h (     8) load       .data
-esp_image: segment 2: paddr=00010a08 vaddr=40380000 size=007cch (  1996) load       .trap + rwtext
-esp_image: segment 4: paddr=00020020 vaddr=42000020 size=01818h (  6168) map        .text
+without panic_immediate_abort + DEFMT_LOG=a_minimum                                 8356    0x2a4
+ony the size of main func increased by 268 (there is more defmt log statements)
+every log statements needs 66 bytes (and it is indenpendent from the size of the message)
+so 4 x 66 = 264, which is around the 268 increased
 
-without panic_immediate_abort + ESP_LOGLEVEL=trace + features = no-op               10684   0x29bc
+
+without panic_immediate_abort + DEFMT_LOG=warn                                      8152    0x1fd8
+only one extra log statement (the plus warn) -> only main func increases by 66 bytes
+
+
+without panic_immediate_abort DEFMT_LOG=off                                         7948    0x1f0c
+main decrased further by the two remaining logs, plus integer formatting has disappeared
+
+
+esp_image: segment 0: paddr=00010020 vaddr=3c010020 size=0005ch (    92) map        .rodata
+esp_image: segment 1: paddr=00010084 vaddr=40380000 size=00750h (  1872) load       .trap + .rwtext
+esp_image: segment 3: paddr=00020020 vaddr=42000020 size=00974h (  2420) map        .text
+
+with panic_immediate_abort DEFMT_LOG=off                                            4384    0x1120
+
+
+without panic_immediate_abort + defmt switched off                                  6396    0x18fc
+defmt log macros will generate empty code, println is the original esp_println::esp_println
+
+
+without panic_immediate_abort + defmt switched off, no-op switched on               6108    0x17dc
+
+
+with panic_immediate_abort + defmt switched off                                     2984    0xba8
+no any output
+
+
+esp_image: segment 0: paddr=00010020 vaddr=3c010020 size=0005ch (    92) map        .rodata
+esp_image: segment 1: paddr=00010084 vaddr=40380000 size=00750h (  1872) load       .trap + .rwtext
+esp_image: segment 3: paddr=00020020 vaddr=42000020 size=002d8h (   728) map        .text
+
+with panic_immediate_abort + defmt switched off, no-op switched on                  2692    0xa84 
+no any output
+we get back to the size of the very first version with panic_immediate_abort (see commit #7)
+
+
+
+
+
+
+esp_image: segment 0: paddr=00010020 vaddr=3c010020 size=0005ch (    92) map
+I (94) esp_image: segment 1: paddr=00010084 vaddr=40380000 size=00750h (  1872) load
+I (103) esp_image: segment 2: paddr=000107dc vaddr=00000000 size=0f83ch ( 63548)
+I (125) esp_image: segment 3: paddr=00020020 vaddr=42000020 size=00a70h (  2672) map
+
+esp_image: segment 0: paddr=00010020 vaddr=3c010020 size=00088h (   136) map
+I (94) esp_image: segment 1: paddr=000100b0 vaddr=40380000 size=00750h (  1872) load
+I (103) esp_image: segment 2: paddr=00010808 vaddr=00000000 size=0f810h ( 63504)
+I (125) esp_image: segment 3: paddr=00020020 vaddr=42000020 size=006a0h (  1696)
+
+esp_image: segment 0: paddr=00010020 vaddr=3c010020 size=00718h (  1816) map
+I (95) esp_image: segment 1: paddr=00010740 vaddr=40380000 size=007cch (  1996) load
+I (103) esp_image: segment 2: paddr=00010f14 vaddr=00000000 size=0f104h ( 61700)
+I (124) esp_image: segment 3: paddr=00020020 vaddr=42000020 size=00d78h (  3448)

@@ -2,7 +2,7 @@
 #![no_main]
 
 #[panic_handler]
-fn panic(_: &core::panic::PanicInfo) -> ! {
+fn core_panic(_: &core::panic::PanicInfo) -> ! {
     loop {}
 }
 
@@ -10,13 +10,13 @@ fn panic(_: &core::panic::PanicInfo) -> ! {
 fn main() -> ! {
     let x = 2024;
 
-    esp_println::logger::init_logger_from_env();
+    esp_println::println!("haho esp");
 
-    log::error!("debug log: {}", x);
-    log::warn!("debug log: {}", x);
-    log::info!("debug log: {}", x);
-    log::debug!("debug log: {}", x);
-    log::trace!("debug log: {}", x);
+    esp_println::error!("error log: {}", x);
+    esp_println::warn!("warn log: {}", x);
+    esp_println::info!("info log: {}", x);
+    esp_println::debug!("debug log: {}", x);
+    esp_println::trace!("trace log: {}", x);
 
     loop {}
 }

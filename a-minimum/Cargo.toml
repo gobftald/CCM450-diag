@@ -4,13 +4,20 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-esp-hal     = { version = "0.20.1", path = "../esp-hal/esp-hal", features = ["log"]}
-esp-println = { path = "../esp-hal/esp-println", features = ["log"]}
-log         = { version = "0.4.22" }
+esp-hal     = { version = "0.20.1", path = "../esp-hal/esp-hal" }
+esp-println = { path = "../esp-hal/esp-println" }
+defmt       = { version = "0.3.8",  path = "../defmt/defmt", optional = true }
 
 [features]
-default = ["esp32c3"]
+default = ["esp32c3", "defmt"]
 
 esp32c3 = ["esp-hal/esp32c3", "esp-println/esp32c3"]
 
+# if you switch this feature, you should also need to change config.toml
+# runner = "espflash flash --monitor --log-format defmt"
+# "-C", "link-arg=-Tdefmt.x",
+defmt = ["dep:defmt", "esp-println/defmt-espflash"]
+
+# println calls become empty code
+# this controls only no defmt println
 no-op = ["esp-println/no-op"]
