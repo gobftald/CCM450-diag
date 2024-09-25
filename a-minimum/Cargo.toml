@@ -9,14 +9,14 @@ esp-println = { path = "../esp-hal/esp-println" }
 defmt       = { version = "0.3.8",  path = "../defmt/defmt", optional = true }
 
 [features]
-default = ["esp32c3", "defmt"]
+default = ["esp32c3"]
 
 esp32c3 = ["esp-hal/esp32c3", "esp-println/esp32c3"]
 
 # if you switch this feature, you should also need to change config.toml
 # runner = "espflash flash --monitor --log-format defmt"
 # "-C", "link-arg=-Tdefmt.x",
-defmt = ["dep:defmt", "esp-println/defmt-espflash"]
+defmt = ["dep:defmt", "esp-hal/defmt", "esp-println/defmt-espflash"]
 
 # println calls become empty code
 # this controls only no defmt println

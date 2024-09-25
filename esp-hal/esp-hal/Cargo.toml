@@ -6,7 +6,6 @@ edition = "2021"
 [dependencies]
 critical-section = "1.1.3"
 defmt            = { version = "0.3.8", path = "../../defmt/defmt", optional = true }
-log              = { version = "0.4.22", optional = true }
 procmacros       = { version = "0.13.0", features = ["ram"], package = "esp-hal-procmacros", path = "../esp-hal-procmacros" }
 riscv            = { version = "0.11.1", path = "../../riscv/riscv", optional = true }
 
@@ -24,9 +23,6 @@ esp-metadata = { version = "0.3.0", path = "../esp-metadata" }
 
 [features]
 riscv  = ["dep:riscv", "critical-section/restore-state-u8"]
-
-## Enable logging output using the `log` crate.
-log = ["dep:log"]
 
 # Chip Support Feature Flags
 # Target the ESP32.
@@ -48,4 +44,5 @@ esp32s3 = []
 ## Implement `defmt::Format` on certain types.
 defmt = [
     "dep:defmt",
+    "esp32c3?/defmt",
 ]

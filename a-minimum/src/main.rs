@@ -1,22 +1,36 @@
 #![no_std]
 #![no_main]
 
+// if we don't use esp_println directly
+// we need to get inti scope for esp_hal macros
+#[cfg(feature = "defmt")]
+use esp_println as _;
+
+#[cfg(not(feature = "defmt"))]
 #[panic_handler]
-fn core_panic(_: &core::panic::PanicInfo) -> ! {
-    loop {}
+fn panic(info: &core::panic::PanicInfo) -> ! {
+    if let Some(location) = info.location() {
+        esp_println::print!("panic at {}:{}: ", location.file(), location.line(),);
+    } else {
+        esp_println::print!("panic: ");
+    }
+    esp_println::println!("{}", info.message());
+
+    loop {
+        unsafe { core::arch::asm!("wfi") }
+    }
+}
+
+#[cfg(feature = "defmt")]
+#[panic_handler]
+fn panic(_: &core::panic::PanicInfo) -> ! {
+    loop {
+        unsafe { core::arch::asm!("wfi") }
+    }
 }
 
 #[esp_hal::entry]
 fn main() -> ! {
-    let x = 2024;
-
-    esp_println::println!("haho esp");
-
-    esp_println::error!("error log: {}", x);
-    esp_println::warn!("warn log: {}", x);
-    esp_println::info!("info log: {}", x);
-    esp_println::debug!("debug log: {}", x);
-    esp_println::trace!("trace log: {}", x);
-
+    esp_hal::unwrap!(None::<u32>);
     loop {}
 }

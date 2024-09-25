@@ -1,7 +1,5 @@
 #![no_std]
 
-pub mod fmt;
-
 #[cfg(feature = "defmt-espflash")]
 pub mod defmt;
 
