@@ -4,20 +4,26 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-esp-hal     = { version = "0.20.1", path = "../esp-hal/esp-hal" }
-esp-println = { path = "../esp-hal/esp-println" }
-defmt       = { version = "0.3.8",  path = "../defmt/defmt", optional = true }
+esp-hal       = { version = "0.20.1", path = "../esp-hal/esp-hal" }
+esp-println   = { version = "0.11.0", path = "../esp-hal/esp-println" }
+defmt         = { version = "0.3.8",  optional = true }
+esp-backtrace = { version = "0.14.1",  path = "../esp-hal/esp-backtrace", optional = true, features = [
+    "panic-handler", "exception-handler"] }
 
 [features]
 default = ["esp32c3"]
 
-esp32c3 = ["esp-hal/esp32c3", "esp-println/esp32c3"]
+esp32c3 = ["esp-hal/esp32c3", "esp-println/esp32c3", "esp-backtrace?/esp32c3"]
 
 # if you switch this feature, you should also need to change config.toml
 # runner = "espflash flash --monitor --log-format defmt"
 # "-C", "link-arg=-Tdefmt.x",
-defmt = ["dep:defmt", "esp-hal/defmt", "esp-println/defmt-espflash"]
+defmt = ["dep:defmt", "esp-hal/defmt", "esp-println/defmt-espflash", "esp-backtrace?/defmt"]
 
 # println calls become empty code
 # this controls only no defmt println
 no-op = ["esp-println/no-op"]
+
+# using esp-backtrace
+# "-C", "force-frame-pointers" needed in config.toml
+esp-backtrace = ["dep:esp-backtrace"]

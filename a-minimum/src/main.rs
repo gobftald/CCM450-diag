@@ -1,36 +1,21 @@
 #![no_std]
 #![no_main]
 
-// if we don't use esp_println directly
-// we need to get inti scope for esp_hal macros
-#[cfg(feature = "defmt")]
-use esp_println as _;
-
-#[cfg(not(feature = "defmt"))]
-#[panic_handler]
-fn panic(info: &core::panic::PanicInfo) -> ! {
-    if let Some(location) = info.location() {
-        esp_println::print!("panic at {}:{}: ", location.file(), location.line(),);
-    } else {
-        esp_println::print!("panic: ");
-    }
-    esp_println::println!("{}", info.message());
-
-    loop {
-        unsafe { core::arch::asm!("wfi") }
-    }
-}
-
-#[cfg(feature = "defmt")]
-#[panic_handler]
-fn panic(_: &core::panic::PanicInfo) -> ! {
-    loop {
-        unsafe { core::arch::asm!("wfi") }
-    }
-}
+mod panic_handlers;
 
 #[esp_hal::entry]
 fn main() -> ! {
+    // panic backtrace testing
+    /*
     esp_hal::unwrap!(None::<u32>);
     loop {}
+    */
+
+    // exception backtrace testing
+    #[no_mangle]
+    #[link_section = ".text"]
+    static UNIMP_CODE: [u8; 2] = *b"\x00\x00";
+    let illegal_instruction: extern "C" fn() -> ! =
+        unsafe { core::mem::transmute(&UNIMP_CODE as *const _ as *const ()) };
+    illegal_instruction();
 }

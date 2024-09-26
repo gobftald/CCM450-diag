@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 exclude  = [
+    "esp-backtrace",
     "esp-build",
     "esp-hal",
     "esp-hal-procmacros",

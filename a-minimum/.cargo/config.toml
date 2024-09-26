@@ -2,17 +2,20 @@
 target = "riscv32imc-unknown-none-elf"
 
 [target.riscv32imc-unknown-none-elf]
-runner = "espflash flash --monitor"    # --no_skip
+#runner = "espflash flash --monitor"    # --no_skip
 
 # using defmt crate - together with "link-arg=-Tdefmt.x" below
-#runner = "espflash flash --monitor --log-format defmt"
+runner = "espflash flash --monitor --log-format defmt"
 
 rustflags = [
     "-C", "link-arg=-Tlinkall.x",           # from esp-hal
     "-C", "link-arg=-Map=riscv32.map",
 
     # using defmt crate - together with 'runner' above
-    #"-C", "link-arg=-Tdefmt.x",
+    "-C", "link-arg=-Tdefmt.x",
+
+    # for esp-backtrace
+    "-C", "force-frame-pointers",
 ]
 
 [unstable]

@@ -1,0 +1,19 @@
+[package]
+name = "esp-backtrace"
+version = "0.14.1"
+edition = "2021"
+
+[dependencies]
+esp-println = { version = "0.11.0", path = "../esp-println" }
+defmt       = { version = "0.3.8",  optional = true }
+
+[features]
+esp32c3 = ["esp-println/esp32c3"]
+
+# Use defmt
+defmt = ["dep:defmt", "esp-println/defmt-espflash"]
+
+# You may optionally enable one or more of the below features to provide
+# additional functionality:
+exception-handler = []
+panic-handler     = []
