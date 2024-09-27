@@ -1,4 +1,8 @@
-#[cfg(all(not(feature = "defmt"), not(feature = "esp-backtrace")))]
+#[cfg(all(
+    not(feature = "defmt"),
+    not(feature = "esp-backtrace"),
+    not(feature = "no-op")
+))]
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     if let Some(location) = info.location() {
@@ -13,7 +17,10 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
     }
 }
 
-#[cfg(all(feature = "defmt", not(feature = "esp-backtrace")))]
+#[cfg(any(
+    feature = "no-op",
+    all(feature = "defmt", not(feature = "esp-backtrace"))
+))]
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo) -> ! {
     loop {
