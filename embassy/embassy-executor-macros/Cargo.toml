@@ -1,0 +1,17 @@
+[package]
+name = "embassy-executor-macros"
+version = "0.5.0"
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { version = "2.0.15", features = ["full", "extra-traits"] }
+quote = "1.0.9"
+darling = "0.20.1"
+proc-macro2 = "1.0.29"
+
+[features]
+# This will make embassy-executor use the impl_trait_in_assoc_type feature to allocate all tasks in statics. 
+nightly = []

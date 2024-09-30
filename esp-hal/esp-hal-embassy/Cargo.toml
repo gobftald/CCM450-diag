@@ -1,0 +1,10 @@
+[package]
+name = "esp-hal-embassy"
+version = "0.3.0"
+edition = "2021"
+
+[dependencies]
+macros  = { version = "0.13.0", features = ["embassy"], package = "esp-hal-procmacros", path = "../esp-hal-procmacros" }
+
+[features]
+esp32c3 = []

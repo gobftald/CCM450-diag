@@ -1,5 +1,8 @@
 use proc_macro::TokenStream;
 
+#[cfg(feature = "embassy")]
+mod embassy;
+
 #[cfg(feature = "ram")]
 #[derive(Debug, Default, darling::FromMeta)]
 #[darling(default)]
@@ -122,4 +125,19 @@ pub fn ram(args: TokenStream, input: TokenStream) -> TokenStream {
     };
 
     output.into()
+}
+
+#[cfg(feature = "embassy")]
+#[proc_macro_attribute]
+// 384
+pub fn main(args: TokenStream, item: TokenStream) -> TokenStream {
+    use self::embassy::{
+        main::{main, run},
+        Args,
+    };
+
+    let args = syn::parse_macro_input!(args as Args);
+    let f = syn::parse_macro_input!(item as syn::ItemFn);
+
+    run(&args.meta, f, main()).unwrap_or_else(|x| x).into()
 }

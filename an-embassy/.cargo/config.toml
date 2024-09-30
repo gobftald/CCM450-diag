@@ -1,0 +1,25 @@
+[build]
+target = "riscv32imc-unknown-none-elf"
+
+[target.riscv32imc-unknown-none-elf]
+runner = "espflash flash --monitor"    # --no_skip
+
+# using defmt crate - together with "link-arg=-Tdefmt.x" below
+#runner = "espflash flash --monitor --log-format defmt"
+
+rustflags = [
+    "-C", "link-arg=-Tlinkall.x",           # from esp-hal
+    "-C", "link-arg=-Map=riscv32.map",
+
+    # using defmt crate - together with 'runner' above
+    #"-C", "link-arg=-Tdefmt.x",
+
+    # for esp-backtrace
+    #"-C", "force-frame-pointers",
+]
+
+[unstable]
+# this will codegen every panic as an abort instruction without any panic message formatting.
+build-std-features = ["panic_immediate_abort"]
+# build core from source with "panic_immediate_abort" feature
+build-std = ["core"]

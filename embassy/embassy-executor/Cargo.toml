@@ -1,0 +1,12 @@
+[package]
+name = "embassy-executor"
+version = "0.6.0"
+edition = "2021"
+
+[dependencies]
+embassy-executor-macros = { version = "0.5.0", path = "../embassy-executor-macros" }
+
+[features]
+## Enable nightly-only features
+# This will make embassy-executor use the type_alias_impl_trait feature to allocate all tasks in statics.
+nightly = ["embassy-executor-macros/nightly"]

@@ -4,6 +4,7 @@ exclude  = [
     "esp-backtrace",
     "esp-build",
     "esp-hal",
+    "esp-hal-embassy",
     "esp-hal-procmacros",
     "esp-metadata",
     "esp-println",
