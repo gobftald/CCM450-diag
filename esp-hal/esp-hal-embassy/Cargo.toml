@@ -4,7 +4,23 @@ version = "0.3.0"
 edition = "2021"
 
 [dependencies]
-macros  = { version = "0.13.0", features = ["embassy"], package = "esp-hal-procmacros", path = "../esp-hal-procmacros" }
+critical-section = "1.1.3"
+defmt            = { version = "0.3.8", optional = true }
+embassy-executor = { version = "0.6.0", path = "../../embassy/embassy-executor", optional = true }
+esp-hal          = { version = "0.20.0", path = "../esp-hal" }
+macros           = { version = "0.13.0", features = ["embassy"], package = "esp-hal-procmacros", path = "../esp-hal-procmacros" }
+portable-atomic  = "1.7.0"
+
+[build-dependencies]
+esp-build    = { version = "0.1.0", path = "../esp-build" }
+esp-metadata = { version = "0.3.0", path = "../esp-metadata" }
 
 [features]
+default = ["executors"]
+
 esp32c3 = []
+
+## Implement `defmt::Format` on certain types.
+defmt = ["dep:defmt"]
+## Provide `Executor`
+executors = ["dep:embassy-executor"]

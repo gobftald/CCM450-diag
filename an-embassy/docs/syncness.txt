@@ -1,0 +1,70 @@
+
+pub struct TaskPool<F: Future + 'static, const N: usize>
+    pool: [TaskStorage<F>; N],
+
+        pub struct TaskStorage<F: Future + 'static>
+            raw: TaskHeader,
+            future: UninitCell<F>, // Valid if STATE_SPAWNED
+
+                pub(crate) struct TaskHeader 
+                    pub(crate) state: State,
+                    pub(crate) run_queue_item: RunQueueItem,
+                    pub(crate) executor: SyncUnsafeCell<Option<&'static SyncExecutor>>,
+                    poll_fn: SyncUnsafeCell<Option<unsafe fn(TaskRef)>>,
+
+                        pub(crate) struct State
+                            state: Mutex<Cell<u32>>,
+                        
+                        pub(crate) struct RunQueueItem
+                            next: Mutex<Cell<Option<TaskRef>>>,
+
+                        pub struct SyncUnsafeCell<T>
+                            value: UnsafeCell<T>
+
+pub struct TaskRef {    // this represent a task
+    ptr: NonNull<TaskHeader>,
+
+
+from macros.txt
+const POOL_SIZE: usize = 1;
+    static POOL: ::embassy_executor::raw::TaskPool<
+        <() as _EmbassyInternalTaskTrait>::Fut,
+        POOL_SIZE,
+    > = ::embassy_executor::raw::TaskPool::new();
+
+`NonNull<raw::TaskHeader>` cannot be sent between threads safely <-
+<- required because it appears within the type `TaskRef`
+<- required because it appears within the type `Option<TaskRef>`
+<- required for `Cell<Option<TaskRef>>` to implement `Send`
+and
+<- required for `critical_section::mutex::Mutex<Cell<Option<TaskRef>>>` to implement `Sync`
+<- required because it appears within the type `raw::run_queue::RunQueueItem`
+<- required because it appears within the type `raw::TaskHeader`
+<- required because it appears within the type `TaskStorage<<() as run::_EmbassyInternalTaskTrait>::Fut>`
+<- required because it appears within the type `[TaskStorage<<() as run::_EmbassyInternalTaskTrait>::Fut>; 1]`
+<-  required because it appears within the type `TaskPool<<() as run::_EmbassyInternalTaskTrait>::Fut, 1>`
+<- static POOL
+<- shared static variables must have a type that implements `Sync`
+-> 
+
+<- RunQueueItem <- TaskHeader <- TaskStorage <- TaskPool <- static POOL
+shared static variables must have a type that implements `Sync`
+-> unsafe impl Send for TaskRef where &'static TaskHeader: Send {}
+
+
+
+pub(crate) struct SyncExecutor
+    run_queue: RunQueue,
+    pender: Pender,
+
+    pub(crate) struct Pender(*mut ());
+
+
+`*mut ()` cannot be shared between threads safely <-
+<- required because it appears within the type `raw::Pender`
+<- required because it appears within the type `raw::SyncExecutor`
+<- required because it appears within the type `Option<&'static raw::SyncExecutor>`
+<- required because it appears within the type `raw::TaskHeader`
+<- required because it appears within the type `TaskStorage<<() as __embassy_main::_EmbassyInternalTaskTrait>::Fut>`
+<- required because it appears within the type `TaskPool<<() as __embassy_main::_EmbassyInternalTaskTrait>::Fut, 1>`
+-> unsafe impl Sync for Pender {}

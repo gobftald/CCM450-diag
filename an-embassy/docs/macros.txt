@@ -1,16 +1,9 @@
 #[embassy_executor::task]
 async fn run() {}
+expanded to:
 
-//  #[cfg(not(feature = "nightly"))]
 async fn __run_task() {}
-fn run() -> ::embassy_executor::SpawnToken<impl Sized> {
-    const POOL_SIZE: usize = 1;
-    static POOL: ::embassy_executor::_export::TaskPoolRef = ::embassy_executor::_export::TaskPoolRef::new();
-    unsafe { POOL.get::<_, POOL_SIZE>()._spawn_async_fn(move || __run_task()) }
-}
 
-// #[cfg(feature = "nightly")]
-async fn __run_task() {}
 fn run() -> ::embassy_executor::SpawnToken<impl Sized> {
     trait _EmbassyInternalTaskTrait {
         type Fut: ::core::future::Future + 'static;
@@ -23,6 +16,7 @@ fn run() -> ::embassy_executor::SpawnToken<impl Sized> {
         }
     }
     const POOL_SIZE: usize = 1;
+// local static POOL, which is a TaskPool
     static POOL: ::embassy_executor::raw::TaskPool<
         <() as _EmbassyInternalTaskTrait>::Fut,
         POOL_SIZE,
@@ -32,47 +26,33 @@ fn run() -> ::embassy_executor::SpawnToken<impl Sized> {
     }
 }
 
+// _spawn_async_fn (its arg is the future of fn __run_task() see above)
+       self.spawn_impl::<FutFn>(future) // self is (of course) a TaskPool
+           fn spawn_impl<T>(&'static self, future: impl FnOnce() -> F) -> SpawnToken<T>
+               match self.pool.iter().find_map(AvailableTask::claim) // get the only one (POOL_SIZE=1) from TaskPool
+                   Some(task) => task.initialize_impl::<T>(future),
+                   fn initialize_impl<S>(self, future: impl FnOnce() -> F) -> SpawnToken<S>
+                        // every task store this same TaskStorag::poll
+                        // which then will get the task's future and poll that future
+                        self.task.raw.poll_fn.set(Some(TaskStorage::<F>::poll));
+                        self.task.future.write_in_place(future);
+                        let task = TaskRef::new(self.task);
+                        SpawnToken::new(task)   // return with SpawnToken in which a TaskRef
+This SpawnToken is the output of #[embassy_executor::task]
+                                 async fn __run_task() {}
+which contains tha spawned task's TaskRef, which points to the TaskHeader, which has all info about the task
+
 ########################
 
 
-//  #[cfg(not(feature = "nightly"))]
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {}
+expanded to:
 
 async fn ____embassy_main_task(spawner: Spawner) {
     {}
 }
 
-fn __embassy_main(spawner: Spawner) -> ::embassy_executor::SpawnToken<impl Sized> {
-    const POOL_SIZE: usize = 1;
-    static POOL: ::embassy_executor::_export::TaskPoolRef = ::embassy_executor::_export::TaskPoolRef::new();
-    unsafe {
-        POOL.get::<_, POOL_SIZE>()
-            ._spawn_async_fn(move || ____embassy_main_task(spawner))
-    }
-}
-
-unsafe fn __make_static<T>(t: &mut T) -> &'static mut T {
-    ::core::mem::transmute(t)
-}
-
-#[allow(non_snake_case)]
-#[export_name = "main"]
-pub fn __risc_v_rt__main() -> ! {
-    let mut executor = ::esp_hal_embassy::Executor::new();
-    let executor = unsafe { __make_static(&mut executor) };
-    executor
-        .run(|spawner| {
-            spawner.must_spawn(__embassy_main(spawner));
-        })
-}
-
-
-// #[cfg(feature = "nightly")]
-async fn ____embassy_main_task(spawner: Spawner) {
-    {}
-}
-#[doc(hidden)]
 fn __embassy_main(spawner: Spawner) -> ::embassy_executor::SpawnToken<impl Sized> {
     trait _EmbassyInternalTaskTrait {
         type Fut: ::core::future::Future + 'static;
@@ -85,6 +65,7 @@ fn __embassy_main(spawner: Spawner) -> ::embassy_executor::SpawnToken<impl Sized
         }
     }
     const POOL_SIZE: usize = 1;
+// local static POOL, which is a TaskPool
     static POOL: ::embassy_executor::raw::TaskPool<
         <() as _EmbassyInternalTaskTrait>::Fut,
         POOL_SIZE,
@@ -94,6 +75,7 @@ fn __embassy_main(spawner: Spawner) -> ::embassy_executor::SpawnToken<impl Sized
             spawner,
         ))
     }
+// until there it is the same as it was in task macro
 }
 
 unsafe fn __make_static<T>(t: &mut T) -> &'static mut T {
@@ -102,6 +84,7 @@ unsafe fn __make_static<T>(t: &mut T) -> &'static mut T {
 #[allow(non_snake_case)]
 #[export_name = "main"]
 pub fn __risc_v_rt__main() -> ! {
+    // !!! this executor is not from embassy-executor but from esp_hal_embassy !!!
     let mut executor = ::esp_hal_embassy::Executor::new();
     let executor = unsafe { __make_static(&mut executor) };
     executor
@@ -109,3 +92,57 @@ pub fn __risc_v_rt__main() -> ! {
             spawner.must_spawn(__embassy_main(spawner));
         })
 }
+
+pub fn run(&'static mut self, init: impl FnOnce(Spawner)) -> !
+    init(self.inner.spawner()); // get spawner then call init which is a closure of 'must_spawn'
+    ...
+
+// get spawner
+pub fn spawner(&'static self) -> super::Spawner // in raw::Executor
+    super::Spawner::new(self)
+        pub(crate) fn new(executor: &'static raw::Executor) -> Self // in Spawner
+            Self {
+
+// then call init which is a closure of must_spawn
+// must_spawn's argument is __embassy_main(spawner)
+__embassy_main(spawner) // return with the same SpawnToken as in 'task' macro
+                        // in which a TaskRef points to an embassy task which contains
+                        // async fn ____embassy_main_task future in TaskHeader's 'future' member
+                        // this part are the same as in 'task' macro
+
+// but here in contrast to 'task' macro we enqueue this spawned '____embassy_main_task' we've got in SpawnToken
+    pub fn must_spawn<S>(&self, token: SpawnToken<S>)
+        // here we use 'unwrap!' from esp_hal and not from fmt.rs in embassy_executor
+        esp_hal::unwrap!(self.spawn(token));    // give a chance to panic when spawn fails
+            // this is 'another' spawn (since the task was already '_spawn_async_fn'-ed)
+            // which 'assigns' the executor to the task then 'enqueues' it to the RunQueue
+            pub fn spawn<S>(&self, token: SpawnToken<S>) -> Result<(), SpawnError> // in Spawner
+                let task = token.raw_task;
+                mem::forget(token);
+                match task
+                    Some(task) =>
+                        unsafe { self.executor.spawn(task) }    // raw::Executor
+                        Ok(())
+                    None => Err(SpawnError::Busy),
+
+                pub(super) unsafe fn spawn(&'static self, task: TaskRef)
+                    self.inner.spawn(task)
+
+                    pub(super) unsafe fn spawn(&'static self, task: TaskRef) // in raw::SyncExecutor
+                        task.header().executor.set(Some(self)); // assign to en executor
+                        self.enqueue(task);
+
+// after init 'run' continues with the top level loop:
+pub fn run(&'static mut self, init: impl FnOnce(Spawner)) -> ! // this run is in esp_hal_embassy !!!
+    init(self.inner.spawner()); // it is done, see above
+    let cpu = get_core() as usize;
+    // this is the top level loop
+    // which polls raw::Executor
+    loop {
+        unsafe {
+            self.inner.poll();  // raw::Executor
+
+            Self::wait_impl(cpu);
+        }
+    }
+    
