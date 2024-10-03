@@ -107,7 +107,7 @@ pub fn spawner(&'static self) -> super::Spawner // in raw::Executor
 // must_spawn's argument is __embassy_main(spawner)
 __embassy_main(spawner) // return with the same SpawnToken as in 'task' macro
                         // in which a TaskRef points to an embassy task which contains
-                        // async fn ____embassy_main_task future in TaskHeader's 'future' member
+                        // ____embassy_main_task in TaskHeader's 'future' member
                         // this part are the same as in 'task' macro
 
 // but here in contrast to 'task' macro we enqueue this spawned '____embassy_main_task' we've got in SpawnToken
@@ -120,7 +120,7 @@ __embassy_main(spawner) // return with the same SpawnToken as in 'task' macro
                 let task = token.raw_task;
                 mem::forget(token);
                 match task
-                    Some(task) =>
+                    Some(task) => 
                         unsafe { self.executor.spawn(task) }    // raw::Executor
                         Ok(())
                     None => Err(SpawnError::Busy),

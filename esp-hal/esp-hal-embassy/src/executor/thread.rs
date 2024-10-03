@@ -11,6 +11,11 @@ pub(crate) const THREAD_MODE_CONTEXT: u8 = 16;
 #[cfg(not(multi_core))]
 static SIGNAL_WORK_THREAD_MODE: [AtomicBool; 1] = [AtomicBool::new(false)];
 
+pub(crate) fn pend_thread_mode(core: usize) {
+    // Signal that there is work to be done.
+    SIGNAL_WORK_THREAD_MODE[core].store(true, Ordering::SeqCst);
+}
+
 pub struct Executor {
     inner: raw::Executor,
     not_send: PhantomData<*mut ()>,

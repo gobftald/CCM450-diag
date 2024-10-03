@@ -5,10 +5,14 @@ mod run_queue;
 mod state;
 
 pub(crate) mod util;
+mod waker;
 
 use core::future::Future;
 use core::marker::PhantomData;
+use core::mem;
+use core::pin::Pin;
 use core::ptr::NonNull;
+use core::task::{Context, Poll};
 
 use self::run_queue::{RunQueue, RunQueueItem};
 use self::state::State;
@@ -42,10 +46,30 @@ unsafe impl Send for TaskRef where &'static TaskHeader: Send {}
 
 // 65
 impl TaskRef {
+    // 66
     fn new<F: Future + 'static>(task: &'static TaskStorage<F>) -> Self {
         Self {
             ptr: NonNull::from(task).cast(),
         }
+    }
+
+    /// Safety: The pointer must have been obtained with `Task::as_ptr`
+    // 72
+    pub(crate) unsafe fn from_ptr(ptr: *const TaskHeader) -> Self {
+        Self {
+            ptr: NonNull::new_unchecked(ptr as *mut TaskHeader),
+        }
+    }
+
+    // 79
+    pub(crate) fn header(self) -> &'static TaskHeader {
+        unsafe { self.ptr.as_ref() }
+    }
+
+    /// The returned pointer is valid for the entire TaskStorage.
+    // 83
+    pub(crate) fn as_ptr(self) -> *const TaskHeader {
+        self.ptr.as_ptr()
     }
 }
 
@@ -94,7 +118,26 @@ impl<F: Future + 'static> TaskStorage<F> {
 
     // 153
     unsafe fn poll(p: TaskRef) {
-        /* ... */
+        let this = &*(p.as_ptr() as *const TaskStorage<F>);
+
+        let future = Pin::new_unchecked(this.future.as_mut());
+        let waker = waker::from_task(p);
+        let mut cx = Context::from_waker(&waker);
+        match future.poll(&mut cx) {
+            Poll::Ready(_) => {
+                // embassy task dropped and despawn
+                this.future.drop_in_place();
+                this.raw.state.despawn();
+
+                #[cfg(feature = "integrated-timers")]
+                this.raw.expires_at.set(u64::MAX);
+            }
+            Poll::Pending => {}
+        }
+
+        // the compiler is emitting a virtual call for waker drop, but we know
+        // it's a noop for our waker.
+        mem::forget(waker);
     }
 }
 
@@ -117,7 +160,10 @@ impl<F: Future + 'static> AvailableTask<F> {
     // 197
     fn initialize_impl<S>(self, future: impl FnOnce() -> F) -> SpawnToken<S> {
         unsafe {
+            // every task store the same TaskStorag::poll in it
+            // which then will get the task's future and poll that future
             self.task.raw.poll_fn.set(Some(TaskStorage::<F>::poll));
+            // it is a closure which gives embassy's 'main' or 'tasks' macros wraped async functions
             self.task.future.write_in_place(future);
 
             let task = TaskRef::new(self.task);
@@ -172,10 +218,21 @@ impl<F: Future + 'static, const N: usize> TaskPool<F, N> {
 // 301
 pub(crate) struct Pender(*mut ());
 
-// 34
+// 304
 // don't need it yet
 //unsafe impl Send for Pender {}
 unsafe impl Sync for Pender {}
+
+// 307
+impl Pender {
+    pub(crate) fn pend(self) {
+        extern "Rust" {
+            // in esp-hal-embassy
+            fn __pender(context: *mut ());
+        }
+        unsafe { __pender(self.0) };
+    }
+}
 
 // 316
 pub(crate) struct SyncExecutor {
@@ -206,20 +263,92 @@ impl SyncExecutor {
         }
     }
 
-    // 364
-    pub(super) unsafe fn spawn(&'static self, task: TaskRef) {
-        /*
-        task.header().executor.set(Some(self));
-
-        #[cfg(feature = "rtos-trace")]
-        trace::task_new(task.as_ptr() as u32);
-
-        self.enqueue(task);
-        */
+    /// Enqueue a task in the task queue
+    #[inline(always)]
+    // 349
+    unsafe fn enqueue(&self, task: TaskRef) {
+        esp_hal::trace!(
+            "enqueue (rtos_task_ready_begin): 0x{:x}",
+            task.as_ptr() as u32
+        );
+        if self.run_queue.enqueue(task) {
+            self.pender.pend();
+        }
     }
 
+    // 364
+    pub(super) unsafe fn spawn(&'static self, task: TaskRef) {
+        task.header().executor.set(Some(self));
+        esp_hal::trace!("spawn (rtos_task_new): 0x{:x}", task.as_ptr() as u32);
+        self.enqueue(task);
+    }
+
+    /// Same as [`Executor::poll`], plus you must only call this on the thread this executor was created.
     // 376
-    pub(crate) unsafe fn poll(&'static self) {}
+    pub(crate) unsafe fn poll(&'static self) {
+        #[cfg(feature = "integrated-timers")]
+        embassy_time_driver::set_alarm_callback(
+            self.alarm,
+            Self::alarm_callback,
+            self as *const _ as *mut (),
+        );
+
+        loop {
+            #[cfg(feature = "integrated-timers")]
+            self.timer_queue
+                .dequeue_expired(embassy_time_driver::now(), wake_task_no_pend);
+
+            self.run_queue.dequeue_all(|p| {
+                let task = p.header();
+
+                #[cfg(feature = "integrated-timers")]
+                task.expires_at.set(u64::MAX);
+
+                if !task.state.run_dequeue() {
+                    // If task is not running, ignore it. This can happen in the following scenario:
+                    //   - Task gets dequeued, poll starts
+                    //   - While task is being polled, it gets woken. It gets placed in the queue.
+                    //   - Task poll finishes, returning done=true
+                    //   - RUNNING bit is cleared, but the task is already in the queue.
+                    return;
+                }
+
+                esp_hal::trace!(
+                    "sof poll_fn (rtos_task_exec_begin): 0x{:x}",
+                    task as *const TaskHeader
+                );
+
+                // Run the task
+                task.poll_fn.get().unwrap_unchecked()(p);
+
+                esp_hal::trace!(
+                    "eof poll_fn (rtos_task_exec_end): 0x{:x}",
+                    task as *const TaskHeader
+                );
+
+                // Enqueue or update into timer_queue
+                #[cfg(feature = "integrated-timers")]
+                self.timer_queue.update(p);
+            });
+
+            #[cfg(feature = "integrated-timers")]
+            {
+                // If this is already in the past, set_alarm might return false
+                // In that case do another poll loop iteration.
+                let next_expiration = self.timer_queue.next_expiration();
+                if embassy_time_driver::set_alarm(self.alarm, next_expiration) {
+                    break;
+                }
+            }
+
+            #[cfg(not(feature = "integrated-timers"))]
+            {
+                break;
+            }
+        }
+
+        esp_hal::trace!("eof SyncExecutor poll (rtos_system_idle)");
+    }
 }
 
 #[repr(transparent)]
@@ -279,5 +408,20 @@ impl Executor {
     // 533
     pub fn spawner(&'static self) -> super::Spawner {
         super::Spawner::new(self)
+    }
+}
+
+/// Wake a task by `TaskRef`.
+///
+/// You can obtain a `TaskRef` from a `Waker` using [`task_from_waker`].
+// 541
+pub fn wake_task(task: TaskRef) {
+    let header = task.header();
+    if header.state.run_enqueue() {
+        // We have just marked the task as scheduled, so enqueue it.
+        unsafe {
+            let executor = header.executor.get().unwrap_unchecked();
+            executor.enqueue(task);
+        }
     }
 }

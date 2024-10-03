@@ -22,7 +22,13 @@ esp32c3 = ["esp-hal/esp32c3", "esp-println/esp32c3", "esp-backtrace?/esp32c3", "
 # if you switch this feature, you should also need to change config.toml
 # runner = "espflash flash --monitor --log-format defmt"
 # "-C", "link-arg=-Tdefmt.x",
-defmt = ["dep:defmt", "esp-hal/defmt", "esp-println/defmt-espflash", "esp-backtrace?/defmt"]
+defmt = [
+    "dep:defmt",
+    "esp-hal/defmt",
+    "esp-println/defmt-espflash",
+    "esp-backtrace?/defmt",
+    "embassy-executor/defmt",
+]
 
 # println calls become empty code
 # this controls only no defmt println

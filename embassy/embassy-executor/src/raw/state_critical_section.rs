@@ -40,4 +40,33 @@ impl State {
             }
         })
     }
+
+    /// Unmark the task as spawned.
+    #[inline(always)]
+    pub fn despawn(&self) {
+        self.update(|s| *s &= !STATE_SPAWNED);
+    }
+
+    /// Mark the task as run-queued if it's spawned and isn't already run-queued. Return true on success.
+    #[inline(always)]
+    pub fn run_enqueue(&self) -> bool {
+        self.update(|s| {
+            if (*s & STATE_RUN_QUEUED != 0) || (*s & STATE_SPAWNED == 0) {
+                false
+            } else {
+                *s |= STATE_RUN_QUEUED;
+                true
+            }
+        })
+    }
+
+    /// Unmark the task as run-queued. Return whether the task is spawned.
+    #[inline(always)]
+    pub fn run_dequeue(&self) -> bool {
+        self.update(|s| {
+            let ok = *s & STATE_SPAWNED != 0;
+            *s &= !STATE_RUN_QUEUED;
+            ok
+        })
+    }
 }

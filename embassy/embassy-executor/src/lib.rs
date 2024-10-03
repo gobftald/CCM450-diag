@@ -1,5 +1,8 @@
 #![no_std]
 
+// for defmt logs (brings defmt runtime into scope)
+use esp_println as _;
+
 // 12
 pub use embassy_executor_macros::task;
 

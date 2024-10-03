@@ -4,10 +4,14 @@ version = "0.6.0"
 edition = "2021"
 
 [dependencies]
-defmt                   = { version = "0.3.8", optional = true }
+defmt       = { version = "0.3.8", optional = true }
+## the next two dependecies only for defmt unwrap and log macros
+# when no defmt unwrap becomes core::unwrap, log macros become no-op
+esp-hal     = { version = "0.20.1", path = "../../esp-hal/esp-hal" }
+# defines defmt runtime
+esp-println = { version = "0.11.0", path = "../../esp-hal/esp-println" }
+
 embassy-executor-macros = { version = "0.5.0", path = "../embassy-executor-macros" }
-# only for unwrap macro
-esp-hal                 = { version = "0.20.1", path = "../../esp-hal/esp-hal" }
 critical-section        = "1.1"
 
 [features]
@@ -18,3 +22,7 @@ nightly = ["embassy-executor-macros/nightly"]
 ## Use the executor-integrated `embassy-time` timer queue.
 integrated-timers = []
 
+## Enable the thread-mode executor (using WFE/SEV in Cortex-M, WFI in other embedded archs)
+executor-thread = []
+
+defmt = ["dep:defmt", "esp-hal/defmt", "esp-println/defmt-espflash"]

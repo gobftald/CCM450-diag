@@ -9,6 +9,16 @@ PROVIDE(ExceptionHandler = DefaultExceptionHandler);
 PROVIDE(__post_init = default_post_init);
 
 /* esp32c3 fixups */
+SECTIONS {
+  .text.dummy (NOLOAD) :
+  {
+    /* This section is intended to make _stext address work */
+    . = ABSOLUTE(_stext);
+  } > ROTEXT
+}
+#INSERT BEFORE .text;
+# if you insert debug_text.x in text.x
+INSERT BEFORE .esp-riscv-rt;
 
 SECTIONS {
   .trap : ALIGN(4)
@@ -29,7 +39,9 @@ SECTIONS {
     /* Start at the same alignement constraint than .text */
     . = ALIGN(4);
     /* Create an empty gap as big as .text section */
-    . = . + SIZEOF(.text);
+    #. = . + SIZEOF(.text);
+    #  Calculation method was changed to take account of debug_text.x
+    . = . + (_etext - _stext);
     /* Prepare the alignement of the section above. Few bytes (0x20) must be
      * added for the mapping header. */
     . = ALIGN(0x10000) + 0x20;

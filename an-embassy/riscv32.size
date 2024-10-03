@@ -1,0 +1,137 @@
+.esp-riscv-rt                                                                               206     0xce
+    0x42000020
+    _start                                                               8
+    0x42000028
+    _abs_start                                                         144
+    0x420000b8
+    _start_rust                                                         46
+    0x420000e6
+    abort                                                                4
+    0x420000ea
+    DefaultExceptionHandler                                              2
+    0x420000ec
+    default_post_init                                                    2
+    0x420000f0
+
+.hal                                                                                        764     0x2fc
+                                                                                            882     0x372
+    _setup_interrupts                                                  508
+    EspDefaultHandler                                                    2  66
+    hal_main                                                             8
+
+    esp_hal_embassy::executor::thread::Executor::run                   110  164
+    esp_hal_embassy::executor::thread::Executor::wait_impl             100
+    __pender                                                            36
+
+.esp-println                                                                                28      0x1c
+                                                                                            1582    0x62e
+    _critical_section_1_0_acquire                                       12
+    _critical_section_1_0_release                                       16
+    esp_println::defmt::Logger as defmt::traits::Logger::acquire            414
+    esp_println::defmt::Logger as defmt::traits::Logger::release            502
+    esp_println::defmt::Logger as defmt::traits::Logger::write              638
+
+.embassy-exec                                                                               238     0xee
+                                                                                            686     0x2ae
+    embassy_executor::raw::TaskStorage::poll                            50
+    embassy_executor::raw::util::UninitCell::write_in_place             16
+    embassy_executor::raw::Executor::spawn                              78  216
+    embassy_executor::raw::Executor::poll                               94  404
+
+.text                                                                                       18      0x12
+                                                                                            286     0x11e
+    defmt::export::fmt                                                      34
+    main                                                                18
+    defmt::export::fmt                                                      50
+    esp32c3::interrupt::Interrupt as defmt::traits::Format::_format_data    26
+    _defmt_acquire                                                           8
+    _defmt_release                                                           8
+    _defmt_write                                                             8
+    defmt::export::integers::u32
+    defmt::export::integers::usize
+    defmt::export::f32
+    defmt::export::integers::isize
+    defmt::export::integers::i32                                            26
+    defmt::export::istr
+    defmt::export::integers::u16
+    defmt::export::integers::i16                                            32
+    defmt::export::header                                                   40
+    __defmt_default_timestamp                                                2
+    __defmt_default_panic                                                    2
+    defmt::export::integers::u8
+    defmt::export::integers::i8                                             32
+
+.rodata                                                                                     92      0x5c
+                                                                                            408     0x198
+
+.trap                                                                                       1170    0x492
+    0x40380000
+    _handle_priority                                                    40
+    _restore_priority                                                   16
+    padding                                                            200
+    _start_trap(x)                                                     456
+    _start_trap_direct                                                 190
+    padding                                                            122
+    _vector_table                                                      128
+    _start_trap_rust_hal                                                16
+    padding                                                              2
+
+.rwtext                                                                                     700     0x2bc
+                                                                                            764     0x2fc
+    interrupt1                                                           8
+    interrupt15                                                          8
+    handle_interrupts                                                  434  498
+    padding                                                              2
+    __EXTERNAL_INTERRUPTS                                              248
+
+.data                                                                                       0
+
+.bss                                                                                        28      0x1c
+                                                                                            32      0x20
+    esp_hal_embassy::executor::thread::SIGNAL_WORK_THREAD_MODE           1
+    esp_println::defmt::TAKEN                                            1
+    esp_println::defmt::CS_RESTORE                                       1
+    esp_println::defmt::ENCODER.0                                        1
+    esp_println::defmt::ENCODER.1                                        1
+    esp_println::defmt::ENCODER.2                                        1
+    esp_println::serial_jtag_printer::TIMED_OUT                          1
+    padding                                                              1
+    an_embassy::__embassy_main::POOL                                    24
+
+
+1: 'cargo run --release' - panic_immediate_abort=on -> no log
+esp_image: segment 3: paddr=00020020 vaddr=42000020 size=004ech (  1260) map                .esp-riscv-rt
+                                                                                            .hal
+                                                                                            .esp-println
+                                                                                            .embassy-exec
+                                                                                            .text
+
+esp_image: segment 0: paddr=00010020 vaddr=3c010020 size=0005ch (    92) map                .rodata
+esp_image: segment 1: paddr=00010084 vaddr=40380000 size=00750h (  1872) load               .trap +  .rwtext
+
+                                                                                            3224
+
+
+2: 'DEFMT_LOG=trace cargo run --release --features=defmt' - panic_immediate_abort=on
+esp_image: segment 3: paddr=00020020 vaddr=42000020 size=00e44h (  3652) map                .esp-riscv-rt
+                                                                                            .hal
+                                                                                            .esp-println
+                                                                                            .embassy-exec
+                                                                                            .text
+esp_image: segment 0: paddr=00010020 vaddr=3c010020 size=00198h (   408) map                .rodata
+esp_image: segment 1: paddr=000101c0 vaddr=40380000 size=00790h (  1936) load               .trap +  .rwtext
+
+                                                                                            5996
+
+
+3: 'DEFMT_LOG=trace cargo run --release --features=defmt' - panic_immediate_abort=off
+esp_image: segment 3: paddr=00020020 vaddr=42000020 size=0172ch (  5932) map
+esp_image: segment 0: paddr=00010020 vaddr=3c010020 size=004f4h (  1268) map
+esp_image: segment 1: paddr=0001051c vaddr=40380000 size=007cch (  1996) load
+                                                                                            9196
+
+4: cargo run --release - panic_immediate_abort=off  -> no log
+esp_image: segment 3: paddr=00020020 vaddr=42000020 size=01250h (  4688) map
+esp_image: segment 0: paddr=00010020 vaddr=3c010020 size=00820h (  2080) map
+esp_image: segment 1: paddr=00010848 vaddr=40380000 size=007cch (  1996) load
+                                                                                            8764
