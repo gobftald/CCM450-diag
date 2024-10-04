@@ -5,6 +5,8 @@ edition = "2021"
 
 [dependencies]
 defmt            = { version = "0.3.8",  optional = true }
+# only to access the 'embassy_executor::task' proc macro,
+# otherwise we try to control/feature embassy via esp-hal-embassy
 embassy-executor = { version = "0.6.0", path = "../embassy/embassy-executor",optional = true, features = [
     # feature to allocate all tasks in statics
     "nightly" ]}
@@ -38,4 +40,8 @@ no-op = ["esp-println/no-op"]
 # "-C", "force-frame-pointers" needed in config.toml
 esp-backtrace = ["dep:esp-backtrace"]
 
-embassy = ["dep:esp-hal-embassy", "dep:embassy-executor"]
+embassy = [
+    "dep:esp-hal-embassy",
+    "dep:embassy-executor",
+    "esp-hal-embassy/integrated-timers",
+]

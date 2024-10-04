@@ -6,6 +6,9 @@ use critical_section::Mutex;
 pub(crate) const STATE_SPAWNED: u32 = 1 << 0;
 /// Task is in the executor run queue
 pub(crate) const STATE_RUN_QUEUED: u32 = 1 << 1;
+/// Task is in the executor timer queue
+#[cfg(feature = "integrated-timers")]
+pub(crate) const STATE_TIMER_QUEUED: u32 = 1 << 2;
 
 pub(crate) struct State {
     state: Mutex<Cell<u32>>,
@@ -48,6 +51,7 @@ impl State {
     }
 
     /// Mark the task as run-queued if it's spawned and isn't already run-queued. Return true on success.
+    // called from wake_task and wake_task_no_pend
     #[inline(always)]
     pub fn run_enqueue(&self) -> bool {
         self.update(|s| {
@@ -68,5 +72,23 @@ impl State {
             *s &= !STATE_RUN_QUEUED;
             ok
         })
+    }
+
+    /// Mark the task as timer-queued. Return whether it was newly queued (i.e. not queued before)
+    #[cfg(feature = "integrated-timers")]
+    #[inline(always)]
+    pub fn timer_enqueue(&self) -> bool {
+        self.update(|s| {
+            let ok = *s & STATE_TIMER_QUEUED == 0;
+            *s |= STATE_TIMER_QUEUED;
+            ok
+        })
+    }
+
+    /// Unmark the task as timer-queued.
+    #[cfg(feature = "integrated-timers")]
+    #[inline(always)]
+    pub fn timer_dequeue(&self) {
+        self.update(|s| *s &= !STATE_TIMER_QUEUED);
     }
 }

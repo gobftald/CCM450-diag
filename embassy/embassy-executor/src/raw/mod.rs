@@ -4,6 +4,9 @@ mod run_queue;
 #[cfg_attr(not(target_has_atomic = "8"), path = "state_critical_section.rs")]
 mod state;
 
+#[cfg(feature = "integrated-timers")]
+mod timer_queue;
+
 pub(crate) mod util;
 mod waker;
 
@@ -14,12 +17,16 @@ use core::pin::Pin;
 use core::ptr::NonNull;
 use core::task::{Context, Poll};
 
+#[cfg(feature = "integrated-timers")]
+use embassy_time_driver::AlarmHandle;
+
 use self::run_queue::{RunQueue, RunQueueItem};
 use self::state::State;
 use self::util::{SyncUnsafeCell, UninitCell};
 use super::SpawnToken;
 
 /// Raw task header for use in task pointers.
+// 44
 pub(crate) struct TaskHeader {
     pub(crate) state: State,
     pub(crate) run_queue_item: RunQueueItem,
@@ -41,8 +48,7 @@ pub struct TaskRef {
 
 // 62
 unsafe impl Send for TaskRef where &'static TaskHeader: Send {}
-// we don't need it yet
-//unsafe impl Sync for TaskRef where &'static TaskHeader: Sync {}
+unsafe impl Sync for TaskRef where &'static TaskHeader: Sync {}
 
 // 65
 impl TaskRef {
@@ -130,6 +136,7 @@ impl<F: Future + 'static> TaskStorage<F> {
                 this.raw.state.despawn();
 
                 #[cfg(feature = "integrated-timers")]
+                // if task exit, alarm is cleared
                 this.raw.expires_at.set(u64::MAX);
             }
             Poll::Pending => {}
@@ -250,7 +257,7 @@ impl SyncExecutor {
     // 327
     pub(crate) fn new(pender: Pender) -> Self {
         #[cfg(feature = "integrated-timers")]
-        let alarm = unsafe { unwrap!(embassy_time_driver::allocate_alarm()) };
+        let alarm = unsafe { esp_hal::unwrap!(embassy_time_driver::allocate_alarm()) };
 
         Self {
             run_queue: RunQueue::new(),
@@ -276,6 +283,13 @@ impl SyncExecutor {
         }
     }
 
+    #[cfg(feature = "integrated-timers")]
+    // 359
+    fn alarm_callback(ctx: *mut ()) {
+        let this: &Self = unsafe { &*(ctx as *const Self) };
+        this.pender.pend();
+    }
+
     // 364
     pub(super) unsafe fn spawn(&'static self, task: TaskRef) {
         task.header().executor.set(Some(self));
@@ -287,6 +301,8 @@ impl SyncExecutor {
     // 376
     pub(crate) unsafe fn poll(&'static self) {
         #[cfg(feature = "integrated-timers")]
+        // in case of one thread/one core maybe this does not need to call at every poll
+        // but only once in SyncExecutor::new()
         embassy_time_driver::set_alarm_callback(
             self.alarm,
             Self::alarm_callback,
@@ -298,12 +314,15 @@ impl SyncExecutor {
             self.timer_queue
                 .dequeue_expired(embassy_time_driver::now(), wake_task_no_pend);
 
+            // get all tasks in run_queue and run the closure with it
             self.run_queue.dequeue_all(|p| {
                 let task = p.header();
 
                 #[cfg(feature = "integrated-timers")]
+                // if task is in run_queue, it will be run, so its alarm should be cleared
                 task.expires_at.set(u64::MAX);
 
+                // not in spawned state but in run_queue, do nothing with the task
                 if !task.state.run_dequeue() {
                     // If task is not running, ignore it. This can happen in the following scenario:
                     //   - Task gets dequeued, poll starts
@@ -319,6 +338,8 @@ impl SyncExecutor {
                 );
 
                 // Run the task
+                // poll_fn = TaskStorage::poll -> run the stored future,
+                // which is the decorated main or other tasks
                 task.poll_fn.get().unwrap_unchecked()(p);
 
                 esp_hal::trace!(
@@ -327,26 +348,32 @@ impl SyncExecutor {
                 );
 
                 // Enqueue or update into timer_queue
+                // if during the run of tasks an alarm was set
                 #[cfg(feature = "integrated-timers")]
                 self.timer_queue.update(p);
             });
 
+            // after all tasks either in timer_queue or run_queue run
             #[cfg(feature = "integrated-timers")]
             {
                 // If this is already in the past, set_alarm might return false
                 // In that case do another poll loop iteration.
                 let next_expiration = self.timer_queue.next_expiration();
+                // `true` signals that no re-polling is necessary.
                 if embassy_time_driver::set_alarm(self.alarm, next_expiration) {
                     break;
                 }
+                // re-polling is necessary
             }
 
+            // if no timers and all tasks run. no need to poll again
             #[cfg(not(feature = "integrated-timers"))]
             {
                 break;
             }
         }
 
+        // all tasks run and all alarm was handled, nothing to do, idle to wfi
         esp_hal::trace!("eof SyncExecutor poll (rtos_system_idle)");
     }
 }
@@ -422,6 +449,21 @@ pub fn wake_task(task: TaskRef) {
         unsafe {
             let executor = header.executor.get().unwrap_unchecked();
             executor.enqueue(task);
+        }
+    }
+}
+
+/// Wake a task by `TaskRef` without calling pend.
+///
+/// You can obtain a `TaskRef` from a `Waker` using [`task_from_waker`].
+// 555
+pub fn wake_task_no_pend(task: TaskRef) {
+    let header = task.header();
+    if header.state.run_enqueue() {
+        // We have just marked the task as scheduled, so enqueue it.
+        unsafe {
+            let executor = header.executor.get().unwrap_unchecked();
+            executor.run_queue.enqueue(task);
         }
     }
 }

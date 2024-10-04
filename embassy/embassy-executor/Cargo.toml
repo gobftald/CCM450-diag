@@ -12,6 +12,7 @@ esp-hal     = { version = "0.20.1", path = "../../esp-hal/esp-hal" }
 esp-println = { version = "0.11.0", path = "../../esp-hal/esp-println" }
 
 embassy-executor-macros = { version = "0.5.0", path = "../embassy-executor-macros" }
+embassy-time-driver     = { version = "0.1.0", path = "../embassy-time-driver", optional = true }
 critical-section        = "1.1"
 
 [features]
@@ -20,7 +21,7 @@ critical-section        = "1.1"
 nightly = ["embassy-executor-macros/nightly"]
 
 ## Use the executor-integrated `embassy-time` timer queue.
-integrated-timers = []
+integrated-timers = ["dep:embassy-time-driver"]
 
 ## Enable the thread-mode executor (using WFE/SEV in Cortex-M, WFI in other embedded archs)
 executor-thread = []
