@@ -1,0 +1,17 @@
+mkdir ccm-diag                          // in ~/esp
+cd ccm-diag
+git init
+
+touch README.md
+vi README.md                            // project description
+git add README.md
+git commit
+
+make new repo (CCM450-diag) on github
+git remote add origin https://github.com/gobftald/CCM450-diag.git
+git push -u origin main                 // push and add upstream (tracking) reference,
+                                        // used by argument-less git-pull and other command
+
+mkdir studies
+cd studies
+cargo new --bin esp-minimal
