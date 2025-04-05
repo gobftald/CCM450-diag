@@ -1,4 +1,5 @@
 #![no_std]
+#![no_main]
 
 // since we config 'build-std-features = ["panic_immediate_abort"]'
 // this handler will be never called, but the compiler insists on it

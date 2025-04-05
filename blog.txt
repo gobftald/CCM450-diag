@@ -15,3 +15,7 @@ git push -u origin main                 // push and add upstream (tracking) refe
 mkdir studies
 cd studies
 cargo new --bin esp-minimal
+
+cargo build --release                   // in the esp-minimal crate root folder
+riscv32-esp-elf-objdump -xD esp-minimal|les         // in esp-minimal/target/riscv32imc-unknown-none-elf/release
+hexdump -C esp-minimal|less                         // in esp-minimal/target/riscv32imc-unknown-none-elf/release
