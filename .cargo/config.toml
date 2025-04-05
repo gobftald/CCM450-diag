@@ -3,3 +3,18 @@ target = "riscv32imc-unknown-none-elf"
 
 [target.riscv32imc-unknown-none-elf]
 runner = "espflash flash --monitor"
+
+
+# this needs for "panic_immediate_abort"
+[profile.debug]
+panic = 'abort'
+
+# this needs for "panic_immediate_abort"
+[profile.release]
+panic = 'abort'
+
+[unstable]
+# this will codegen every panic as an abort instruction without any panic message formatting.
+build-std-features = ["panic_immediate_abort"]
+# build core from source with "panic_immediate_abort" feature
+build-std = ["core"]
