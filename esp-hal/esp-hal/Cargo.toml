@@ -22,3 +22,8 @@ esp32h2 = []
 esp32s2 = []
 # Target the ESP32-S3.
 esp32s3 = []
+
+[build-dependencies]
+cfg-if       = "1.0.0"
+esp-build    = { version = "0.2.0", path = "../esp-build" }
+esp-metadata = { version = "0.6.0", path = "../esp-metadata" }

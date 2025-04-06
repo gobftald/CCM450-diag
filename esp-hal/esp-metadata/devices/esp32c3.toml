@@ -1,0 +1,10 @@
+[device]
+name  = "esp32c3"
+arch  = "riscv"
+cores = "single_core"
+
+peripherals = []
+
+symbols = []
+
+memory = []

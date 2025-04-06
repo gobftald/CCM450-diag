@@ -1,0 +1,10 @@
+[device]
+name  = "esp32"
+arch  = "xtensa"
+cores = "multi_core"
+
+peripherals = []
+
+symbols = []
+
+memory = []
