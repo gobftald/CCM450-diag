@@ -10,6 +10,7 @@ fn panic(_: &core::panic::PanicInfo) -> ! {
     }
 }
 
+#[esp_hal::main]
 fn main() {
     //println!("Hello, world!");
 }

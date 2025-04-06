@@ -1,0 +1,24 @@
+[package]
+name = "esp-hal"
+version = "1.0.0-beta.0"
+edition = "2021"
+
+[dependencies]
+procmacros   = { version = "0.17.0", package = "esp-hal-procmacros", path = "../esp-hal-procmacros" }
+
+[features]
+# Chip Support Feature Flags
+# Target the ESP32.
+esp32   = []
+# Target the ESP32-C2.
+esp32c2 = []
+# Target the ESP32-C3.
+esp32c3 = []
+# Target the ESP32-C6.
+esp32c6 = []
+# Target the ESP32-H2.
+esp32h2 = []
+# Target the ESP32-S2.
+esp32s2 = []
+# Target the ESP32-S3.
+esp32s3 = []

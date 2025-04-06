@@ -19,3 +19,29 @@ cargo new --bin esp-minimal
 cargo build --release                   // in the esp-minimal crate root folder
 riscv32-esp-elf-objdump -xD esp-minimal|les         // in esp-minimal/target/riscv32imc-unknown-none-elf/release
 hexdump -C esp-minimal|less                         // in esp-minimal/target/riscv32imc-unknown-none-elf/release
+
+mkdir esp-hal                           // creating esp-hal workspace
+cd esp-hal
+vi  Cargo.toml                          // but every subfolder is excluded, now the next subfolder of esp-hal
+cargo new --lib esp-hal
+cd esp-hal
+vi Config.toml                          // customize to version = "1.0.0-beta.0"
+
+git diff <commit number>                // view all diff from a (previous) commit
+                                        // newly added files are not visible
+                                        // 'git diff --cached' can show them (but only them)
+
+rustup update                           // Update Rust toolchains and rustup
+rustup show                             // show:    default host
+                                        //          installed toolchains
+                                        //          installed targets for active toolchain
+                                        //          active toolchain
+rustup toolchain list                   // show installed toolchains
+rustup toolchain uninstall <xxx>        // Uninstall a toolchain
+
+rustup toolchain install stable --component rust-src
+
+rustup target add riscv32imc-unknown-none-elf
+rustup target list                      // currently we are using:
+                                        // aarch64-apple-darwin (installed)
+                                        // riscv32imc-unknown-none-elf (installed)
