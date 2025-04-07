@@ -23,7 +23,7 @@ hexdump -C esp-minimal|less                         // in esp-minimal/target/ris
 mkdir esp-hal                           // creating esp-hal workspace
 cd esp-hal
 vi  Cargo.toml                          // but every subfolder is excluded, now the next subfolder of esp-hal
-cargo new --lib esp-hal
+cargo new --lib esp-hal                 // in ccm-diag/esp-hal
 cd esp-hal
 vi Config.toml                          // customize to version = "1.0.0-beta.0"
 
@@ -45,3 +45,18 @@ rustup target add riscv32imc-unknown-none-elf
 rustup target list                      // currently we are using:
                                         // aarch64-apple-darwin (installed)
                                         // riscv32imc-unknown-none-elf (installed)
+
+cargo new --lib esp-hal-procmacros      // in ccm-diag/esp-hal
+...
+cargo new --lib esp-build               // in ccm-diag/esp-hal
+...
+cargo new --lib esp-metadata            // in ccm-diag/esp-hal
+...
+cargo new --lib esp-riscv-rt            // in ccm-diag/esp-hal
+...
+mkdir riscv                             // creating riscv workspace in ccm-diag
+...
+cargo new --lib riscv-rt                // in ccm-diag/riscv
+...
+cargo new --lib macros                  // in ccm-diag/riscv/riscv-rt
+...

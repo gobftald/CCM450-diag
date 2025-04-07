@@ -27,3 +27,6 @@ esp32s3 = []
 cfg-if       = "1.0.0"
 esp-build    = { version = "0.2.0", path = "../esp-build" }
 esp-metadata = { version = "0.6.0", path = "../esp-metadata" }
+
+[target.'cfg(target_arch = "riscv32")'.dependencies]
+esp-riscv-rt = { version = "0.10.0", path = "../esp-riscv-rt" }
