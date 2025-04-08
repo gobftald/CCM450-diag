@@ -5,3 +5,11 @@ edition = "2021"
 
 [dependencies]
 riscv-rt-macros = { version = "0.4.0", path = "../../riscv/riscv-rt/macros" }
+
+[features]
+## Indicate that the device supports `mie` and `mip` instructions.
+# esp32c3 has no standalone mie and mip registers, but only a mie bit in mstatus
+has-mie-mip = []
+## Indicate that the device has RTC RAM.
+# we are not using esp32c3 RTC FAST Memory yet
+rtc-ram = []
