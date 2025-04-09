@@ -1,0 +1,2 @@
+#[cfg(riscv)]
+mod riscv;

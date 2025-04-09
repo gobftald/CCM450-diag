@@ -1,0 +1,146 @@
+prerequisite:
+[unstable]
+# this will codegen every panic as an abort instruction without any panic message formatting.
+build-std-features = ["panic_immediate_abort"]
+# build core from source with "panic_immediate_abort" feature
+build-std = ["core"]
+in .cargo/config.toml
+
+core/panicking.rs
+    pub const fn panic(expr: &'static str) -> !
+        panic_fmt(fmt::Arguments::new_const(&[expr]));
+
+    pub const fn panic_fmt(fmt: fmt::Arguments<'_>) -> !
+        if cfg!(feature = "panic_immediate_abort") {        // panic_immediate_abort is on in .cargo/config.toml
+            super::intrinsics::abort()
+        }
+
+e.g.:
+[debug version]
+#[esp_hal::main]
+fn main() -> ! {
+    core::panicking::panic("semmi");
+}
+
+Disassembly of section .rodata:
+0x3c000020: "semmi"
+0x3c000025: "src/main.rs"
+0x3c000030: 0x3c000025              // str descriptor for "src/main.rs"
+            0x0000000b
+
+<main>:
+    lui     a0,0x3c000
+    addi    a0,a0,32 # 3c000020     // addr of "semmi"
+                                    // if panic(""); these last two instructions is not appearing
+    lui     a2,0x3c000
+    addi    a2,a2,48 # 3c000030     // addre of descr of "src/main.rs"
+    li      a1,5
+    auipc   ra,0x0
+    jalr    8(ra) # 42010104        // call core::panicking::panic
+
+core::panicking::panic
+    ...
+    jalr    42(ra) # 42010142       // core::fmt::Arguments::new_const
+    ...
+    jalr    8(ra) # 4201012c        // core::panicking::panic_fmt
+
+core::panicking::panic_fmt
+    unimp                           // The current implementation of `intrinsics::abort` is to invoke
+                                    // an invalid instruction, on most platforms.
+
+core::fmt::Arguments::new_const
+    ...
+    ret
+
+/// The current implementation of `intrinsics::abort` is to invoke an invalid instruction,
+/// on most platforms.
+#[rustc_nounwind]
+#[rustc_intrinsic]
+#[rustc_intrinsic_must_be_overridden]
+core::intrinsics
+    pub fn abort() -> !
+    unreachable!()
+
+[release version]
+Sections:
+Idx Name          Size      VMA       LMA       File off  Algn
+  0 .rwtext       00000000  40380000  40380000  00000194  2**2
+                  CONTENTS, ALLOC, LOAD, READONLY, DATA
+  1 .rwdata_dummy 00000000  3fc80000  3fc80000  00000194  2**2
+                  ALLOC, READONLY
+  2 .data         00000000  3fc80000  3fc80000  00000194  2**2
+                  CONTENTS, ALLOC, LOAD, READONLY, DATA
+  3 .bss          00000000  3fc80000  3fc80000  00000194  2**2
+                  ALLOC
+  4 .rodata       00000000  3c000020  3c000020  00000194  2**2
+                  CONTENTS, ALLOC, LOAD, DATA
+  5 .rotext_dummy 00010000  42000020  42000020  00001020  2**0
+                  ALLOC
+  6 .text         000000d8  42010020  42010020  00001020  2**2
+                  CONTENTS, ALLOC, LOAD, READONLY, CODE
+  7 .stack        0004e400  3fc80000  3fc80000  00002000  2**2
+                  ALLOC, READONLY
+  8 .eh_frame     0000002c  00000000  00000000  00002000  2**2
+                  CONTENTS, READONLY
+  9 .comment      000000a1  00000000  00000000  0000202c  2**0
+                  CONTENTS, READONLY
+ 10 .riscv.attributes 0000002f  00000000  00000000  000020cd  2**0
+                  CONTENTS, READONLY
+so the only loaded bytes is in .text with size of 0xd8
+
+...
+<_start_rust>:
+    ...
+    jalr    16(ra) # 420100ee <hal_main>
+
+<main>:
+    unimp   // EVERYTHING WAS OPTIMIZED OUT
+
+
+
+
+core::panicking.rs
+    pub fn panic_nounwind_nobacktrace(expr: &'static str) -> !
+        panic_nounwind_fmt(fmt::Arguments::new_const(&[expr]), /* force_no_backtrace */ true);
+
+pub const fn panic_nounwind_fmt(fmt: fmt::Arguments<'_>, force_no_backtrace: bool) -> !
+    const_eval_select!          // Selects which function to call depending on the context.
+        ...
+        if const ...            // called in const
+            ...
+        else                    // called at runtime
+            if cfg!(feature = "panic_immediate_abort")
+                super::intrinsics::abort()
+        ...
+
+e.g.
+[debug version]
+#[esp_hal::main]
+fn main() -> ! {
+    panic_nounwind_nobacktrace("haho");
+}
+
+nearly the same as 'fn panic' but a much longer str is put into Arguments (into .rodata)
+instead of "src/main.rs" <-->
+/Users/piv/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panicking.rs
+
+[release version]
+only .text with size of 0xd8
+
+
+
+core::macros::mod.rs
+    macro_rules! panic
+        // Expands to either `$crate::panic::panic_2015` or `$crate::panic::panic_2021`
+        // depending on the edition of the caller.
+        ($($arg:tt)*) => {
+            /* compiler built-in */
+        };
+
+core::panic.rs
+    #[cfg(feature = "panic_immediate_abort")]
+    pub macro panic_2021
+        $crate::panicking::panic("explicit panic")
+
+[release version]
+only .text with size of 0xd8

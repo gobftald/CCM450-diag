@@ -47,6 +47,12 @@ pub unsafe extern "C" fn start_rust(a0: usize, a1: usize, a2: usize) -> ! {
     hal_main(a0, a1, a2);
 }
 
+#[doc(hidden)]
+#[no_mangle]
+#[rustfmt::skip]
+// 284
+pub unsafe extern "Rust" fn default_post_init() {}
+
 /// Parse cfg attributes inside a global_asm call.
 // 303
 macro_rules! cfg_global_asm {

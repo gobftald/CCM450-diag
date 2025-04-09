@@ -3,7 +3,10 @@ name  = "esp32c3"
 arch  = "riscv"
 cores = "single_core"
 
-peripherals = []
+peripherals = [
+    # Peripherals available in the PAC:
+    "interrupt_core0",
+]
 
 symbols = []
 

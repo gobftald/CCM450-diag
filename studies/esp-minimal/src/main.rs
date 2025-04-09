@@ -12,7 +12,9 @@ fn panic(_: &core::panic::PanicInfo) -> ! {
 
 #[esp_hal::main]
 fn main() -> ! {
-    //println!("Hello, world!");
-    //loop {};
-    panic!();
+    //loop {} // jmp (2 bytes)
+    panic!(); // unimp (2 bytes)
 }
+
+// This is the most minimum (size of .text is 0xd8 bytes) runable esp application
+// detailed analyses are in 'root'/docs/
