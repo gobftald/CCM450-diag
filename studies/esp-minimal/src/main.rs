@@ -12,9 +12,23 @@ fn panic(_: &core::panic::PanicInfo) -> ! {
 
 #[esp_hal::main]
 fn main() -> ! {
+    usb_print(b"haho\n");
+
     //loop {} // jmp (2 bytes)
     panic!(); // unimp (2 bytes)
 }
 
-// This is the most minimum (size of .text is 0xd8 bytes) runable esp application
-// detailed analyses are in 'root'/docs/
+fn usb_print(bytes: &[u8]) {
+    extern "C" {
+        fn usb_uart_tx_one_char(char: u8);
+        fn usb_uart_tx_flush();
+    }
+
+    unsafe {
+        for byte in bytes {
+            usb_uart_tx_one_char(*byte);
+        }
+
+        usb_uart_tx_flush();
+    }
+}

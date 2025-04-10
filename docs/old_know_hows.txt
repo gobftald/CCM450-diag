@@ -1,0 +1,3 @@
+/Users/piv/tockproject/backup/mytock/boards/esp32-c3-devkitM-1/blogs // my old esp disassemblies
+
+https://gist.github.com/sergev/2a91363c8f34010fda631a8f86bc408a // sergev/esp32c3_rev3_rom.dis

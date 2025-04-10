@@ -65,7 +65,15 @@ cargo new --lib macros                  // in ccm-diag/riscv/riscv-rt
 ...
 
 openocd -c 'set ESP_RTOS none' -f board/esp32c3-builtin.cfg
-    /Users/piv/esp/tools/openocd-esp32/v0.12.0-esp32-20230921/openocd-esp32
 riscv32-esp-elf-gdb esp-minimal
-    /Users/piv/.rustup/toolchains/esp/riscv32-esp-elf-gdb/bin/riscv32-esp-elf-gdb
-target remote localhost:3333
+    
+    target extended-remote :3333        // connect to openocd
+    mon reset halt                      // monitor (command to openocd) reset then halt cpu
+    flushregs                           // all registers are 0, except pc, which is 0x40000000
+                                        // after reset and halt, pc is in its default address
+    b *0x42010020                       // address of loaded program (= start address in elf file)
+    c                                   // continue
+
+    Ctrl-x a        // enter,re-enter or leave TUI (character window) mode
+    Ctrl-x 1        // use a TUI layout with only one window
+    Ctrl-x 2        // use a TUI layout with at least two windows
