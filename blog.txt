@@ -74,6 +74,9 @@ riscv32-esp-elf-gdb esp-minimal
     b *0x42010020                       // address of loaded program (= start address in elf file)
     c                                   // continue
 
+    set mem inaccessible-by-default off
+    set remote hardware-watchpoint-limit 8  // for esp32c3
+
     Ctrl-x a        // enter,re-enter or leave TUI (character window) mode
     Ctrl-x 1        // use a TUI layout with only one window
     Ctrl-x 2        // use a TUI layout with at least two windows

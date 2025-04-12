@@ -12,7 +12,7 @@ fn panic(_: &core::panic::PanicInfo) -> ! {
 
 #[esp_hal::main]
 fn main() -> ! {
-    usb_print(b"haho\n");
+    usb_print(b"01234567890123456789012345678901234567890123456789012345678\n");
 
     //loop {} // jmp (2 bytes)
     panic!(); // unimp (2 bytes)

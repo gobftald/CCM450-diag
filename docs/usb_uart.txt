@@ -4,12 +4,21 @@ usb_uart_tx_one_char = 0x400008d8
 usb_uart_tx_one_char
 0x4004c8e2	    lui	    a5,0x3fcdf
 0x4004c8e6	    addi	a3,a5,96
-0x4004c8ea      lw      a4,0(a3)            // 0x3fcdf060 is_tx_fifo_full
-0x4004c8ec      bnez    a4,0x4004c91e       // yes tx_fifo is full 
+0x4004c8ea      lw      a4,0(a3)            // 0x3fcdf060 is our_tx_fifo_flag full
+0x4004c8ec      bnez    a4,0x4004c91e       // yes our_tx_fifo_flag is full 
 
-// no tx_fifo is not full
+// no our_tx_fifo_flag is not full
 0x4004c8ee      lui     a4,0x60043          // base address of USB Serial/JTAG Controller
-
+0x4004c8f2      lw      a5,4(a4)            // USB_SERIAL_JTAG_EP1_CONF_REG
+0x4004c8f4      andi    a5,a5,2             // USB_SERIAL_JTAG_SERIAL_IN_EP_DATA_FREE bit
+0x4004c8f6      beqz    a5,0x4004c8fe       // FIFO is full
+                                            // we probably got here bacause of earlier timeout
+                                            // when we cleared this flag even FIFO was full
+                                            // then we are here again and the FIFO is full yet
+                                            // so the receiver was disconnected and we don't want
+                                            // to wait again (probably forever)
+0x4004c8fe      li      a0,0                // exit with deafult (OK) value
+0x4004c900      ret
 
 timeout counter is not expired
 0x4004c902	    lw	    a5,-4(s4)           // 0x3fcdfffc = ets_ops_table_ptr
@@ -17,9 +26,9 @@ timeout counter is not expired
 0x4004c906	    li	    a0,1                // 1 us delay
 0x4004c908  	addi	s0,s0,-1            // decrement timeout counter
 0x4004c90a	    lw	    a5,0(a5)            // ets_ops_table[0] = 0x400462cc = ets_delay_us
-0x4004c90c	    jalr	a5                  // ets_delay_us(1)
+0x4004c90c	    jalr	a5                  // ets_delay_us(1) (it is a read of a clock register in loop)
 
-check FIFO status
+check real FIFO status
 0x4004c90e      lw      a5,4(s3)            // USB_SERIAL_JTAG_EP1_CONF_REG
 0x4004c912      andi    a5,a5,2             // USB_SERIAL_JTAG_SERIAL_IN_EP_DATA_FREE bit
 0x4004c914      bnez    a5,0x4004c942       // FIFO is not full
@@ -28,10 +37,10 @@ FIFO is full
 0x4004c916      bnez    s0,0x4004c902       // check timeout counter -> is not expired
 
 timeout counter expired
-0x4004c918      sw      zero,0(s2)          // clear is_tx_fifo_full
-0x4004c91c      j       0x4004c948          // exit
+0x4004c918      sw      zero,0(s2)          // clear is our_tx_fifo_flag is full
+0x4004c91c      j       0x4004c948          // yes timeout + our_tx_fifo_flag is full yet -> exit
 
-tx_fifo_full
+our_tx_fifo_flag is full
 0x4004c91e      addi    sp,sp,-32           // make frame
 0x4004c920      sw      s0,24(sp)           // push s0
 0x4004c922      lui     s0,0x1              // 0x1000
@@ -42,9 +51,9 @@ tx_fifo_full
 0x4004c92a      sw      s4,8(sp)            // push s4
 0x4004c92c      sw      ra,28(sp)           // push ra
 
-0x4004c92e      addi    s2,a5,96            // 0x3fcdf060 is_tx_fifo_full
+0x4004c92e      addi    s2,a5,96            // 0x3fcdf060 our_tx_fifo_flag
 0x4004c932      mv      s1,a0               // character to be sent
-0x4004c934      addi    s0,s0,904           // 0x1388 = 5000
+0x4004c934      addi    s0,s0,904           // 0x1388 = 5000 timeout loop counter initial value
 0x4004c938      lui     s3,0x60043          // base address of USB Serial/JTAG Controller
 0x4004c93c      lui     s4,0x3fce0
 0x4004c940      j       0x4004c90e          // loop to check fifo status
@@ -63,7 +72,7 @@ exit
 0x4004c94e      lw      s2,16(sp)
 0x4004c950      lw      s3,12(sp)
 0x4004c952      lw      s4,8(sp)            // pop registers
-0x4004c954      li      a0,0                // return value 0 (OK)
+0x4004c954      li      a0,0                // exit with default (OK) value
 0x4004c956      addi    sp,sp,32
 0x4004c958      ret
 
