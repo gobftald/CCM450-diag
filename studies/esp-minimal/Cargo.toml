@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-esp-hal = { path = "../../esp-hal/esp-hal" }
+esp-hal          = { path = "../../esp-hal/esp-hal" }
+defmt            = { version = "0.3.10"}
 
 [features]
 default = ["esp32c3"]

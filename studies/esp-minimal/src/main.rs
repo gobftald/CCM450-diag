@@ -1,6 +1,8 @@
 #![no_std]
 #![no_main]
 
+mod dfmt;
+
 // since we config 'build-std-features = ["panic_immediate_abort"]'
 // this handler will be never called, but the compiler insists on it
 #[panic_handler]
@@ -12,23 +14,12 @@ fn panic(_: &core::panic::PanicInfo) -> ! {
 
 #[esp_hal::main]
 fn main() -> ! {
-    usb_print(b"01234567890123456789012345678901234567890123456789012345678\n");
+    dfmt::usb_print(b"01234567890123456789012345678901234567890123456789012345678\n");
+    defmt::println!("haho {=bool} {=str}\n", true, "string");
+    defmt::debug!("debug {=u32}", 0x66);
 
     //loop {} // jmp (2 bytes)
-    panic!(); // unimp (2 bytes)
+    defmt::panic!("panic in main of {=str} at {=u32}", file!(), line!())
 }
 
-fn usb_print(bytes: &[u8]) {
-    extern "C" {
-        fn usb_uart_tx_one_char(char: u8);
-        fn usb_uart_tx_flush();
-    }
-
-    unsafe {
-        for byte in bytes {
-            usb_uart_tx_one_char(*byte);
-        }
-
-        usb_uart_tx_flush();
-    }
-}
+// DEFMT_LOG=debug cargo run --release

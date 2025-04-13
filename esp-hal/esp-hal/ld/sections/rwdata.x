@@ -22,6 +22,7 @@
     *(.scommon)
     *(.sbss2)
     *(.sbss2.*)
+    *(.sbss .sbss.* .bss .bss.*);
 
     _bss_end = ABSOLUTE(.);
     . = ALIGN(4);

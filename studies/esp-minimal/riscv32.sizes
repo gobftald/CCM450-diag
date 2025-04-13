@@ -1,0 +1,89 @@
+DEFMT_LOG=debug cargo run --release
+
+esp_image: segment 0: paddr=00010020 vaddr=3c000020 size=00058h (    88) map    .rodata
+esp_image: segment 2: paddr=00020020 vaddr=42010020 size=003fch (  1020) map    .text
+
+.text
+    0x42000020
+    _start                                                      8
+    42010028
+    _abs_start                                                144
+    0x420000b8
+    _start_rust                                                46
+    0x420000e6
+    abort                                                       4       202
+    0x420000ea
+
+    esp_minimal::dfmt::usb_print                               54
+    _defmt_acquire                                             62
+    _defmt_release                                            100
+    _defmt_write                                              226       644
+
+    main                                                      198
+    _setup_interrupts                                           2
+    hal_main                                                    8
+    default_post_init                                           2
+
+    defmt::export::str
+    defmt::export::slice                                       48
+    defmt::export::bool                                        32
+    defmt::export::acquire_and_header                          54
+    __defmt_default_timestamp                                   2
+    __defmt_default_panic                                       2
+    defmt::export::integers<u32>
+    defmt::export::integers<i32>
+    defmt::export::integers<usize>
+    defmt::export::integers<isize>                             26
+    padding                                                     2       1020
+
+.rodata
+    b"012...8\n"                                               60
+    true                                                        1
+    "string"                                                    6
+    0x66                                                        4
+    0x16                                                        4
+    padding                                                     1
+    "src/main.rs"                                              12       88
+
+.bss
+    0x3fc80000
+    esp_minimal::dfmt::ENCODER (.0)                             1
+    esp_minimal::dfmt::ENCODER (.1)                             1
+    esp_minimal::dfmt::ENCODER (.2)                             1
+    padding                                                     1
+
+.stack
+    3fc80004
+
+runtime:
+    _start                                                      8
+    _abs_start                                                144
+    _start_rust                                                46
+    abort                                                       4
+    _setup_interrupts                                           2
+    hal_main                                                    8
+    default_post_init                                           2       214
+
+defmt permanent part:
+    esp_minimal::dfmt::usb_print                               54
+    _defmt_acquire                                             62
+    _defmt_release                                            100
+    _defmt_write                                              226
+    defmt::export::acquire_and_header                          54
+    __defmt_default_timestamp                                   2
+    __defmt_default_panic                                       2       500
+
+defmt formatting part:
+    defmt::export::str
+    defmt::export::slice                                       48
+    defmt::export::bool                                        32
+    defmt::export::integers<u32>
+    defmt::export::integers<i32>
+    defmt::export::integers<usize>
+    defmt::export::integers<isize>                             26       106
+
+main:                                                         198       198
+
+                                                                       1018 + pad(2)
+but all (formatting) static strings and all formatting code go to host
+.rodata contains only the formatted "values"

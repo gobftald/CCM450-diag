@@ -30,7 +30,8 @@ cargo new --lib esp-hal                 // in ccm-diag/esp-hal
 cd esp-hal
 vi Config.toml                          // customize to version = "1.0.0-beta.0"
 
-git diff <commit number>                // view all diff from a (previous) commit
+git diff                                // view all diff from a (previous) commit before git add (only modified ones)
+git diff <commit number>                // view all diff from a (previous) commit after git add
                                         // newly added files are not visible
                                         // 'git diff --cached' can show them (but only them)
 
@@ -80,3 +81,6 @@ riscv32-esp-elf-gdb esp-minimal
     Ctrl-x a        // enter,re-enter or leave TUI (character window) mode
     Ctrl-x 1        // use a TUI layout with only one window
     Ctrl-x 2        // use a TUI layout with at least two windows
+
+ddbug -c function -p all -f function-inline=no esp-minimal|less
+cat /dev/cu.usbmodem101 |defmt-print -e target/riscv32imc-unknown-none-elf/release/esp-minimal
