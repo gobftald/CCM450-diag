@@ -5,9 +5,17 @@ edition = "2021"
 
 [dependencies]
 esp-hal          = { path = "../../esp-hal/esp-hal" }
-defmt            = { version = "0.3.10"}
+defmt            = { version = "0.3.10", optional = true }
+esp-backtrace    = { version = "0.15.1", features = ["panic-handler"], path = "../../esp-hal/esp-backtrace", optional = true }
+
 
 [features]
-default = ["esp32c3"]
+default = ["esp32c3", "defmt"]
 
-esp32c3 = ["esp-hal/esp32c3"]
+esp32c3   = ["esp-hal/esp32c3", "esp-backtrace?/esp32c3"]
+
+console   = []                          # if console=yes but defmt=no we can only use console::print (usb_uart)
+defmt     = ["dep:defmt", "console"]    # needs runner = "espflash flash --monitor --log-format defmt"
+                                        # needs "-C", "link-arg=-Tdefmt.x" rustflag in config.toml
+backtrace = ["dep:esp-backtrace"]       # needs "-C", "force-frame-pointers" rustflag in config.toml
+                                        # needs to uncomment build-std-features = ["panic_immediate_abort"]
