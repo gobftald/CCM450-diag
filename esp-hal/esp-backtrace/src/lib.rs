@@ -1,5 +1,8 @@
 #![no_std]
 
+#[macro_use(println)]
+extern crate esp_hal;
+
 const MAX_BACKTRACE_ADDRESSES: usize = 10;
 pub struct Backtrace(pub(crate) heapless::Vec<BacktraceFrame, MAX_BACKTRACE_ADDRESSES>);
 
@@ -36,13 +39,18 @@ impl BacktraceFrame {
 pub mod arch;
 
 #[cfg(feature = "panic-handler")]
+#[allow(unused_variables)]
 #[panic_handler]
 // 78
-fn panic_handler(_: &core::panic::PanicInfo) -> ! {
-    use defmt::println;
-
+fn panic_handler(info: &core::panic::PanicInfo) -> ! {
     println!("");
     println!("====================== PANIC ======================");
+
+    #[cfg(not(feature = "defmt"))]
+    println!("{}", info);
+    #[cfg(not(feature = "defmt"))]
+    println!("");
+
     println!("Backtrace:");
 
     let backtrace = Backtrace::capture();

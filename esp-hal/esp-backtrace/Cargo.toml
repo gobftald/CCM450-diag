@@ -5,8 +5,10 @@ edition = "2021"
 
 [dependencies]
 heapless = "0.8"
-defmt    = { version = "0.3.10"}
+esp-hal  = { path = "../esp-hal" }
+defmt    = { version = "0.3.10", optional = true }
 
 [features]
 esp32c3       = []
+defmt = ["dep:defmt", "esp-hal/defmt"]
 panic-handler = []

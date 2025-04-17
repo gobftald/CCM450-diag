@@ -10,16 +10,18 @@ esp-backtrace    = { version = "0.15.1", features = ["panic-handler"], path = ".
 
 
 [features]
-default = ["esp32c3", "console", "defmt"]
+default = ["esp32c3", "console"]
 
 esp32c3   = ["esp-hal/esp32c3", "esp-backtrace?/esp32c3"]
 
 console = ["esp-hal/console"]           # if console=yes but defmt=no we can only use console::print (usb_uart)
 defmt     = [
-    "dep:defmt",
-    "esp-hal/defmt"                     # needs console
+                                        # needs console
                                         # needs runner = "espflash flash --monitor --log-format defmt"
                                         # needs "-C", "link-arg=-Tdefmt.x" rustflag in config.toml
+    "dep:defmt",
+    "esp-hal/defmt",
+    "esp-backtrace?/defmt",
 ]
 backtrace = ["dep:esp-backtrace"]       # needs "-C", "force-frame-pointers" rustflag in config.toml
                                         # needs to comment build-std-features = ["panic_immediate_abort"] out

@@ -22,7 +22,7 @@ fn panic(_: &core::panic::PanicInfo) -> ! {
 fn main() -> ! {
     esp_hal::print(b"01234567890123456789012345678901234567890123456789012345678\n");
     debug!("debug {=u32}", 0x66);
-    panic!("panic in main of {=str} at {=u32}", file!(), line!())
+    panic!("panic in main of {} at {}", file!(), line!())
 }
 
 // cargo run --release (console off, dfmt off)
@@ -52,7 +52,7 @@ fn main() -> ! {
 // #"-C", "force-frame-pointers",
 // build-std-features = ["panic_immediate_abort"]
 
-// cargo run --release --features=backtrace
+// cargo run --release --features=backtrace (there is a DEPTH parameter in esp-backtrace/src/riscv.rs)
 // in .cargo/config.toml
 // "-C", "force-frame-pointers",
 // #build-std-features = ["panic_immediate_abort"]

@@ -1,4 +1,4 @@
-const DEPTH: u32 = 4;
+const DEPTH: u32 = 2;
 
 use crate::{Backtrace, BacktraceFrame};
 

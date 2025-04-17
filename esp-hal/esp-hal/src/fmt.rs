@@ -84,6 +84,7 @@ macro_rules! panic {
 }
 
 #[collapse_debuginfo(yes)]
+#[macro_export]
 // 113
 macro_rules! trace {
     ($s:literal $(, $x:expr)* $(,)?) => {
@@ -111,6 +112,7 @@ macro_rules! debug {
 }
 
 #[collapse_debuginfo(yes)]
+#[macro_export]
 // 141
 macro_rules! info {
     ($s:literal $(, $x:expr)* $(,)?) => {
@@ -124,6 +126,7 @@ macro_rules! info {
 }
 
 #[collapse_debuginfo(yes)]
+#[macro_export]
 // 155
 macro_rules! warn {
     ($s:literal $(, $x:expr)* $(,)?) => {
@@ -137,6 +140,7 @@ macro_rules! warn {
 }
 
 #[collapse_debuginfo(yes)]
+#[macro_export]
 // 169
 macro_rules! error {
     ($s:literal $(, $x:expr)* $(,)?) => {
@@ -151,6 +155,7 @@ macro_rules! error {
 
 #[cfg(feature = "defmt")]
 #[collapse_debuginfo(yes)]
+#[macro_export]
 // 184
 macro_rules! unwrap {
     ($($x:tt)*) => {
@@ -160,6 +165,7 @@ macro_rules! unwrap {
 
 #[cfg(not(feature = "defmt"))]
 #[collapse_debuginfo(yes)]
+#[macro_export]
 // 192
 macro_rules! unwrap {
     ($arg:expr) => {
@@ -277,4 +283,28 @@ pub fn print_wo_flush(bytes: &[u8]) {
 pub fn print(bytes: &[u8]) {
     print_wo_flush(bytes);
     unsafe { usb_uart_tx_flush() }
+}
+
+#[collapse_debuginfo(yes)]
+#[macro_export]
+macro_rules! println {
+    ($($arg:tt)*) => {
+        #[cfg(feature = "defmt")]
+        ::defmt::println!($($arg)*);
+        #[cfg(not(feature="defmt"))]
+        {
+            use core::fmt::Write;
+            write!($crate::Printer, $($arg)*).ok();
+            $crate::print(b"\n");
+        }
+    };
+}
+
+pub struct Printer;
+
+impl core::fmt::Write for Printer {
+    fn write_str(&mut self, s: &str) -> core::fmt::Result {
+        print_wo_flush(s.as_bytes());
+        Ok(())
+    }
 }
