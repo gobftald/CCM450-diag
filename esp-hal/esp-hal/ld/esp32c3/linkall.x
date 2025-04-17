@@ -7,4 +7,5 @@ REGION_ALIAS("RWDATA", DRAM);
 REGION_ALIAS("RWTEXT", IRAM);
 
 INCLUDE "esp32c3.x"
+INCLUDE "hal-defaults.x"
 INCLUDE "rom-functions.x"

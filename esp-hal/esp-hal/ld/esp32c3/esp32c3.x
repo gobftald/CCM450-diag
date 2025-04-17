@@ -3,9 +3,20 @@ ENTRY(_start)
 PROVIDE(_stext = ORIGIN(ROTEXT));
 PROVIDE(_max_hart_id = 0);
 
+PROVIDE(ExceptionHandler = DefaultExceptionHandler);
+
 PROVIDE(__post_init = default_post_init);
 
 /* esp32c3 fixups */
+
+SECTIONS {
+  .trap : ALIGN(4)
+  {
+    KEEP(*(.trap));
+    *(.trap.*);
+  } > RWTEXT
+}
+INSERT BEFORE .rwtext;
 
 SECTIONS {
     .rotext_dummy (NOLOAD) :
@@ -38,7 +49,7 @@ INSERT BEFORE .text;
 SECTIONS {
     .rwdata_dummy (NOLOAD) : ALIGN(4)
     {
-        . = . + SIZEOF(.rwtext);
+        . = . + SIZEOF(.rwtext) + SIZEOF(.trap);
 
     }  > RWDATA
 }
@@ -61,3 +72,5 @@ INCLUDE "stack.x"
 /* End of Shared sections */
 
 INCLUDE "debug.x"
+
+_dram_origin = ORIGIN( DRAM );

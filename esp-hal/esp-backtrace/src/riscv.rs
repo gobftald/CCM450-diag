@@ -1,3 +1,5 @@
+const DEPTH: u32 = 4;
+
 use crate::{Backtrace, BacktraceFrame};
 
 // subtract 4 from the return address
@@ -23,7 +25,7 @@ pub fn backtrace() -> Backtrace {
         _tmp
     };
 
-    backtrace_internal(fp, 4)
+    backtrace_internal(fp, DEPTH)
 }
 
 // 178

@@ -69,6 +69,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     preprocess_file(&config_symbols, "ld/riscv/asserts.x", out.join("asserts.x"))?;
     preprocess_file(&config_symbols, "ld/riscv/debug.x", out.join("debug.x"))?;
+    preprocess_file(
+        &config_symbols,
+        "ld/riscv/hal-defaults.x",
+        out.join("hal-defaults.x"),
+    )?;
 
     // With the architecture-specific linker scripts taken care of, we can copy all
     // remaining linker scripts which are common to all devices:

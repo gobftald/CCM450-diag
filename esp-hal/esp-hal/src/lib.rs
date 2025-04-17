@@ -1,6 +1,11 @@
 //182
 #![no_std]
 
+// MUST be the first module
+// 186
+mod fmt;
+pub use fmt::*;
+
 // 236
 pub use procmacros::blocking_main as main;
 

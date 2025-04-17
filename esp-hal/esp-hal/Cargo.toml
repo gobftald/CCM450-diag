@@ -4,7 +4,8 @@ version = "1.0.0-beta.0"
 edition = "2021"
 
 [dependencies]
-procmacros   = { version = "0.17.0", package = "esp-hal-procmacros", path = "../esp-hal-procmacros" }
+defmt       = { version = "0.3.10", optional = true }
+procmacros  = { version = "0.17.0", package = "esp-hal-procmacros", path = "../esp-hal-procmacros" }
 
 [features]
 # Chip Support Feature Flags
@@ -23,10 +24,21 @@ esp32s2 = []
 # Target the ESP32-S3.
 esp32s3 = []
 
+console = []                        # if console=yes but defmt=no we can only use console::print (usb_uart)
+defmt   = [
+    "dep:defmt",                    # implement `defmt::Format` on certain types.
+                                    # needs console
+                                    # needs runner = "espflash flash --monitor --log-format defmt"
+                                    # needs "-C", "link-arg=-Tdefmt.x" rustflag in config.toml
+    "esp-riscv-rt/defmt",
+    "riscv/defmt",
+]
+
+[target.'cfg(target_arch = "riscv32")'.dependencies]
+riscv        = { version = "0.12.0", path = "../../riscv/riscv"}
+esp-riscv-rt = { version = "0.10.0", path = "../esp-riscv-rt" }
+
 [build-dependencies]
 cfg-if       = "1.0.0"
 esp-build    = { version = "0.2.0", path = "../esp-build" }
 esp-metadata = { version = "0.6.0", path = "../esp-metadata" }
-
-[target.'cfg(target_arch = "riscv32")'.dependencies]
-esp-riscv-rt = { version = "0.10.0", path = "../esp-riscv-rt" }
