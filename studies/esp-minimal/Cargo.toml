@@ -6,11 +6,16 @@ edition = "2021"
 [dependencies]
 esp-hal          = { path = "../../esp-hal/esp-hal" }
 defmt            = { version = "0.3.10", optional = true }
-esp-backtrace    = { version = "0.15.1", features = ["panic-handler"], path = "../../esp-hal/esp-backtrace", optional = true }
+
+[dependencies.esp-backtrace]
+    version = "0.15.1"
+    features = ["panic-handler", "exception-handler"]
+    path = "../../esp-hal/esp-backtrace"
+    optional = true
 
 
 [features]
-default = ["esp32c3", "console"]
+default = ["esp32c3", "console", "defmt"]
 
 esp32c3   = ["esp-hal/esp32c3", "esp-backtrace?/esp32c3"]
 

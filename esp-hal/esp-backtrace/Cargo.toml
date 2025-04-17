@@ -12,3 +12,4 @@ defmt    = { version = "0.3.10", optional = true }
 esp32c3       = []
 defmt = ["dep:defmt", "esp-hal/defmt"]
 panic-handler = []
+exception-handler = []

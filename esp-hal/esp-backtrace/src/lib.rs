@@ -15,6 +15,13 @@ impl Backtrace {
         arch::backtrace()
     }
 
+    #[inline]
+    #[cfg(feature = "exception-handler")]
+    // 24
+    fn from_sp(sp: u32) -> Self {
+        arch::backtrace_internal(sp, 0)
+    }
+
     /// Returns the backtrace frames as a slice.
     #[inline]
     // 30
@@ -60,6 +67,65 @@ fn panic_handler(info: &core::panic::PanicInfo) -> ! {
     }
     for frame in backtrace.frames() {
         println!("0x{:x}", frame.program_counter());
+    }
+
+    loop {
+        unsafe { core::arch::asm!("wfi") }
+    }
+}
+
+#[cfg(all(feature = "exception-handler", target_arch = "riscv32"))]
+#[export_name = "ExceptionHandler"]
+// 121
+fn exception_handler(context: &arch::TrapFrame) -> ! {
+    let mepc = context.pc;
+    let code = context.mcause & 0xff;
+    let mtval = context.mtval;
+
+    if code == 14 {
+        println!("");
+        println!(
+            "Stack overflow detected at 0x{:x} called by 0x{:x}",
+            mepc, context.ra
+        );
+        println!("");
+    } else {
+        let code = match code {
+            0 => "Instruction address misaligned",
+            1 => "Instruction access fault",
+            2 => "Illegal instruction",
+            3 => "Breakpoint",
+            4 => "Load address misaligned",
+            5 => "Load access fault",
+            6 => "Store/AMO address misaligned",
+            7 => "Store/AMO access fault",
+            8 => "Environment call from U-mode",
+            9 => "Environment call from S-mode",
+            10 => "Reserved",
+            11 => "Environment call from M-mode",
+            12 => "Instruction page fault",
+            13 => "Load page fault",
+            14 => "Reserved",
+            15 => "Store/AMO page fault",
+            _ => "UNKNOWN",
+        };
+
+        println!("");
+        println!(
+            "Exception '{}' mepc=0x{:08x}, mtval=0x{:08x}",
+            code, mepc, mtval
+        );
+
+        println!("{:?}", context);
+
+        let backtrace = Backtrace::from_sp(context.s0 as u32);
+        let frames = backtrace.frames();
+        if frames.is_empty() {
+            println!("No backtrace available - make sure to force frame-pointers. (see https://crates.io/crates/esp-backtrace)");
+        }
+        for frame in backtrace.frames() {
+            println!("0x{:x}", frame.program_counter());
+        }
     }
 
     loop {
