@@ -4,8 +4,9 @@ version = "1.0.0-beta.0"
 edition = "2021"
 
 [dependencies]
-defmt       = { version = "0.3.10", optional = true }
-procmacros  = { version = "0.17.0", package = "esp-hal-procmacros", path = "../esp-hal-procmacros" }
+console    = { path = "../../console", features = ["usb_uart"]}
+defmt      = { version = "0.3.10", optional = true }
+procmacros = { version = "0.17.0", package = "esp-hal-procmacros", path = "../esp-hal-procmacros" }
 
 [features]
 # Chip Support Feature Flags
@@ -24,12 +25,8 @@ esp32s2 = []
 # Target the ESP32-S3.
 esp32s3 = []
 
-console = []                        # if console=yes but defmt=no we can only use console::print (usb_uart)
 defmt   = [
-    "dep:defmt",                    # implement `defmt::Format` on certain types.
-                                    # needs console
-                                    # needs runner = "espflash flash --monitor --log-format defmt"
-                                    # needs "-C", "link-arg=-Tdefmt.x" rustflag in config.toml
+    "dep:defmt",
     "esp-riscv-rt/defmt",
     "riscv/defmt",
 ]

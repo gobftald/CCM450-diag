@@ -1,0 +1,19 @@
+[package]
+name = "console"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+defmt = { version = "0.3.10", optional = true }
+
+[features]
+usb_uart = []                       # if usb_uart is off we cannot use any printing mechanism
+                                    # if usb_uart is on but defmt is off only core_println (usb_uart) prints
+                                    # altough we can use println but it gives an empty block
+
+defmt = [
+                                    # needs runner = "espflash flash --monitor --log-format defmt"
+                                    # needs "-C", "link-arg=-Tdefmt.x" rustflag in config.toml
+    "usb_uart",                     # needs usb_console
+    "dep:defmt",
+]

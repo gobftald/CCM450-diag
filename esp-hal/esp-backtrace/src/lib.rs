@@ -1,7 +1,20 @@
 #![no_std]
 
-#[macro_use(println)]
-extern crate esp_hal;
+#[allow(unused_imports)]
+#[macro_use(println, core_println)]
+extern crate console;
+
+#[cfg(not(feature = "defmt"))]
+use core::fmt::Write;
+
+macro_rules! backtrace_println {
+    ($($arg:tt)*) => {
+        #[cfg(feature = "defmt")]
+        println!($($arg)*);
+        #[cfg(not(feature="defmt"))]
+        core_println!($($arg)*);
+    }
+}
 
 const MAX_BACKTRACE_ADDRESSES: usize = 10;
 pub struct Backtrace(pub(crate) heapless::Vec<BacktraceFrame, MAX_BACKTRACE_ADDRESSES>);
@@ -50,23 +63,23 @@ pub mod arch;
 #[panic_handler]
 // 78
 fn panic_handler(info: &core::panic::PanicInfo) -> ! {
-    println!("");
-    println!("====================== PANIC ======================");
+    backtrace_println!("");
+    backtrace_println!("====================== PANIC ======================");
 
     #[cfg(not(feature = "defmt"))]
-    println!("{}", info);
+    backtrace_println!("{}", info);
     #[cfg(not(feature = "defmt"))]
-    println!("");
+    backtrace_println!("");
 
-    println!("Backtrace:");
+    backtrace_println!("Backtrace:");
 
     let backtrace = Backtrace::capture();
     #[cfg(target_arch = "riscv32")]
     if backtrace.frames().is_empty() {
-        println!("No backtrace available - make sure to force frame-pointers. (see https://crates.io/crates/esp-backtrace)");
+        backtrace_println!("No backtrace available - make sure to force frame-pointers. (see https://crates.io/crates/esp-backtrace)");
     }
     for frame in backtrace.frames() {
-        println!("0x{:x}", frame.program_counter());
+        backtrace_println!("0x{:x}", frame.program_counter());
     }
 
     loop {
@@ -83,12 +96,13 @@ fn exception_handler(context: &arch::TrapFrame) -> ! {
     let mtval = context.mtval;
 
     if code == 14 {
-        println!("");
-        println!(
+        backtrace_println!("");
+        backtrace_println!(
             "Stack overflow detected at 0x{:x} called by 0x{:x}",
-            mepc, context.ra
+            mepc,
+            context.ra
         );
-        println!("");
+        backtrace_println!("");
     } else {
         let code = match code {
             0 => "Instruction address misaligned",
@@ -110,21 +124,23 @@ fn exception_handler(context: &arch::TrapFrame) -> ! {
             _ => "UNKNOWN",
         };
 
-        println!("");
-        println!(
+        backtrace_println!("");
+        backtrace_println!(
             "Exception '{}' mepc=0x{:08x}, mtval=0x{:08x}",
-            code, mepc, mtval
+            code,
+            mepc,
+            mtval
         );
 
-        println!("{:?}", context);
+        backtrace_println!("{:?}", context);
 
         let backtrace = Backtrace::from_sp(context.s0 as u32);
         let frames = backtrace.frames();
         if frames.is_empty() {
-            println!("No backtrace available - make sure to force frame-pointers. (see https://crates.io/crates/esp-backtrace)");
+            backtrace_println!("No backtrace available - make sure to force frame-pointers. (see https://crates.io/crates/esp-backtrace)");
         }
         for frame in backtrace.frames() {
-            println!("0x{:x}", frame.program_counter());
+            backtrace_println!("0x{:x}", frame.program_counter());
         }
     }
 

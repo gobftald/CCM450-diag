@@ -5,11 +5,14 @@ edition = "2021"
 
 [dependencies]
 heapless = "0.8"
-esp-hal  = { path = "../esp-hal" }
 defmt    = { version = "0.3.10", optional = true }
+console  = { path = "../../console", features = ["usb_uart"] }      # default console
 
 [features]
-esp32c3       = []
-defmt = ["dep:defmt", "esp-hal/defmt"]
-panic-handler = []
+default = ["esp32c3"]
+
+esp32c3 = []
+defmt   = ["dep:defmt", "console/defmt"]
+
+panic-handler     = []
 exception-handler = []

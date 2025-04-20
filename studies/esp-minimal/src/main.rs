@@ -1,34 +1,34 @@
 #![no_std]
 #![no_main]
 
-#[macro_use(panic, debug)]
-extern crate esp_hal;
+// panic_handler
+mod panic;
 
-#[cfg(feature = "backtrace")]
-use esp_backtrace as _;
-
-// since we config 'build-std-features = ["panic_immediate_abort"]'
-// in no backtrace mode, this handler will be never called, but the
-//compiler insists on it
-#[cfg(not(feature = "backtrace"))]
-#[panic_handler]
-fn panic(_: &core::panic::PanicInfo) -> ! {
-    loop {
-        unsafe { core::arch::asm!("wfi") }
-    }
-}
+#[allow(unused_imports)]
+#[macro_use(core_println, println, debug, panic)] // core_println for panic_handler in mod panic
+extern crate console;
 
 #[esp_hal::main]
 fn main() -> ! {
-    esp_hal::print(b"01234567890123456789012345678901234567890123456789012345678\n");
-    debug!("debug {=u32}", 0x66);
+    console::print(b"01234567890123456789012345678901234567890123456789012345678\n");
+
+    println!("println from main 0x{:x}", 0x55);
+    debug!("debug {=u32} 0x{:x}", 0x66, 0x77);
+
+    // for testing exception
     unsafe {
         core::arch::asm!("unimp");
     }
-    panic!("panic in main")
+
+    panic!("panic called from main")
 }
 
-// cargo run --release --features=backtrace (switch defmt on/off)
-// in .cargo/config.toml
-// "-C", "force-frame-pointers",
-// #build-std-features = ["panic_immediate_abort"]
+// #build-std-features = ["panic_immediate_abort"], defmt off, console on/off
+// cargo run --release
+// cargo run --release --features=backtrace     # beacktrace switch console on by default
+//                                              # it needs the console in all cases
+
+// both 'build-std-features = ["panic_immediate_abort"]' and defmt are on
+// cargo run --release
+// cargo run --release --features=backtrace     # "panic_immediate_abort" off, "force-frame-pointers" on
+//                                              # defmt on/off

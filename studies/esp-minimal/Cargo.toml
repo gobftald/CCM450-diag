@@ -4,8 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-esp-hal          = { path = "../../esp-hal/esp-hal" }
-defmt            = { version = "0.3.10", optional = true }
+esp-hal = { path = "../../esp-hal/esp-hal" }
+console = { path = "../../console", features = ["usb_uart"]}
+defmt   = { version = "0.3.10", optional = true }
 
 [dependencies.esp-backtrace]
     version = "0.15.1"
@@ -15,16 +16,16 @@ defmt            = { version = "0.3.10", optional = true }
 
 
 [features]
-default = ["esp32c3", "console", "defmt"]
+default = [
+    "esp32c3",
+    "defmt",
+]
 
-esp32c3   = ["esp-hal/esp32c3", "esp-backtrace?/esp32c3"]
+esp32c3 = ["esp-hal/esp32c3", "esp-backtrace?/esp32c3"]
 
-console = ["esp-hal/console"]           # if console=yes but defmt=no we can only use console::print (usb_uart)
-defmt     = [
-                                        # needs console
-                                        # needs runner = "espflash flash --monitor --log-format defmt"
-                                        # needs "-C", "link-arg=-Tdefmt.x" rustflag in config.toml
+defmt = [
     "dep:defmt",
+    "console/defmt",
     "esp-hal/defmt",
     "esp-backtrace?/defmt",
 ]

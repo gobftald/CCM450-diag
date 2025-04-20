@@ -84,3 +84,37 @@ riscv32-esp-elf-gdb esp-minimal
 
 ddbug -c function -p all -f function-inline=no esp-minimal|less
 cat /dev/cu.usbmodem101 |defmt-print -e target/riscv32imc-unknown-none-elf/release/esp-minimal
+
+
+fighthing for null printing/formatting overhead in a finally headless embedded code:
+1 defmt put the majority of the weight/length of the printing/debugging text to the host side
+2 defmt filtering can even eliminate (println, trace, debug, info, warn, error) from the defmt-ed code
+3 core::fmt which is the final fragments of code after panic (hence asserts, todo, unreachable, unwrap)
+can also be eliminated via 'build-std-features = ["panic_immediate_abort"]', which prevents core::panic
+to call panic_fmt which cannot trigger core::fmt code fragments and its static strings (panic messages,
+and file or line information strings) then even does not call panic_handler
+it is relevant even in 'demt version' of code, since defmt::panic and its relatives finally call core::panic
+and furthermore there can be other external/imported crates in the program which use 'core library' where we
+cannot disable functions or the compiler standard 'checks' (e.g. array boundary checks) to call core::panic
+4 so even in defmt/printing/debugging/monitoring development phase we can fully eliminate core::fmt overhead
+and totally control the amount of code caused by defmt
+5 location info of panic can be see both normal and backtrace build when defmt and "panic_immediate_abort"
+is off, this is when we can get and display core::panic::PanicInfo
+
+
+6 in the production code we want only to simply switch off defmt in order to switch everything which relates
+to printing and formatting
+7 but defmt filtering needs defmt itself, so we make custom (println, trace, debug, info, warn, error) macros,
+to eliminate their code in no defmt case, and this also eliminates defmt runtime code from 'no defmt' code
+8 panic core panic printing/formatting output/beahiour can be managed via "panic_immediate_abort", if we
+are staying to switch it on, this eliminates them, if we switch it off, they are triggered and included
+
+9 the only problem is that we need some printing in panic_handler and e.g. in backtrace even defmt is off
+so there is a core_pintln macro which can be used for printing in this case,
+naturally to use this in panic_handler we should switch "panic_immediate_abort" off as well
+
+10 if we want to controll even the ultimate low level, the physical printing leayer, in our case it is
+usb_uart_tx_one_char and usb_uart_tx_flush and their convenient callers like print, print_wo_flush and the
+mentioned core_println we put them all behind a feature called "console"
+if we switched it off there many error since in this case we should not use any live printing call,
+only the prints in panic_handler does not problematic, if it 'befind' "panic_immediate_abort" enabled 

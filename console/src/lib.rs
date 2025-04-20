@@ -1,10 +1,14 @@
+#![no_std]
 #![macro_use]
 #![allow(unused_macros)]
-#![allow(dead_code)]
+
+#[cfg(all(feature = "defmt", not(feature = "usb_uart")))]
+compile_error!("defmt needs usb_uart as console");
 
 #[collapse_debuginfo(yes)]
+#[macro_export]
 // 5
-macro_rules! assert {
+macro_rules! assert {                               // behaves as panic, see comments there
     ($($x:tt)*) => {
         {
             #[cfg(not(feature = "defmt"))]
@@ -16,8 +20,9 @@ macro_rules! assert {
 }
 
 #[collapse_debuginfo(yes)]
+#[macro_export]
 // 17
-macro_rules! assert_eq {
+macro_rules! assert_eq {                            // behaves as panic, see comments there
     ($($x:tt)*) => {
         {
             #[cfg(not(feature = "defmt"))]
@@ -29,8 +34,9 @@ macro_rules! assert_eq {
 }
 
 #[collapse_debuginfo(yes)]
+#[macro_export]
 // 29
-macro_rules! assert_ne {
+macro_rules! assert_ne {                            // behaves as panic, see comments there
     ($($x:tt)*) => {
         {
             #[cfg(not(feature = "defmt"))]
@@ -42,8 +48,9 @@ macro_rules! assert_ne {
 }
 
 #[collapse_debuginfo(yes)]
+#[macro_export]
 // 77
-macro_rules! todo {
+macro_rules! todo {                                 // behaves as panic, see comments there
     ($($x:tt)*) => {
         {
             #[cfg(not(feature = "defmt"))]
@@ -55,8 +62,9 @@ macro_rules! todo {
 }
 
 #[collapse_debuginfo(yes)]
+#[macro_export]
 // 89
-macro_rules! unreachable {
+macro_rules! unreachable {                          // behaves as panic, see comments there
     ($($x:tt)*) => {
         {
             #[cfg(not(feature = "defmt"))]
@@ -74,7 +82,11 @@ macro_rules! panic {
     ($($x:tt)*) => {
         {
             #[cfg(not(feature = "defmt"))]
-            ::core::panic!($($x)*);
+            ::core::panic!($($x)*);             // if build-std-features = ["panic_immediate_abort"]
+                                                // message str does not matter, since panic will not
+                                                // call panic_fmt,
+                                                // so neither the massage str nor the file and line
+                                                // str are stored (and occupy space) in the code
             #[cfg(feature = "defmt")]
             ::defmt::panic!($($x)*);
 
@@ -92,7 +104,7 @@ macro_rules! trace {
             #[cfg(feature = "defmt")]
             ::defmt::trace!($s $(, $x)*);
             #[cfg(not(feature="defmt"))]
-            let _ = ($( & $x ),*);
+            { /* let _ = ($( & $x ),*); */ }
         }
     };
 }
@@ -106,7 +118,7 @@ macro_rules! debug {
             #[cfg(feature = "defmt")]
             ::defmt::debug!($s $(, $x)*);
             #[cfg(not(feature = "defmt"))]
-            let _ = ($( & $x ),*);
+            { /* let _ = ($( & $x ),*); */ }
         }
     };
 }
@@ -120,7 +132,7 @@ macro_rules! info {
             #[cfg(feature = "defmt")]
             ::defmt::info!($s $(, $x)*);
             #[cfg(not(feature="defmt"))]
-            let _ = ($( & $x ),*);
+            { /* let _ = ($( & $x ),*); */ }
         }
     };
 }
@@ -134,7 +146,7 @@ macro_rules! warn {
             #[cfg(feature = "defmt")]
             ::defmt::warn!($s $(, $x)*);
             #[cfg(not(feature="defmt"))]
-            let _ = ($( & $x ),*);
+            { /* let _ = ($( & $x ),*); */ }
         }
     };
 }
@@ -148,7 +160,7 @@ macro_rules! error {
             #[cfg(feature = "defmt")]
             ::defmt::error!($s $(, $x)*);
             #[cfg(not(feature="defmt"))]
-            let _ = ($( & $x ),*);
+            { /* let _ = ($( & $x ),*); */ }
         }
     };
 }
@@ -227,7 +239,7 @@ static mut ENCODER: defmt::Encoder = defmt::Encoder::new();
 
 #[cfg(feature = "defmt")]
 #[defmt::global_logger]
-
+#[cfg(feature = "defmt")]
 pub struct Logger;
 
 // using cooperative scheduler (like embassy) and not or carefully
@@ -249,28 +261,30 @@ unsafe impl defmt::Logger for Logger {
     unsafe fn release() {
         // safety: accessing the `static mut` is OK because
         // we ensure not using nested defmt calls
-        ENCODER.end_frame(print_wo_flush);
-
-        Self::flush();
+        unsafe {
+            ENCODER.end_frame(print_wo_flush);
+            Self::flush();
+        }
     }
 
     unsafe fn flush() {
-        usb_uart_tx_flush();
+        unsafe { usb_uart_tx_flush() }
     }
 
     unsafe fn write(bytes: &[u8]) {
         // safety: accessing the `static mut` is OK because
         // we ensure not using nested defmt calls
-        ENCODER.write(bytes, print_wo_flush);
+        unsafe { ENCODER.write(bytes, print_wo_flush) }
     }
 }
 
-extern "C" {
+#[cfg(feature = "usb_uart")]
+unsafe extern "C" {
     fn usb_uart_tx_one_char(char: u8);
     fn usb_uart_tx_flush();
 }
 
-#[cfg(feature = "console")]
+#[cfg(feature = "usb_uart")]
 pub fn print_wo_flush(bytes: &[u8]) {
     unsafe {
         for byte in bytes {
@@ -279,12 +293,13 @@ pub fn print_wo_flush(bytes: &[u8]) {
     }
 }
 
-#[cfg(feature = "console")]
+#[cfg(feature = "usb_uart")]
 pub fn print(bytes: &[u8]) {
     print_wo_flush(bytes);
     unsafe { usb_uart_tx_flush() }
 }
 
+#[cfg(feature = "usb_uart")]
 #[collapse_debuginfo(yes)]
 #[macro_export]
 macro_rules! println {
@@ -292,19 +307,30 @@ macro_rules! println {
         #[cfg(feature = "defmt")]
         ::defmt::println!($($arg)*);
         #[cfg(not(feature="defmt"))]
-        {
-            use core::fmt::Write;
-            write!($crate::Printer, $($arg)*).ok();
-            $crate::print(b"\n");
-        }
+        {}
     };
 }
 
+#[cfg(feature = "usb_uart")]
+#[collapse_debuginfo(yes)]
+#[macro_export]
+// when using always use:
+// #[cfg(not(feature = "defmt"))]
+// use core::fmt::Write;
+macro_rules! core_println {
+    ($($arg:tt)*) => {
+        write!($crate::Printer, $($arg)*).ok();
+        $crate::print(b"\n");
+    }
+}
+
+#[cfg(feature = "usb_uart")]
 pub struct Printer;
 
+#[cfg(feature = "usb_uart")]
 impl core::fmt::Write for Printer {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
-        print_wo_flush(s.as_bytes());
+        print(s.as_bytes());
         Ok(())
     }
 }
