@@ -1,0 +1,33 @@
+[package]
+name = "esp-embassy"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+esp-hal = { path = "../../esp-hal/esp-hal" }
+console = { path = "../../console", features = ["usb_uart"]}
+defmt   = { version = "0.3.10", optional = true }
+
+[dependencies.esp-backtrace]
+    version = "0.15.1"
+    features = ["panic-handler", "exception-handler"]
+    path = "../../esp-hal/esp-backtrace"
+    optional = true
+
+
+[features]
+default = [
+    "esp32c3",
+    "defmt",
+]
+
+esp32c3 = ["esp-hal/esp32c3", "esp-backtrace?/esp32c3"]
+
+defmt = [
+    "dep:defmt",
+    "console/defmt",
+    "esp-hal/defmt",
+    "esp-backtrace?/defmt",
+]
+backtrace = ["dep:esp-backtrace"]       # needs "-C", "force-frame-pointers" rustflag in config.toml
+                                        # needs to comment build-std-features = ["panic_immediate_abort"] out

@@ -1,0 +1,20 @@
+[package]
+name = "embassy-executor"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+
+[features]
+
+#! ### Architecture
+_arch = [] # some arch was picked
+## RISC-V 32
+arch-riscv32 = ["_arch"]
+
+#! ### Executor
+
+## Enable tracing support (adds some overhead)
+trace = []
+
+_timer-item-payload = [] # A size was picked
