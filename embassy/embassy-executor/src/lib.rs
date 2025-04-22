@@ -1,12 +1,15 @@
 #![no_std]
 
-#[cfg(feature = "_arch")]
-#[cfg_attr(feature = "arch-riscv32", path = "arch/riscv32.rs")]
+#[cfg_attr(target_arch = "riscv32", path = "arch/riscv32.rs")]
 // 42
 mod arch;
 
-#[cfg(feature = "_arch")]
+#[cfg(target_arch = "riscv32")]
 // 46
 pub use arch::*;
 
 pub mod raw;
+
+// 52
+mod spawner;
+pub use spawner::*;

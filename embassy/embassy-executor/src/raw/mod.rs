@@ -1,3 +1,12 @@
+//! Raw executor.
+//!
+//! This module exposes "raw" Executor and Task structs for more low level control.
+//!
+//! ## WARNING: here be dragons!
+//!
+//! Using this module requires respecting subtle safety contracts. If you can, prefer using the safe
+//! [executor wrappers](crate::Executor) and the [`embassy_executor::task`](embassy_executor_macros::task) macro, which are fully safe.
+
 use core::cell::Cell;
 
 // 12
@@ -10,6 +19,9 @@ mod state_critical_section;
 pub mod timer_queue;
 // 22
 pub(crate) mod util;
+
+// 26
+use core::future::Future;
 
 // 30
 use core::ptr::NonNull;
@@ -163,6 +175,44 @@ impl Pender {
     }
 }
 
+/// Raw executor.
+///
+/// This is the core of the Embassy executor. It is low-level, requiring manual
+/// handling of wakeups and task polling. If you can, prefer using one of the
+/// [higher level executors](crate::Executor).
+///
+/// The raw executor leaves it up to you to handle wakeups and scheduling:
+///
+/// - To get the executor to do work, call `poll()`. This will poll all queued tasks (all tasks
+///   that "want to run").
+/// - You must supply a pender function, as shown below. The executor will call it to notify you
+///   it has work to do. You must arrange for `poll()` to be called as soon as possible.
+/// - Enabling `arch-xx` features will define a pender function for you. This means that you
+///   are limited to using the executors provided to you by the architecture/platform
+///   implementation. If you need a different executor, you must not enable `arch-xx` features.
+///
+/// The pender can be called from *any* context: any interrupt priority level, etc.
+/// It may be called synchronously from any `Executor` method call as well.
+/// You must deal with this correctly.
+///
+/// In particular, you must NOT call `poll` directly from the pender callback, as this violates
+/// the requirement for `poll` to not be called reentrantly.
+/// (in risc32 it is manged by 'static mut SIGNAL_WORK_THREAD_MODE: bool')
+///
+/// The pender function must be exported with the name `__pender` and have the following signature:
+///
+/// ```rust
+/// #[export_name = "__pender"]
+/// fn pender(context: *mut ()) {
+///    // schedule `poll()` to be called
+///
+///
+/// }
+/// ```
+///
+/// The `context` argument is a piece of arbitrary data the executor will pass to the pender.
+/// You can set the `context` when calling [`Executor::new()`]. You can use it to, (((for example,
+/// differentiate between executors))), or to pass a pointer to a callback that should be called.
 // 394
 pub(crate) struct Executor {
     run_queue: RunQueue,
@@ -172,10 +222,10 @@ pub(crate) struct Executor {
 // 399
 impl Executor {
     // 400
-    pub(crate) fn new(pender: Pender) -> Self {
+    pub(crate) fn new(context: *mut ()) -> Self {
         Self {
             run_queue: RunQueue::new(),
-            pender,
+            pender: Pender(context),
         }
     }
 
@@ -192,17 +242,25 @@ impl Executor {
         trace::task_ready_begin(self, &task);
 
         unsafe {
+            // (only) insert task into RunQueue
             if self.run_queue.enqueue(task) {
+                // schedule `poll()` to be called
                 self.pender.pend();
             }
         }
     }
 
+    /// Spawn a task in this executor.
+    ///
+    /// # Safety
+    ///
+    /// `task` must be a valid pointer to an initialized but not-already-spawned task.
     // 423
     pub(super) unsafe fn spawn(&'static self, task: TaskRef) {
         task.header()
             .executor
             //.store((self as *const Self).cast_mut(), Ordering::Relaxed);
+            // put itself to Task's 'executor' field
             .set((self as *const Self).cast_mut());
 
         #[cfg(feature = "trace")]
@@ -212,7 +270,108 @@ impl Executor {
         //    self.enqueue(task, l);
         //})
         unsafe {
+            // insert task into RunQueue then call 'pend' (schedule `poll()` to be called)
             self.enqueue(task);
         }
     }
+
+    /// Poll all queued tasks in this executor.
+    ///
+    /// This loops over all tasks that are queued to be polled (i.e. they're
+    /// freshly spawned or they've been woken). Other tasks are not polled.
+    ///
+    /// You must call `poll` after receiving a call to the pender. It is OK
+    /// to call `poll` even when not requested by the pender, but it wastes
+    /// energy.
+    ///
+    /// # Safety
+    ///
+    /// You must call `initialize` before calling this method.
+    ///
+    /// You must NOT call `poll` reentrantly on the same executor.
+    ///
+    /// In particular, note that `poll` may call the pender synchronously. Therefore, you
+    /// must NOT directly call `poll()` from the pender callback. Instead, the callback has to
+    /// somehow schedule for `poll()` to be called later, at a time you know for sure there's
+    /// no `poll()` already running.
+    // in riscv32 it is managed by 'static mut SIGNAL_WORK_THREAD_MODE: bool'
+    // 439
+    pub(crate) unsafe fn poll(&'static self) {
+        #[cfg(feature = "trace")]
+        trace::poll_start(self);
+
+        self.run_queue.dequeue_all(|p| {
+            let task = p.header();
+
+            #[cfg(feature = "trace")]
+            trace::task_exec_begin(self, &p);
+
+            // Run the task
+            unsafe {
+                task.poll_fn.get().unwrap_unchecked()(p);
+            }
+
+            #[cfg(feature = "trace")]
+            trace::task_exec_end(self, &p);
+        });
+
+        #[cfg(feature = "trace")]
+        trace::executor_idle(self)
+    }
+
+    /// Get a spawner that spawns tasks in this executor.
+    ///
+    /// It is OK to call this method multiple times to obtain multiple
+    /// `Spawner`s. You may also copy `Spawner`s.
+    pub fn spawner(&'static self) -> super::Spawner {
+        super::Spawner::new(self)
+    }
+
+    /// Get a unique ID for this Executor.
+    pub fn id(&'static self) -> usize {
+        //&self.inner as *const SyncExecutor as usize
+        self as *const Executor as usize
+    }
+}
+
+/// Wake a task by `TaskRef`.
+///
+/// You can obtain a `TaskRef` from a `Waker` using [`task_from_waker`].
+// 573
+pub fn wake_task(task: TaskRef) {
+    let header = task.header();
+    //header.state.run_enqueue(|l| {
+    header.state.run_enqueue(|| {
+        // We have just marked the task as scheduled, so enqueue it.
+        unsafe {
+            let executor = header
+                .executor
+                //.load(Ordering::Relaxed)
+                //.as_ref()
+                //.unwrap_unchecked();
+                .get();
+            //executor).enqueue(task, l);
+            (*executor).enqueue(task);
+        }
+    });
+}
+
+/// Wake a task by `TaskRef` without calling pend.
+///
+/// You can obtain a `TaskRef` from a `Waker` using [`task_from_waker`].
+pub fn wake_task_no_pend(task: TaskRef) {
+    let header = task.header();
+    header.state.run_enqueue(|| {
+        // We have just marked the task as scheduled, so enqueue it.
+        unsafe {
+            let executor = header
+                .executor
+                //.load(Ordering::Relaxed)
+                //.as_ref()
+                //.unwrap_unchecked();
+                .get();
+            //executor.run_queue.enqueue(task, l);
+            (*executor).run_queue.enqueue(task);
+        }
+    });
 }

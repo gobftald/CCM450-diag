@@ -1,19 +1,19 @@
 [package]
 name = "embassy-executor"
-version = "0.1.0"
-edition = "2024"
+version = "0.7.0"
+edition = "2021"
 
 [dependencies]
 
 [features]
-
-#! ### Architecture
-_arch = [] # some arch was picked
-## RISC-V 32
-arch-riscv32 = ["_arch"]
+default = ["executor-thread"]
 
 #! ### Executor
 
+## Enable the thread-mode executor (using WFE/SEV in Cortex-M, WFI in other embedded archs)
+executor-thread = []
+## Enable the interrupt-mode executor (available in Cortex-M only)
+executor-interrupt = []
 ## Enable tracing support (adds some overhead)
 trace = []
 
