@@ -4,9 +4,15 @@ version = "0.7.0"
 edition = "2021"
 
 [dependencies]
+console  = { path = "../../console", features = ["usb_uart"]}
+defmt = { version = "0.3.10", optional = true }
+embassy-executor-macros = { path = "../embassy-executor-macros" }
 
 [features]
 default = ["executor-thread"]
+
+## Enable nightly-only features
+nightly = ["embassy-executor-macros/nightly"]
 
 #! ### Executor
 

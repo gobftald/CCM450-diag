@@ -34,6 +34,27 @@ impl State {
         r
     }
 
+    /// If task is idle, mark it as spawned + run_queued and return true.
+    // 36
+    #[inline(always)]
+    pub fn spawn(&self) -> bool {
+        self.update(|s| {
+            if *s == 0 {
+                *s = STATE_SPAWNED | STATE_RUN_QUEUED;
+                true
+            } else {
+                false
+            }
+        })
+    }
+
+    /// Unmark the task as spawned.
+    #[inline(always)]
+    // 49
+    pub fn despawn(&self) {
+        self.update(|s| *s &= !STATE_SPAWNED);
+    }
+
     /// Mark the task as run-queued if it's spawned and isn't already run-queued. Run the given
     /// function if the task was successfully marked.
     #[inline(always)]

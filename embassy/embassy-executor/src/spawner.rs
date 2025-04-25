@@ -22,6 +22,25 @@ pub struct SpawnToken {
     //phantom: PhantomData<*mut S>,
 }
 
+// 29
+impl SpawnToken {
+    pub(crate) unsafe fn new(raw_task: raw::TaskRef) -> Self {
+        Self {
+            raw_task: Some(raw_task),
+            //phantom: PhantomData,
+        }
+    }
+
+    /// Return a SpawnToken that represents a failed spawn.
+    // 47
+    pub fn new_failed() -> Self {
+        Self {
+            raw_task: None,
+            //phantom: PhantomData,
+        }
+    }
+}
+
 /// Error returned when spawning a task.
 #[derive(Copy, Clone)]
 // 64
