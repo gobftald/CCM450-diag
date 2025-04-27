@@ -353,15 +353,15 @@ impl Pender {
 /// You can set the `context` when calling [`Executor::new()`]. You can use it to, (((for example,
 /// differentiate between executors))), or to pass a pointer to a callback that should be called.
 // 394
-pub(crate) struct Executor {
-    run_queue: RunQueue,
+pub struct Executor {
+    run_queue: RunQueue, // since run_queue is unsync, thus Executor is unsync as well
     pender: Pender,
 }
 
 // 399
 impl Executor {
     // 400
-    pub(crate) fn new(context: *mut ()) -> Self {
+    pub fn new(context: *mut ()) -> Self {
         Self {
             run_queue: RunQueue::new(),
             pender: Pender(context),
@@ -435,7 +435,7 @@ impl Executor {
     /// no `poll()` already running.
     // in riscv32 it is managed by 'static mut SIGNAL_WORK_THREAD_MODE: bool'
     // 439
-    pub(crate) unsafe fn poll(&'static self) {
+    pub unsafe fn poll(&'static self) {
         #[cfg(feature = "trace")]
         trace::poll_start(self);
 

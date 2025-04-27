@@ -1,20 +1,13 @@
 #![no_std]
 #![feature(local_waker)]
 
-#[macro_use(panic)]
+#[macro_use(panic, unwrap)]
 extern crate console;
 
 //12
 pub use embassy_executor_macros::task;
 
-#[cfg_attr(target_arch = "riscv32", path = "arch/riscv32.rs")]
-// 42
-mod arch;
-
-#[cfg(target_arch = "riscv32")]
-// 46
-pub use arch::*;
-
+// 50
 pub mod raw;
 
 // 52

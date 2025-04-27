@@ -53,6 +53,32 @@ pub enum SpawnError {
     Busy,
 }
 
+// 73
+impl core::fmt::Debug for SpawnError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Display::fmt(self, f)
+    }
+}
+
+// 79
+impl core::fmt::Display for SpawnError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            SpawnError::Busy => write!(f, "Busy - Too many instances of this task are already running. Check the `pool_size` attribute of the task."),
+        }
+    }
+}
+
+// 87
+#[cfg(feature = "defmt")]
+impl defmt::Format for SpawnError {
+    fn format(&self, f: defmt::Formatter) {
+        match self {
+            SpawnError::Busy => defmt::write!(f, "Busy - Too many instances of this task are already running. Check the `pool_size` attribute of the task."),
+        }
+    }
+}
+
 /// Handle to spawn tasks into an executor.
 #[derive(Copy, Clone)]
 // 105
@@ -86,5 +112,19 @@ impl Spawner {
             }
             None => Err(SpawnError::Busy),
         }
+    }
+
+    // Used by the `embassy_executor_macros::main!` macro to throw an error when spawn
+    // fails. This is here to allow conditional use of `defmt::unwrap!`
+    // without introducing a `defmt` feature in the `embassy_executor_macros` package,
+    // which would require use of `-Z namespaced-features`.
+    /// Spawn a task into an executor, panicking on failure.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the spawning fails.
+    // 166
+    pub fn must_spawn(&self, token: SpawnToken) {
+        unwrap!(self.spawn(token));
     }
 }

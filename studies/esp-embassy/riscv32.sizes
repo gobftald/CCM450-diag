@@ -1,7 +1,25 @@
-DEFMT_LOG=debug cargo run --release
+cargo run --release
 
-esp_image: segment 0: paddr=00010020 vaddr=3c000020 size=00058h (    88) map    .rodata
-esp_image: segment 2: paddr=00020020 vaddr=42010020 size=003fch (  1020) map    .text
+esp_image: segment 0: paddr=00010020 vaddr=3c000020 size=0003ch (    60) map    .rodata
+esp_image: segment 1: paddr=00010064 vaddr=40380000 size=00394h (   916) load   .trap + .rwtext
+esp_image: segment 3: paddr=00020020 vaddr=42010020 size=002cch (   716) map    .text
+
+.trap
+    40380000 _start_trap:
+    40380024 _start_trap1:
+    40380032 _start_trap2:
+    ...
+    403801c8 _start_trap31:                                   376
+
+    403801de _start_trap_direct:                              392
+    40380300 _vector_table:                                   128
+    40380380 _start_trap_rust_hal:                             18
+    padding                                                     2
+                                                                                916
+
+.rodata
+    3c000020
+    b"01234567890123456789012345678901234567890123456789012345678\n"            60
 
 .text
     0x42000020
@@ -14,76 +32,28 @@ esp_image: segment 2: paddr=00020020 vaddr=42010020 size=003fch (  1020) map    
     abort                                                       4       202
     0x420000ea
 
-    esp_minimal::dfmt::usb_print                               54
-    _defmt_acquire                                             62
-    _defmt_release                                            100
-    _defmt_write                                              226       644
+    esp_hal_embassy::executor::thread::Executor::run           96
+    embassy_executor::raw::poll_exited                          2
+    embassy_executor::raw::TaskStorage...::poll                34
+    embassy_executor::raw::TaskStorage...::poll               126
+    embassy_executor::raw::util::UninitCell...::write_in_place 16
+    embassy_executor::raw::util::UninitCell...::write_in_place 10
+                                                                        284
 
-    main                                                      198
-    _setup_interrupts                                           2
+    main                                                       16
+    __pender                                                   10
+    _setup_interrupts                                          14
+    EspDefaultHandler                                           2
     hal_main                                                    8
+    DefaultExceptionHandler                                     6
     default_post_init                                           2
+                                                                        58
 
-    defmt::export::str
-    defmt::export::slice                                       48
-    defmt::export::bool                                        32
-    defmt::export::acquire_and_header                          54
-    __defmt_default_timestamp                                   2
-    __defmt_default_panic                                       2
-    defmt::export::integers<u32>
-    defmt::export::integers<i32>
-    defmt::export::integers<usize>
-    defmt::export::integers<isize>                             26
-    padding                                                     2       1020
+    embassy_executor::raw::Executor::poll                      40
+    embassy_executor::spawner::Spawner::spawn                  52
+    embassy_executor::spawner::Spawner::must_spawn             28
+    console::print                                             52
+                                                                        172
+                                                                                716
 
-.rodata
-    b"012...8\n"                                               60
-    true                                                        1
-    "string"                                                    6
-    0x66                                                        4
-    0x16                                                        4
-    padding                                                     1
-    "src/main.rs"                                              12       88
-
-.bss
-    0x3fc80000
-    esp_minimal::dfmt::ENCODER (.0)                             1
-    esp_minimal::dfmt::ENCODER (.1)                             1
-    esp_minimal::dfmt::ENCODER (.2)                             1
-    padding                                                     1
-
-.stack
-    3fc80004
-
-runtime:
-    _start                                                      8
-    _abs_start                                                144
-    _start_rust                                                46
-    abort                                                       4
-    _setup_interrupts                                           2
-    hal_main                                                    8
-    default_post_init                                           2       214
-
-defmt permanent part:
-    esp_minimal::dfmt::usb_print                               54
-    _defmt_acquire                                             62
-    _defmt_release                                            100
-    _defmt_write                                              226
-    defmt::export::acquire_and_header                          54
-    __defmt_default_timestamp                                   2
-    __defmt_default_panic                                       2       500
-
-defmt formatting part:
-    defmt::export::str
-    defmt::export::slice                                       48
-    defmt::export::bool                                        32
-    defmt::export::integers<u32>
-    defmt::export::integers<i32>
-    defmt::export::integers<usize>
-    defmt::export::integers<isize>                             26       106
-
-main:                                                         198       198
-
-                                                                       1018 + pad(2)
-but all (formatting) static strings and all formatting code go to host
-.rodata contains only the formatted "values"
+                                                                                        1632 w/o .rodata

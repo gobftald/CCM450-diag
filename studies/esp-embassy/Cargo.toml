@@ -7,6 +7,8 @@ edition = "2021"
 console          = { path = "../../console", features = ["usb_uart"]}
 defmt            = { version = "0.3.10", optional = true }
 esp-hal          = { path = "../../esp-hal/esp-hal" }
+
+esp-hal-embassy  = { path = "../../esp-hal/esp-hal-embassy"  }
 embassy-executor = { path = "../../embassy/embassy-executor" }
 
 [dependencies.esp-backtrace]
@@ -20,17 +22,22 @@ embassy-executor = { path = "../../embassy/embassy-executor" }
 default = [
     "esp32c3",
     "defmt",
-    "embassy-executor/nightly",     # for 'task' embassy-executor-macro
 ]
 
-esp32c3 = ["esp-hal/esp32c3", "esp-backtrace?/esp32c3"]
+esp32c3 = [
+    "esp-backtrace?/esp32c3",
+    "esp-hal/esp32c3",
+    "esp-hal-embassy/esp32c3",
+    "embassy-executor/nightly",     # for 'task' embassy-executor-macro 
+]
 
 defmt = [
     "dep:defmt",
     "console/defmt",
-    "esp-hal/defmt",
     "esp-backtrace?/defmt",
+    "esp-hal/defmt",
     "embassy-executor/defmt",
 ]
+
 backtrace = ["dep:esp-backtrace"]       # needs "-C", "force-frame-pointers" rustflag in config.toml
                                         # needs to comment build-std-features = ["panic_immediate_abort"] out

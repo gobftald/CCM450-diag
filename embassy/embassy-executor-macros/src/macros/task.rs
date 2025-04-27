@@ -155,8 +155,8 @@ pub fn run(args: TokenStream, item: TokenStream) -> TokenStream {
 
         const POOL_SIZE: usize = #pool_size;
         // making POOL unsync
-        #[thread_local]
-        static POOL: #embassy_executor::raw::TaskPool<<() as _EmbassyInternalTaskTrait>::Fut, POOL_SIZE> = #embassy_executor::raw::TaskPool::new();
+        //#[thread_local]
+        static mut POOL: #embassy_executor::raw::TaskPool<<() as _EmbassyInternalTaskTrait>::Fut, POOL_SIZE> = #embassy_executor::raw::TaskPool::new();
         unsafe { POOL._spawn_async_fn(move || <() as _EmbassyInternalTaskTrait>::construct(#(#full_args,)*)) }
     };
 

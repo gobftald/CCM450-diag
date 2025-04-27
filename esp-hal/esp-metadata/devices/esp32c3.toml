@@ -8,6 +8,11 @@ peripherals = [
     "interrupt_core0",
 ]
 
-symbols = []
+symbols = [
+    # Executor parameters
+    #"low_power_wait",
+    "integrated_timers",
+    "single_queue",
+]
 
 memory = []
