@@ -10,7 +10,7 @@ pub use self::thread::*;
 mod thread;
 
 // single core -> core ID is always 0
-// so instead of this 'fn __pender' we call '__pepend_thread_mode directly'
+// so instead of this 'fn __pender' we call 'pend_thread_mode directly'
 // hence we 'export "__pender"' for 'pend_thread_mode'
 //
 //#[unsafe(export_name = "__pender")]

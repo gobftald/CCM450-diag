@@ -27,7 +27,6 @@ use core::future::Future;
 // 28
 use core::mem;
 use core::pin::Pin;
-
 // 30
 use core::ptr::NonNull;
 // 34
@@ -42,19 +41,19 @@ use super::SpawnToken;
 
 // 84
 pub(crate) struct TaskHeader {
-    pub(crate) state: State,
-    pub(crate) run_queue_item: RunQueueItem,
+    pub(crate) state: State,                 // 4 bytes
+    pub(crate) run_queue_item: RunQueueItem, // 4 bytes
     //pub(crate) executor: AtomicPtr<SyncExecutor>,
     // we drop syncness and atomic behaviour
-    pub(crate) executor: Cell<*mut Executor>,
+    pub(crate) executor: Cell<*mut Executor>, // 8 bytes
     //poll_fn: SyncUnsafeCell<Option<unsafe fn(TaskRef)>
     // we drop syncness
     // 'cell' gives potentially more function then SyncUnsafeCell, but its code size should be the same
-    poll_fn: Cell<Option<unsafe fn(TaskRef)>>,
+    poll_fn: Cell<Option<unsafe fn(TaskRef)>>, // 4 bytes
 
     /// Integrated timer queue storage. This field should not be accessed outside of the timer queue.
-    pub(crate) timer_queue_item: timer_queue::TimerQueueItem,
-}
+    pub(crate) timer_queue_item: timer_queue::TimerQueueItem, // 12 bytes
+} // 32 bytes
 
 /// This is essentially a `&'static TaskStorage<F>` where the type of the future has been erased.
 #[derive(Clone, Copy, PartialEq)]
@@ -72,6 +71,9 @@ pub struct TaskRef {
 // with its dangling function it also provide some type of deinit feature
 // in sumary it is *mut (for cross/walking diffrent type) building an easier and safer casting functionalities
 
+// I try to implement these whole stuff with unsync
+// not using atomics, mutexes and critical section
+// itt needs avoiding 'concurency' and using 'static mut' (since reference to 'satic' needs sync)
 // 100
 //unsafe impl Send for TaskRef where &'static TaskHeader: Send {}
 //unsafe impl Sync for TaskRef where &'static TaskHeader: Sync {}
@@ -92,17 +94,6 @@ impl TaskRef {
             Self {
                 ptr: NonNull::new_unchecked(ptr as *mut TaskHeader),
             }
-        }
-    }
-
-    /// # Safety
-    ///
-    /// The result of this function must only be compared
-    /// for equality, or stored, but not used.
-    // 121
-    pub const unsafe fn dangling() -> Self {
-        Self {
-            ptr: NonNull::dangling(),
         }
     }
 
@@ -136,9 +127,9 @@ impl TaskRef {
 #[repr(C)]
 // 170
 pub struct TaskStorage<F: Future + 'static> {
-    raw: TaskHeader,
-    future: UninitCell<F>, // Valid if STATE_SPAWNED
-}
+    raw: TaskHeader,       // 32 bytes
+    future: UninitCell<F>, // Valid if STATE_SPAWNED - 8 bytes
+} // 40 bytes
 
 // 175
 unsafe fn poll_exited(_p: TaskRef) {
@@ -148,7 +139,7 @@ unsafe fn poll_exited(_p: TaskRef) {
 // struct UninitCell<T>(MaybeUninit<UnsafeCell<T>>)
 // why this contruction used here:
 // MaybeUninit ensures the option like behaviour without overhead (simple low level ptr logic, no unwrap,
-// or let Some(...), so it has an uninit (Some) state ensuring that it is UB if it used without init
+// or let Some(...), so it has an uninit (None) state ensuring that it is UB if it used without init
 // (containing a valid/spawned future)
 // so it should be inited or rewriten (rewriten if 'static TaskStorage is reused)
 // UnsafeCell provides the interior mutability
@@ -175,6 +166,7 @@ impl<F: Future + 'static> TaskStorage<F> {
         }
     }
 
+    // top (=task) level poll -> polls the task's future
     // 219
     unsafe fn poll(p: TaskRef) {
         let this = &*p.as_ptr().cast::<TaskStorage<F>>();
@@ -182,10 +174,13 @@ impl<F: Future + 'static> TaskStorage<F> {
         let future = Pin::new_unchecked(this.future.as_mut());
         let waker = waker::from_task(p);
         let mut cx = Context::from_waker(&waker);
+
+        // polls the task's future
         match future.poll(&mut cx) {
             Poll::Ready(_) => {
                 #[cfg(feature = "trace")]
-                let exec_ptr: *const SyncExecutor = this.raw.executor.load(Ordering::Relaxed);
+                //let exec_ptr: *const SyncExecutor = this.raw.executor.load(Ordering::Relaxed);
+                let exec_ptr: *const Executor = this.raw.executor.get();
 
                 // As the future has finished and this function will not be called
                 // again, we can safely drop the future here.
@@ -229,7 +224,8 @@ impl<F: Future + 'static> AvailableTask<F> {
     }
 
     // 275
-    fn initialize_impl<S>(self, future: impl FnOnce() -> F) -> SpawnToken {
+    //fn initialize_impl<S>(self, future: impl FnOnce() -> F) -> SpawnToken<S> {
+    fn initialize_impl(self, future: impl FnOnce() -> F) -> SpawnToken {
         unsafe {
             self.task.raw.poll_fn.set(Some(TaskStorage::<F>::poll));
             self.task.future.write_in_place(future);
@@ -258,15 +254,6 @@ impl<F: Future + 'static, const N: usize> TaskPool<F, N> {
         }
     }
 
-    // 343
-    //fn spawn_impl<T>(&'static self, future: impl FnOnce() -> F) -> SpawnToken<T> {
-    fn spawn_impl<T>(&'static self, future: impl FnOnce() -> F) -> SpawnToken {
-        match self.pool.iter().find_map(AvailableTask::claim) {
-            Some(task) => task.initialize_impl::<T>(future),
-            None => SpawnToken::new_failed(),
-        }
-    }
-
     /// Try to spawn a task in the pool.
     ///
     /// See [`TaskStorage::spawn()`] for details.
@@ -274,29 +261,19 @@ impl<F: Future + 'static, const N: usize> TaskPool<F, N> {
     /// This will loop over the pool and spawn the task in the first storage that
     /// is currently free. If none is free, a "poisoned" SpawnToken is returned,
     /// which will cause [`Spawner::spawn()`](super::Spawner::spawn) to return the error.
-    // 357
-    //pub fn spawn(&'static self, future: impl FnOnce() -> F) -> SpawnToken<impl Sized> {
+    ///
+    /// The `future` closure constructs the future. It's only called if spawning is
+    /// actually possible. It is a closure instead of a simple `future: F` param to ensure
+    /// the future is constructed in-place, avoiding a temporary copy in the stack thanks to
+    /// NRVO optimizations.
+    ///
+    // 343
+    //fn spawn_impl<T>(&'static self, future: impl FnOnce() -> F) -> SpawnToken<T> {
     pub fn spawn(&'static self, future: impl FnOnce() -> F) -> SpawnToken {
-        self.spawn_impl::<F>(future)
-    }
-
-    /// Like spawn(), but allows the task to be send-spawned if the args are Send even if
-    /// the future is !Send.
-    ///
-    /// Not covered by semver guarantees. DO NOT call this directly. Intended to be used
-    /// by the Embassy macros ONLY.
-    ///
-    /// SAFETY: `future` must be a closure of the form `move || my_async_fn(args)`, where `my_async_fn`
-    /// is an `async fn`, NOT a hand-written `Future`.
-    #[doc(hidden)]
-    // 370
-    //pub unsafe fn _spawn_async_fn<FutFn>(&'static self, future: FutFn) -> SpawnToken<impl Sized>
-    pub unsafe fn _spawn_async_fn<FutFn>(&'static self, future: FutFn) -> SpawnToken
-    where
-        FutFn: FnOnce() -> F,
-    {
-        // See the comment in AvailableTask::__initialize_async_fn for explanation.
-        self.spawn_impl::<FutFn>(future)
+        match self.pool.iter().find_map(AvailableTask::claim) {
+            Some(task) => task.initialize_impl(future),
+            None => SpawnToken::new_failed(),
+        }
     }
 }
 

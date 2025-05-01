@@ -1,3 +1,6 @@
+// 3
+use core::marker::PhantomData;
+
 // 5
 use embassy_executor::Spawner;
 
@@ -40,7 +43,7 @@ pub(crate) fn pend_thread_mode(_context: *mut ()) {
 // 50
 pub struct Executor {
     inner: InnerExecutor,
-    //not_send: PhantomData<*mut ()>,
+    not_send: PhantomData<*mut ()>,
 }
 
 // 55
@@ -55,7 +58,7 @@ impl Executor {
                 //(THREAD_MODE_CONTEXT + Cpu::current() as usize) as *mut (),
                 0 as *mut (),
             ),
-            //not_send: PhantomData,
+            not_send: PhantomData,
         }
     }
 

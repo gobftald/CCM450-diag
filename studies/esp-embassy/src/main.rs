@@ -52,12 +52,14 @@ fn run() -> ::embassy_executor::SpawnToken {
 
     const POOL_SIZE: usize = 1;
 
+    //static POOL: ::embassy_executor::raw::TaskPool<
     static mut POOL: ::embassy_executor::raw::TaskPool<
         <() as _EmbassyInternalTaskTrait>::Fut,
         POOL_SIZE,
     > = ::embassy_executor::raw::TaskPool::new();
 
-    unsafe { POOL._spawn_async_fn(move || <() as _EmbassyInternalTaskTrait>::construct()) }
+    //unsafe { POOL._spawn_async_fn(move || <() as _EmbassyInternalTaskTrait>::construct()) }
+    unsafe { POOL.spawn(move || <() as _EmbassyInternalTaskTrait>::construct()) }
 }
 
 async fn ____embassy_main_task(spawner: Spawner) {
@@ -85,12 +87,14 @@ fn __embassy_main(spawner: Spawner) -> ::embassy_executor::SpawnToken {
 
     const POOL_SIZE: usize = 1;
 
+    //static POOL: ::embassy_executor::raw::TaskPool<
     static mut POOL: ::embassy_executor::raw::TaskPool<
         <() as _EmbassyInternalTaskTrait>::Fut,
         POOL_SIZE,
     > = ::embassy_executor::raw::TaskPool::new();
 
-    unsafe { POOL._spawn_async_fn(move || <() as _EmbassyInternalTaskTrait>::construct(spawner)) }
+    //unsafe { POOL._spawn_async_fn(move || <() as _EmbassyInternalTaskTrait>::construct(spawner)) }
+    unsafe { POOL.spawn(move || <() as _EmbassyInternalTaskTrait>::construct(spawner)) }
 }
 
 #[doc(hidden)]

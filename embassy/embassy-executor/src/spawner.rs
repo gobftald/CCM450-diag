@@ -1,4 +1,5 @@
-// 3
+// 2
+use core::marker::PhantomData;
 use core::mem;
 
 // 7
@@ -9,6 +10,9 @@ use super::raw;
 /// When calling a task function (like `#[embassy_executor::task] async fn my_task() { ... }`), the returned
 /// value is a `SpawnToken` that represents an instance of the task, ready to spawn. You must
 /// then spawn it into an executor, typically with [`Spawner::spawn()`].
+///
+/// We did not implement generic parameter `S` which determines whether the task can be spawned in executors
+/// in other threads or not, because we have no threads in our implementation.
 ///
 /// # Panics
 ///
@@ -38,6 +42,13 @@ impl SpawnToken {
             raw_task: None,
             //phantom: PhantomData,
         }
+    }
+}
+
+impl Drop for SpawnToken {
+    fn drop(&mut self) {
+        // TODO deallocate the task instead.
+        panic!("SpawnToken instances may not be dropped. You must pass them to Spawner::spawn()")
     }
 }
 
@@ -84,7 +95,7 @@ impl defmt::Format for SpawnError {
 // 105
 pub struct Spawner {
     executor: &'static raw::Executor,
-    //not_send: PhantomData<*mut ()>,
+    not_send: PhantomData<*mut ()>,
 }
 
 // 110
@@ -92,7 +103,7 @@ impl Spawner {
     pub(crate) fn new(executor: &'static raw::Executor) -> Self {
         Self {
             executor,
-            //not_send: PhantomData,
+            not_send: PhantomData,
         }
     }
 

@@ -25,6 +25,10 @@ impl<T> UninitCell<T> {
     // 21
     #[inline(never)]
     pub unsafe fn write_in_place(&self, func: impl FnOnce() -> T) {
+        // closure is evaluated here
+        // since the reusult of clouser is an 'async fn' and we did not want to copy
+        // that 'async fn' which is not a simple fn (function ptr) as a param in the
+        // previous function calls (started at 'spawn' and leading here)
         unsafe { ptr::write(self.as_mut_ptr(), func()) }
     }
 

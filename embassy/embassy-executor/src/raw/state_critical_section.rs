@@ -22,6 +22,7 @@ impl State {
         }
     }
 
+    // update state with the result so f called with the original state
     // 26
     //fn update_with_cs<R>(&self, f: impl FnOnce(&mut u32) -> R) -> R {
     fn update<R>(&self, f: impl FnOnce(&mut u32) -> R) -> R {
