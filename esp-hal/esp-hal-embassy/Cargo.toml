@@ -7,15 +7,13 @@ edition = "2021"
 console = { path = "../../console", features = ["usb_uart"]}
 esp-hal = { path = "../esp-hal" }
 macros = { features = ["embassy"], package = "esp-hal-procmacros", path = "../esp-hal-procmacros" }
-embassy-executor = { path = "../../embassy/embassy-executor", optional = true }
+embassy-executor = { path = "../../embassy/embassy-executor" }
 
 [build-dependencies]
 esp-build    = { version = "0.2.0", path = "../esp-build" }
 esp-metadata = { version = "0.6.0", path = "../esp-metadata" }
 
 [features]
-default = ["executors"]
-
 esp32   = ["esp-hal/esp32"]
 esp32c2 = ["esp-hal/esp32c2"]
 esp32c3 = ["esp-hal/esp32c3"]
@@ -23,5 +21,3 @@ esp32c6 = ["esp-hal/esp32c6"]
 esp32h2 = ["esp-hal/esp32h2"]
 esp32s2 = ["esp-hal/esp32s2"]
 esp32s3 = ["esp-hal/esp32s3"]
-
-executors = ["dep:embassy-executor"]
