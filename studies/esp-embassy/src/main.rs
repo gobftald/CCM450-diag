@@ -14,11 +14,13 @@ mod panic;
 extern crate console;
 
 use embassy_executor::Spawner;
+use embassy_time::{Duration, Timer};
 
 /*
 #[embassy_executor::task]
 async fn run() {
     info!("embassy_executor::task");
+    Timer::after(Duration::from_millis(1_000)).await;
 }
 
 #[esp_hal_embassy::main]
@@ -34,6 +36,7 @@ async fn main(spawner: Spawner) {
 async fn __run_task() {
     {
         info!("embassy_executor::task");
+        Timer::after(Duration::from_millis(1_000)).await;
     }
 }
 

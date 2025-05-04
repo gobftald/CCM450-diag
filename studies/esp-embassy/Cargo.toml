@@ -4,12 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-console          = { path = "../../console", features = ["usb_uart"]}
-defmt            = { version = "0.3.10", optional = true }
-esp-hal          = { path = "../../esp-hal/esp-hal" }
+console = { path = "../../console", features = ["usb_uart"]}
+defmt = { version = "0.3.10", optional = true }
+esp-hal = { path = "../../esp-hal/esp-hal" }
 
 esp-hal-embassy  = { path = "../../esp-hal/esp-hal-embassy"  }
 embassy-executor = { path = "../../embassy/embassy-executor" }
+embassy-time = { path = "../../embassy/embassy-time" }
 
 [dependencies.esp-backtrace]
     version = "0.15.1"
@@ -37,6 +38,8 @@ defmt = [
     "esp-backtrace?/defmt",
     "esp-hal/defmt",
     "embassy-executor/defmt",
+    "embassy-time/defmt",
+    "embassy-time/defmt-timestamp-uptime",
 ]
 
 backtrace = ["dep:esp-backtrace"]       # needs "-C", "force-frame-pointers" rustflag in config.toml

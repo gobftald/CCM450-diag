@@ -4,9 +4,17 @@ version = "1.0.0-beta.0"
 edition = "2021"
 
 [dependencies]
-console    = { path = "../../console", features = ["usb_uart"]}
-defmt      = { version = "0.3.10", optional = true }
-procmacros = { version = "0.17.0", package = "esp-hal-procmacros", path = "../esp-hal-procmacros" }
+console = { path = "../../console", features = ["usb_uart"]}
+procmacros = { package = "esp-hal-procmacros", path = "../esp-hal-procmacros" }
+defmt = { version = "0.3.10", optional = true }
+fugit = "0.3.7"
+paste = "1.0.15"
+delegate = "0.13.3"
+
+# IMPORTANT:
+# Each supported device MUST have its PAC included below along with a
+# corresponding feature.
+esp32c3 = { path = "../../esp-pacs/esp32c3", features = ["rt"], optional = true }
 
 [features]
 # Chip Support Feature Flags
@@ -14,8 +22,10 @@ procmacros = { version = "0.17.0", package = "esp-hal-procmacros", path = "../es
 esp32   = []
 # Target the ESP32-C2.
 esp32c2 = []
+
 # Target the ESP32-C3.
-esp32c3 = []
+esp32c3 = ["dep:esp32c3"]
+
 # Target the ESP32-C6.
 esp32c6 = []
 # Target the ESP32-H2.

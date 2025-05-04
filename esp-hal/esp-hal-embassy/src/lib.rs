@@ -4,9 +4,6 @@
 //! systems. This package provides support for building applications using
 //! Embassy with [esp-hal].
 //!
-//! Note that this crate currently requires you to enable the `unstable` feature
-//! on `esp-hal`.
-//!
 //! [esp-hal]: https://github.com/esp-rs/esp-hal
 //! [embassy]: https://github.com/embassy-rs/embassy
 //!
@@ -45,6 +42,10 @@ use core::marker::PhantomData;
 
 // 58
 pub use macros::embassy_main as main;
+
+// 64
+mod time_driver;
+//mod timer_queue;
 
 use embassy_executor::{raw, Spawner};
 

@@ -8,6 +8,7 @@ console = { path = "../../console", features = ["usb_uart"]}
 esp-hal = { path = "../esp-hal" }
 macros = { features = ["embassy"], package = "esp-hal-procmacros", path = "../esp-hal-procmacros" }
 embassy-executor = { path = "../../embassy/embassy-executor" }
+embassy-time-driver = { path = "../../embassy/embassy-time-driver", features = [ "tick-hz-1_000_000" ] }
 
 [build-dependencies]
 esp-build    = { version = "0.2.0", path = "../esp-build" }

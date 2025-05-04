@@ -1,0 +1,22 @@
+[package]
+name = "embassy-time"
+version = "0.4.0"
+edition = "2021"
+
+[dependencies]
+console = { path = "../../console", features = ["usb_uart"]}
+defmt = { version = "0.3", optional = true }
+embassy-time-driver = { path = "../embassy-time-driver" }
+
+[features]
+## Display the time since startup next to defmt log messages.
+## At most 1 `defmt-timestamp-uptime-*` feature can be used.
+## `defmt-timestamp-uptime` is provided for backwards compatibility (provides the same format as `uptime-us`).
+## To use this you must have a time driver provided.
+defmt-timestamp-uptime = ["defmt"]
+defmt-timestamp-uptime-s = ["defmt"]
+defmt-timestamp-uptime-ms = ["defmt"]
+defmt-timestamp-uptime-us = ["defmt"]
+defmt-timestamp-uptime-ts = ["defmt"]
+defmt-timestamp-uptime-tms = ["defmt"]
+defmt-timestamp-uptime-tus = ["defmt"]
