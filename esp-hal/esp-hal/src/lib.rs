@@ -68,8 +68,9 @@
 
 //182
 #![no_std]
+#![feature(variant_count)]
 
-#[macro_use(assert, panic)]
+#[macro_use(assert, panic, unreachable)]
 extern crate console;
 
 // 210
@@ -77,7 +78,7 @@ pub use self::soc::peripherals;
 pub(crate) use self::soc::peripherals::pac;
 
 // 220
-#[cfg(any(/*dport, hp_sys, pcr,*/ system))]
+#[cfg(system)]
 pub mod clock;
 
 // 226
@@ -89,12 +90,12 @@ pub mod time;
 // 236
 pub use procmacros::blocking_main as main;
 
-#[cfg(any(/*dport,*/ interrupt_core0, /*interrupt_core1*/))]
+#[cfg(interrupt_core0)]
 // 293
 pub mod interrupt;
 
 // 302
-#[cfg(any(systimer/* , timg0, timg1*/))]
+#[cfg(systimer)]
 pub mod timer;
 
 // 369
@@ -108,7 +109,6 @@ pub(crate) mod private {
     pub trait Sealed {}
 }
 
-#[doc(hidden)]
 // 486
 pub mod __macro_implementation {
     #[cfg(riscv)]

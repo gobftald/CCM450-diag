@@ -12,14 +12,9 @@ impl R {
     }
 }
 
-/// SYSTIMER_UNIT0_VALUE_HI.
-///
-/// You can [`read`](crate::Reg::read) this register and get [`hi::R`](R).
-/// See [API](https://docs.rs/svd2rust/#read--modify--write-api)."]
 pub struct HI_SPEC;
 impl crate::RegisterSpec for HI_SPEC {
     type Ux = u32;
 }
 
-/// `read()` method returns [`hi::R`](R) reader structure
 impl crate::Readable for HI_SPEC {}

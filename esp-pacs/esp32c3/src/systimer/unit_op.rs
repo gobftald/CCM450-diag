@@ -26,29 +26,19 @@ impl W {
     }
 }
 
-/// SYSTIMER_UNIT%s_OP.
-///
-/// You can [`read`](crate::Reg::read) this register and get [`unit_op::R`](R).
-/// You can [`reset`](crate::Reg::reset), [`write`](crate::Reg::write),
-/// [`write_with_zero`](crate::Reg::write_with_zero) this register using [`unit_op::W`](W).
-/// You can also [`modify`](crate::Reg::modify) this register.
-/// See [API](https://docs.rs/svd2rust/#read--modify--write-api).
 pub struct UNIT_OP_SPEC;
 impl crate::RegisterSpec for UNIT_OP_SPEC {
     type Ux = u32;
 }
 
-/// `read()` method returns [`unit_op::R`](R) reader structure
 impl crate::Readable for UNIT_OP_SPEC {}
 
-/// `write(|w| ..)` method takes [`unit_op::W`](W) writer structure
 impl crate::Writable for UNIT_OP_SPEC {
     type Safety = crate::Unsafe;
     const ZERO_TO_MODIFY_FIELDS_BITMAP: u32 = 0;
     const ONE_TO_MODIFY_FIELDS_BITMAP: u32 = 0;
 }
 
-/// `reset()` method sets UNIT%s_OP to value 0
 impl crate::Resettable for UNIT_OP_SPEC {
     const RESET_VALUE: u32 = 0;
 }

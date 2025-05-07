@@ -126,6 +126,20 @@ impl<REG: RegisterSpec> R<REG> {
 // 113
 pub type W<REG> = raw::W<REG>;
 
+// 114
+impl<REG: Writable> W<REG> {
+    /// Writes raw bits to the register.
+    ///
+    /// # Safety
+    ///
+    /// Passing incorrect value can cause undefined behaviour. See reference manual
+    #[inline(always)]
+    pub unsafe fn bits(&mut self, bits: REG::Ux) -> &mut Self {
+        self.bits = bits;
+        self
+    }
+}
+
 /// Field reader.
 ///
 /// Result of the `read` methods of fields.
@@ -134,6 +148,15 @@ pub type FieldReader<FI = u8> = raw::FieldReader<FI>;
 /// Bit-wise field reader
 // 142
 pub type BitReader<FI = bool> = raw::BitReader<FI>;
+
+// 143
+impl<FI: FieldSpec> FieldReader<FI> {
+    /// Reads raw bits from field.
+    #[inline(always)]
+    pub const fn bits(&self) -> FI::Ux {
+        self.bits
+    }
+}
 
 // 174
 impl<FI> BitReader<FI> {
@@ -160,6 +183,31 @@ pub struct Safe;
 // 199
 pub struct Unsafe;
 
+/// Write field Proxy
+// 207
+pub type FieldWriter<'a, REG, const WI: u8, FI = u8, Safety = Unsafe> =
+    raw::FieldWriter<'a, REG, WI, FI, Safety>;
+
+// 227
+impl<'a, REG, const WI: u8, FI, Safety> FieldWriter<'a, REG, WI, FI, Safety>
+where
+    REG: Writable + RegisterSpec,
+    FI: FieldSpec,
+    REG::Ux: From<FI::Ux>,
+{
+    /// Writes raw bits to the field
+    ///
+    /// # Safety
+    ///
+    /// Passing incorrect value can cause undefined behaviour. See reference manual
+    #[inline(always)]
+    pub unsafe fn bits(self, value: FI::Ux) -> &'a mut W<REG> {
+        self.w.bits &= !(REG::Ux::mask::<WI>() << self.o);
+        self.w.bits |= (REG::Ux::from(value) & REG::Ux::mask::<WI>()) << self.o;
+        self.w
+    }
+}
+
 // 321
 macro_rules! bit_proxy {
     ($ writer : ident , $ mwv : ident) => {
@@ -178,7 +226,7 @@ where
     REG: Writable + RegisterSpec,
     bool: From<FI>,
 {
-    #[doc = " Sets the field bit"]
+    /// Sets the field bit
     #[inline(always)]
     pub fn set_bit(self) -> &'a mut W<REG> {
         self.w.bits |= REG::Ux::one() << self.o;
@@ -253,6 +301,55 @@ impl<REG: Resettable + Writable> Reg<REG> {
                 | REG::ZERO_TO_MODIFY_FIELDS_BITMAP,
             _reg: marker::PhantomData,
         })
+        .bits;
+        self.register.set(value);
+        value
+    }
+}
+
+// 625
+impl<REG: Readable + Writable> Reg<REG> {
+    /// Modifies the contents of the register by reading and then writing it.
+    ///
+    /// E.g. to do a read-modify-write sequence to change parts of a register:
+    /// ```ignore"]
+    /// periph.reg.modify(|r, w| unsafe { w.bits(
+    ///    r.bits() | 3
+    /// ) });
+    /// ```
+    /// or
+    /// ```ignore
+    /// periph.reg.modify(|_, w| w
+    ///     .field1().bits(newfield1bits)
+    ///     .field2().set_bit()
+    ///     .field3().variant(VARIANT)
+    /// );
+    /// ```
+    /// or an alternative way of saying the same:
+    /// ```ignore
+    /// periph.reg.modify(|_, w| {
+    ///     w.field1().bits(newfield1bits);
+    ///     w.field2().set_bit();
+    ///     w.field3().variant(VARIANT)
+    /// });
+    /// ```
+    /// Other fields will have the value they had before the call to `modify`.
+    #[inline(always)]
+    pub fn modify<F>(&self, f: F) -> REG::Ux
+    where
+        for<'w> F: FnOnce(&R<REG>, &'w mut W<REG>) -> &'w mut W<REG>,
+    {
+        let bits = self.register.get();
+        let value = f(
+            &R {
+                bits,
+                _reg: marker::PhantomData,
+            },
+            &mut W {
+                bits: bits & !REG::ONE_TO_MODIFY_FIELDS_BITMAP | REG::ZERO_TO_MODIFY_FIELDS_BITMAP,
+                _reg: marker::PhantomData,
+            },
+        )
         .bits;
         self.register.set(value);
         value

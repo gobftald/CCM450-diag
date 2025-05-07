@@ -12,14 +12,9 @@ impl R {
     }
 }
 
-/// SYSTIMER_UNIT0_VALUE_LO.
-///
-/// You can [`read`](crate::Reg::read) this register and get [`lo::R`](R).
-/// See [API](https://docs.rs/svd2rust/#read--modify--write-api)."]
 pub struct LO_SPEC;
 impl crate::RegisterSpec for LO_SPEC {
     type Ux = u32;
 }
 
-/// `read()` method returns [`lo::R`](R) reader structure
 impl crate::Readable for LO_SPEC {}

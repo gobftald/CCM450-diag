@@ -11,3 +11,9 @@
 
 // 17
 pub mod peripherals;
+
+#[allow(unused)]
+// 36
+pub(crate) mod registers {
+    pub const INTERRUPT_MAP_BASE: u32 = 0x600c2000;
+}

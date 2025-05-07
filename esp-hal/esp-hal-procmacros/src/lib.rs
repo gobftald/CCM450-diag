@@ -8,6 +8,16 @@ mod blocking;
 // 52
 mod embassy;
 
+// 61
+mod ram;
+
+#[proc_macro_attribute]
+#[proc_macro_error2::proc_macro_error]
+// 119
+pub fn ram(args: TokenStream, input: TokenStream) -> TokenStream {
+    ram::ram(args, input)
+}
+
 #[cfg(feature = "embassy")]
 #[proc_macro_attribute]
 // 179

@@ -19,22 +19,8 @@ impl UNIT_VALUE {
     }
 }
 
-/// HI (r) register accessor: SYSTIMER_UNIT0_VALUE_HI.
-///
-/// You can [`read`](crate::Reg::read) this register and get [`hi::R`].
-/// See [API](https://docs.rs/svd2rust/#read--modify--write-api).
-///
-/// For information about available fields see [`mod@hi`] module"]
 pub type HI = crate::Reg<hi::HI_SPEC>;
-/// SYSTIMER_UNIT0_VALUE_HI.
 pub mod hi;
 
-/// LO (r) register accessor: SYSTIMER_UNIT0_VALUE_LO.
-///
-/// You can [`read`](crate::Reg::read) this register and get [`lo::R`].
-/// See [API](https://docs.rs/svd2rust/#read--modify--write-api).
-///
-/// For information about available fields see [`mod@lo`] module"]
 pub type LO = crate::Reg<lo::LO_SPEC>;
-/// SYSTIMER_UNIT0_VALUE_LO.
 pub mod lo;

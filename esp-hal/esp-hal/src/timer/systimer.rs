@@ -127,3 +127,5 @@ pub struct Alarm<'d> {
     unit: Unit,
     _lifetime: PhantomData<&'d mut ()>,
 }
+
+fn handle_alarm(alarm: u8) {}

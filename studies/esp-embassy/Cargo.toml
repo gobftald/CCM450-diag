@@ -22,7 +22,7 @@ embassy-time = { path = "../../embassy/embassy-time" }
 [features]
 default = [
     "esp32c3",
-    "defmt",
+    #"defmt",
 ]
 
 esp32c3 = [
