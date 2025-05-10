@@ -1,0 +1,5 @@
+{
+    "rust-analyzer.cargo.features": [
+        "critical-section-single-hart"
+    ]
+}

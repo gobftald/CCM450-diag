@@ -2,6 +2,8 @@
 mod macros;
 
 // Machine Trap Setup
+// 80
+pub mod mstatus;
 // 82
 pub mod mtvec;
 

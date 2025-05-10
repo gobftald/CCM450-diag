@@ -43,7 +43,7 @@ defmt   = [
 ]
 
 [target.'cfg(target_arch = "riscv32")'.dependencies]
-riscv        = { version = "0.12.0", path = "../../riscv/riscv"}
+riscv = { version = "0.12.0", path = "../../riscv/riscv", features = ["critical-section-single-hart"] }
 esp-riscv-rt = { version = "0.10.0", path = "../esp-riscv-rt" }
 
 [build-dependencies]

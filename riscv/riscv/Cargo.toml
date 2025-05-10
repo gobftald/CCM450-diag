@@ -5,7 +5,10 @@ edition = "2021"
 
 [dependencies]
 riscv-pac = { path = "../riscv-pac", version = "0.2.0" }
-defmt     = { version = "0.3.10", optional = true }
+defmt = { version = "0.3.10", optional = true }
+critical-section = "1.2.0"
 
 [features]
 defmt = ["dep:defmt", "riscv-pac/defmt"]
+s-mode = []
+critical-section-single-hart = ["critical-section/restore-state-bool"]
