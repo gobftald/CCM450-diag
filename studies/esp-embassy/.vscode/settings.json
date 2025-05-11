@@ -1,5 +1,8 @@
 {
     // eliminating "error[E0463]: can't find crate for `test`" from lib.rs
     "rust-analyzer.cargo.target": "riscv32imc-unknown-none-elf",
-    "rust-analyzer.checkOn.allTargets": true
+    "rust-analyzer.checkOn.allTargets": true,
+    "rust-analyzer.cargo.features": [
+        "esp32c3"
+    ]
 }

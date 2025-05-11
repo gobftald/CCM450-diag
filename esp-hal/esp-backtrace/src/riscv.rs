@@ -11,7 +11,6 @@ use crate::{Backtrace, BacktraceFrame};
 pub(super) const RA_OFFSET: usize = 4;
 
 /// Registers saved in trap handler
-#[doc(hidden)]
 #[derive(Default, Clone, Copy)]
 #[repr(C)]
 #[cfg(feature = "exception-handler")]

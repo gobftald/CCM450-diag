@@ -151,9 +151,7 @@ pub fn DefaultExceptionHandler(trap_frame: &TrapFrame) -> ! {
     }
 }
 
-#[doc(hidden)]
 #[no_mangle]
-#[rustfmt::skip]
 // 284
 pub unsafe extern "Rust" fn default_post_init() {}
 

@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 console = { path = "../../console", features = ["usb_uart"]}
+defmt = { version = "0.3.10", optional = true }
 esp-hal = { path = "../esp-hal" }
 macros = { features = ["embassy"], package = "esp-hal-procmacros", path = "../esp-hal-procmacros" }
 embassy-executor = { path = "../../embassy/embassy-executor" }

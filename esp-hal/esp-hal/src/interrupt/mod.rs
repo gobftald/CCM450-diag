@@ -32,28 +32,10 @@ pub use self::riscv::*;
 // 82
 mod riscv;
 
-// 86
-pub mod software;
-
 #[no_mangle]
 // 89
 extern "C" fn EspDefaultHandler(_interrupt: crate::peripherals::Interrupt) {
     panic!("Unhandled interrupt: {:?}", _interrupt);
-}
-
-/// Trait implemented by drivers which allow the user to set an
-/// [InterruptHandler]
-// 101
-pub trait InterruptConfigurable: crate::private::Sealed {
-    /// Registers an interrupt handler for the peripheral."
-    ///
-    /// Note that this will replace any previously registered interrupt
-    /// handlers. Some peripherals offer a shared interrupt handler for
-    /// multiple purposes. It's the users duty to honor this.
-    ///
-    /// You can restore the default/unhandled interrupt handler by using
-    /// [DEFAULT_INTERRUPT_HANDLER]
-    fn set_interrupt_handler(&mut self, handler: InterruptHandler);
 }
 
 // 127
