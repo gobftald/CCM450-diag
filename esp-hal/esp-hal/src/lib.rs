@@ -90,17 +90,20 @@ pub mod time;
 // 236
 pub use procmacros::blocking_main as main;
 
+// 292
+pub mod config;
+
 #[cfg(interrupt_core0)]
-// 293
+// 295
 pub mod interrupt;
 
-// 302
 #[cfg(systimer)]
+// 303
 pub mod timer;
 
-// 369
 // The `soc` module contains chip-specific implementation details
 // and should not be directly exposed.
+// 369
 mod soc;
 
 // 434
@@ -130,5 +133,39 @@ fn hal_main(a0: usize, a1: usize, a2: usize) -> ! {
 
     unsafe {
         main(a0, a1, a2);
+    }
+}
+
+// 558
+use crate::config::WatchdogConfig;
+
+// 559
+use crate::clock::CpuClock;
+
+/// System configuration.
+///
+/// This `struct` is marked with `#[non_exhaustive]` and can't be instantiated
+/// directly. This is done to prevent breaking changes when new fields are added
+/// to the `struct`. Instead, use the [`Config::default()`] method to create a
+/// new instance.
+///
+/// For usage examples, see the [config module documentation](crate::config).
+#[non_exhaustive]
+#[derive(/*Default,*/ Clone, Copy /*procmacros::BuilderLite*/)]
+// 574
+pub struct Config {
+    /// The CPU clock configuration.
+    cpu_clock: CpuClock,
+
+    /// Enable watchdog timer(s).
+    watchdog: WatchdogConfig,
+}
+
+impl Config {
+    pub fn new_and_default(cpu_clock: CpuClock) -> Self {
+        Self {
+            cpu_clock,
+            watchdog: WatchdogConfig::default(),
+        }
     }
 }

@@ -5,11 +5,13 @@ edition = "2021"
 
 [dependencies]
 console = { path = "../../console", features = ["usb_uart"]}
-procmacros = { package = "esp-hal-procmacros", path = "../esp-hal-procmacros" }
+cfg-if = "1.0.0"
+critical-section = { version = "1.2.0" }
 defmt = { version = "0.3.10", optional = true }
+delegate = "0.13.3"
 fugit = "0.3.7"
 paste = "1.0.15"
-delegate = "0.13.3"
+procmacros = { package = "esp-hal-procmacros", path = "../esp-hal-procmacros" }
 
 # IMPORTANT:
 # Each supported device MUST have its PAC included below along with a

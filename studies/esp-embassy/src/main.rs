@@ -29,6 +29,9 @@ async fn main(spawner: Spawner) {
 
     info!("esp_hal_embassy::main");
 
+    //let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
+    let config = esp_hal::Config::new_and_default(esp_hal::clock::CpuClock::max());
+
     spawner.spawn(run()).ok();
 }
 */
@@ -70,6 +73,9 @@ async fn ____embassy_main_task(spawner: Spawner) {
 
     {
         info!("esp_hal_embassy::main");
+
+        //let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
+        let config = esp_hal::Config::new_and_default(esp_hal::clock::CpuClock::max());
 
         spawner.spawn(run()).ok();
     }
