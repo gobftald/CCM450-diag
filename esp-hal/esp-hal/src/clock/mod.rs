@@ -24,12 +24,22 @@
 // 49
 use crate::time::Rate;
 
+// 53
+#[cfg_attr(esp32c3, path = "clocks_ll/esp32c3.rs")]
+pub(crate) mod clocks_ll;
+
 /// Clock properties
 // 62
 pub trait Clock {
     /// Frequency of the clock in [Rate].
     // 64
     fn frequency(&self) -> Rate;
+
+    /// Frequency of the clock in Megahertz
+    // 67
+    fn mhz(&self) -> u32 {
+        self.frequency().as_mhz()
+    }
 
     /// Frequency of the clock in Hertz
     // 72
@@ -39,8 +49,7 @@ pub trait Clock {
 }
 
 /// CPU clock speed
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(/*Debug,*/ Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum CpuClock {
     /// 80MHz CPU clock
@@ -96,9 +105,15 @@ impl CpuClock {
     }
 }
 
+// 137
+impl Clock for CpuClock {
+    fn frequency(&self) -> Rate {
+        Rate::from_mhz(*self as u32)
+    }
+}
+
 /// XTAL clock speed
 #[derive(/*Debug,*/ Clone, Copy)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[non_exhaustive]
 // 147
 pub enum XtalClock {
@@ -130,15 +145,84 @@ impl Clock for XtalClock {
     }
 }
 
+// 177
+pub(crate) enum PllClock {
+    #[cfg(esp32h2)]
+    Pll8MHz,
+    #[cfg(any(esp32c6, esp32h2))]
+    Pll48MHz,
+    #[cfg(esp32h2)]
+    Pll64MHz,
+    #[cfg(esp32c6)]
+    Pll80MHz,
+    #[cfg(esp32h2)]
+    Pll96MHz,
+    #[cfg(esp32c6)]
+    Pll120MHz,
+    #[cfg(esp32c6)]
+    Pll160MHz,
+    #[cfg(esp32c6)]
+    Pll240MHz,
+    #[cfg(not(any(esp32c2, esp32c6, esp32h2)))]
+    Pll320MHz,
+    #[cfg(not(esp32h2))]
+    Pll480MHz,
+}
+
+#[derive(/*Debug,*/ Clone, Copy)]
+// 229
+pub(crate) enum ApbClock {
+    #[cfg(esp32h2)]
+    ApbFreq32MHz,
+    #[cfg(not(esp32h2))]
+    ApbFreq40MHz,
+    #[cfg(not(esp32h2))]
+    ApbFreq80MHz,
+    ApbFreqOther(u32),
+}
+
+// 239
+impl Clock for ApbClock {
+    fn frequency(&self) -> Rate {
+        match self {
+            #[cfg(esp32h2)]
+            ApbClock::ApbFreq32MHz => Rate::from_mhz(32),
+            #[cfg(not(esp32h2))]
+            ApbClock::ApbFreq40MHz => Rate::from_mhz(40),
+            #[cfg(not(esp32h2))]
+            ApbClock::ApbFreq80MHz => Rate::from_mhz(80),
+            ApbClock::ApbFreqOther(mhz) => Rate::from_mhz(*mhz),
+        }
+    }
+}
+
 /// Clock frequencies.
-#[derive(Debug, Clone, Copy)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(/*Debug,*/ Clone, Copy)]
 #[non_exhaustive]
 // 258
-pub struct Clocks {}
+pub struct Clocks {
+    /// CPU clock frequency
+    pub cpu_clock: Rate,
+
+    /// APB clock frequency
+    pub apb_clock: Rate,
+
+    /// XTAL clock frequency
+    pub xtal_clock: Rate,
+}
+
+// 293
+static mut ACTIVE_CLOCKS: Option<Clocks> = None;
 
 // 295
 impl Clocks {
+    // 296
+    pub(crate) fn init(cpu_clock_speed: CpuClock) {
+        critical_section::with(|_| {
+            unsafe { ACTIVE_CLOCKS = Some(Self::configure(cpu_clock_speed)) };
+        })
+    }
+
     /// Returns the xtal frequency.
     ///
     /// This function will run the frequency estimation if called before
@@ -165,5 +249,35 @@ impl Clocks {
     // 439
     fn measure_xtal_frequency() -> XtalClock {
         XtalClock::_40M
+    }
+
+    /// Configure the CPU clock speed.
+    // 444
+    pub(crate) fn configure(cpu_clock_speed: CpuClock) -> Self {
+        let xtal_freq = Self::measure_xtal_frequency();
+
+        let apb_freq;
+        if cpu_clock_speed != CpuClock::default() {
+            if cpu_clock_speed.mhz() <= xtal_freq.mhz() {
+                apb_freq = ApbClock::ApbFreqOther(cpu_clock_speed.mhz());
+                clocks_ll::esp32c3_rtc_update_to_xtal(xtal_freq, 1);
+                clocks_ll::esp32c3_rtc_apb_freq_update(apb_freq);
+            } else {
+                let pll_freq = PllClock::Pll480MHz;
+                apb_freq = ApbClock::ApbFreq80MHz;
+                clocks_ll::esp32c3_rtc_bbpll_enable();
+                clocks_ll::esp32c3_rtc_bbpll_configure(xtal_freq, pll_freq);
+                clocks_ll::esp32c3_rtc_freq_to_pll_mhz(cpu_clock_speed);
+                clocks_ll::esp32c3_rtc_apb_freq_update(apb_freq);
+            }
+        } else {
+            apb_freq = ApbClock::ApbFreq80MHz;
+        }
+
+        Self {
+            cpu_clock: cpu_clock_speed.frequency(),
+            apb_clock: apb_freq.frequency(),
+            xtal_clock: xtal_freq.frequency(),
+        }
     }
 }

@@ -29,6 +29,13 @@ impl Rate {
     pub const fn as_hz(&self) -> u32 {
         self.0.to_Hz()
     }
+
+    /// Convert the `Rate` to an interger number of MHz.
+    #[inline]
+    // 82
+    pub const fn as_mhz(&self) -> u32 {
+        self.0.to_MHz()
+    }
 }
 
 // Represents an instant in time.

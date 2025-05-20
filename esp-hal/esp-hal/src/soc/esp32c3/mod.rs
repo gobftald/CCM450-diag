@@ -11,6 +11,7 @@
 
 // 17
 pub mod peripherals;
+pub(crate) mod regi2c;
 
 #[allow(unused)]
 // 36

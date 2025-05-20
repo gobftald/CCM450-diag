@@ -70,7 +70,7 @@
 #![no_std]
 #![feature(variant_count)]
 
-#[macro_use(assert, panic, unreachable)]
+#[macro_use(assert, panic, debug)]
 extern crate console;
 
 // 210
@@ -84,10 +84,11 @@ pub mod clock;
 // 226
 pub mod peripheral;
 
-// 232
+// 231
+pub mod system;
 pub mod time;
 
-// 236
+// 238
 pub use procmacros::blocking_main as main;
 
 // 292
@@ -96,10 +97,15 @@ pub mod config;
 #[cfg(interrupt_core0)]
 // 295
 pub mod interrupt;
+pub mod rom;
 
 #[cfg(systimer)]
 // 303
 pub mod timer;
+
+#[cfg(rtc_cntl)]
+// 304
+pub mod rtc_cntl;
 
 // The `soc` module contains chip-specific implementation details
 // and should not be directly exposed.
@@ -138,9 +144,11 @@ fn hal_main(a0: usize, a1: usize, a2: usize) -> ! {
 
 // 558
 use crate::config::WatchdogConfig;
+// 559
+use crate::clock::Clocks;
 
 // 559
-use crate::clock::CpuClock;
+use crate::{clock::CpuClock, peripherals::Peripherals};
 
 /// System configuration.
 ///
@@ -168,4 +176,38 @@ impl Config {
             watchdog: WatchdogConfig::default(),
         }
     }
+}
+
+/// Initialize the system.
+///
+/// This function sets up the CPU clock and watchdog, then, returns the
+/// peripherals and clocks.
+// 596
+pub fn init(config: Config) -> Peripherals {
+    system::disable_peripherals();
+
+    let mut peripherals = Peripherals::take();
+
+    // RTC domain must be enabled before we try to disable
+    let mut rtc = crate::rtc_cntl::Rtc::new(peripherals.LPWR.reborrow());
+
+    // Handle watchdog configuration with defaults
+    #[cfg(not(feature = "unstable"))]
+    {
+        #[cfg(not(any(esp32, esp32s2)))]
+        rtc.swd.disable();
+
+        rtc.rwdt.disable();
+
+        //crate::timer::timg::Wdt::<crate::peripherals::TIMG0<'static>>::new().disable();
+    }
+
+    Clocks::init(config.cpu_clock);
+
+    #[cfg(esp32)]
+    crate::time::time_init();
+
+    //crate::gpio::interrupt::bind_default_interrupt_handler();
+
+    peripherals
 }

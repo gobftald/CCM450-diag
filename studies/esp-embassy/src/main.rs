@@ -20,7 +20,11 @@ use embassy_time::{Duration, Timer};
 #[embassy_executor::task]
 async fn run() {
     info!("embassy_executor::task");
-    Timer::after(Duration::from_millis(1_000)).await;
+
+    loop {
+        info!("Hello world from embassy using esp-hal-async!");
+        Timer::after(Duration::from_millis(1_000)).await;
+    }
 }
 
 #[esp_hal_embassy::main]
@@ -31,6 +35,7 @@ async fn main(spawner: Spawner) {
 
     //let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let config = esp_hal::Config::new_and_default(esp_hal::clock::CpuClock::max());
+    let peripherals = esp_hal::init(config);
 
     spawner.spawn(run()).ok();
 }
@@ -39,7 +44,11 @@ async fn main(spawner: Spawner) {
 async fn __run_task() {
     {
         info!("embassy_executor::task");
-        Timer::after(Duration::from_millis(1_000)).await;
+
+        loop {
+            info!("Hello world from embassy using esp-hal-async!");
+            Timer::after(Duration::from_millis(1_000)).await;
+        }
     }
 }
 
@@ -76,6 +85,7 @@ async fn ____embassy_main_task(spawner: Spawner) {
 
         //let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
         let config = esp_hal::Config::new_and_default(esp_hal::clock::CpuClock::max());
+        let peripherals = esp_hal::init(config);
 
         spawner.spawn(run()).ok();
     }

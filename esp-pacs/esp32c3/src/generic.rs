@@ -214,6 +214,19 @@ macro_rules! bit_proxy {
         pub struct $mwv;
         /// Bit-wise write field proxy
         pub type $writer<'a, REG, FI = bool> = raw::BitWriter<'a, REG, FI, $mwv>;
+        impl<'a, REG, FI> $writer<'a, REG, FI>
+        where
+            REG: Writable + RegisterSpec,
+            bool: From<FI>,
+        {
+            #[doc = " Writes bit to the field"]
+            #[inline(always)]
+            pub fn bit(self, value: bool) -> &'a mut W<REG> {
+                self.w.bits &= !(REG::Ux::one() << self.o);
+                self.w.bits |= (REG::Ux::from(value) & REG::Ux::one()) << self.o;
+                self.w
+            }
+        }
     };
 }
 
@@ -230,6 +243,13 @@ where
     #[inline(always)]
     pub fn set_bit(self) -> &'a mut W<REG> {
         self.w.bits |= REG::Ux::one() << self.o;
+        self.w
+    }
+
+    /// Clears the field bit
+    #[inline(always)]
+    pub fn clear_bit(self) -> &'a mut W<REG> {
+        self.w.bits &= !(REG::Ux::one() << self.o);
         self.w
     }
 }

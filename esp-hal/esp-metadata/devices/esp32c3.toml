@@ -6,6 +6,7 @@ cores = "single_core"
 peripherals = [
     # Peripherals available in the PAC:
     "interrupt_core0",
+    "rtc_cntl",
     "system",
     "systimer",
 ]

@@ -238,8 +238,26 @@ impl Deref for INTERRUPT_CORE0 {
 }
 pub mod interrupt_core0;
 
+/// "Real-Time Clock Control
+// 1130
+pub struct RTC_CNTL {
+    _marker: PhantomData<*const ()>,
+}
+unsafe impl Send for RTC_CNTL {}
+impl RTC_CNTL {
+    pub const PTR: *const rtc_cntl::RegisterBlock = 0x6000_8000 as *const _;
+}
+impl Deref for RTC_CNTL {
+    type Target = rtc_cntl::RegisterBlock;
+    #[inline(always)]
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*Self::PTR }
+    }
+}
+pub mod rtc_cntl;
+
 /// System Configuration Registers
-/// 1407
+// 1407
 pub struct SYSTEM {
     _marker: PhantomData<*const ()>,
 }
@@ -275,3 +293,22 @@ impl Deref for SYSTIMER {
     }
 }
 pub mod systimer;
+
+/// I2C_MST_ANA Peripheral
+// 2051
+pub struct I2C_ANA_MST {
+    _marker: PhantomData<*const ()>,
+}
+unsafe impl Send for I2C_ANA_MST {}
+impl I2C_ANA_MST {
+    /// Pointer to the register block
+    pub const PTR: *const i2c_ana_mst::RegisterBlock = 0x6000_e040 as *const _;
+}
+impl Deref for I2C_ANA_MST {
+    type Target = i2c_ana_mst::RegisterBlock;
+    #[inline(always)]
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*Self::PTR }
+    }
+}
+pub mod i2c_ana_mst;
