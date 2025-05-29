@@ -64,13 +64,13 @@
 //! You should never use `core::mem::forget` on any type defined in the HAL.
 //! Some types heavily rely on their `Drop` implementation to not leave the
 //! hardware in undefined state and causing UB.
-//!
 
 //182
 #![no_std]
 #![feature(variant_count)]
+#![allow(static_mut_refs)]
 
-#[macro_use(assert, panic, debug)]
+#[macro_use(assert, unreachable, panic, debug, unwrap)]
 extern crate console;
 
 // 210
@@ -87,6 +87,9 @@ pub mod peripheral;
 // 231
 pub mod system;
 pub mod time;
+
+// 236
+mod macros;
 
 // 238
 pub use procmacros::blocking_main as main;

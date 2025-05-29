@@ -98,3 +98,12 @@ impl PeripheralClockControl {
         });
     }
 }
+
+// 1090
+impl PeripheralClockControl {
+    /// Enables the given peripheral.
+    // 1097
+    pub(crate) fn enable(peripheral: Peripheral) {
+        critical_section::with(|cs| Self::enable_internal(peripheral, true, cs));
+    }
+}

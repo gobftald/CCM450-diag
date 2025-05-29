@@ -4,6 +4,9 @@
 //! as an instant in time. Time is measured since boot, and can be accessed
 //! by the [`Instant::now`] function.
 
+// 7
+use core::fmt::{Debug, Formatter, Result as FmtResult};
+
 // 12
 type InnerRate = fugit::Rate<u32, 1, 1>;
 type InnerInstant = fugit::Instant<u64, 1, 1_000_000>;
@@ -96,8 +99,36 @@ impl core::ops::Sub for Instant {
 // 236
 pub struct Duration(InnerDuration);
 
+// 238
+impl Debug for Duration {
+    #[inline]
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        write!(f, "Duration({} µs)", self.as_micros())
+    }
+}
+
+#[cfg(feature = "defmt")]
+impl defmt::Format for Duration {
+    #[inline]
+    fn format(&self, f: defmt::Formatter<'_>) {
+        defmt::write!(f, "{=u64} µs", self.as_micros())
+    }
+}
+
 // 260
 impl Duration {
+    /// A duration of zero time.
+    // 262
+    pub const ZERO: Self = Self(InnerDuration::from_ticks(0));
+
+    /// Creates a duration which represents microseconds.
+    #[inline]
+    // 269
+    pub const fn from_micros(val: u64) -> Self {
+        Self(InnerDuration::micros(val))
+    }
+
+    // 297
     delegate::delegate! {
         #[inline]
         to self.0 {
@@ -106,6 +137,16 @@ impl Duration {
             // 302
             pub const fn as_micros(&self) -> u64;
         }
+    }
+}
+
+// 405
+impl core::ops::Div<u32> for Duration {
+    type Output = Self;
+
+    #[inline]
+    fn div(self, rhs: u32) -> Self::Output {
+        Duration(self.0 / rhs)
     }
 }
 

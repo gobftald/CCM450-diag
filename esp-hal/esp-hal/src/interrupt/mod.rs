@@ -51,6 +51,18 @@ impl InterruptHandler {
     pub const fn new(f: extern "C" fn(), prio: Priority) -> Self {
         Self { f, prio }
     }
+
+    /// The function to be called
+    #[inline]
+    pub fn handler(&self) -> extern "C" fn() {
+        self.f
+    }
+
+    /// Priority to be used when registering the interrupt
+    #[inline]
+    pub fn priority(&self) -> Priority {
+        self.prio
+    }
 }
 
 //#[cfg(not(any(large_intr_status, very_large_intr_status)))]

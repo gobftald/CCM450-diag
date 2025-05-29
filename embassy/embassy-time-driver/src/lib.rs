@@ -97,15 +97,16 @@ pub fn now() -> u64 {
 ///
 /// See the module documentation for an example.
 #[macro_export]
-// 157
+// 157``
 macro_rules! time_driver_impl {
-    (static $name:ident: $t: ty = $val:expr) => {
-        static $name: $t = $val;
+    (static mut $name:ident: $t: ty = $val:expr) => {
+        //static $name: $t = $val;
+        static mut $name: $t = $val;
 
         #[no_mangle]
         #[inline]
         fn _embassy_time_now() -> u64 {
-            <$t as $crate::Driver>::now(&$name)
+            unsafe { <$t as $crate::Driver>::now(&$name) }
         }
     };
 }

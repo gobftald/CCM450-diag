@@ -21,6 +21,16 @@ use crate::{
     peripherals::{Interrupt, INTERRUPT_CORE0},
 };
 
+/// Interrupt Error
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum Error {
+    /// The priority is not valid
+    InvalidInterruptPriority,
+    /// The CPU interrupt is a reserved interrupt
+    CpuInterruptReserved,
+}
+
 /// Interrupt kind
 //#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 // 42
@@ -239,6 +249,31 @@ pub fn status() -> InterruptStatus {
     )
 }
 
+/// Assign a peripheral interrupt to an CPU interrupt.
+///
+/// # Safety
+///
+/// Do not use CPU interrupts in the [`RESERVED_INTERRUPTS`].
+// 331
+//pub unsafe fn map(_core: Cpu, interrupt: Interrupt, which: CpuInterrupt) {
+pub unsafe fn map(interrupt: Interrupt, which: CpuInterrupt) {
+    let interrupt_number = interrupt as isize;
+    let cpu_interrupt_number = which as isize;
+    #[cfg(not(multi_core))]
+    let intr_map_base = crate::soc::registers::INTERRUPT_MAP_BASE as *mut u32;
+    #[cfg(multi_core)]
+    let intr_map_base = match _core {
+        Cpu::ProCpu => crate::soc::registers::INTERRUPT_MAP_BASE as *mut u32,
+        Cpu::AppCpu => crate::soc::registers::INTERRUPT_MAP_BASE_APP_CPU as *mut u32,
+    };
+
+    unsafe {
+        intr_map_base
+            .offset(interrupt_number)
+            .write_volatile(cpu_interrupt_number as u32 + EXTERNAL_INTERRUPT_OFFSET);
+    }
+}
+
 /// Get cpu interrupt assigned to peripheral interrupt
 #[inline]
 // 349
@@ -305,6 +340,28 @@ mod vectored {
             }
             res
         }
+    }
+
+    /// Enables a interrupt at a given priority
+    ///
+    /// Note that interrupts still need to be enabled globally for interrupts
+    /// to be serviced.
+    // 425
+    // 429
+    pub fn enable(interrupt: Interrupt, level: Priority) -> Result<(), Error> {
+        //enable_on_cpu(Cpu::current(), interrupt, level)
+        if matches!(level, Priority::None) {
+            return Err(Error::InvalidInterruptPriority);
+        }
+        unsafe {
+            let cpu_interrupt = core::mem::transmute::<u32, CpuInterrupt>(
+                PRIORITY_TO_INTERRUPT[(level as usize) - 1] as u32,
+            );
+            //map(cpu, interrupt, cpu_interrupt);
+            map(interrupt, cpu_interrupt);
+            enable_cpu_interrupt(cpu_interrupt);
+        }
+        Ok(())
     }
 
     /// Binds the given interrupt to the given handler.

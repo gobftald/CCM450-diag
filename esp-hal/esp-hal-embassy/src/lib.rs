@@ -37,15 +37,60 @@
 //! Also skipping the '__pender calls pend_thread_mode' logic and also ignoring
 //! 'cpu core' specification in their 'context' args.
 #![no_std]
+#![feature(once_cell_get_mut)]
+#![allow(static_mut_refs)]
+
+#[macro_use(unreachable, unwrap, assert_ne, panic)]
+extern crate console;
 
 use core::marker::PhantomData;
 
-// 58
+// 55
+//use esp_hal::timer::{timg::Timer as TimgTimer, AnyTimer};
+
+// 56
 pub use macros::embassy_main as main;
+
+// 60
+use self::time_driver::{EmbassyTimer, Timer};
 
 // 64
 mod time_driver;
-//mod timer_queue;
+mod timer_queue;
+
+/// A timer or collection on timers that can be passed to [`init`].
+//pub trait TimeBase: private::Sealed {
+pub trait TimeBase {
+    //fn timers(self, _: private::Internal) -> &'static mut [Timer];
+    fn timers(self) -> &'static mut [Timer];
+}
+
+// 89
+macro_rules! impl_timebase {
+    ($timebase:path) => {
+        use core::cell::OnceCell;
+        impl TimeBase for $timebase {
+            fn timers(self) -> &'static mut [Timer] {
+                //mk_static!([Timer; 1], [Timer::new(self)])
+                static mut STATIC_TIMER_CELL: OnceCell<[Timer; 1]> = OnceCell::new();
+                unsafe { STATIC_TIMER_CELL.get_mut_or_init(|| [Timer::new(self)]) }
+            }
+        }
+    };
+}
+
+#[cfg(systimer)]
+// 140
+impl_timebase!(esp_hal::timer::systimer::Alarm<'static>);
+
+/// Initialize embassy.
+///
+/// Call this as soon as possible, before the first timer-related operation.
+// 191
+pub fn init(timer_driver: impl TimeBase) {
+    //EmbassyTimer::init(time_driver.timers(private::Internal))
+    EmbassyTimer::init(timer_driver.timers());
+}
 
 use embassy_executor::{raw, Spawner};
 

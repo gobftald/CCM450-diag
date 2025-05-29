@@ -145,6 +145,7 @@ impl Clock for XtalClock {
     }
 }
 
+#[allow(unused)]
 // 177
 pub(crate) enum PllClock {
     #[cfg(esp32h2)]
@@ -169,6 +170,7 @@ pub(crate) enum PllClock {
     Pll480MHz,
 }
 
+#[allow(unused)]
 #[derive(/*Debug,*/ Clone, Copy)]
 // 229
 pub(crate) enum ApbClock {

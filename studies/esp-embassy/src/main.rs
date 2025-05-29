@@ -2,9 +2,7 @@
 #![no_main]
 // for 'task' embassy-executor-macro, when embassy-executor/nightly
 #![feature(impl_trait_in_assoc_type)]
-// for using #[thread_local] in 'task' embassy-executor-macro
-// to make 'static POOL: ... = embassy_executor::raw::TaskPool::new() 'unsync'
-#![feature(thread_local)]
+#![allow(static_mut_refs)]
 
 // panic_handler
 mod panic;
@@ -36,6 +34,9 @@ async fn main(spawner: Spawner) {
     //let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let config = esp_hal::Config::new_and_default(esp_hal::clock::CpuClock::max());
     let peripherals = esp_hal::init(config);
+
+    let systimer = esp_hal::timer::systimer::SystemTimer::new(peripherals.SYSTIMER);
+    esp_hal_embassy::init(systimer::Alarm0);
 
     spawner.spawn(run()).ok();
 }
@@ -86,6 +87,9 @@ async fn ____embassy_main_task(spawner: Spawner) {
         //let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
         let config = esp_hal::Config::new_and_default(esp_hal::clock::CpuClock::max());
         let peripherals = esp_hal::init(config);
+
+        let systimer = esp_hal::timer::systimer::SystemTimer::new(peripherals.SYSTIMER);
+        esp_hal_embassy::init(systimer.alarm0);
 
         spawner.spawn(run()).ok();
     }

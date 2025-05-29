@@ -208,6 +208,20 @@ where
     }
 }
 
+// 245
+impl<'a, REG, const WI: u8, FI> FieldWriter<'a, REG, WI, FI, Safe>
+where
+    REG: Writable + RegisterSpec,
+    FI: FieldSpec,
+    REG::Ux: From<FI::Ux>,
+{
+    /// Writes raw bits to the field
+    #[inline(always)]
+    pub fn set(self, value: FI::Ux) -> &'a mut W<REG> {
+        unsafe { self.bits(value) }
+    }
+}
+
 // 321
 macro_rules! bit_proxy {
     ($ writer : ident , $ mwv : ident) => {
@@ -232,6 +246,8 @@ macro_rules! bit_proxy {
 
 // 359
 bit_proxy!(BitWriter, BitM);
+// 362
+bit_proxy!(BitWriter1C, Bit1C);
 
 // 366
 impl<'a, REG, FI> BitWriter<'a, REG, FI>
@@ -250,6 +266,20 @@ where
     #[inline(always)]
     pub fn clear_bit(self) -> &'a mut W<REG> {
         self.w.bits &= !(REG::Ux::one() << self.o);
+        self.w
+    }
+}
+
+// 408
+impl<'a, REG, FI> BitWriter1C<'a, REG, FI>
+where
+    REG: Writable + RegisterSpec,
+    bool: From<FI>,
+{
+    /// Clears the field bit by passing one
+    #[inline(always)]
+    pub fn clear_bit_by_one(self) -> &'a mut W<REG> {
+        self.w.bits |= REG::Ux::one() << self.o;
         self.w
     }
 }

@@ -78,9 +78,9 @@ pub struct TaskRef {
 //unsafe impl Send for TaskRef where &'static TaskHeader: Send {}
 //unsafe impl Sync for TaskRef where &'static TaskHeader: Sync {}
 
-// 103
+// 109
 impl TaskRef {
-    // 104
+    // 110
     fn new<F: Future + 'static>(task: &'static TaskStorage<F>) -> Self {
         Self {
             ptr: NonNull::from(task).cast(),
@@ -88,7 +88,7 @@ impl TaskRef {
     }
 
     /// Safety: The pointer must have been obtained with `Task::as_ptr`
-    // 111
+    // 117
     pub(crate) unsafe fn from_ptr(ptr: *const TaskHeader) -> Self {
         unsafe {
             Self {
@@ -97,13 +97,30 @@ impl TaskRef {
         }
     }
 
+    /// # Safety
+    ///
+    /// The result of this function must only be compared
+    /// for equality, or stored, but not used.
     // 127
+    pub const unsafe fn dangling() -> Self {
+        Self {
+            ptr: NonNull::dangling(),
+        }
+    }
+
+    // 133
     pub(crate) fn header(self) -> &'static TaskHeader {
         unsafe { self.ptr.as_ref() }
     }
 
+    /// Returns a reference to the timer queue item.
+    // 144
+    pub fn timer_queue_item(&self) -> &'static timer_queue::TimerQueueItem {
+        &self.header().timer_queue_item
+    }
+
     /// The returned pointer is valid for the entire TaskStorage.
-    // 142
+    // 149
     pub(crate) fn as_ptr(self) -> *const TaskHeader {
         self.ptr.as_ptr()
     }
