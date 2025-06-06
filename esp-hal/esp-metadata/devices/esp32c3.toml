@@ -13,7 +13,7 @@ peripherals = [
 
 symbols = [
     # Executor parameters
-    #"low_power_wait",
+    "low_power_wait",
     "integrated_timers",
     "single_queue",
 ]

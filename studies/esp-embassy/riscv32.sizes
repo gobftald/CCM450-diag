@@ -1,59 +1,124 @@
-cargo run --release
+DEFMT_LOG=info cargo run --release
 
-esp_image: segment 0: paddr=00010020 vaddr=3c000020 size=0003ch (    60) map    .rodata
-esp_image: segment 1: paddr=00010064 vaddr=40380000 size=00394h (   916) load   .trap + .rwtext
-esp_image: segment 3: paddr=00020020 vaddr=42010020 size=002cch (   716) map    .text
+esp_image: segment 0: paddr=00010020 vaddr=3c000020 size=00070h (   112) map    .rodata
+esp_image: segment 1: paddr=00010224 vaddr=3fc80724 size=00024h (    36)        .data
+esp_image: segment 2: paddr=000100c4 vaddr=40380000 size=006cch (  1740) load   .trap + .rwtext
+esp_image: segment 4: paddr=00020020 vaddr=42010020 size=00f30h (  3888) map    .text
 
 .trap
     40380000 _start_trap:
     40380024 _start_trap1:
     40380032 _start_trap2:
     ...
-    403801c8 _start_trap31:                                   376
+    403801c8 _start_trap31:                                                               478
 
-    403801de _start_trap_direct:                              392
-    40380300 _vector_table:                                   128
-    40380380 _start_trap_rust_hal:                             18
-    padding                                                     2
-                                                                                916
+    403801de _start_trap_direct:                                                          168
+    40380286 padding                                                                      122
+    40380300 _vector_table:                                                               128
+    40380380 _start_trap_rust_hal:                                                         16
+    40380390 padding                                                                        4
+                                                                                                    916     0x394
+
+.rwtext
+    40380394 esp_hal::interrupt::riscv::classic::PRIORITY_TO_INTERRUPT                      8
+    4038039c esp_hal::interrupt::riscv::classic::INTERRUPT_TO_PRIORITY                     16
+    403803ac interrupt1
+    ...
+    4038041c interrupt15                                                                  120
+
+    40380424 handle_interrupts                                                            432
+    403805d4 __EXTERNAL_INTERRUPTS                                                        248
+                                                                                                    824     0x338
+
+.rwdata_dummy
+    3fc80000 . + SIZEOF(.rwtext) + SIZEOF(.trap)                             (916 + 824) 1740
+.data
+    3fc806cc esp_hal_embassy::time_driver::DRIVER
+    3fc806ec esp_hal::timer::systimer::Alarm  in impl esp_hal_embassy::TimeBase::timers::STATIC_TIMER_CELL
+                                                                                                    36      0x24
+
+.bss
+    3fc806f0 esp_embassy::run::POOL
+    3fc80728 esp_embassy::__embassy_main::POOL
+    3fc80750 esp_hal_embassy::SIGNAL_WORK_THREAD_MODE
+    3fc80751 _ESP_HAL_DEVICE_PERIPHERALS                                                            100     0x64
 
 .rodata
-    3c000020
-    b"01234567890123456789012345678901234567890123456789012345678\n"            60
+    3c000020 esp_embassy
+    3c000021 esp_embassy
+    3c000024 esp_hal
+    3c000060 <internal>:(.rodata.cst32)
+    3c000080 embassy_executor::raw::waker::VTABLE
+                                                                                                    112     0x70
 
+.rotext_dummy
+    42000020 . + SIZEOF(.rodata)
+             ALIGN(0x10000) + 0x20
 .text
-    0x42000020
-    _start                                                      8
+    42010020
+    _start                                                                                  8
     42010028
-    _abs_start                                                144
-    0x420000b8
-    _start_rust                                                46
-    0x420000e6
-    abort                                                       4       202
-    0x420000ea
+    _abs_start                                                                            144
+    420100b8
+    _start_rust                                                                            46
+    420100e6
+    abort                                                                                   4       202
 
-    esp_hal_embassy::executor::thread::Executor::run           96
-    embassy_executor::raw::poll_exited                          2
-    embassy_executor::raw::TaskStorage...::poll                34
-    embassy_executor::raw::TaskStorage...::poll               126
-    embassy_executor::raw::util::UninitCell...::write_in_place 16
-    embassy_executor::raw::util::UninitCell...::write_in_place 10
-                                                                        284
+    420100ea
+    esp_hal_embassy::executor::thread::Executor::run                                       96
+    embassy_executor::raw::poll_exited                                                      2
+    embassy_executor::raw::TaskStorage::poll                                              164
+    embassy_executor::raw::TaskStorage::poll                                              146
+    embassy_executor::raw::util1::UninitCell::write_in_place                               16
+    embassy_executor::raw::util1::UninitCell::write_in_place                               10
+                                                                                                    434
+    4201029c
+    main                                                                                   16
 
-    main                                                       16
-    __pender                                                   10
-    _setup_interrupts                                          14
-    EspDefaultHandler                                           2
-    hal_main                                                    8
-    DefaultExceptionHandler                                     6
-    default_post_init                                           2
-                                                                        58
+    esp_hal_embassy::time_driver::EmbassyTimer::init                                       90
+    esp_hal_embassy::timer_queue::TimerQueue::dispatch                                    480
+    __pender                                                                               12
+    _embassy_time_now                                                                      40
+    _embassy_time_schedule_wake                                                           102
+    esp_hal_embassy::time_driver::DRIVER::handler                                          54
+    esp_hal::timer::systimer::Alarm  in impl esp_hal_embassy::TimeBase::timers             46
 
-    embassy_executor::raw::Executor::poll                      40
-    embassy_executor::spawner::Spawner::spawn                  52
-    embassy_executor::spawner::Spawner::must_spawn             28
-    console::print                                             52
-                                                                        172
-                                                                                716
+    _setup_interrupts                                                                     272
+    EspDefaultHandler                                                                       2
 
-                                                                                        1632 w/o .rodata
+    esp_hal::timer::systimer::SystemTimer::new                                             44
+    esp_hal::timer::systimer::SystemTimer1::unit_value                                     58
+    esp_hal::timer::OneShotTimer::schedule                                                240
+    esp_hal::timer::OneShotTimer::stop                                                     26
+    esp_hal::timer::OneShotTimer::set_interrupt_handler                                    68
+    esp_hal::timer::OneShotTimer::enable_interrupt                                         40
+    esp_hal::timer::OneShotTimer::clear_interrupt                                          26
+
+    hal_main                                                                                8
+    esp_hal::init                                                                         240
+    esp_hal::clock::clocks_ll::esp32c3_rtc_bbpll_configure                                390
+
+    esp_hal9interrupt5riscv8vectored14                                      458
+
+    _critical_section_1_0_acquire                                                          10
+    _critical_section_1_0_release                                                          12
+
+    DefaultExceptionHandler                                                                 6
+    default_post_init                                                                       2
+
+    embassy_time::timer::Timer::after                                                      76
+    embassy_time::timer::Timer as core::future::future::Future::poll                       96
+
+    embassy_executor::raw::waker::clone                                                    16
+    embassy_executor::raw::waker::wake                                                     36
+    embassy_executor::raw::waker::drop                                                      2
+    embassy_executor::raw::waker::task_from_waker                                          20
+    embassy_executor::raw::Executor::poll                                                  40
+    embassy_executor::raw::wake_task                                                       36
+    embassy_executor::spawner::Spawner::spawn                                              52
+    embassy_executor::spawner::Spawner::must_spawn                                         28
+
+    console::print                                                                         52
+    console::Printer as core::fmt::Write::write_str                                        54       3886    0xf2e
+
+                                                                                                    5738

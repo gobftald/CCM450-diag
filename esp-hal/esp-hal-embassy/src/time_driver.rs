@@ -314,8 +314,15 @@ impl EmbassyTimer {
 
 // 313
 impl Driver for EmbassyTimer {
+    // 314
     fn now(&self) -> u64 {
         Instant::now().duration_since_epoch().as_micros()
+    }
+
+    // 318
+    fn schedule_wake(&mut self, at: u64, waker: &core::task::Waker) {
+        #[cfg(single_queue)]
+        self.inner.schedule_wake(at, waker);
     }
 }
 

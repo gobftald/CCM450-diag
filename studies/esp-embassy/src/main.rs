@@ -14,40 +14,35 @@ extern crate console;
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
 
-/*
 #[embassy_executor::task]
 async fn run() {
-    info!("embassy_executor::task");
-
     loop {
-        info!("Hello world from embassy using esp-hal-async!");
+        //info!("Hello world from embassy using esp-hal-async!");
+        use core::fmt::Write;
+        core_println!("0");
         Timer::after(Duration::from_millis(1_000)).await;
     }
 }
 
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
-    console::print(b"01234567890123456789012345678901234567890123456789012345678\n");
-
-    info!("esp_hal_embassy::main");
-
     //let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let config = esp_hal::Config::new_and_default(esp_hal::clock::CpuClock::max());
     let peripherals = esp_hal::init(config);
 
     let systimer = esp_hal::timer::systimer::SystemTimer::new(peripherals.SYSTIMER);
-    esp_hal_embassy::init(systimer::Alarm0);
+    esp_hal_embassy::init(systimer.alarm0);
 
     spawner.spawn(run()).ok();
 }
-*/
 
+/*
 async fn __run_task() {
     {
-        info!("embassy_executor::task");
-
         loop {
             info!("Hello world from embassy using esp-hal-async!");
+            use core::fmt::Write;
+            core_println!("0");
             Timer::after(Duration::from_millis(1_000)).await;
         }
     }
@@ -79,11 +74,7 @@ fn run() -> ::embassy_executor::SpawnToken {
 }
 
 async fn ____embassy_main_task(spawner: Spawner) {
-    console::print(b"01234567890123456789012345678901234567890123456789012345678\n");
-
     {
-        info!("esp_hal_embassy::main");
-
         //let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
         let config = esp_hal::Config::new_and_default(esp_hal::clock::CpuClock::max());
         let peripherals = esp_hal::init(config);
@@ -135,3 +126,4 @@ fn __risc_v_rt__main() -> ! {
         spawner.must_spawn(__embassy_main(spawner));
     })
 }
+*/

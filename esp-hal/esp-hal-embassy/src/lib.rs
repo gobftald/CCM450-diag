@@ -112,7 +112,7 @@ pub(crate) fn pend_thread_mode(_context: *mut ()) {
         // Signal that there is work to be done.
         //SIGNAL_WORK_THREAD_MODE[_core].store(true, Ordering::Relaxed);
         unsafe {
-            SIGNAL_WORK_THREAD_MODE = false;
+            SIGNAL_WORK_THREAD_MODE = true;
         }
 
         // If we are pending a task on the current core, we're done. Otherwise, we

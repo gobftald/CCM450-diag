@@ -81,12 +81,24 @@ impl TimerQueue {
             }
         }
     }
+    // 86
+    pub fn schedule_wake(&mut self, at: u64, waker: &core::task::Waker) {
+        if self
+            .inner
+            //.lock(|inner| inner.borrow_mut().queue.schedule_wake(at, waker))
+            .get_mut()
+            .queue
+            .schedule_wake(at, waker)
+        {
+            self.dispatch();
+        }
+    }
 }
 
 #[cfg(integrated_timers)]
 // 97
 mod queue_impl {
-    use core::{cell::Cell, cmp::min};
+    use core::{cell::Cell, cmp::min, task::Waker};
 
     use embassy_executor::raw::TaskRef;
 
@@ -104,6 +116,34 @@ mod queue_impl {
         pub const fn new() -> Self {
             Self {
                 head: Cell::new(None),
+            }
+        }
+
+        /// Schedules a task to run at a specific time.
+        ///
+        /// If this function returns `true`, the called should find the next
+        /// expiration time and set a new alarm for that time.
+        // 121
+        pub fn schedule_wake(&mut self, at: u64, waker: &Waker) -> bool {
+            let task = embassy_executor::raw::task_from_waker(waker);
+            let item = task.timer_queue_item();
+            if item.next.get().is_none() {
+                // If not in the queue, add it and update.
+                let prev = self.head.replace(Some(task));
+                item.next.set(if prev.is_none() {
+                    Some(unsafe { TaskRef::dangling() })
+                } else {
+                    prev
+                });
+                item.expires_at.set(at);
+                true
+            } else if at <= item.expires_at.get() {
+                // If expiration is sooner than previously set, update.
+                item.expires_at.set(at);
+                true
+            } else {
+                // Task does not need to be updated.
+                false
             }
         }
 

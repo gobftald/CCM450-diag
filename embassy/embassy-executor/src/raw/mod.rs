@@ -36,7 +36,7 @@ use core::task::{Context, Poll};
 use self::run_queue_critical_section::{RunQueue, RunQueueItem};
 use self::state_critical_section::State;
 use self::util::UninitCell;
-// 43
+pub use self::waker::task_from_waker;
 use super::SpawnToken;
 
 // 84
@@ -271,22 +271,13 @@ impl<F: Future + 'static, const N: usize> TaskPool<F, N> {
         }
     }
 
-    /// Try to spawn a task in the pool.
-    ///
-    /// See [`TaskStorage::spawn()`] for details.
-    ///
-    /// This will loop over the pool and spawn the task in the first storage that
-    /// is currently free. If none is free, a "poisoned" SpawnToken is returned,
-    /// which will cause [`Spawner::spawn()`](super::Spawner::spawn) to return the error.
-    ///
-    /// The `future` closure constructs the future. It's only called if spawning is
-    /// actually possible. It is a closure instead of a simple `future: F` param to ensure
-    /// the future is constructed in-place, avoiding a temporary copy in the stack thanks to
-    /// NRVO optimizations.
-    ///
-    // 343
-    //fn spawn_impl<T>(&'static self, future: impl FnOnce() -> F) -> SpawnToken<T> {
-    pub fn spawn(&'static self, future: impl FnOnce() -> F) -> SpawnToken {
+    /// SAFETY: `future` must be a closure of the form `move || my_async_fn(args)`, where `my_async_fn`
+    /// is an `async fn`, NOT a hand-written `Future`.
+    //pub unsafe fn _spawn_async_fn<FutFn>(&'static self, future: FutFn) -> SpawnToken<impl Sized>
+    pub unsafe fn _spawn_async_fn<FutFn>(&'static self, future: FutFn) -> SpawnToken
+    where
+        FutFn: FnOnce() -> F,
+    {
         match self.pool.iter().find_map(AvailableTask::claim) {
             Some(task) => task.initialize_impl(future),
             None => SpawnToken::new_failed(),

@@ -34,12 +34,13 @@ use crate::{
 pub struct SystemTimer<'d> {
     /// Alarm 0.
     pub alarm0: Alarm<'d>,
-
+    /*
     /// Alarm 1.
     pub alarm1: Alarm<'d>,
 
     /// Alarm 2.
     pub alarm2: Alarm<'d>,
+    */
 }
 
 // 57
@@ -81,8 +82,8 @@ impl<'d> SystemTimer<'d> {
 
         Self {
             alarm0: Alarm::new(0),
-            alarm1: Alarm::new(1),
-            alarm2: Alarm::new(2),
+            //alarm1: Alarm::new(1),
+            //alarm2: Alarm::new(2),
         }
     }
 
@@ -202,8 +203,8 @@ impl Alarm<'_> {
         #[cfg(not(esp32s2))]
         SYSTIMER::regs().conf().modify(|_, w| match self.channel() {
             0 => w.target0_work_en().bit(enable),
-            1 => w.target1_work_en().bit(enable),
-            2 => w.target2_work_en().bit(enable),
+            //1 => w.target1_work_en().bit(enable),
+            //2 => w.target2_work_en().bit(enable),
             _ => unreachable!(),
         });
         //});
@@ -223,8 +224,8 @@ impl Alarm<'_> {
         #[cfg(not(esp32s2))]
         match self.channel() {
             0 => SYSTIMER::regs().conf().read().target0_work_en().bit(),
-            1 => SYSTIMER::regs().conf().read().target1_work_en().bit(),
-            2 => SYSTIMER::regs().conf().read().target2_work_en().bit(),
+            //1 => SYSTIMER::regs().conf().read().target1_work_en().bit(),
+            //2 => SYSTIMER::regs().conf().read().target2_work_en().bit(),
             _ => unreachable!(),
         }
 
@@ -298,8 +299,8 @@ impl Alarm<'_> {
     fn set_interrupt_handler(&self, handler: InterruptHandler) {
         let interrupt = match self.channel() {
             0 => Interrupt::SYSTIMER_TARGET0,
-            1 => Interrupt::SYSTIMER_TARGET1,
-            2 => Interrupt::SYSTIMER_TARGET2,
+            //1 => Interrupt::SYSTIMER_TARGET1,
+            //2 => Interrupt::SYSTIMER_TARGET2,
             _ => unreachable!(),
         };
 
@@ -465,7 +466,3 @@ impl super::Timer for Alarm<'_> {
         self.set_interrupt_handler(handler)
     }
 }
-
-#[inline]
-// 637
-fn handle_alarm(alarm: u8) {}

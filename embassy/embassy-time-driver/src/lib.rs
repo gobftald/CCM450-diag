@@ -55,6 +55,9 @@
 //!   active, one could compare an `Instant` from driver A to an `Instant` from driver B, which
 //!   would yield incorrect results.
 
+// 23
+use core::task::Waker;
+
 // 110
 mod tick;
 
@@ -78,12 +81,19 @@ pub trait Driver: 'static {
     ///   10_000 years from now.). This means if your hardware only has 16bit/32bit timers
     ///   you MUST extend them to 64-bit, for example by counting overflows in software,
     ///   or chaining multiple timers together.
+    // 129
     fn now(&self) -> u64;
+
+    /// Schedules a waker to be awoken at moment `at`.
+    /// If this moment is in the past, the waker might be awoken immediately.
+    // 133
+    fn schedule_wake(&mut self, at: u64, waker: &Waker);
 }
 
 // 136
 extern "Rust" {
     fn _embassy_time_now() -> u64;
+    fn _embassy_time_schedule_wake(at: u64, waker: &Waker);
 }
 
 /// See [`Driver::now`]
@@ -91,6 +101,12 @@ extern "Rust" {
 // 143
 pub fn now() -> u64 {
     unsafe { _embassy_time_now() }
+}
+
+/// Schedule the given waker to be woken at `at`.
+#[inline]
+pub fn schedule_wake(at: u64, waker: &Waker) {
+    unsafe { _embassy_time_schedule_wake(at, waker) }
 }
 
 /// Set the time Driver implementation.
@@ -105,8 +121,18 @@ macro_rules! time_driver_impl {
 
         #[no_mangle]
         #[inline]
+        // 163
         fn _embassy_time_now() -> u64 {
             unsafe { <$t as $crate::Driver>::now(&$name) }
+        }
+
+        #[no_mangle]
+        #[inline]
+        // 169
+        fn _embassy_time_schedule_wake(at: u64, waker: &core::task::Waker) {
+            unsafe {
+                <$t as $crate::Driver>::schedule_wake(&mut $name, at, waker);
+            }
         }
     };
 }
@@ -124,4 +150,10 @@ macro_rules! time_driver_impl {
 // #[inline]
 // fn _embassy_time_now() -> u64 {
 //     <EmbassyTimer as $crate::Driver>::now(&DRIVER)
+// }
+//
+// #[no_mangle]
+// #[inline]
+// fn _embassy_time_schedule_wake() -> u64 {
+//     <EmbassyTimer as $crate::Driver>::schedule_wake(&DRIVER, at, waker);
 // }
