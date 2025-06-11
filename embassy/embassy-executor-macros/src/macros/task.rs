@@ -154,7 +154,7 @@ pub fn run(args: TokenStream, item: TokenStream) -> TokenStream {
         }
 
         const POOL_SIZE: usize = #pool_size;
-        //static mut POOL: #embassy_executor::raw::TaskPool<<() as _EmbassyInternalTaskTrait>::Fut, POOL_SIZE> = #embassy_executor::raw::TaskPool::new();
+        //static POOL: #embassy_executor::raw::TaskPool<<() as _EmbassyInternalTaskTrait>::Fut, POOL_SIZE> = #embassy_executor::raw::TaskPool::new();
         static mut POOL: ::embassy_executor::raw::TaskPool<
             <() as _EmbassyInternalTaskTrait>::Fut,
             POOL_SIZE,

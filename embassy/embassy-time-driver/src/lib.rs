@@ -105,6 +105,7 @@ pub fn now() -> u64 {
 
 /// Schedule the given waker to be woken at `at`.
 #[inline]
+// 147
 pub fn schedule_wake(at: u64, waker: &Waker) {
     unsafe { _embassy_time_schedule_wake(at, waker) }
 }
@@ -113,7 +114,7 @@ pub fn schedule_wake(at: u64, waker: &Waker) {
 ///
 /// See the module documentation for an example.
 #[macro_export]
-// 157``
+// 155
 macro_rules! time_driver_impl {
     (static mut $name:ident: $t: ty = $val:expr) => {
         //static $name: $t = $val;
@@ -121,14 +122,14 @@ macro_rules! time_driver_impl {
 
         #[no_mangle]
         #[inline]
-        // 163
+        // 160
         fn _embassy_time_now() -> u64 {
             unsafe { <$t as $crate::Driver>::now(&$name) }
         }
 
         #[no_mangle]
         #[inline]
-        // 169
+        // 165
         fn _embassy_time_schedule_wake(at: u64, waker: &core::task::Waker) {
             unsafe {
                 <$t as $crate::Driver>::schedule_wake(&mut $name, at, waker);

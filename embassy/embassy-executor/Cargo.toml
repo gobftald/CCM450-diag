@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 console  = { path = "../../console", features = ["usb_uart"]}
 defmt = { version = "0.3.10", optional = true }
+critical-section = { version = "1.2.0" }
 embassy-executor-macros = { path = "../embassy-executor-macros" }
 
 [features]

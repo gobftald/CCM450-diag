@@ -62,16 +62,16 @@ impl State {
     // 56
     //pub fn run_enqueue(&self, f: impl FnOnce(Token)) {
     pub fn run_enqueue(&self, f: impl FnOnce()) {
-        //critical_section::with(|cs| {
-        //if self.update_with_cs(cs, |s| {
-        if self.update(|s| {
-            let ok = *s & STATE_RUN_QUEUED == 0;
-            *s |= STATE_RUN_QUEUED;
-            ok
-        }) {
-            f();
-        }
-        //});
+        critical_section::with(|_| {
+            //if self.update_with_cs(cs, |s| {
+            if self.update(|s| {
+                let ok = *s & STATE_RUN_QUEUED == 0;
+                *s |= STATE_RUN_QUEUED;
+                ok
+            }) {
+                f();
+            }
+        });
     }
 
     /// Unmark the task as run-queued. Return whether the task is spawned.
@@ -81,6 +81,7 @@ impl State {
     //pub fn run_dequeue(&self, cs: CriticalSection<'_>) {
     pub fn run_dequeue(&self) {
         //self.update_with_cs(cs, |s| *s &= !STATE_RUN_QUEUED)
+        // called once (from deqeue_all), from a critical section
         self.update(|s| *s &= !STATE_RUN_QUEUED)
     }
 }

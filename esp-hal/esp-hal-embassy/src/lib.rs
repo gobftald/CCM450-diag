@@ -184,20 +184,21 @@ impl Executor {
     fn wait_impl() {
         // we do not care about race conditions between the load and store operations,
         // interrupts will only set this value to true.
-        //critical_section::with(|_| {
-        // if there is work to do, loop back to polling
-        //if !SIGNAL_WORK_THREAD_MODE[cpu].load(Ordering::Relaxed) {
-        unsafe {
-            if !SIGNAL_WORK_THREAD_MODE {
-                // if not, wait for interrupt
-                core::arch::asm!("wfi");
-            }
+        critical_section::with(|_| {
+            // if there is work to do, loop back to polling
+            //if !SIGNAL_WORK_THREAD_MODE[cpu].load(Ordering::Relaxed) {
+            unsafe {
+                if !SIGNAL_WORK_THREAD_MODE {
+                    // if not, wait for interrupt
+                    core::arch::asm!("wfi");
+                }
 
-            //});
-            // if an interrupt occurred while waiting, it will be serviced here
-            // If this races and some waker sets the signal, we'll reset it, but still poll.
-            //SIGNAL_WORK_THREAD_MODE[cpu].store(false, Ordering::Relaxed);
-            SIGNAL_WORK_THREAD_MODE = false;
-        }
+                //});
+                // if an interrupt occurred while waiting, it will be serviced here
+                // If this races and some waker sets the signal, we'll reset it, but still poll.
+                //SIGNAL_WORK_THREAD_MODE[cpu].store(false, Ordering::Relaxed);
+                SIGNAL_WORK_THREAD_MODE = false;
+            }
+        })
     }
 }

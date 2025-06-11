@@ -17,9 +17,9 @@ pub struct WatchdogConfig {
     #[cfg(not(any(esp32, esp32s2)))]
     /// Enable the super watchdog timer, which has a trigger time of slightly
     /// less than one second.
-    swd: bool,
+    _swd: bool,
     /// Configures the reset watchdog timer.
-    rwdt: WatchdogStatus,
+    _rwdt: WatchdogStatus,
     /// Configures the `timg0` watchdog timer.
-    timg0: WatchdogStatus,
+    _timg0: WatchdogStatus,
 }

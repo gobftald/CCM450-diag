@@ -29,17 +29,17 @@ use core::mem;
 use core::pin::Pin;
 // 30
 use core::ptr::NonNull;
-// 34
+// 32
 use core::task::{Context, Poll};
 
-// 39
+// 34
 use self::run_queue_critical_section::{RunQueue, RunQueueItem};
 use self::state_critical_section::State;
 use self::util::UninitCell;
 pub use self::waker::task_from_waker;
 use super::SpawnToken;
 
-// 84
+// 79
 pub(crate) struct TaskHeader {
     pub(crate) state: State,                 // 4 bytes
     pub(crate) run_queue_item: RunQueueItem, // 4 bytes
@@ -57,9 +57,9 @@ pub(crate) struct TaskHeader {
 
 /// This is essentially a `&'static TaskStorage<F>` where the type of the future has been erased.
 #[derive(Clone, Copy, PartialEq)]
-// 96
+// 91
 pub struct TaskRef {
-    ptr: NonNull<TaskHeader>,
+    ptr: NonNull<TaskHeader>, // NonNull is !Send and !Sync so TaskRef (in this original form) is as !Send and !Sync well
 }
 // NonNull is a *mut T but non-zero and covariant (it is not interior mutable)
 // makes castings easier then using *mut
@@ -73,14 +73,14 @@ pub struct TaskRef {
 
 // I try to implement these whole stuff with unsync
 // not using atomics, mutexes and critical section
-// itt needs avoiding 'concurency' and using 'static mut' (since reference to 'satic' needs sync)
-// 100
+// it needs avoiding 'concurency' and using 'static mut' (since reference to 'satic' needs sync)
+// 95
 //unsafe impl Send for TaskRef where &'static TaskHeader: Send {}
 //unsafe impl Sync for TaskRef where &'static TaskHeader: Sync {}
 
-// 109
+// 98
 impl TaskRef {
-    // 110
+    // 99
     fn new<F: Future + 'static>(task: &'static TaskStorage<F>) -> Self {
         Self {
             ptr: NonNull::from(task).cast(),
@@ -88,12 +88,10 @@ impl TaskRef {
     }
 
     /// Safety: The pointer must have been obtained with `Task::as_ptr`
-    // 117
+    // 106
     pub(crate) unsafe fn from_ptr(ptr: *const TaskHeader) -> Self {
-        unsafe {
-            Self {
-                ptr: NonNull::new_unchecked(ptr as *mut TaskHeader),
-            }
+        Self {
+            ptr: NonNull::new_unchecked(ptr as *mut TaskHeader),
         }
     }
 
@@ -101,26 +99,26 @@ impl TaskRef {
     ///
     /// The result of this function must only be compared
     /// for equality, or stored, but not used.
-    // 127
+    // 116
     pub const unsafe fn dangling() -> Self {
         Self {
             ptr: NonNull::dangling(),
         }
     }
 
-    // 133
+    // 122
     pub(crate) fn header(self) -> &'static TaskHeader {
         unsafe { self.ptr.as_ref() }
     }
 
     /// Returns a reference to the timer queue item.
-    // 144
+    // 133
     pub fn timer_queue_item(&self) -> &'static timer_queue::TimerQueueItem {
         &self.header().timer_queue_item
     }
 
     /// The returned pointer is valid for the entire TaskStorage.
-    // 149
+    // 138
     pub(crate) fn as_ptr(self) -> *const TaskHeader {
         self.ptr.as_ptr()
     }
@@ -142,13 +140,13 @@ impl TaskRef {
 // repr(C) is needed to guarantee that the Task is located at offset 0
 // This makes it safe to cast between TaskHeader and TaskStorage pointers.
 #[repr(C)]
-// 170
+// 159
 pub struct TaskStorage<F: Future + 'static> {
     raw: TaskHeader,       // 32 bytes
     future: UninitCell<F>, // Valid if STATE_SPAWNED - 8 bytes
 } // 40 bytes
 
-// 175
+// 164
 unsafe fn poll_exited(_p: TaskRef) {
     // Nothing to do, the task is already !SPAWNED and dequeued.
 }
@@ -162,11 +160,12 @@ unsafe fn poll_exited(_p: TaskRef) {
 // UnsafeCell provides the interior mutability
 // in summary it is a lightweigth interior mutable rewritable Option
 
-// 179
+// 168
 impl<F: Future + 'static> TaskStorage<F> {
     const NEW: Self = Self::new();
 
     /// Create a new TaskStorage, in not-spawned state.
+    // 172
     pub const fn new() -> Self {
         Self {
             raw: TaskHeader {
@@ -184,7 +183,7 @@ impl<F: Future + 'static> TaskStorage<F> {
     }
 
     // top (=task) level poll -> polls the task's future
-    // 219
+    // 208
     unsafe fn poll(p: TaskRef) {
         let this = &*p.as_ptr().cast::<TaskStorage<F>>();
 
@@ -224,23 +223,23 @@ impl<F: Future + 'static> TaskStorage<F> {
 }
 
 /// An uninitialized [`TaskStorage`].
-// 263
+// 246
 pub struct AvailableTask<F: Future + 'static> {
     task: &'static TaskStorage<F>,
 }
 
-// 267
+// 250
 impl<F: Future + 'static> AvailableTask<F> {
     /// Try to claim a [`TaskStorage`].
     ///
     /// This function returns `None` if a task has already been spawned and has not finished running.
-    // 271
+    // 254
     pub fn claim(task: &'static TaskStorage<F>) -> Option<Self> {
         // If task is idle, mark it as spawned + run_queued and return true
         task.raw.state.spawn().then(|| Self { task })
     }
 
-    // 275
+    // 258
     //fn initialize_impl<S>(self, future: impl FnOnce() -> F) -> SpawnToken<S> {
     fn initialize_impl(self, future: impl FnOnce() -> F) -> SpawnToken {
         unsafe {
@@ -257,14 +256,15 @@ impl<F: Future + 'static> AvailableTask<F> {
 /// Raw storage that can hold up to N tasks of the same type.
 ///
 /// This is essentially a `[TaskStorage<F>; N]`.
-// 331
+// 314
 pub struct TaskPool<F: Future + 'static, const N: usize> {
     pool: [TaskStorage<F>; N],
 }
 
-// 335
+// 318
 impl<F: Future + 'static, const N: usize> TaskPool<F, N> {
     /// Create a new TaskPool, with all tasks in non-spawned state.
+    // 320
     pub const fn new() -> Self {
         Self {
             pool: [TaskStorage::NEW; N],
@@ -274,6 +274,7 @@ impl<F: Future + 'static, const N: usize> TaskPool<F, N> {
     /// SAFETY: `future` must be a closure of the form `move || my_async_fn(args)`, where `my_async_fn`
     /// is an `async fn`, NOT a hand-written `Future`.
     //pub unsafe fn _spawn_async_fn<FutFn>(&'static self, future: FutFn) -> SpawnToken<impl Sized>
+    // 353
     pub unsafe fn _spawn_async_fn<FutFn>(&'static self, future: FutFn) -> SpawnToken
     where
         FutFn: FnOnce() -> F,
@@ -286,13 +287,13 @@ impl<F: Future + 'static, const N: usize> TaskPool<F, N> {
 }
 
 #[derive(Clone, Copy)]
-// 380
+// 363
 pub(crate) struct Pender(*mut ());
 
-// 385
+// 368
 impl Pender {
     pub(crate) fn pend(self) {
-        unsafe extern "Rust" {
+        extern "Rust" {
             fn __pender(context: *mut ());
         }
         unsafe { __pender(self.0) };
@@ -321,7 +322,7 @@ impl Pender {
 ///
 /// In particular, you must NOT call `poll` directly from the pender callback, as this violates
 /// the requirement for `poll` to not be called reentrantly.
-/// (in risc32 it is manged by 'static mut SIGNAL_WORK_THREAD_MODE: bool')
+/// (in riscv32 it is manged by 'static mut SIGNAL_WORK_THREAD_MODE: bool')
 ///
 /// The pender function must be exported with the name `__pender` and have the following signature:
 ///
@@ -337,15 +338,15 @@ impl Pender {
 /// The `context` argument is a piece of arbitrary data the executor will pass to the pender.
 /// You can set the `context` when calling [`Executor::new()`]. You can use it to, (((for example,
 /// differentiate between executors))), or to pass a pointer to a callback that should be called.
-// 394
+// 377
 pub struct Executor {
     run_queue: RunQueue, // since run_queue is unsync, thus Executor is unsync as well
     pender: Pender,
 }
 
-// 399
+// 382
 impl Executor {
-    // 400
+    // 383
     pub fn new(context: *mut ()) -> Self {
         Self {
             run_queue: RunQueue::new(),
@@ -360,17 +361,15 @@ impl Executor {
     /// - `task` must be set up to run in this executor.
     /// - `task` must NOT be already enqueued (in this executor or another one).
     #[inline(always)]
-    // 414
+    // 397
     unsafe fn enqueue(&self, task: TaskRef) {
         #[cfg(feature = "trace")]
         trace::task_ready_begin(self, &task);
 
-        unsafe {
-            // (only) insert task into RunQueue
-            if self.run_queue.enqueue(task) {
-                // schedule `poll()` to be called
-                self.pender.pend();
-            }
+        // (only) insert task into RunQueue
+        if self.run_queue.enqueue(task) {
+            // schedule `poll()` to be called
+            self.pender.pend();
         }
     }
 
@@ -379,7 +378,7 @@ impl Executor {
     /// # Safety
     ///
     /// `task` must be a valid pointer to an initialized but not-already-spawned task.
-    // 423
+    // 406
     pub(super) unsafe fn spawn(&'static self, task: TaskRef) {
         task.header()
             .executor
@@ -393,10 +392,8 @@ impl Executor {
         //state_critical_section::locked(|l| {
         //    self.enqueue(task, l);
         //})
-        unsafe {
-            // insert task into RunQueue then call 'pend' (schedule `poll()` to be called)
-            self.enqueue(task);
-        }
+        // insert task into RunQueue then call 'pend' (schedule `poll()` to be called)
+        critical_section::with(|_| self.enqueue(task));
     }
 
     /// Poll all queued tasks in this executor.
@@ -419,7 +416,7 @@ impl Executor {
     /// somehow schedule for `poll()` to be called later, at a time you know for sure there's
     /// no `poll()` already running.
     // in riscv32 it is managed by 'static mut SIGNAL_WORK_THREAD_MODE: bool'
-    // 439
+    // 422
     pub unsafe fn poll(&'static self) {
         #[cfg(feature = "trace")]
         trace::poll_start(self);
@@ -431,9 +428,7 @@ impl Executor {
             trace::task_exec_begin(self, &p);
 
             // Run the task
-            unsafe {
-                task.poll_fn.get().unwrap_unchecked()(p);
-            }
+            task.poll_fn.get().unwrap_unchecked()(p);
 
             #[cfg(feature = "trace")]
             trace::task_exec_end(self, &p);
@@ -455,7 +450,7 @@ impl Executor {
 /// Wake a task by `TaskRef`.
 ///
 /// You can obtain a `TaskRef` from a `Waker` using [`task_from_waker`].
-// 573
+// 548
 pub fn wake_task(task: TaskRef) {
     let header = task.header();
     //header.state.run_enqueue(|l| {
@@ -477,6 +472,7 @@ pub fn wake_task(task: TaskRef) {
 /// Wake a task by `TaskRef` without calling pend.
 ///
 /// You can obtain a `TaskRef` from a `Waker` using [`task_from_waker`].
+// 562
 pub fn wake_task_no_pend(task: TaskRef) {
     let header = task.header();
     header.state.run_enqueue(|| {

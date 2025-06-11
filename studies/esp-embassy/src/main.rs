@@ -3,6 +3,7 @@
 // for 'task' embassy-executor-macro, when embassy-executor/nightly
 #![feature(impl_trait_in_assoc_type)]
 #![allow(static_mut_refs)]
+#![feature(thread_local)]
 
 // panic_handler
 mod panic;
@@ -70,7 +71,7 @@ fn run() -> ::embassy_executor::SpawnToken {
     > = ::embassy_executor::raw::TaskPool::new();
 
     //unsafe { POOL._spawn_async_fn(move || <() as _EmbassyInternalTaskTrait>::construct()) }
-    unsafe { POOL.spawn(move || <() as _EmbassyInternalTaskTrait>::construct()) }
+    unsafe { POOL._spawn_async_fn(move || <() as _EmbassyInternalTaskTrait>::construct()) }
 }
 
 async fn ____embassy_main_task(spawner: Spawner) {
@@ -108,7 +109,7 @@ fn __embassy_main(spawner: Spawner) -> ::embassy_executor::SpawnToken {
     > = ::embassy_executor::raw::TaskPool::new();
 
     //unsafe { POOL._spawn_async_fn(move || <() as _EmbassyInternalTaskTrait>::construct(spawner)) }
-    unsafe { POOL.spawn(move || <() as _EmbassyInternalTaskTrait>::construct(spawner)) }
+    unsafe { POOL._spawn_async_fn(move || <() as _EmbassyInternalTaskTrait>::construct(spawner)) }
 }
 
 #[doc(hidden)]

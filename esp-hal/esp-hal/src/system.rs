@@ -1,7 +1,5 @@
 //! # System Control
 
-use critical_section::CriticalSection;
-
 use crate::peripherals::SYSTEM;
 
 /// Peripherals which can be enabled via `PeripheralClockControl`.
@@ -41,12 +39,12 @@ impl Peripheral {
 // 228
 pub(crate) fn disable_peripherals() {
     // Take the critical section up front to avoid taking it multiple times.
-    critical_section::with(|cs| {
+    critical_section::with(|_| {
         for p in Peripheral::ALL {
             if Peripheral::KEEP_ENABLED.contains(p) {
                 continue;
             }
-            PeripheralClockControl::enable_internal(*p, false, cs);
+            PeripheralClockControl::enable_internal(*p, false);
         }
     })
 }
@@ -59,7 +57,7 @@ pub(crate) struct PeripheralClockControl;
 // 316
 impl PeripheralClockControl {
     // 317
-    fn enable_internal(peripheral: Peripheral, enable: bool, _cs: CriticalSection<'_>) {
+    fn enable_internal(peripheral: Peripheral, enable: bool) {
         debug!("Enable {:?} {}", peripheral, enable);
 
         if !enable {
@@ -104,6 +102,6 @@ impl PeripheralClockControl {
     /// Enables the given peripheral.
     // 1097
     pub(crate) fn enable(peripheral: Peripheral) {
-        critical_section::with(|cs| Self::enable_internal(peripheral, true, cs));
+        critical_section::with(|_| Self::enable_internal(peripheral, true));
     }
 }

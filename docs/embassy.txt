@@ -1,0 +1,979 @@
+// esp-hal/esp-hal/ld/esp32c3/esp32c3.x
+ENTRY(_start)
+// esp-hal/esp-riscv-rt/src/lib.rs
+42010020 _start
+// esp-hal/esp-riscv-rt/src/lib.rs
+42010028 _abs_start
+// esp-hal/esp-riscv-rt/src/lib.rs
+420100b8 _start_rust = pub unsafe extern "C" fn start_rust(a0: usize, a1: usize, a2: usize) -> !
+    __post_init() = default_post_init()
+    // esp-hal/esp-hal/ld/esp32c3/esp32c3.x
+    PROVIDE(__post_init = default_post_init)
+    // esp-hal/esp-riscv-rt/src/lib.rs
+    extern "Rust" fn default_post_init() {}
+
+    // esp-hal/esp-hal/src/interrupt/riscv.rs
+    _setup_interrupts()
+        // esp-hal/esp-hal/src/interrupt/riscv.rs
+        disable(peripheral_interrupt)
+        // riscv/riscv/src/register/mtvec.rs
+        mtvec::write(vec_table, mtvec::TrapMode::Vectored)
+        // esp-hal/esp-hal/src/interrupt/riscv.rs
+        crate::interrupt::init_vectoring()
+            // esp-hal/esp-hal/src/interrupt/riscv.rs
+            set_kind(Cpu::current(), core::mem::transmute::<u32, CpuInterrupt>(*num as u32), InterruptKind::Level)
+            // esp-hal/esp-hal/src/interrupt/riscv.rs
+            set_priority(Cpu::current(), core::mem::transmute::<u32, CpuInterrupt>(*num as u32), core::mem::transmute::<u8, Priority>((prio as u8) + 1))
+            // esp-hal/esp-hal/src/interrupt/riscv.rs
+            enable_cpu_interrupt(core::mem::transmute::<u32, CpuInterrupt>(*num as u32));
+    // esp-hal/esp-hal/src/lib.rs
+#0  hal_main(a0: usize, a1: usize, a2: usize) -> !
+#1.0    main(a0, a1, a2);
+
+        // studies/esp-embassy/src/main.rs
+#1.1    #[esp_hal_embassy::main]
+        async fn main(spawner: Spawner)
+        // esp-hal/esp-hal-embassy/src/lib.rs
+        use macros::embassy_main as main
+        // esp-hal/esp-hal-procmacros/src/lib.rs
+#1.2    embassy_main(args: TokenStream, item: TokenStream) -> TokenStream
+            // esp-hal/esp-hal-procmacros/src/embassy.rs
+#1.3        embassy::main(args, item)
+                // esp-hal/esp-hal-procmacros/src/embassy.rs
+#1.4            run(&args.meta, f, main_fn()).unwrap_or_else(|x| x).into()
+
+                    // esp-hal/esp-hal-procmacros/src/embassy.rs
+                    #[::embassy_executor::task()]
+#6.5                async fn __embassy_main(#fargs) #out
+                        #f_body
+                        // embassy/embassy-executor-macros/src/lib.rs
+                        task(args: TokenStream, item: TokenStream) -> TokenStream
+                            task::run(args.into(), item.into()).into()
+                            // embassy/embassy-executor-macros/src/macros/task.rs
+                            run(args: TokenStream, item: TokenStream) -> TokenStream
+                                async fn ____embassy_main_task(spawner: Spawner)
+                                    // original content/body of our 'async fn main(spawner: Spawner)'
+                                fn __embassy_main(spawner: Spawner) -> ::embassy_executor::SpawnToken
+                                    trait _EmbassyInternalTaskTrait {
+                                        type Fut: ::core::future::Future + 'static;
+                                        fn construct(spawner: Spawner) -> Self::Fut;
+                                    }
+                                    impl _EmbassyInternalTaskTrait for () {
+                                        type Fut = impl core::future::Future + 'static;
+                                        fn construct(spawner: Spawner) -> Self::Fut {
+                                            ____embassy_main_task(spawner)
+                                        }
+                                    }
+                                    const POOL_SIZE: usize = 1;
+                                    //static POOL: ::embassy_executor::raw::TaskPool<
+                                    static mut POOL: ::embassy_executor::raw::TaskPool<
+                                        <() as _EmbassyInternalTaskTrait>::Fut,
+                                        POOL_SIZE,
+#6.6                                > = ::embassy_executor::raw::TaskPool::new();
+#6.7                                unsafe { POOL._spawn_async_fn(move || <() as _EmbassyInternalTaskTrait>::construct(spawner)) }
+                                        // embassy/embassy-executor/src/raw/mod.rs
+#6.8                                    _spawn_async_fn<FutFn>(&'static self, future: FutFn) -> SpawnToken
+#6.9                                        match self.pool.iter().find_map(AvailableTask::claim)
+                                                // embassy/embassy-executor/src/raw/state_critical_section.rs
+#6.10                                           task.raw.state.spawn().then(|| Self { task })
+                                                    self.update(|s|
+                                                        ...
+                                                        *s = STATE_SPAWNED | STATE_RUN_QUEUED
+                                                        ...
+                                                    // embassy/embassy-executor/src/raw/state_critical_section.rs
+#6.11                                               update<R>(&self, f: impl FnOnce(&mut u32) -> R) -> R
+                                                        self.state.get()
+                                                        let mut val = self.state.get()
+                                                        self.state.set(val)
+#6.12                                       task.initialize_impl(future)
+#6.13                                           self.task.raw.poll_fn.set(Some(TaskStorage::<F>::poll))
+#6.14                                           self.task.future.write_in_place(future);
+                                                    ptr::write(self.as_mut_ptr(), func())
+#6.15                                           TaskRef::new(self.task)
+                                                    Self {                                                                                                                                                           │
+                                                        ptr: NonNull::from(task).cast(),
+#6.16                                           SpawnToken::new(task)
+                                                    Self
+                                                        raw_task: Some(raw_task)
+
+
+
+                    // esp-hal/esp-hal-procmacros/src/embassy.rs
+#5.1                fn __make_static<T>(t: &mut T) -> &'static mut T
+                        ::core::mem::transmute(t
+
+                    // esp-hal/esp-hal-procmacros/src/embassy.rs
+#1.5                main_fn() -> TokenStream
+#1.6                    #[esp_hal::main]
+                        fn main() -> !
+                            // esp-hal/esp-hal-embassy/src/lib.rs
+#2                          let mut executor = ::esp_hal_embassy::Executor::new()
+                                Self
+                                    // embassy/embassy-executor/src/raw/mod.rs
+#3                                  inner: raw::Executor::new(0 as *mut ())
+                                        Self
+                                            // embassy/embassy-executor/src/raw/run_queue_critical_section.rs
+#4                                          run_queue: RunQueue::new()
+                                                Self
+                                                    head: Cell::new(None)
+                                                    pender: Pender(context)
+                            //
+#5.0                        let executor = unsafe { __make_static(&mut executor) }
+#6.0                        executor.run(|spawner| {
+                                // embassy/embassy-executor/src/spawner.rs
+#7                              spawner.must_spawn(__embassy_main(spawner));
+                                    // embassy/embassy-executor/src/spawner.rs
+                                    unwrap!(self.spawn(token));
+#8                                  spawn(&self, token: SpawnToken) -> Result<(), SpawnError>
+                                        mem::forget(token)
+                                        // embassy/embassy-executor/src/raw/mod.rs
+#9                                      self.executor.spawn(task)
+#10                                         task.header().executor.set((self as *const Self).cast_mut())
+#11                                         self.enqueue(task)
+                                            // embassy/embassy-executor/src/raw/mod.rs
+#12                                         enqueue(&self, task: TaskRef)
+#13                                             if self.run_queue.enqueue(task)
+                                                // embassy/embassy-executor/src/raw/run_queue_critical_section.rs
+                                                enqueue(&self, task: TaskRef) -> bool
+#14                                                 self.head.replace(Some(task))
+#15                                                 task.header().run_queue_item.next.set(prev)
+#16                                                 prev.is_none()
+
+                                                    // embassy/embassy-executor/src/raw/mod.rs
+#17                                                 self.pender.pend()
+                                                        // embassy/embassy-executor/src/raw/mod.rs
+#18                                                     __pender(self.0)
+                                                        // esp-hal/esp-hal-embassy/src/lib.rs
+                                                        export_name = "__pender"
+#19                                                     pend_thread_mode(_context: *mut ())
+                                                            SIGNAL_WORK_THREAD_MODE = true;
+
+                            })
+
+                    // #main - run main_fn
+
+                    // esp-hal/esp-hal/src/lib.rs
+#1.7                pub use procmacros::blocking_main as main;
+                    // esp-hal/esp-hal-procmacros/src/lib.rs
+                    #[proc_macro_attribute]
+#1.8                blocking_main(args: TokenStream, input: TokenStream) -> TokenStream
+                        blocking::main(args, input)
+                        // esp-hal/esp-hal-procmacros/src/blocking.rs
+#1.9                    main(args: TokenStream, input: TokenStream) -> TokenStream
+#1.10                       #[esp_hal::__macro_implementation::__entry]
+                            #f
+                            // esp-hal/esp-hal/src/lib.rs
+                            mod __macro_implementation
+#1.11                           use esp_riscv_rt::entry as __entry
+                            // riscv/riscv-rt/src/lib.rs
+#1.12                       use riscv_rt_macros::entry;
+                            // riscv/riscv-rt/macros/src/lib.rs
+                            #[proc_macro_attribute]
+#1.13                           entry(args: TokenStream, input: TokenStream) -> TokenStream
+#1.14                               #[export_name = "main"]
+#1.15                               __risc_v_rt__main(#args) -> !
+                                        // main_fn()'s 'fn main' body
+
+
+            // esp-hal/esp-hal-embassy/src/lib.rs
+#6.1        run(&'static mut self, init: impl FnOnce(Spawner)) -> !
+#6.2            init(self.inner.spawner()) // init: FnOnce = spawner.must_spawn(__embassy_main(spawner))
+                    // embassy/embassy-executor/src/raw/mod.rs
+#6.3                spawner(&'static self) -> super::Spawner
+                        super::Spawner::new(self)
+                            // embassy/embassy-executor/src/spawner.rs
+#6.4                        new(executor: &'static raw::Executor) -> Self
+                                Self
+                                    executor,                                                                                                                                                    │
+                //init: FnOnce = spawner.spawn(__embassy_main(spawner))
+                // see #6.5 __embassy_main above
+
+                // esp-hal/esp-hal-embassy/src/lib.rs
+                loop
+                    // embassy/embassy-executor/src/raw/mod.rs
+#20                 self.inner.poll()
+                        self.run_queue.dequeue_all(|p| ...
+                            // embassy/embassy-executor/src/raw/run_queue_critical_section.rs
+                            dequeue_all(&self, on_task: impl Fn(TaskRef))
+                                self.head.take()
+                                while let Some(task) = next
+                                    task.header().run_queue_item.next.get()
+                                    // embassy/embassy-executor/src/raw/state_critical_section.rs
+                                    task.header().state.run_dequeue()
+                                        self.update(|s| *s &= !STATE_RUN_QUEUED)
+                                    on_task(task)   // the ... closure
+                                        let task = p.header()   // main task
+                                        task.poll_fn.get().unwrap_unchecked()(p)
+                                        // embassy/embassy-executor/src/raw/mod.rs
+                                        fn poll(p: TaskRef)
+                                            let this = &*p.as_ptr().cast::<TaskStorage<F>>(
+                                            let future = Pin::new_unchecked(this.future.as_mut())
+                                            let waker = waker::from_task(p);
+                                            // embassy/embassy-executor/src/raw/waker.rs
+                                            from_task(p: TaskRef) -> Waker
+                                                Waker::from_raw(RawWaker::new(p.as_ptr() as _, &VTABLE))
+                                            let mut cx = Context::from_waker(&waker);
+                                            match future.poll(&mut cx)
+                                                -->
+                                                // studies/esp-embassy/src/main.rs
+                                                #[esp_hal_embassy::main]                                                                                                                                                 │
+│                                               async fn main(spawner: Spawner)
+                                                    esp_hal::Config::new_and_default(esp_hal::clock::CpuClock::max())
+                                                        // esp-hal/esp-hal/src/clock/mod.rs
+                                                        max() -> Self
+                                                        // esp-hal/esp-hal/src/lib.rs
+                                                        new_and_default(cpu_clock: CpuClock) -> Self
+                                                            Self
+                                                                cpu_clock,
+                                                                watchdog: WatchdogConfig::default(),
+                                                    let peripherals = esp_hal::init(config)
+                                                    // esp-hal/esp-hal/src/lib.rs
+                                                    init(config: Config) -> Peripherals
+                                                        // esp-hal/esp-hal/src/system.rs
+                                                        system::disable_peripherals()
+                                                            critical_section::with(|cs|
+                                                                for p in Peripheral::ALL
+                                                                    if Peripheral::KEEP_ENABLED.contains(p)
+                                                                        continue; 
+                                                                    PeripheralClockControl::enable_internal(*p, false, cs)
+                                                        // esp-hal/esp-hal/src/peripheral.rs
+                                                        let mut peripherals = Peripherals::take()
+                                                            Self::steal()
+                                                        let mut rtc = crate::rtc_cntl::Rtc::new(peripherals.LPWR.reborrow());
+                                                        // esp-hal/esp-hal/src/rtc_cntl/mod.rs
+                                                        new(rtc_cntl: crate::peripherals::LPWR<'d>) -> Self
+                                                            // esp-hal/esp-hal/src/rtc_cntl/rtc/esp32c3.rs
+                                                            rtc::init()
+                                                                ...
+                                                                // esp-hal/esp-hal/src/rtc_cntl/rtc/esp32c3.rs
+                                                                power_control_init()
+                                                                ...
+                                                            Self
+                                                                _inner: rtc_cntl
+                                                                // esp-hal/esp-hal/src/rtc_cntl/mod.rs
+                                                                rwdt: Rwdt::new()
+                                                                    Self
+                                                                // esp-hal/esp-hal/src/rtc_cntl/mod.rs
+                                                                swd: Swd::new()
+                                                                    Self
+                                                        // esp-hal/esp-hal/src/rtc_cntl/mod.rs
+                                                        rtc.swd.disable()
+                                                            // esp-hal/esp-hal/src/rtc_cntl/mod.rs
+                                                            self.set_enabled(false)
+                                                        // esp-hal/esp-hal/src/rtc_cntl/mod.rs
+                                                        rtc.rwdt.disable()
+                                                            // esp-hal/esp-hal/src/rtc_cntl/mod.rs
+                                                            self.set_enabled(false)
+                                                        // esp-hal/esp-hal/src/clock/mod.rs
+                                                        Clocks::init(config.cpu_clock)
+                                                            // esp-hal/esp-hal/src/clock/mod.rs
+                                                            ACTIVE_CLOCKS = Some(Self::configure(cpu_clock_speed))
+                                                                Self::measure_xtal_frequency()
+                                                                if cpu_clock_speed != CpuClock::default()
+                                                                    if cpu_clock_speed.mhz() <= xtal_freq.mhz()
+                                                                    else
+                                                                        clocks_ll::esp32c3_rtc_bbpll_enable()
+                                                                        clocks_ll::esp32c3_rtc_bbpll_configure(xtal_freq, pll_freq)
+                                                                        clocks_ll::esp32c3_rtc_freq_to_pll_mhz(cpu_clock_speed)
+                                                                        clocks_ll::esp32c3_rtc_apb_freq_update(apb_freq)
+                                                                Self
+                                                                    cpu_clock: cpu_clock_speed.frequency()
+                                                                    apb_clock: apb_freq.frequency()
+                                                                    xtal_clock: xtal_freq.frequency()
+                                                        peripherals
+
+                                                    // esp-hal/esp-hal/src/timer/systimer.rs
+                                                    let systimer = esp_hal::timer::systimer::SystemTimer::new(peripherals.SYSTIMER)
+                                                        // esp-hal/esp-hal/src/system.rs
+                                                        PeripheralClockControl::enable(PeripheralEnable::Systimer)
+                                                            // esp-hal/esp-hal/src/system.rs
+                                                            Self::enable_internal(peripheral, true, cs))
+                                                            enable_internal(peripheral: Peripheral, enable: bool, _cs: CriticalSection<'_>)
+                                                        Self
+                                                            // esp-hal/esp-hal/src/timer/systimer.rs
+                                                            alarm0: Alarm::new(0)
+                                                            new(comp: u8) -> Self
+                                                                Alarm
+                                                                    comp
+                                                                    unit: Unit::Unit0
+                                                    // esp-hal/esp-hal-embassy/src/lib.rs
+                                                    esp_hal_embassy::init(systimer.alarm0)
+                                                    init(timer_driver: impl TimeBase)
+                                                        EmbassyTimer::init(timer_driver.timers())
+                                                            // esp-hal/esp-hal-embassy/src/lib.rs
+                                                            timers(self) -> &'static mut [Timer]
+                                                                static mut STATIC_TIMER_CELL: OnceCell<[Timer; 1]> = OnceCell::new()
+                                                                STATIC_TIMER_CELL.get_mut_or_init(|| [Timer::new(self)])
+                                                                    // esp-hal/esp-hal/src/timer/mod.rs
+                                                                    new(inner: impl Timer + Into<AnyTimer<'d>>) -> OneShotTimer<'d>
+                                                                        Self
+                                                                            inner: inner.into()
+                                                                                // esp-hal/esp-hal/src/macros.rs
+                                                                                from(inner: $inner) -> Self
+                                                                                    Self([< $name Inner >]::$variant(inner))
+                                                            // esp-hal/esp-hal-embassy/src/time_driver.rs
+                                                            init(timers: &'static mut [Timer])
+                                                                timers.iter_mut().for_each(|timer|
+                                                                    // esp-hal/esp-hal/src/timer/mod.rs
+                                                                    timer.enable_interrupt(false)
+                                                                        // esp-hal/esp-hal/src/timer/systimer.rs
+                                                                        self.inner.enable_interrupt(enable)
+                                                                    // esp-hal/esp-hal/src/timer/mod.rs
+                                                                    timer.stop()
+                                                                        // esp-hal/esp-hal/src/timer/systimer.rs
+                                                                        self.inner.stop()
+                                                                 DRIVER.available_timers = Some(timers)
+#21.0                                               spawner.spawn(run()).ok()
+
+                                                        // esp-hal/esp-hal-procmacros/src/embassy.rs
+                                                        #[::embassy_executor::task()]
+#21.1                                                   async fn __run_task(#fargs) #out
+                                                        #f_body
+                                                        // embassy/embassy-executor-macros/src/lib.rs
+                                                        task(args: TokenStream, item: TokenStream) -> TokenStream
+                                                            task::run(args.into(), item.into()).into()
+                                                            // embassy/embassy-executor-macros/src/macros/task.rs
+                                                            run(args: TokenStream, item: TokenStream) -> TokenStream
+                                                                async fn __run_task(spawner: Spawner)
+                                                                    // original content/body of our 'async fn main(spawner: Spawner)'
+                                                                fn __run_task(spawner: Spawner) -> ::embassy_executor::SpawnToken
+                                                                    trait _EmbassyInternalTaskTrait {
+                                                                        type Fut: ::core::future::Future + 'static;
+                                                                        fn construct(spawner: Spawner) -> Self::Fut;
+                                                                    }
+                                                                    impl _EmbassyInternalTaskTrait for () {
+                                                                        type Fut = impl core::future::Future + 'static;
+                                                                        fn construct(spawner: Spawner) -> Self::Fut {
+                                                                            __run_task(spawner)
+                                                                        }
+                                                                    }
+                                                                    const POOL_SIZE: usize = 1;
+                                                                    //static POOL: ::embassy_executor::raw::TaskPool<
+                                                                    static mut POOL: ::embassy_executor::raw::TaskPool<
+                                                                        <() as _EmbassyInternalTaskTrait>::Fut,
+                                                                        POOL_SIZE,
+#21.2                                                               > = ::embassy_executor::raw::TaskPool::new();
+#21.3                                                               unsafe { POOL._spawn_async_fn(move || <() as _EmbassyInternalTaskTrait>::construct(spawner)) }
+                                                                        // embassy/embassy-executor/src/raw/mod.rs
+#21.4                                                                   _spawn_async_fn<FutFn>(&'static self, future: FutFn) -> SpawnToken
+#21.5                                                                       match self.pool.iter().find_map(AvailableTask::claim)
+                                                                                // embassy/embassy-executor/src/raw/mod.rs
+#21.6                                                                           fn claim(task: &'static TaskStorage<F>) -> Option<Self>
+                                                                                    // embassy/embassy-executor/src/raw/state_critical_section.rs
+#21.7                                                                               task.raw.state.spawn().then(|| Self { task })
+                                                                                        self.update(|s|
+                                                                                            ...
+                                                                                            *s = STATE_SPAWNED | STATE_RUN_QUEUED
+                                                                                            ...
+                                                                                        // embassy/embassy-executor/src/raw/state_critical_section.rs
+#21.8                                                                                   update<R>(&self, f: impl FnOnce(&mut u32) -> R) -> R
+                                                                                            self.state.get()
+                                                                                            let mut val = self.state.get()
+                                                                                            self.state.set(val)
+#21.9                                                                       task.initialize_impl(future)
+#21.10                                                                          self.task.raw.poll_fn.set(Some(TaskStorage::<F>::poll))
+#21.11                                                                          self.task.future.write_in_place(future);
+                                                                                    ptr::write(self.as_mut_ptr(), func())
+#21.12                                                                          TaskRef::new(self.task)
+                                                                                    Self {                                                                                                                                                           │
+                                                                                        ptr: NonNull::from(task).cast(),
+#21.13                                                                          SpawnToken::new(task)
+                                                                                    Self
+                                                                                        raw_task: Some(raw_task)
+
+#22                                                     spawn(&self, token: SpawnToken) -> Result<(), SpawnError>
+#23                                                         mem::forget(token)
+                                                            // embassy/embassy-executor/src/raw/mod.rs
+#24                                                         self.executor.spawn(task)
+#25                                                             task.header().executor.set((self as *const Self).cast_mut())
+                                                                self.enqueue(task)
+                                                                // embassy/embassy-executor/src/raw/mod.rs
+#26                                                             enqueue(&self, task: TaskRef)
+                                                                    if self.run_queue.enqueue(task)
+                                                                    // embassy/embassy-executor/src/raw/run_queue_critical_section.rs
+#27                                                                 enqueue(&self, task: TaskRef) -> bool
+#28                                                                     self.head.replace(Some(task))
+#29                                                                     task.header().run_queue_item.next.set(prev)
+#30                                                                     prev.is_none()
+
+                                                                        // embassy/embassy-executor/src/raw/mod.rs
+#31                                                                     self.pender.pend()
+                                                                            // embassy/embassy-executor/src/raw/mod.rs
+#32                                                                         __pender(self.0)
+                                                                            // esp-hal/esp-hal-embassy/src/lib.rs
+                                                                            export_name = "__pender"
+#33                                                                         pend_thread_mode(_context: *mut ())
+                                                                                SIGNAL_WORK_THREAD_MODE = true;
+                                                    // eof 'spawner.spawn(run()).ok()'
+                                                    // eof 'async fn main(spawner: Spawner)'
+                                            <--- match future.poll(&mut cx)
+                                            Poll::Ready(_) =>
+                                                this.future.drop_in_place()
+                                                this.raw.poll_fn.set(Some(poll_exited))
+                                                this.raw.state.despawn()    // &= !STATE_SPAWNED
+
+                                        mem::forget(waker)
+                                        // eof 'poll(p: TaskRef)' in 'embassy/embassy-executor/src/raw/mod.rs'
+                                    // eof 'on_task'
+                                // eof while
+                            // eof dequeue_all
+                            // there is a final second loop returning Option<embassy_executor::raw::TaskRef>::None
+                    // eof 'self.inner.poll'
+
+                    // esp-hal/esp-hal-embassy/src/lib.rs
+                    Self::wait_impl()
+                        // esp-hal/esp-hal-embassy/src/lib.rs
+                        if !SIGNAL_WORK_THREAD_MODE
+                            core::arch::asm!("wfi");
+                        SIGNAL_WORK_THREAD_MODE = false;
+                //eof first loop
+
+                // embassy/embassy-executor/src/raw/mod.rs
+#34                 self.inner.poll()
+                        self.run_queue.dequeue_all(|p| ...
+                            // embassy/embassy-executor/src/raw/run_queue_critical_section.rs
+                            dequeue_all(&self, on_task: impl Fn(TaskRef))
+                                self.head.take()
+                                while let Some(task) = next
+                                    task.header().run_queue_item.next.get()
+                                    // embassy/embassy-executor/src/raw/state_critical_section.rs
+                                    task.header().state.run_dequeue()
+                                        self.update(|s| *s &= !STATE_RUN_QUEUED)
+                                    on_task(task)   // the ... closure
+                                        let task = p.header()   // run task (spawned by main)
+                                        task.poll_fn.get().unwrap_unchecked()(p)
+                                        // embassy/embassy-executor/src/raw/mod.rs
+                                        fn poll(p: TaskRef)
+                                            let this = &*p.as_ptr().cast::<TaskStorage<F>>(
+                                            let future = Pin::new_unchecked(this.future.as_mut())
+                                            let waker = waker::from_task(p);
+                                            // embassy/embassy-executor/src/raw/waker.rs
+                                            from_task(p: TaskRef) -> Waker
+                                                Waker::from_raw(RawWaker::new(p.as_ptr() as _, &VTABLE))
+                                            let mut cx = Context::from_waker(&waker);
+                                            match future.poll(&mut cx)
+                                                -->
+                                                // studies/esp-embassy/src/main.rs
+                                                #[embassy_executor::task]                                                                                                                                                │
+#35                                             async fn run()
+                                                    loop
+                                                        core_println!("0");
+                                                        Timer::after(Duration::from_millis(1_000)).await;
+                                                            // embassy/embassy-time/src/duration.rs
+                                                            from_millis(millis: u64) -> Duration
+                                                                // embassy/embassy-time/src/duration.rs
+                                                                div_ceil(num: u64, den: u64) -> u64
+                                                            // embassy/embassy-time/src/timer.rs
+                                                            after(duration: Duration) -> Self
+                                                                Self
+                                                                    expires_at: Instant::now() + duration
+                                                                    // embassy/embassy-time/src/instant.rs
+                                                                    fn now() -> Instant
+                                                                        Instant
+                                                                            // embassy/embassy-time-driver/src/lib.rs
+                                                                            ticks: embassy_time_driver::now()
+                                                                                // embassy/embassy-time-driver/src/lib.rs
+                                                                                _embassy_time_now()
+                                                                                    // esp-hal/esp-hal-embassy/src/time_driver.rs
+                                                                                    now(&self) -> u64
+                                                                                        Instant::now().duration_since_epoch().as_micros()
+                                                                                            // esp-hal/esp-hal/src/time.rs
+                                                                                            now() -> Self
+                                                                                                // esp-hal/esp-hal/src/time.rs
+                                                                                                now() -> Instant
+                                                                                                    let ticks = SystemTimer::unit_value(Unit::Unit0)
+                                                                                                    (ticks, (SystemTimer::ticks_per_second() / 1_000_000))
+                                                                                                    Instant::from_ticks(ticks / div)
+                                                                                                        // esp-hal/esp-hal/src/time.rs
+                                                                                                        from_ticks(ticks: u64) -> Self
+                                                                                                            Instant(InnerInstant::from_ticks(ticks))
+                                                                                            // esp-hal/esp-hal/src/time.rs
+                                                                                            duration_since_epoch(&self) -> Duration
+                                                                                                Self::EPOCH.elapsed()
+                                                                                                    // esp-hal/esp-hal/src/time.rs
+                                                                                                    elapsed(&self) -> Duration
+                                                                                                        Self::now() - *self
+                                                                                            // esp-hal/esp-hal/src/time.rs
+                                                                                            as_micros(&self) -> u64
+                                                                                    // eof now()
+                                                                                // eof _embassy_time_now()
+                                                                    // eof 'expires_at: Instant::now() + duration'
+                                                                    // add
+                                                                    yielded_once: false
+                                                            // eof 'Timer::after(Duration::from_millis(1_000))'
+                                                            into_future(self) -> Self::IntoFuture
+                                                            // embassy/embassy-time/src/timer.rs
+                                                            poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output>
+                                                                if self.yielded_once && self.expires_at <= Instant::now()
+                                                                else
+                                                                    // esp-hal/esp-hal-embassy/src/timer_queue.rs
+                                                                    embassy_time_driver::schedule_wake(self.expires_at.as_ticks(), cx.waker())
+                                                                        // embassy/embassy-time/src/instant.rs
+                                                                        as_ticks(&self) -> u64
+                                                                        waker(&self) -> &'a Waker
+                                                                        // esp-hal/esp-hal-embassy/src/timer_queue.rs
+                                                                        schedule_wake(at: u64, waker: &Waker)
+                                                                            // embassy/embassy-time-driver/src/lib.rs
+                                                                            // macro_rules! time_driver_impl
+                                                                            _embassy_time_schedule_wake(at, waker)
+                                                                                <$t as $crate::Driver>::schedule_wake(&mut $name, at, waker)
+                                                                                <EmbassyTimer as $crate::Driver>::schedule_wake(&mut DRIVER, at, waker)
+                                                                                    // esp-hal/esp-hal-embassy/src/time_driver.rs
+                                                                                    schedule_wake(&mut self, at: u64, waker: &core::task::Waker)
+                                                                                        // esp-hal/esp-hal-embassy/src/timer_queue.rs
+                                                                                        self.inner.schedule_wake(at, waker)
+                                                                                            if self.inner.get_mut().queue.schedule_wake(at, waker)
+                                                                                                // esp-hal/esp-hal-embassy/src/timer_queue.rs
+                                                                                                schedule_wake(&mut self, at: u64, waker: &Waker) -> bool
+                                                                                                    let task = embassy_executor::raw::task_from_waker(waker);
+                                                                                                    let item = task.timer_queue_item();
+                                                                                                    if item.next.get().is_none()
+                                                                                                        Some(unsafe { TaskRef::dangling() })
+                                                                                                    else
+                                                                                                        ...
+                                                                                                    item.expires_at.set(at)
+                                                                                                // if was true since we queued a new item
+                                                                                                // esp-hal/esp-hal-embassy/src/timer_queue.rs
+                                                                                                self.dispatch()
+                                                                                                    let now = esp_hal::time::Instant::now().duration_since_epoch().as_micros()
+                                                                                                    self.arm_alarm(now)
+                                                                                                    // esp-hal/esp-hal-embassy/src/timer_queue.rs
+                                                                                                    arm_alarm(&mut self, mut next_expiration: u64)
+                                                                                                        loop
+                                                                                                            let q = self.inner.get_mut()
+                                                                                                            next_expiration = q.queue.next_expiration(next_expiration)
+                                                                                                            // esp-hal/esp-hal-embassy/src/timer_queue.rs
+                                                                                                            next_expiration(&mut self, now: u64) -> u64
+                                                                                                                self.retain(|p|
+                                                                                                                    // esp-hal/esp-hal-embassy/src/timer_queue.rs
+                                                                                                                    retain(&self, mut f: impl FnMut(TaskRef) -> bool)
+                                                                                                                        let mut prev = &self.head
+                                                                                                                        while let Some(p) = prev.get()
+                                                                                                                            if unsafe { p == TaskRef::dangling() }
+                                                                                                                                break // no, since false
+                                                                                                                            let item = p.timer_queue_item()
+#36                                                                                                                         if f(p)
+                                                                                                                                ...
+                                                                                                                            else
+#37.1                                                                                                                           prev.set(item.next.get())
+                                                                                                                                item.next.set(None)
+#37.2                                                                                                                   // eof while, another loop which 'break's
+
+                                                                                                                    // the 'p' closure
+#36.1                                                                                                               let item = p.timer_queue_item();
+#36.2                                                                                                               let expires = item.expires_at.get();
+#36.3                                                                                                               if expires <= now
+#36.4                                                                                                                   embassy_executor::raw::wake_task(p)
+                                                                                                                        // embassy/embassy-executor/src/raw/mod.rs
+                                                                                                                        wake_task(task: TaskRef)
+                                                                                                                            let header = task.header()
+                                                                                                                            header.state.run_enqueue(||
+                                                                                                                            // embassy/embassy-executor/src/raw/state_critical_section.rs
+                                                                                                                            run_enqueue(&self, f: impl FnOnce())
+                                                                                                                                critical_section::with(|cs|
+                                                                                                                                    if self.update(|s|
+                                                                                                                                        // embassy/embassy-executor/src/raw/state_critical_section.rs
+                                                                                                                                        update<R>(&self, f: impl FnOnce(&mut u32) -> R) -> R
+                                                                                                                                            let mut val = self.state.get()
+                                                                                                                                            let r = f(&mut val)
+                                                                                                                                                // run_enqueue's closure
+                                                                                                                                                let ok = *s & STATE_RUN_QUEUED == 0
+                                                                                                                                                *s |= STATE_RUN_QUEUED
+                                                                                                                                                ok
+                                                                                                                                                // eof closure
+                                                                                                                                            self.state.set(val)
+                                                                                                                                            r
+                                                                                                                                    // update was true
+                                                                                                                                    f() // wake_taks's closure
+                                                                                                                                        let executor = header.executor.get()
+                                                                                                                                        (*executor).enqueue(task)
+                                                                                                                                            // embassy/embassy-executor/src/raw/mod.rs
+                                                                                                                                            enqueue(&self, task: TaskRef)
+                                                                                                                                                if self.run_queue.enqueue(task)
+                                                                                                                                                // embassy/embassy-executor/src/raw/state_critical_section.rs
+                                                                                                                                                fn enqueue(&self, task: TaskRef) -> bool
+                                                                                                                                                    task.header().run_queue_item.next.set(prev)
+                                                                                                                                                    prev.is_none()
+                                                                                                                                                // 'if self.run_queue.enqueue(task)' was true
+                                                                                                                                                    self.pender.pend()
+                                                                                                                                                        ...
+                                                                                                                                                        SIGNAL_WORK_THREAD_MODE = true
+                                                                                                                                                        ...
+                                                                                                                                    // eof f()
+
+                                                                                                                        // eof wake_task            `
+                                                                                                                    else // 'if expires <= now's else branch
+                                                                                                                        ... it was true, so noop
+#37.0                                                                                                               // eof 'p' closure
+                                                                                                            // eof next_expiration
+
+                                                                                                            let alarm = q.alarm.get_or_insert_with(|| set_up_alarm(self.priority))
+                                                                                                                // esp-hal/esp-hal-embassy/src/time_driver.rs
+                                                                                                                set_up_alarm(priority: Priority) -> AlarmHandle
+                                                                                                                    let alarm = DRIVER.allocate_alarm(priority)
+                                                                                                                        // esp-hal/esp-hal-embassy/src/time_driver.rs
+                                                                                                                        allocate_alarm(&mut self, priority: Priority) -> Option<AlarmHandle>
+                                                                                                                            for (i, alarm) in self.alarms.iter_mut().enumerate()
+                                                                                                                                let Alarm::Created(interrupt_handler) = *alarm else
+                                                                                                                                    return None // was trure, no return, we have 'interrupt_handler'
+                                                                                                                                if let Some(timers) = self.available_timers.take()  // we have only one
+                                                                                                                                                                                    // &mut [esp_hal::timer::OneShotTimer] {data_ptr: 0x3fc806bc <<esp_hal::timer::systimer::Alarm as esp_hal_embassy::TimeBase>::timers::STATIC_TIMER_CELL>, length: 1}
+                                                                                                                                    let Some((timer, rest)) = timers.split_first_mut() else
+                                                                                                                                        not_enough_timers() // no problem, we cannot get here
+                                                                                                                                    self.available_timers = Some(rest)
+
+                                                                                                                                *alarm = Alarm::initialize(timer, InterruptHandler::new(interrupt_handler, priority))
+                                                                                                                                    // esp-hal/esp-hal/src/interrupt/mod.rs
+                                                                                                                                    new(f: extern "C" fn(), prio: Priority) -> Self
+                                                                                                                                        Self { f, prio }
+                                                                                                                                    // esp-hal/esp-hal-embassy/src/time_driver.rs
+                                                                                                                                    initialize(timer: &'static mut Timer, interrupt_handler: InterruptHandler) -> Alarm
+                                                                                                                                        timer.set_interrupt_handler(interrupt_handler)
+                                                                                                                                        // esp-hal/esp-hal/src/timer/mod.rs
+                                                                                                                                        set_interrupt_handler(&mut self, handler: InterruptHandler)
+                                                                                                                                            self.inner.set_interrupt_handler(handler)
+                                                                                                                                            // esp-hal/esp-hal/src/timer/systimer.rs
+                                                                                                                                            set_interrupt_handler(&self, handler: InterruptHandler)
+                                                                                                                                                // esp-hal/esp-hal/src/timer/systimer.rs
+                                                                                                                                                self.set_interrupt_handler(handler)
+                                                                                                                                                    let interrupt = match self.channel()
+                                                                                                                                                        0 => Interrupt::SYSTIMER_TARGET0
+                                                                                                                                                    crate::interrupt::disable(interrupt as u8)
+                                                                                                                                                        // esp-hal/esp-hal/src/interrupt/riscv.rs
+                                                                                                                                                        disable(interrupt: u8)
+                                                                                                                                                    interrupt::bind_interrupt(interrupt, handler.handler())
+                                                                                                                                                        // esp-hal/esp-hal/src/interrupt/mod.rs
+                                                                                                                                                        handler(&self) -> extern "C" fn()
+                                                                                                                                                            self.f
+                                                                                                                                                        // esp-hal/esp-hal/src/interrupt/riscv.rs
+                                                                                                                                                        bind_interrupt(interrupt: Interrupt, handler: unsafe extern "C" fn())
+                                                                                                                                                            let ptr = &pac::__EXTERNAL_INTERRUPTS[interrupt as usize]._handler as *const _
+                                                                                                                                                                as *mut unsafe extern "C" fn()
+                                                                                                                                                            ptr.write_volatile(handler)
+                                                                                                                                                        unwrap!(interrupt::enable(interrupt, handler.priority()))
+                                                                                                                                                            // esp-hal/esp-hal/src/interrupt/riscv.rs
+                                                                                                                                                            enable(interrupt: Interrupt, level: Priority) -> Result<(), Error>
+                                                                                                                                                                let cpu_interrupt = core::mem::transmute::<u32, CpuInterrupt>(
+                                                                                                                                                                    PRIORITY_TO_INTERRUPT[(level as usize) - 1] as u32
+                                                                                                                                                                map(interrupt, cpu_interrupt)
+                                                                                                                                                                    // esp-hal/esp-hal/src/interrupt/riscv.rs
+                                                                                                                                                                    map(interrupt: Interrupt, which: CpuInterrupt)
+                                                                                                                                                                enable_cpu_interrupt(cpu_interrupt)
+                                                                                                                                                                // esp-hal/esp-hal/src/interrupt/riscv.rs
+                                                                                                                                                                enable_cpu_interrupt(which: CpuInterrupt)
+                                                                                                                                        // eof 'set_interrupt_handler'
+                                                                                                                                        // continue 'initialize'
+                                                                                                                                        timer.enable_interrupt(true)
+                                                                                                                                        // esp-hal/esp-hal/src/timer/mod.rs
+                                                                                                                                        enable_interrupt(&mut self, enable: bool)
+                                                                                                                                            self.inner.enable_interrupt(enable)
+                                                                                                                                            // esp-hal/esp-hal/src/timer/systimer.rs
+                                                                                                                                            enable_interrupt(&self, state: bool)
+                                                                                                                                        Alarm::Initialized(timer)
+                                                                                                                                        // timer = (*mut esp_hal::timer::OneShotTimer) 0x3fc806bc <<esp_hal::timer::systimer::Alarm as esp_hal_embassy::TimeBase>::timers::STATIC_TIMER_CELL>
+                                                                                                                            // continue 'allocate_alarm'
+                                                                                                                            Some(AlarmHandle::new(i))
+
+                                                                                                                            if handle.is_some()
+                                                                                                                                return handle
+                                                                                                                        // eof 'allocate_alarm'
+                                                                                                            // eof 'get_or_insert_with'
+
+                                                                                                            alarm.update(next_expiration)
+                                                                                                            // esp-hal/esp-hal-embassy/src/time_driver.rs
+                                                                                                            update(&self, expiration: u64) -> bool
+                                                                                                                if expiration == u64::MAX
+                                                                                                                else
+                                                                                                                    DRIVER.set_alarm(*self, expiration)
+                                                                                                                    // esp-hal/esp-hal-embassy/src/time_driver.rs
+                                                                                                                    set_alarm(&mut self, alarm: AlarmHandle, timestamp: u64) -> bool
+                                                                                                                        let alarm = &mut self.alarms[alarm.id]
+                                                                                                                        if let Alarm::Initialized(timer) = alarm
+                                                                                                                            Self::arm(*timer, timestamp)
+                                                                                                                            // esp-hal/esp-hal-embassy/src/time_driver.rs
+                                                                                                                            arm(timer: &mut Timer, timestamp: u64) -> bool
+                                                                                                                                let now = Instant::now().duration_since_epoch().as_micros()
+                                                                                                                                if timestamp > now
+                                                                                                                                    let mut timeout = Duration::from_micros(timestamp - now)
+                                                                                                                                    loop
+                                                                                                                                        match timer.schedule(timeout)
+                                                                                                                                        // esp-hal/esp-hal/src/timer/mod.rs
+                                                                                                                                        schedule(&mut self, timeout: Duration) -> Result<(), Error>
+                                                                                                                                            if self.inner.is_running()
+                                                                                                                                                self.inner.stop() // was false -> not this branch
+                                                                                                                                            self.inner.clear_interrupt()
+                                                                                                                                                // esp-hal/esp-hal/src/timer/systimer.rs
+                                                                                                                                                clear_interrupt(&self)
+                                                                                                                                            self.inner.reset()
+                                                                                                                                                // esp-hal/esp-hal/src/timer/systimer.rs
+                                                                                                                                                reset(&self)
+                                                                                                                                            self.inner.enable_auto_reload(false)
+                                                                                                                                                // esp-hal/esp-hal/src/timer/systimer.rs
+                                                                                                                                                enable_auto_reload(&self, auto_reload: bool)
+                                                                                                                                            self.inner.load_value(timeout)?
+                                                                                                                                                // esp-hal/esp-hal/src/timer/systimer.rs
+                                                                                                                                                load_value(&self, value: Duration) -> Result<(), Error>
+                                                                                                                                                    if matches!(mode, ComparatorMode::Period)
+                                                                                                                                                    else
+                                                                                                                                                        // Target mode
+                                                                                                                                                        if (ticks & !SystemTimer::BIT_MASK) != 0
+                                                                                                                                                            return Err(Error::InvalidTimeout); // false
+
+                                                                                                                                                        let v = self.unit.read_count()
+                                                                                                                                                            // esp-hal/esp-hal/src/timer/systimer.rs
+                                                                                                                                                            read_count(&self) -> u64
+                                                                                                                                                        let t = v + ticks
+                                                                                                                                                        self.set_target(t)
+                                                                                                                                                        // esp-hal/esp-hal/src/timer/systimer.rs
+                                                                                                                                                        set_target(&self, value: u64)
+                                                                                                                                            self.inner.start()
+                                                                                                                                            // esp-hal/esp-hal/src/timer/systimer.rs
+                                                                                                                                            start(&self)
+                                                                                                                                                self.set_enable(true)
+                                                                                                                                                // esp-hal/esp-hal/src/timer/systimer.rs
+                                                                                                                                                set_enable(&self, enable: bool)
+                                                                                                                                                    SYSTIMER::regs().conf().modify(|_, w| match self.channel()
+                                                                                                                                                        0 => w.target0_work_en().bit(enable)
+                                                                                                                                        // eof 'match timer.schedule(timeout)' returns with ok
+                                                                                                                                        Ok(()) => break
+                                                                                                                                    true
+                                                                                                                                else
+                                                                                                                                    timer.stop() // true -> not this branch
+                                                                                                                            // eof 'arm'
+                                                                                                                    // eof 'set_alarm'
+                                                                                                            // eof 'update'
+                                                                                                            // continue arm_alarm
+                                                                                                            if set
+                                                                                                                break
+                                                                                                        // eof arm_alarm's loop
+                                                                                                // eof dispatch
+                                                                                    // eof schedule_wake
+                                                                            // eof _embassy_time_schedule_wake
+                                                                        // eof schedule_wake
+                                                                    // eof embassy_time_driver::schedule_wake
+                                                                    // continue poll's else (Peding)
+                                                                    self.yielded_once = true
+                                                                    Poll::Pending
+                                                            // eof poll
+                                                            // at/Pending 'Timer::after(Duration::from_millis(1_000)).await'
+                                            // return to 'match future.poll' 'async fn run' 'Poll::Pending => {}'
+                                            mem::forget(waker)
+                                        // eof 'poll(p: TaskRef)'
+                                    // eof on_task
+                            // eof dequeue_all
+                    // eof self.inner.poll
+
+                    Self::wait_impl()
+                        if !SIGNAL_WORK_THREAD_MODE // it was true because of run_task's Timer:after's 'pend'
+                //eof secOnd loop
+
+                self.inner.poll()
+
+// highest priority interrupt arrived
+0x403800e8 <_start_trap15>      addi    sp,sp,-160  // allocate for pushes
+0x403800ea <_start_trap15+2>    sw      ra,0(sp)    // save ra
+0x403800ec <_start_trap15+4>    auipc   ra,0x0
+0x403800f0 <_start_trap15+8>    addi    ra,ra,860   // la ra, interrupt15
+0x403800f4 <_start_trap15+12>   j       0x403801de <_start_trap_direct>
+
+0x403801de <_start_trap_direct>         sw      t0,4(sp)                                                                                                                        │
+0x403801e0 <_start_trap_direct+2>       sw      t1,8(sp)                                                                                                                        │
+0x403801e2 <_start_trap_direct+4>       sw      t2,12(sp)                                                                                                                       │
+0x403801e4 <_start_trap_direct+6>       sw      t3,16(sp)                                                                                                                       │
+0x403801e6 <_start_trap_direct+8>       sw      t4,20(sp)                                                                                                                       │
+0x403801e8 <_start_trap_direct+10>      sw      t5,24(sp)                                                                                                                       │
+0x403801ea <_start_trap_direct+12>      sw      t6,28(sp)                                                                                                                       │
+0x403801ec <_start_trap_direct+14>      sw      a0,32(sp)                                                                                                                       │
+0x403801ee <_start_trap_direct+16>      sw      a1,36(sp)                                                                                                                       │
+0x403801f0 <_start_trap_direct+18>      sw      a2,40(sp)                                                                                                                       │
+0x403801f2 <_start_trap_direct+20>      sw      a3,44(sp)                                                                                                                       │
+0x403801f4 <_start_trap_direct+22>      sw      a4,48(sp)                                                                                                                       │
+0x403801f6 <_start_trap_direct+24>      sw      a5,52(sp)                                                                                                                       │
+0x403801f8 <_start_trap_direct+26>      sw      a6,56(sp)                                                                                                                       │
+0x403801fa <_start_trap_direct+28>      sw      a7,60(sp)
+0x403801fc <_start_trap_direct+30>      sw      s0,64(sp)                                                                                                                       │
+0x403801fe <_start_trap_direct+32>      sw      s1,68(sp)                                                                                                                       │
+0x40380200 <_start_trap_direct+34>      sw      s2,72(sp)                                                                                                                       │
+0x40380202 <_start_trap_direct+36>      sw      s3,76(sp)                                                                                                                       │
+0x40380204 <_start_trap_direct+38>      sw      s4,80(sp)                                                                                                                       │
+0x40380206 <_start_trap_direct+40>      sw      s5,84(sp)                                                                                                                       │
+0x40380208 <_start_trap_direct+42>      sw      s6,88(sp)
+0x4038020a <_start_trap_direct+44>      sw      s7,92(sp)                                                                                                                       │
+0x4038020c <_start_trap_direct+46>      sw      s8,96(sp)                                                                                                                       │
+0x4038020e <_start_trap_direct+48>      sw      s9,100(sp)                                                                                                                      │
+0x40380210 <_start_trap_direct+50>      sw      s10,104(sp)                                                                                                                     │
+0x40380212 <_start_trap_direct+52>      sw      s11,108(sp)                                                                                                                     │
+0x40380214 <_start_trap_direct+54>      sw      gp,112(sp)                                                                                                                      │
+0x40380216 <_start_trap_direct+56>      sw      tp,116(sp)
+0x40380218 <_start_trap_direct+58>      .4byte  0x34102373  // csrrs t1, mepc, x0                                                                                                                      │
+0x4038021c <_start_trap_direct+62>      sw      t1,124(sp)                                                                                                                      │
+0x4038021e <_start_trap_direct+64>      .4byte  0x30002373  // csrrs t1, mstatus, x0                                                                                                                     │
+0x40380222 <_start_trap_direct+68>      sw      t1,128(sp)                                                                                                                      │
+0x40380224 <_start_trap_direct+70>      .4byte  0x34202373  // csrrs t1, mcause, x0                                                                                            │
+0x40380228 <_start_trap_direct+74>      sw      t1,132(sp)                                                                                                                      │
+0x4038022a <_start_trap_direct+76>      .4byte  0x34302373  // csrrs t1, mtval, x0
+0x4038022e <_start_trap_direct+80>      sw      t1,136(sp)                                                                                                                      │
+0x40380230 <_start_trap_direct+82>      addi    s0,sp,160                                                                                                                       │
+0x40380232 <_start_trap_direct+84>      sw      s0,120(sp)                                                                                                                      │
+0x40380234 <_start_trap_direct+86>      mv      a0,sp                                                                                                                           │
+0x40380236 <_start_trap_direct+88>      jalr    ra          // jalr interrupt15                                                                                                                        │
+
+// esp-hal/esp-hal/src/interrupt/riscv.rs
+macro_rules! interrupt_handler
+    ($num:literal) =>
+        interrupt15:    mv      a1,a0
+                        li      a0,15
+                        j       0x40380450 <esp_hal::interrupt::riscv::vectored::handle_interrupts>
+// esp-hal/esp-hal/src/interrupt/riscv.rs
+interrupt_handler!(15);
+
+// esp-hal/esp-hal/src/interrupt/riscv.rs
+handle_interrupts(cpu_intr: CpuInterrupt, context: &mut TrapFrame)
+    // esp-hal/esp-hal/src/interrupt/riscv.rs
+    clear(cpu_intr)
+    let priority = INTERRUPT_TO_PRIORITY[cpu_intr as usize]
+    let prio: Priority = unsafe { core::mem::transmute(priority) }
+    let configured_interrupts = configured_interrupts(status(), prio)
+        // esp-hal/esp-hal/src/interrupt/riscv.rs
+        status() -> InterruptStatus
+            InterruptStatus::from
+                INTERRUPT_CORE0::regs().intr_status_reg_0().read().bits(),
+                INTERRUPT_CORE0::regs().intr_status_reg_1().read().bits(),
+        // esp-hal/esp-hal/src/interrupt/riscv.rs
+        configured_interrupts(status: InterruptStatus, priority: Priority) -> InterruptStatus
+            let mut res = InterruptStatus::empty()
+            for interrupt_nr in status.iterator()
+                if let Some(cpu_interrupt) =
+                    assigned_cpu_interrupt(core::mem::transmute::<u16, Interrupt>(interrupt_nr as u16))
+                {
+                    if priority_by_core(cpu_interrupt) == priority
+                        res.set(interrupt_nr)
+                }
+                res // esp_hal::interrupt::InterruptStatus {status: [0, 32]}
+        for interrupt_nr in configured_interrupts.iterator()
+            let interrupt: Interrupt = unsafe { core::mem::transmute(interrupt_nr as u16) }
+            handle_interrupt(interrupt, context)
+            // esp-hal/esp-hal/src/interrupt/riscv.rs
+            handle_interrupt(interrupt: Interrupt, save_frame: &mut TrapFrame)
+                ...
+                handler(save_frame)
+                // esp-hal/esp-hal-embassy/src/time_driver.rs
+                extern "C" fn handler()
+                    DRIVER.on_interrupt($idx)
+                    // esp-hal/esp-hal-embassy/src/time_driver.rs
+                    on_interrupt(&mut self, id: usize)
+                        if let Alarm::Initialized(timer) = &mut self.alarms[id]
+                            timer.clear_interrupt()
+                            // esp-hal/esp-hal/src/timer/mod.rs
+                            clear_interrupt(&mut self)
+                                // esp-hal/esp-hal/src/timer/systimer.rs
+                                self.inner.clear_interrupt()
+                                    // esp-hal/esp-hal/src/timer/systimer.rs
+                                    clear_interrupt(&self)
+                        else
+                            ...
+
+                            // esp-hal/esp-hal-embassy/src/timer_queue.rs
+                            self.inner.dispatch()   // see above -> manage 'timer_queue'
+                                                    // and if expires <= now
+                                                            wake_task(task: TaskRef)
+                                let now = esp_hal::time::Instant::now().duration_since_epoch().as_micros()
+                                self.arm_alarm(now)
+                                // esp-hal/esp-hal-embassy/src/timer_queue.rs
+                                arm_alarm(&mut self, mut next_expiration: u64)
+                                    let now = esp_hal::time::Instant::now().duration_since_epoch().as_micros()  // see above
+                                    self.arm_alarm(now);
+                                    // esp-hal/esp-hal-embassy/src/timer_queue.rs
+                                    arm_alarm(&mut self, mut next_expiration: u64)
+                                        let set =
+                                            let q = self.inner.get_mut()
+                                            let alarm = q.alarm.get_or_insert_with(|| set_up_alarm(self.priority))
+                                                // esp-hal/esp-hal-embassy/src/timer_queue.rs
+                                                /// Dequeues expired timers and returns the next alarm time
+                                                next_expiration(&mut self, now: u64) -> u64
+                                                    self.retain(|p|
+                                                        let item = p.timer_queue_item()
+                                                        let expires = item.expires_at.get()
+                                                        if expires <= now
+                                                            embassy_executor::raw::wake_task(p)
+                                                            false
+                                                        else
+
+
+        // eof for cycle
+// eof handle_interrupt
+
+// return to _start_trap_direct after '0x40380236 <_start_trap_direct+88>      jalr    ra'
+0x40380238 <_start_trap_direct+90>      lw      t1,124(sp)                                                                                                                      │
+0x4038023a <_start_trap_direct+92>      .4byte  0x34131073                                                                                                                      │
+0x4038023e <_start_trap_direct+96>      lw      t1,128(sp)                                                                                                                      │
+0x40380240 <_start_trap_direct+98>      .4byte  0x30031073                                                                                                                      │
+0x40380244 <_start_trap_direct+102>     lw      ra,0(sp)                                                                                                                        │
+0x40380246 <_start_trap_direct+104>     lw      t0,4(sp)                                                                                                                        │
+0x40380248 <_start_trap_direct+106>     lw      t1,8(sp)                                                                                                                        │
+0x4038024a <_start_trap_direct+108>     lw      t2,12(sp)
+0x4038024c <_start_trap_direct+110>     lw      t3,16(sp)                                                                                                                       │
+0x4038024e <_start_trap_direct+112>     lw      t4,20(sp)                                                                                                                       │
+0x40380250 <_start_trap_direct+114>     lw      t5,24(sp)                                                                                                                       │
+0x40380252 <_start_trap_direct+116>     lw      t6,28(sp)                                                                                                                       │
+0x40380254 <_start_trap_direct+118>     lw      a0,32(sp)                                                                                                                       │
+0x40380256 <_start_trap_direct+120>     lw      a1,36(sp)                                                                                                                       │
+0x40380258 <_start_trap_direct+122>     lw      a2,40(sp)
+0x4038025a <_start_trap_direct+124>     lw      a3,44(sp)                                                                                                                       │
+0x4038025c <_start_trap_direct+126>     lw      a4,48(sp)                                                                                                                       │
+0x4038025e <_start_trap_direct+128>     lw      a5,52(sp)                                                                                                                       │
+0x40380260 <_start_trap_direct+130>     lw      a6,56(sp)                                                                                                                       │
+0x40380262 <_start_trap_direct+132>     lw      a7,60(sp)                                                                                                                       │
+0x40380264 <_start_trap_direct+134>     lw      s0,64(sp)                                                                                                                       │
+0x40380266 <_start_trap_direct+136>     lw      s1,68(sp)
+0x40380268 <_start_trap_direct+138>     lw      s2,72(sp)                                                                                                                       │
+0x4038026a <_start_trap_direct+140>     lw      s3,76(sp)                                                                                                                       │
+0x4038026c <_start_trap_direct+142>     lw      s4,80(sp)                                                                                                                       │
+0x4038026e <_start_trap_direct+144>     lw      s5,84(sp)                                                                                                                       │
+0x40380270 <_start_trap_direct+146>     lw      s6,88(sp)                                                                                                                       │
+0x40380272 <_start_trap_direct+148>     lw      s7,92(sp)                                                                                                                       │
+0x40380274 <_start_trap_direct+150>     lw      s8,96(sp)
+0x40380276 <_start_trap_direct+152>     lw      s9,100(sp)                                                                                                                      │
+0x40380278 <_start_trap_direct+154>     lw      s10,104(sp)                                                                                                                     │
+0x4038027a <_start_trap_direct+156>     lw      s11,108(sp)                                                                                                                     │
+0x4038027c <_start_trap_direct+158>     lw      gp,112(sp)                                                                                                                      │
+0x4038027e <_start_trap_direct+160>     lw      tp,116(sp)                                                                                                                      │
+0x40380280 <_start_trap_direct+162>     lw      sp,120(sp)                                                                                                                      │
+0x40380282 <_start_trap_direct+164>     mret
+
+// the return address is a nested calls
+// starting from wfi,
+// then releasing wrapping critical section
+// which cause enabling interrupt
+// which calls set_mie
+// ending with _try_set called by set_mie
+
+#0  in riscv::register::mstatus::_try_set (bits=8) at src/register/macros.rs:116
+#1  in riscv::register::mstatus::_set (bits=8) at src/register/macros.rs:106
+#2  in riscv::register::mstatus::set_mie () at src/register/macros.rs:169
+#3  in riscv::interrupt::machine::enable () at src/interrupt/machine.rs:11
+#4  in riscv::critical_section::{impl#0}::release (was_active=true) at src/critical_section.rs:20
+#5  n riscv::critical_section::_critical_section_1_0_release (restore_state=true)
+    at /Users/piv/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/critical-section-1.2.0/src/lib.rs:305
+#6  in critical_section::release (restore_state=...) at /Users/piv/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/critical-section-1.2.0/src/lib.rs:219
+#7  critical_section::with::{impl#0}::drop (self=0x3fcce389) at /Users/piv/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/critical-section-1.2.0/src/lib.rs:241
+#8  core::ptr::drop_in_place<critical_section::with::Guard> () at /Users/piv/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:523
+#9  in critical_section::with<(), esp_hal_embassy::{impl#0}::wait_impl::{closure_env#0}> (f=...)
+    at /Users/piv/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/critical-section-1.2.0/src/lib.rs:249
+#10 in esp_hal_embassy::Executor::wait_impl () at src/lib.rs:187
+#11 in esp_hal_embassy::Executor::run<esp_embassy::__risc_v_rt__main::{closure_env#0}> (self=0x3fcce3b0, init=...)
+    at /Users/piv/esp/ccm-diag/esp-hal/esp-hal-embassy/src/lib.rs:178
+#12 in esp_embassy::__risc_v_rt__main () at src/main.rs:27
+
+
+// after interrupt wake the 'run task', its poll found 'self.yielded_once && self.expires_at <= Instant::now' is true
+
+// embassy/embassy-time/src/timer.rs
+poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output>
+    if self.yielded_once && self.expires_at <= Instant::now
+        Poll::Ready(())
+    else
+        // if we got here because of 'self.yielded_once' is true
+        // but 'self.expires_at > Instant::now'
+        // another earlier 'expires_at' caused the interrupt while we are waiting for our 'expires_at'
+        // but it can be caused only in multi thread/core situation

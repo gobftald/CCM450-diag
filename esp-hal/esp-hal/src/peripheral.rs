@@ -46,15 +46,14 @@ macro_rules! peripherals {
                     #[unsafe(no_mangle)]
                     static mut _ESP_HAL_DEVICE_PERIPHERALS: bool = false;
 
-                    //critical_section::with(|_| unsafe {
+                    critical_section::with(|_|
                     unsafe {
                         if _ESP_HAL_DEVICE_PERIPHERALS {
                             panic!("init called more than once!")
                         }
                         _ESP_HAL_DEVICE_PERIPHERALS = true;
                         Self::steal()
-                    }
-                    //})
+                    })
                 }
 
                 /// Unsafely create an instance of this peripheral out of thin air.

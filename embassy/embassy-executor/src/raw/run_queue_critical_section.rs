@@ -75,13 +75,13 @@ impl RunQueue {
             // If the task re-enqueues itself, the `next` pointer will get overwritten.
             // Therefore, first read the next pointer, and only then process the task.
 
-            //critical_section::with(|cs| {
-            // next = task.header().run_queue_item.next.borrow(cs).get();
-            next = task.header().run_queue_item.next.get();
-            //task.header().state.run_dequeue(cs);
-            // state &= !STATE_RUN_QUEUED
-            task.header().state.run_dequeue();
-            //});
+            critical_section::with(|_| {
+                // next = task.header().run_queue_item.next.borrow(cs).get();
+                next = task.header().run_queue_item.next.get();
+                //task.header().state.run_dequeue(cs);
+                // state &= !STATE_RUN_QUEUED
+                task.header().state.run_dequeue();
+            });
 
             on_task(task);
         }

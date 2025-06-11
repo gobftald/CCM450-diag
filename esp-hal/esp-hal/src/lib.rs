@@ -169,14 +169,14 @@ pub struct Config {
     cpu_clock: CpuClock,
 
     /// Enable watchdog timer(s).
-    watchdog: WatchdogConfig,
+    _watchdog: WatchdogConfig,
 }
 
 impl Config {
     pub fn new_and_default(cpu_clock: CpuClock) -> Self {
         Self {
             cpu_clock,
-            watchdog: WatchdogConfig::default(),
+            _watchdog: WatchdogConfig::default(),
         }
     }
 }
