@@ -43,13 +43,15 @@ SECTIONS {
     
     } > ROTEXT
 }
-INSERT BEFORE .text;
+#INSERT BEFORE .text;
+# if you insert debug.x in text.x
+INSERT BEFORE .esp-riscv-rt;
 
 /* Similar to .rotext_dummy this represents .rwtext but in .data */
 SECTIONS {
     .rwdata_dummy (NOLOAD) : ALIGN(4)
     {
-        . = . + SIZEOF(.rwtext) + SIZEOF(.trap);
+        . = . + SIZEOF(.trap) + 2 + SIZEOF(.rwtext);
 
     }  > RWDATA
 }

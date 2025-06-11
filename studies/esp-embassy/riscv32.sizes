@@ -1,9 +1,9 @@
 DEFMT_LOG=info cargo run --release
 
-esp_image: segment 0: paddr=00010020 vaddr=3c000020 size=00070h (   112) map    .rodata
+esp_image: segment 0: paddr=00010020 vaddr=3c000020 size=00070h (   112) map    .rodata*
 esp_image: segment 1: paddr=00010224 vaddr=3fc80724 size=00024h (    36)        .data
-esp_image: segment 2: paddr=000100c4 vaddr=40380000 size=006cch (  1740) load   .trap + .rwtext
-esp_image: segment 4: paddr=00020020 vaddr=42010020 size=01018h (  4120) map    .text
+esp_image: segment 2: paddr=000100c4 vaddr=40380000 size=006cch (  1740) load   .trap* + .rwtext*
+esp_image: segment 4: paddr=00020020 vaddr=42010020 size=01024h (  4132) map    .text*
 
 .trap
     40380000 _start_trap:
@@ -15,9 +15,8 @@ esp_image: segment 4: paddr=00020020 vaddr=42010020 size=01018h (  4120) map    
     403801de _start_trap_direct:                                                          168
     40380286 padding                                                                      122
     40380300 _vector_table:                                                               128
-    40380380 _start_trap_rust_hal:                                                         16
-    40380390 padding                                                                        4
-                                                                                                    916     0x394
+    40380380 _start_trap_rust_hal:                                                         16       914     0x392
+    40380390 padding                                                                        2       2       0x2
 
 .rwtext
     40380394 esp_hal::interrupt::riscv::classic::PRIORITY_TO_INTERRUPT                      8
@@ -31,7 +30,7 @@ esp_image: segment 4: paddr=00020020 vaddr=42010020 size=01018h (  4120) map    
                                                                                                     824     0x338
 
 .rwdata_dummy
-    3fc80000 . + SIZEOF(.rwtext) + SIZEOF(.trap)                             (916 + 824) 1740
+    3fc80000 . + SIZEOF(.rwtext) + SIZEOF(.trap) + padding                          (914 + 2 + 824) 1740    0x6cc
 .data
     3fc806cc esp_hal_embassy::time_driver::DRIVER
     3fc806ec esp_hal::timer::systimer::Alarm  in impl esp_hal_embassy::TimeBase::timers::STATIC_TIMER_CELL
@@ -54,7 +53,8 @@ esp_image: segment 4: paddr=00020020 vaddr=42010020 size=01018h (  4120) map    
 .rotext_dummy
     42000020 . + SIZEOF(.rodata)
              ALIGN(0x10000) + 0x20
-.text
+
+.esp-riscv-rt
     42010020
     _start                                                                                  8
     42010028
@@ -62,54 +62,67 @@ esp_image: segment 4: paddr=00020020 vaddr=42010020 size=01018h (  4120) map    
     420100b8
     _start_rust                                                                            46
     420100e6
-    abort                                                                                   4       202
+    abort                                                                                   4
+    420000ea
+    DefaultExceptionHandler                                                                 6
+    420000f0
+    default_post_init                                                                       2       210     0xd2
+    padding                                                                                 2         2
 
-    420100ea
-    esp_hal_embassy::executor::Executor::run                                               84
-    embassy_executor::raw::poll_exited                                                      2
-    embassy_executor::raw::TaskStorage::poll                                              164
-    embassy_executor::raw::TaskStorage::poll                                              146
-    embassy_executor::raw::util1::UninitCell::write_in_place                               16
-    embassy_executor::raw::util1::UninitCell::write_in_place                               10
-                                                                                                    422
-    4201029c
-    main                                                                                   16
+.console
+    420100f4
+    console::print                                                                         52
+    42010128
+    console::Printer as core::fmt::Write::write_str                                        54       106     0x6a
+    padding                                                                                 2         2
 
-    esp_hal_embassy::time_driver::EmbassyTimer::init                                       90
-    esp_hal_embassy::timer_queue::TimerQueue::dispatch                                    480
-    __pender                                                                               12
-    esp_hal_embassy::Executor::wait_impl                                                   42
-    _embassy_time_now                                                                      40
-    _embassy_time_schedule_wake                                                           102
-    esp_hal_embassy::time_driver::DRIVER::handler                                          54
-    esp_hal::timer::systimer::Alarm  in impl esp_hal_embassy::TimeBase::timers             46
-
+.esp-hal
+    42010160
     _setup_interrupts                                                                     272
+    42010270
+    esp_hal::interrupt::riscv::vectored::init_vectoring                                   458
+    4201043a
+    hal_main                                                                                8
+    42010442
+    esp_hal::init                                                                         256
+    42010542
     EspDefaultHandler                                                                       2
+    42010544
+    _critical_section_1_0_acquire                                                          10
+    4201054e
+    _critical_section_1_0_release                                                          12       1018    0x3fa
+    padding                                                                                 2
 
+    4201055c
+
+.esp-hal-clock
+    esp_hal::clock::clocks_ll::esp32c3_rtc_bbpll_configure                                390       390     0x186
+    padding                                                                                 2
+
+.esp-hal-timer
     esp_hal::timer::systimer::SystemTimer::new                                             44
     esp_hal::timer::systimer::SystemTimer1::unit_value                                     58
     esp_hal::timer::OneShotTimer::schedule                                                240
     esp_hal::timer::OneShotTimer::stop                                                     26
     esp_hal::timer::OneShotTimer::set_interrupt_handler                                    68
     esp_hal::timer::OneShotTimer::enable_interrupt                                         40
-    esp_hal::timer::OneShotTimer::clear_interrupt                                          26
+    esp_hal::timer::OneShotTimer::clear_interrupt                                          26       502     0x1f6
+    padding                                                                                 2
 
-    hal_main                                                                                8
-    esp_hal::init                                                                         256
-    esp_hal::clock::clocks_ll::esp32c3_rtc_bbpll_configure                                390
+ .esphal-embsy   
+    esp_hal_embassy::Executor::run                                                         84
+    esp_hal_embassy::Executor::wait_impl                                                   42
+    esp_hal_embassy::time_driver::EmbassyTimer::init                                       90
+    esp_hal_embassy::time_driver::DRIVER::handler                                          54
+    esp_hal_embassy::timer_queue::TimerQueue::dispatch                                    480
+    esp_hal::timer::systimer::Alarm  in impl esp_hal_embassy::TimeBase::timers             46       796     0x31c
 
-    esp_hal9interrupt5riscv8vectored14                                                    458
-
-    _critical_section_1_0_acquire                                                          10
-    _critical_section_1_0_release                                                          12
-
-    DefaultExceptionHandler                                                                 6
-    default_post_init                                                                       2
-
-    embassy_time::timer::Timer::after                                                      76
-    embassy_time::timer::Timer as core::future::future::Future::poll                       96
-
+.embassy-exec
+    embassy_executor::raw::poll_exited                                                      2
+    embassy_executor::raw::TaskStorage::poll                                              146
+    embassy_executor::raw::TaskStorage::poll                                              164
+    embassy_executor::raw::util1::UninitCell::write_in_place                               10
+    embassy_executor::raw::util1::UninitCell::write_in_place                               16
     embassy_executor::raw::waker::clone                                                    16
     embassy_executor::raw::waker::wake                                                     84
     embassy_executor::raw::waker::drop                                                      2
@@ -118,8 +131,20 @@ esp_image: segment 4: paddr=00020020 vaddr=42010020 size=01018h (  4120) map    
     embassy_executor::raw::wake_task                                                       84
     embassy_executor::spawner::Spawner::spawn                                              70
     embassy_executor::spawner::Spawner::must_spawn                                         82
+    __pender                                                                               12       768     0x300
 
-    console::print                                                                         52
-    console::Printer as core::fmt::Write::write_str                                        54       4120    0x1018
+.embassy-time
+    _embassy_time_now                                                                      40
+    _embassy_time_schedule_wake                                                           102
+    embassy_time::timer::Timer::after                                                      76
+    embassy_time::timer::Timer as core::future::future::Future::poll                       96       314     0x13a
+    padding                                                                                 2
 
-                                                                                                    6008
+.text
+    main                                                                                   16       16
+
+                                                                                                    4132    0x1024
+
+                                                                                                    6020 image 
+                                                                                                    4244 flash
+                                                                                                    1776 RAM
