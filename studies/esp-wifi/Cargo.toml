@@ -1,0 +1,48 @@
+[package]
+name = "esp-wifi"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+console = { path = "../../console", features = ["usb_uart"]}
+defmt = { version = "0.3.10", optional = true }
+esp-hal = { path = "../../esp-hal/esp-hal" }
+esp-alloc = { path = "../../esp-hal/esp-alloc" }
+
+esp-hal-embassy  = { path = "../../esp-hal/esp-hal-embassy"  }
+embassy-executor = { path = "../../embassy/embassy-executor" }
+embassy-time = { path = "../../embassy/embassy-time" }
+
+[dependencies.esp-backtrace]
+    version = "0.15.1"
+    features = ["panic-handler", "exception-handler"]
+    path = "../../esp-hal/esp-backtrace"
+    optional = true
+
+
+[features]
+default = [
+    "esp32c3",
+    #"defmt",
+]
+
+esp32c3 = [
+    "esp-backtrace?/esp32c3",
+    "esp-hal/esp32c3",
+    "esp-hal-embassy/esp32c3",
+    "embassy-executor/nightly",     # for 'task' embassy-executor-macro 
+]
+
+defmt = [
+    "dep:defmt",
+    "console/defmt",
+    "esp-backtrace?/defmt",
+    "esp-hal/defmt",
+    "esp-hal-embassy/defmt",
+    "embassy-executor/defmt",
+    "embassy-time/defmt",
+    "embassy-time/defmt-timestamp-uptime",
+]
+
+backtrace = ["dep:esp-backtrace"]       # needs "-C", "force-frame-pointers" rustflag in config.toml
+                                        # needs to comment build-std-features = ["panic_immediate_abort"] out

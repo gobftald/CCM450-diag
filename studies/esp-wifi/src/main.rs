@@ -1,0 +1,40 @@
+#![no_std]
+#![no_main]
+// for 'task' embassy-executor-macro, when embassy-executor/nightly
+#![feature(impl_trait_in_assoc_type)]
+#![allow(static_mut_refs)]
+#![feature(thread_local)]
+
+// panic_handler
+mod panic;
+
+#[allow(unused_imports)]
+#[macro_use(core_println, info)] // core_println for panic_handler in mod panic
+extern crate console;
+
+use embassy_executor::Spawner;
+use embassy_time::{Duration, Timer};
+
+#[embassy_executor::task]
+async fn run() {
+    loop {
+        //info!("Hello world from embassy using esp-hal-async!");
+        use core::fmt::Write;
+        core_println!("0");
+        Timer::after(Duration::from_millis(1_000)).await;
+    }
+}
+
+#[esp_hal_embassy::main]
+async fn main(spawner: Spawner) {
+    //let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
+    let config = esp_hal::Config::new_and_default(esp_hal::clock::CpuClock::max());
+    let peripherals = esp_hal::init(config);
+
+    esp_alloc::heap_allocator!(size: 72 * 1024);
+
+    let systimer = esp_hal::timer::systimer::SystemTimer::new(peripherals.SYSTIMER);
+    esp_hal_embassy::init(systimer.alarm0);
+
+    spawner.spawn(run()).ok();
+}
