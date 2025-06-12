@@ -54,3 +54,9 @@
         *(.text.*embassy_time*)
         *(.text.*_embassy_time*)
     } > ROTEXT
+
+.esphal-alloc : ALIGN(4)
+    {
+        *(.text.*esp_alloc*)
+        *(.text.*linked_list_allocator*)
+    } > ROTEXT

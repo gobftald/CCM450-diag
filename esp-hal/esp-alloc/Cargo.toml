@@ -7,3 +7,18 @@ edition = "2024"
 test = false
 
 [dependencies]
+console = { path = "../../console", features = ["usb_uart"]}
+defmt = { version = "0.3.10", optional = true }
+critical-section = { version = "1.2.0" }
+enumset = "1.1.6"
+linked-list-allocator = { path = "../../linked-list-allocator" }
+
+[features]
+
+## Enable this feature if you want to keep stats about the internal heap usage such as:
+## - Max memory usage since initialization of the heap
+## - Total allocated memory since initialization of the heap
+## - Total freed memory since initialization of the heap
+##
+## ⚠️ Note: Enabling this feature will require extra computation every time alloc/dealloc is called.
+internal-heap-stats = []

@@ -1,0 +1,7 @@
+[package]
+name = "linked-list-allocator"
+version = "0.10.5"
+
+[dependencies]
+console = { path = "../console", features = ["usb_uart"]}
+defmt = { version = "0.3.10", optional = true }
