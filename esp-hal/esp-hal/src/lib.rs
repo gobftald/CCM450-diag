@@ -94,6 +94,9 @@ mod macros;
 // 238
 pub use procmacros::blocking_main as main;
 
+#[cfg(rng)]
+pub mod rng;
+
 // 292
 pub mod config;
 

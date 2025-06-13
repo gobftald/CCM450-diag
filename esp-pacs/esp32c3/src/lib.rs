@@ -238,6 +238,25 @@ impl Deref for INTERRUPT_CORE0 {
 }
 pub mod interrupt_core0;
 
+/// Hardware Random Number Generator
+// 1039
+pub struct RNG {
+    _marker: PhantomData<*const ()>,
+}
+unsafe impl Send for RNG {}
+impl RNG {
+    /// Pointer to the register block
+    pub const PTR: *const rng::RegisterBlock = 0x6002_6000 as *const _;
+}
+impl Deref for RNG {
+    type Target = rng::RegisterBlock;
+    #[inline(always)]
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*Self::PTR }
+    }
+}
+pub mod rng;
+
 /// "Real-Time Clock Control
 // 1130
 pub struct RTC_CNTL {
@@ -245,6 +264,7 @@ pub struct RTC_CNTL {
 }
 unsafe impl Send for RTC_CNTL {}
 impl RTC_CNTL {
+    /// Pointer to the register block
     pub const PTR: *const rtc_cntl::RegisterBlock = 0x6000_8000 as *const _;
 }
 impl Deref for RTC_CNTL {

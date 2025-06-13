@@ -33,6 +33,7 @@ async fn main(spawner: Spawner) {
     esp_alloc::heap_allocator!(size: 72 * 1024);
 
     let timg0 = esp_hal::timer::timg::TimerGroup::new(peripherals.TIMG0);
+    let mut rng = esp_hal::rng::Rng::new(peripherals.RNG);
 
     let systimer = esp_hal::timer::systimer::SystemTimer::new(peripherals.SYSTIMER);
     esp_hal_embassy::init(systimer.alarm0);
