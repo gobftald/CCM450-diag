@@ -32,5 +32,6 @@ crate::peripherals! {
         LPWR <= RTC_CNTL,
         SYSTEM <= SYSTEM,
         SYSTIMER <= SYSTIMER,
+        TIMG0 <= TIMG0,
     ],
 }

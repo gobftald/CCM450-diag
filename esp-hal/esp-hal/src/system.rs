@@ -15,8 +15,13 @@ use crate::peripherals::SYSTEM;
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 // 20
 pub enum Peripheral {
+    /// Timer Group 0 peripheral.
+    #[cfg(timg0)]
+    // 77
+    Timg0,
     /// Systimer peripheral.
     #[cfg(systimer)]
+    // 119
     Systimer,
 }
 
@@ -24,11 +29,18 @@ pub enum Peripheral {
 impl Peripheral {
     const KEEP_ENABLED: &[Peripheral] = &[
         #[cfg(systimer)]
+        // 131
         Peripheral::Systimer,
+        // 132
+        Peripheral::Timg0,
     ];
 
     const ALL: &[Self] = &[
+        #[cfg(timg0)]
+        // 178
+        Self::Timg0,
         #[cfg(systimer)]
+        // 206
         Self::Systimer,
     ];
 }
@@ -70,7 +82,16 @@ impl PeripheralClockControl {
         let perip_clk_en0 = &system.perip_clk_en0();
 
         match peripheral {
+            #[cfg(timg0)]
+            // 419
+            Peripheral::Timg0 => {
+                #[cfg(any(esp32c3, esp32s2, esp32s3))]
+                perip_clk_en0.modify(|_, w| w.timers_clk_en().bit(enable));
+                perip_clk_en0.modify(|_, w| w.timergroup_clk_en().bit(enable));
+            }
+
             #[cfg(systimer)]
+            // 483
             Peripheral::Systimer => {
                 perip_clk_en0.modify(|_, w| w.systimer_clk_en().bit(enable));
             }
@@ -88,7 +109,21 @@ impl PeripheralClockControl {
         let perip_rst_en0 = system.perip_rst_en0();
 
         critical_section::with(|_cs| match peripheral {
+            #[cfg(timg0)]
+            // 618
+            Peripheral::Timg0 => {
+                /* reset is not called for Timg0
+                #[cfg(any(esp32c3, esp32s2, esp32s3))]
+                perip_rst_en0.modify(|_, w| w.timers_rst().set_bit());
+                perip_rst_en0.modify(|_, w| w.timergroup_rst().set_bit());
+                #[cfg(any(esp32c3, esp32s2, esp32s3))]
+                perip_rst_en0.modify(|_, w| w.timers_rst().clear_bit());
+                perip_rst_en0.modify(|_, w| w.timergroup_rst().clear_bit());
+                */
+            }
+
             #[cfg(systimer)]
+            // 698
             Peripheral::Systimer => {
                 perip_rst_en0.modify(|_, w| w.systimer_rst().set_bit());
                 perip_rst_en0.modify(|_, w| w.systimer_rst().clear_bit());

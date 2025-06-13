@@ -33,6 +33,7 @@
 .esphal-timer : ALIGN(4)
     {
         *(.text.*esp_hal5timer*)
+        *(.text.*esp_hal*TIMG0*)
     } > ROTEXT
 
 .esphal-embsy : ALIGN(4)

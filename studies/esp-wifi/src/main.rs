@@ -3,7 +3,6 @@
 // for 'task' embassy-executor-macro, when embassy-executor/nightly
 #![feature(impl_trait_in_assoc_type)]
 #![allow(static_mut_refs)]
-#![feature(thread_local)]
 
 // panic_handler
 mod panic;
@@ -32,6 +31,8 @@ async fn main(spawner: Spawner) {
     let peripherals = esp_hal::init(config);
 
     esp_alloc::heap_allocator!(size: 72 * 1024);
+
+    let timg0 = esp_hal::timer::timg::TimerGroup::new(peripherals.TIMG0);
 
     let systimer = esp_hal::timer::systimer::SystemTimer::new(peripherals.SYSTIMER);
     esp_hal_embassy::init(systimer.alarm0);

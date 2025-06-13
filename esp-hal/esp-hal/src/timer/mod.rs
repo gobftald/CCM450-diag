@@ -3,9 +3,12 @@
 // 50
 use crate::{interrupt::InterruptHandler, time::Duration};
 
-// 61
 #[cfg(systimer)]
+// 62
 pub mod systimer;
+#[cfg(any(timg0, /*timg1*/))]
+// 64
+pub mod timg;
 
 /// Timer errors.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

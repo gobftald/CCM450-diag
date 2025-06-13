@@ -9,6 +9,7 @@ peripherals = [
     "rtc_cntl",
     "system",
     "systimer",
+    "timg0",
 ]
 
 symbols = [

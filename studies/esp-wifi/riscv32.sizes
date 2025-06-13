@@ -2,8 +2,8 @@ DEFMT_LOG=info cargo run --release
 
 esp_image: segment 0: paddr=00010020 vaddr=3c000020 size=00070h (   112) map    .rodata*
 esp_image: segment 1: paddr=00010224 vaddr=3fc80724 size=00024h (    36)        .data
-esp_image: segment 2: paddr=000100c4 vaddr=40380000 size=006cch (  1740) load   .trap* + .rwtext*
-esp_image: segment 4: paddr=00020020 vaddr=42010020 size=01024h (  4392) map    .text*
+esp_image: segment 2: paddr=000100c4 vaddr=40380000 size=006cch (  1732) load   .trap* + .rwtext*
+esp_image: segment 4: paddr=00020020 vaddr=42010020 size=01024h (  4504) map    .text*
 
 .trap
     40380000 _start_trap:
@@ -16,31 +16,32 @@ esp_image: segment 4: paddr=00020020 vaddr=42010020 size=01024h (  4392) map    
     40380286 padding                                                                      122
     40380300 _vector_table:                                                               128
     40380380 _start_trap_rust_hal:                                                         16       914     0x392
-    40380390 padding                                                                        2       2       0x2
+    40380392 padding                                                                        2       2       0x2
 
 .rwtext
-    40380394 esp_hal::interrupt::riscv::classic::PRIORITY_TO_INTERRUPT                      8
-    4038039c esp_hal::interrupt::riscv::classic::INTERRUPT_TO_PRIORITY                     16
-    403803ac interrupt1
+    40380394 interrupt1
     ...
-    4038041c interrupt15                                                                  120
+    40380404 interrupt15                                                                  120
 
-    40380424 handle_interrupts                                                            432
-    403805d4 __EXTERNAL_INTERRUPTS                                                        248
-                                                                                                    824     0x338
+    4038040c handle_interrupts                                                            432
+    403805bc esp_hal::interrupt::riscv::classic::INTERRUPT_TO_PRIORITY                     16
+    403805cc __EXTERNAL_INTERRUPTS                                                        248
+                                                                                                    816     0x330
 
 .rwdata_dummy
-    3fc80000 . + SIZEOF(.rwtext) + SIZEOF(.trap) + padding                          (914 + 2 + 824) 1740    0x6cc
+    3fc80000 . + SIZEOF(.rwtext) + SIZEOF(.trap) + padding                          (914 + 2 + 816) 1732    0x6c4
 .data
-    3fc806cc esp_hal_embassy::time_driver::DRIVER
-    3fc806ec esp_hal::timer::systimer::Alarm  in impl esp_hal_embassy::TimeBase::timers::STATIC_TIMER_CELL
-                                                                                                    36      0x24
-
+    3fc806cc esp_hal_embassy::time_driver::DRIVER                                          32
+    3fc806ec esp_hal_embassy::TimeBase::timers::STATIC_TIMER_CELL                           2       34      0x24
+    padding                                                                                 2       2
 .bss
-    3fc806f0 esp_embassy::run::POOL
-    3fc80728 esp_embassy::__embassy_main::POOL
-    3fc80750 esp_hal_embassy::SIGNAL_WORK_THREAD_MODE
-    3fc80751 _ESP_HAL_DEVICE_PERIPHERALS                                                            100     0x64
+    3fc806e8 esp_wifi::run::POOL                                                           56
+    3fc80720 esp_embassy::__embassy_main::POOL                                             40
+    3fc80748 esp_wifi::____embassy_main_task                                            73728
+    3fc80748 esp_alloc::HEAP                                                               96                                                
+    3fc927a8 esp_hal_embassy::SIGNAL_WORK_THREAD_MODE                                       1
+    3fc807a9 _ESP_HAL_DEVICE_PERIPHERALS                                                    1       100     0x64
+    padding                                                                                 2       2
 
 .rodata
     3c000020 esp_embassy
@@ -48,7 +49,7 @@ esp_image: segment 4: paddr=00020020 vaddr=42010020 size=01024h (  4392) map    
     3c000024 esp_hal
     3c000060 <internal>:(.rodata.cst32)
     3c000080 embassy_executor::raw::waker::VTABLE
-                                                                                                    112     0x70
+                                                                                                    112     0x120c2
 
 .rotext_dummy
     42000020 . + SIZEOF(.rodata)
@@ -78,20 +79,17 @@ esp_image: segment 4: paddr=00020020 vaddr=42010020 size=01024h (  4392) map    
 
 .esp-hal
     42010160
-    _setup_interrupts                                                                     272
-    42010270
-    esp_hal::interrupt::riscv::vectored::init_vectoring                                   458
-    4201043a
+    _setup_interrupts                                                                     718
+    4201042e
     hal_main                                                                                8
-    42010442
-    esp_hal::init                                                                         256
-    42010542
+    42010436
+    esp_hal::init                                                                         282
+    42010550
     EspDefaultHandler                                                                       2
-    42010544
+    42010552
     _critical_section_1_0_acquire                                                          10
-    4201054e
-    _critical_section_1_0_release                                                          12       1018    0x3fa
-    padding                                                                                 2       2
+    4201055c
+    _critical_section_1_0_release                                                          12       1032    0x408
 
     4201055c
 
@@ -100,13 +98,16 @@ esp_image: segment 4: paddr=00020020 vaddr=42010020 size=01024h (  4392) map    
     padding                                                                                 2       2
 
 .esp-hal-timer
-    esp_hal::timer::systimer::SystemTimer::new                                             44
-    esp_hal::timer::systimer::SystemTimer1::unit_value                                     58
     esp_hal::timer::OneShotTimer::schedule                                                240
     esp_hal::timer::OneShotTimer::stop                                                     26
     esp_hal::timer::OneShotTimer::set_interrupt_handler                                    68
     esp_hal::timer::OneShotTimer::enable_interrupt                                         40
-    esp_hal::timer::OneShotTimer::clear_interrupt                                          26       502     0x1f6
+    esp_hal::timer::OneShotTimer::clear_interrupt                                          26
+    esp_hal::timer::systimer::SystemTimer::new                                             44
+    esp_hal::timer::systimer::SystemTimer1::unit_value                                     58
+    esp_hal::timer::timg::TimerGroupInstance::configure_src_clk                            14
+    esp_hal::timer::timg::TimerGroupInstance::enable_peripheral                            44
+    esp_hal::timer::timg::TimerGroupInstance::configure_wdt_src_clk                        18       578     0x242
     padding                                                                                 2       2
 
  .esphal-embsy   
@@ -120,7 +121,7 @@ esp_image: segment 4: paddr=00020020 vaddr=42010020 size=01024h (  4392) map    
 .embassy-exec
     embassy_executor::raw::poll_exited                                                      2
     embassy_executor::raw::TaskStorage::poll                                              146
-    embassy_executor::raw::TaskStorage::poll                                              204
+    embassy_executor::raw::TaskStorage::poll                                              228
     embassy_executor::raw::util1::UninitCell::write_in_place                               10
     embassy_executor::raw::util1::UninitCell::write_in_place                               16
     embassy_executor::raw::waker::clone                                                    16
@@ -131,7 +132,7 @@ esp_image: segment 4: paddr=00020020 vaddr=42010020 size=01024h (  4392) map    
     embassy_executor::raw::wake_task                                                       84
     embassy_executor::spawner::Spawner::spawn                                              70
     embassy_executor::spawner::Spawner::must_spawn                                         82
-    __pender                                                                               12       808     0x328
+    __pender                                                                               12       832     0x340
 
 .embassy-time
     _embassy_time_now                                                                      40
@@ -149,8 +150,8 @@ esp_image: segment 4: paddr=00020020 vaddr=42010020 size=01024h (  4392) map    
 .text
     main                                                                                   16       16
 
-                                                                                                    4392    0x1128
+                                                                                                    4504    0x1198
 
-                                                                                                    6280 image 
-                                                                                                    4504 flash
-                                                                                                    1776 RAM
+                                                                                                    6348 image 
+                                                                                                    4616 flash
+                                                                                                    1768 RAM

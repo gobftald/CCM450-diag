@@ -187,6 +187,9 @@ impl Config {
 /// peripherals and clocks.
 // 596
 pub fn init(config: Config) -> Peripherals {
+    // empty implementation
+    //crate::soc::pre_init();
+
     system::disable_peripherals();
 
     let mut peripherals = Peripherals::take();
@@ -202,7 +205,7 @@ pub fn init(config: Config) -> Peripherals {
 
         rtc.rwdt.disable();
 
-        //crate::timer::timg::Wdt::<crate::peripherals::TIMG0<'static>>::new().disable();
+        crate::timer::timg::Wdt::<crate::peripherals::TIMG0<'static>>::new().disable();
     }
 
     Clocks::init(config.cpu_clock);

@@ -294,6 +294,25 @@ impl Deref for SYSTIMER {
 }
 pub mod systimer;
 
+/// Timer Group 0
+// 1499
+pub struct TIMG0 {
+    _marker: PhantomData<*const ()>,
+}
+unsafe impl Send for TIMG0 {}
+impl TIMG0 {
+    /// Pointer to the register block
+    pub const PTR: *const timg0::RegisterBlock = 0x6001_f000 as *const _;
+}
+impl Deref for TIMG0 {
+    type Target = timg0::RegisterBlock;
+    #[inline(always)]
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*Self::PTR }
+    }
+}
+pub mod timg0;
+
 /// I2C_MST_ANA Peripheral
 // 2051
 pub struct I2C_ANA_MST {
