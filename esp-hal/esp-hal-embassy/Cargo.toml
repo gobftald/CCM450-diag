@@ -1,7 +1,7 @@
 [package]
 name = "esp-hal-embassy"
-version = "0.7.0"
-edition = "2021"
+version = "0.8.0"
+edition = "2024"
 
 [dependencies]
 console = { path = "../../console", features = ["usb_uart"]}
@@ -13,8 +13,8 @@ embassy-executor = { path = "../../embassy/embassy-executor" }
 embassy-time-driver = { path = "../../embassy/embassy-time-driver", features = [ "tick-hz-1_000_000" ] }
 
 [build-dependencies]
-esp-build    = { version = "0.2.0", path = "../esp-build" }
-esp-metadata = { version = "0.6.0", path = "../esp-metadata" }
+esp-build    = { path = "../esp-build" }
+esp-metadata = { path = "../esp-metadata" }
 
 [features]
 esp32   = ["esp-hal/esp32"]

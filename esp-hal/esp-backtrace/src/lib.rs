@@ -30,14 +30,14 @@ impl Backtrace {
 
     #[inline]
     #[cfg(feature = "exception-handler")]
-    // 24
+    // 26
     fn from_sp(sp: u32) -> Self {
         arch::backtrace_internal(sp, 0)
     }
 
     /// Returns the backtrace frames as a slice.
     #[inline]
-    // 30
+    // 32
     pub fn frames(&self) -> &[BacktraceFrame] {
         &self.0
     }
@@ -56,6 +56,7 @@ impl BacktraceFrame {
 }
 
 #[cfg_attr(target_arch = "riscv32", path = "riscv.rs")]
+// 74
 pub mod arch;
 
 #[cfg(feature = "panic-handler")]
@@ -89,7 +90,7 @@ fn panic_handler(info: &core::panic::PanicInfo) -> ! {
 
 #[cfg(all(feature = "exception-handler", target_arch = "riscv32"))]
 #[export_name = "ExceptionHandler"]
-// 121
+// 123
 fn exception_handler(context: &arch::TrapFrame) -> ! {
     let mepc = context.pc;
     let code = context.mcause & 0xff;
@@ -150,7 +151,7 @@ fn exception_handler(context: &arch::TrapFrame) -> ! {
 }
 
 // Ensure that the address is in DRAM and that it is 16-byte aligned.
-// 183
+// 187
 fn is_valid_ram_address(address: u32) -> bool {
     if (address & 0xF) != 0 {
         return false;

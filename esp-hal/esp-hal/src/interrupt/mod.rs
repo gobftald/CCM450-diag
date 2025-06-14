@@ -119,6 +119,7 @@ pub struct InterruptStatusIterator {
 impl Iterator for InterruptStatusIterator {
     type Item = u8;
 
+    // 254
     fn next(&mut self) -> Option<Self::Item> {
         for i in self.idx..STATUS_WORDS {
             if self.status.status[i] != 0 {

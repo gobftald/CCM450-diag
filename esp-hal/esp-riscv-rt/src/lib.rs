@@ -14,7 +14,7 @@ use core::arch::global_asm;
 
 pub use riscv_rt_macros::entry;
 
-#[export_name = "error: esp-riscv-rt appears more than once in the dependency graph"]
+#[unsafe(export_name = "error: esp-riscv-rt appears more than once in the dependency graph")]
 pub static __ONCE__: () = ();
 
 /// Rust entry point (_start_rust)
@@ -26,31 +26,33 @@ pub static __ONCE__: () = ();
 ///
 /// This function should not be called directly by the user, and should instead
 /// be invoked by the runtime implicitly.
-#[link_section = ".init.rust"]
-#[export_name = "_start_rust"]
+#[unsafe(link_section = ".init.rust")]
+#[unsafe(export_name = "_start_rust")]
 // 56
 pub unsafe extern "C" fn start_rust(a0: usize, a1: usize, a2: usize) -> ! {
-    extern "Rust" {
-        fn hal_main(a0: usize, a1: usize, a2: usize) -> !;
+    unsafe {
+        unsafe extern "Rust" {
+            fn hal_main(a0: usize, a1: usize, a2: usize) -> !;
 
-        fn __post_init();
+            fn __post_init();
 
-        fn _setup_interrupts();
+            fn _setup_interrupts();
 
+        }
+
+        __post_init();
+
+        _setup_interrupts();
+
+        hal_main(a0, a1, a2);
     }
-
-    __post_init();
-
-    _setup_interrupts();
-
-    hal_main(a0, a1, a2);
 }
 
 /// Registers saved in trap handler
 #[derive(Debug, Default, Clone, Copy)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[repr(C)]
-// 76
+// 78
 pub struct TrapFrame {
     /// Return address, stores the address to return to after a function call or
     /// interrupt.
@@ -138,9 +140,9 @@ pub struct TrapFrame {
     pub mtval: usize,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[allow(unused_variables, non_snake_case)]
-// 202
+// 204
 pub fn DefaultExceptionHandler(trap_frame: &TrapFrame) -> ! {
     loop {
         // Prevent this from turning into a UDF instruction
@@ -151,12 +153,12 @@ pub fn DefaultExceptionHandler(trap_frame: &TrapFrame) -> ! {
     }
 }
 
-#[no_mangle]
-// 284
+#[unsafe(no_mangle)]
+// 289
 pub unsafe extern "Rust" fn default_post_init() {}
 
 /// Parse cfg attributes inside a global_asm call.
-// 303
+// 305
 macro_rules! cfg_global_asm {
     {@inner, [$($x:tt)*], } => {
         global_asm!{$($x)*}
@@ -175,7 +177,7 @@ macro_rules! cfg_global_asm {
     };
 }
 
-// 321
+// 323
 cfg_global_asm! {
     r#"
 /*
@@ -189,7 +191,7 @@ cfg_global_asm! {
 .section .init, "ax"
 .global _start
 
-// 334
+// 336
 _start:
     /* Jump to the absolute address defined by the linker script. */
     lui ra, %hi(_abs_start)
@@ -303,7 +305,7 @@ _abs_start:
     // Set frame pointer
     add s0, sp, zero
 
-// 442
+// 444
     jal zero, _start_rust
 
     .cfi_endproc
@@ -352,7 +354,7 @@ _abs_start:
 "#,
 
 r#"
-// 487
+// 489
 _start_trap:
     // Handle exceptions in vectored mode
     // move SP to some save place if it's pointing below the RAM
@@ -542,7 +544,7 @@ _start_trap31:
 
 
 la ra, _start_trap_rust_hal /* this runs on exception, use regular fault handler */
-// 672
+// 674
 _start_trap_direct:
 "#,
 
@@ -593,7 +595,7 @@ r#"
 
     // jump to handler loaded in direct handler
     r#"
-// 729
+// 731
     jalr ra, ra #jump to label loaded in _start_trapx
     "#,
 
@@ -642,7 +644,7 @@ r#"
 /* Make sure there is an abort when linking */
 .section .text.abort
 .globl abort
-// 782
+// 784
 abort:
     j abort
 
@@ -659,7 +661,7 @@ abort:
 .option norelax
 .option norvc
 
-// 798
+// 800
 _vector_table:
     j _start_trap
     j _start_trap1

@@ -320,6 +320,7 @@ impl Alarm<'_> {
 
 /// The modes of a comparator.
 #[derive(Copy, Clone)]
+// 468
 enum ComparatorMode {
     /// The comparator will generate interrupts periodically.
     Period,
@@ -341,6 +342,7 @@ impl super::Timer for Alarm<'_> {
         self.set_enable(false);
     }
 
+    // 486
     fn reset(&self) {
         #[cfg(esp32s2)]
         // Run at XTAL freq, not 80 * XTAL freq:
@@ -360,7 +362,7 @@ impl super::Timer for Alarm<'_> {
         self.is_enabled()
     }
 
-    // 515
+    // 514
     fn load_value(&self, value: Duration) -> Result<(), Error> {
         let mode = self.mode();
 

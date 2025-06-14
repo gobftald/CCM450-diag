@@ -49,8 +49,10 @@ pub trait Clock {
 }
 
 /// CPU clock speed
-#[derive(/*Debug,*/ Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[non_exhaustive]
+// 85
 pub enum CpuClock {
     /// 80MHz CPU clock
     #[cfg(not(esp32h2))]

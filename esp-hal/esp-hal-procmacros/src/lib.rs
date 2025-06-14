@@ -26,7 +26,7 @@ pub fn embassy_main(args: TokenStream, item: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-// 211
+// 208
 pub fn blocking_main(args: TokenStream, input: TokenStream) -> TokenStream {
     blocking::main(args, input)
 }

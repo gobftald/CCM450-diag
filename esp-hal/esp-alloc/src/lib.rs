@@ -19,9 +19,10 @@ use linked_list_allocator::Heap;
 
 /// The global allocator instance
 #[global_allocator]
-// 161
+// 162
 pub static mut HEAP: EspHeap = EspHeap::empty();
 
+// 164
 const NON_REGION: Option<HeapRegion> = None;
 
 //#[derive(EnumSetType, Debug)]
@@ -94,6 +95,7 @@ pub struct EspHeap {
 // 389
 impl EspHeap {
     /// Crate a new UNINITIALIZED heap allocator
+    // 391
     pub const fn empty() -> Self {
         EspHeap {
             //heap: Mutex::new(RefCell::new([NON_REGION; 3])),
@@ -157,9 +159,11 @@ impl EspHeap {
 
 // 596
 unsafe impl GlobalAlloc for EspHeap {
+    // 597
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         null_mut()
     }
 
+    // 601
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {}
 }

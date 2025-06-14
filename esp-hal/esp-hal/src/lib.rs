@@ -65,7 +65,7 @@
 //! Some types heavily rely on their `Drop` implementation to not leave the
 //! hardware in undefined state and causing UB.
 
-//182
+//180
 #![no_std]
 #![feature(variant_count)]
 #![allow(static_mut_refs)]
@@ -73,70 +73,73 @@
 #[macro_use(assert, unreachable, panic, debug, unwrap)]
 extern crate console;
 
-// 210
+// 206
 pub use self::soc::peripherals;
 pub(crate) use self::soc::peripherals::pac;
 
-// 220
+// 217
 #[cfg(system)]
 pub mod clock;
 
-// 226
+// 222
 pub mod peripheral;
 
-// 231
+// 227
 pub mod system;
 pub mod time;
 
 // 236
 mod macros;
 
-// 238
+// 232
 pub use procmacros::blocking_main as main;
 
-#[cfg(rng)]
-pub mod rng;
-
-// 292
+// 288
 pub mod config;
 
 #[cfg(interrupt_core0)]
-// 295
+// 291
 pub mod interrupt;
 pub mod rom;
 
 #[cfg(systimer)]
-// 303
+// 299
 pub mod timer;
 
 #[cfg(rtc_cntl)]
-// 304
+// 301
 pub mod rtc_cntl;
+
+#[cfg(rng)]
+// 336
+pub mod rng;
 
 // The `soc` module contains chip-specific implementation details
 // and should not be directly exposed.
-// 369
+// 365
 mod soc;
 
-// 434
+/*
+// 430
 pub(crate) mod private {
-    // 437
+    // 433
     pub trait Sealed {}
 }
+*/
 
-// 486
+// 508
 pub mod __macro_implementation {
     #[cfg(riscv)]
-    // 496
+    // 518
     pub use esp_riscv_rt::entry as __entry;
     #[cfg(xtensa)]
-    // 498
+    // 520
     pub use xtensa_lx_rt::entry as __entry;
 }
 
 #[cfg(riscv)]
 #[export_name = "hal_main"]
-// 503
+// 525
 fn hal_main(a0: usize, a1: usize, a2: usize) -> ! {
     extern "Rust" {
         // This symbol will be provided by the user via `#[entry]`
@@ -148,13 +151,14 @@ fn hal_main(a0: usize, a1: usize, a2: usize) -> ! {
     }
 }
 
-// 558
+// 554
 use crate::config::WatchdogConfig;
-// 559
-use crate::clock::Clocks;
 
-// 559
-use crate::{clock::CpuClock, peripherals::Peripherals};
+// 555
+use crate::{
+    clock::{Clocks, CpuClock},
+    peripherals::Peripherals,
+};
 
 /// System configuration.
 ///
@@ -166,7 +170,7 @@ use crate::{clock::CpuClock, peripherals::Peripherals};
 /// For usage examples, see the [config module documentation](crate::config).
 #[non_exhaustive]
 #[derive(/*Default,*/ Clone, Copy /*procmacros::BuilderLite*/)]
-// 574
+// 570
 pub struct Config {
     /// The CPU clock configuration.
     cpu_clock: CpuClock,
@@ -188,7 +192,7 @@ impl Config {
 ///
 /// This function sets up the CPU clock and watchdog, then, returns the
 /// peripherals and clocks.
-// 596
+// 592
 pub fn init(config: Config) -> Peripherals {
     // empty implementation
     //crate::soc::pre_init();

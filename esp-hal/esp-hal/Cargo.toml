@@ -1,6 +1,6 @@
 [package]
 name = "esp-hal"
-version = "1.0.0-beta.0"
+version = "1.0.0-beta.1"
 edition = "2021"
 
 [dependencies]
@@ -48,10 +48,10 @@ defmt   = [
 unstable = []
 
 [target.'cfg(target_arch = "riscv32")'.dependencies]
-riscv = { version = "0.12.0", path = "../../riscv/riscv", features = ["critical-section-single-hart"] }
-esp-riscv-rt = { version = "0.10.0", path = "../esp-riscv-rt" }
+riscv = { path = "../../riscv/riscv", features = ["critical-section-single-hart"] }
+esp-riscv-rt = { path = "../esp-riscv-rt" }
 
 [build-dependencies]
 cfg-if       = "1.0.0"
-esp-build    = { version = "0.2.0", path = "../esp-build" }
-esp-metadata = { version = "0.6.0", path = "../esp-metadata" }
+esp-build    = { path = "../esp-build" }
+esp-metadata = { path = "../esp-metadata" }

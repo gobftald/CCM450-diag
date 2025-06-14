@@ -132,7 +132,7 @@ macro_rules! create_peripheral {
             }
         }
 
-        impl $crate::private::Sealed for $name<'_> {}
+        //impl $crate::private::Sealed for $name<'_> {}
     };
 
     // 205

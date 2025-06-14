@@ -24,6 +24,7 @@ use crate::{
 /// Interrupt Error
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+// 33
 pub enum Error {
     /// The priority is not valid
     InvalidInterruptPriority,
@@ -171,7 +172,7 @@ impl Priority {
 /// This function is called from an assembly trap handler.
 #[link_section = ".trap.rust"]
 #[export_name = "_start_trap_rust_hal"]
-// 216
+// 215
 pub unsafe extern "C" fn start_trap_rust_hal(trap_frame: *mut TrapFrame) {
     // if assert failed and if build-std-features = ["panic_immediate_abort"]
     // this is a forever loop
@@ -187,10 +188,13 @@ pub unsafe extern "C" fn start_trap_rust_hal(trap_frame: *mut TrapFrame) {
         "Arrived into _start_trap_rust_hal but mcause is not an exception!"
     );
 
-    extern "C" {
+    unsafe extern "C" {
         fn ExceptionHandler(tf: *mut TrapFrame);
     }
-    ExceptionHandler(trap_frame);
+
+    unsafe {
+        ExceptionHandler(trap_frame);
+    }
 }
 
 #[unsafe(no_mangle)]
@@ -276,7 +280,7 @@ pub unsafe fn map(interrupt: Interrupt, which: CpuInterrupt) {
 
 /// Get cpu interrupt assigned to peripheral interrupt
 #[inline]
-// 349
+// 351
 unsafe fn assigned_cpu_interrupt(interrupt: Interrupt) -> Option<CpuInterrupt> {
     let interrupt_number = interrupt as isize;
     let intr_map_base = crate::soc::registers::INTERRUPT_MAP_BASE as *mut u32;
@@ -522,6 +526,7 @@ mod classic {
     /// # Safety
     ///
     /// Make sure there is an interrupt handler registered.
+    // 612
     pub unsafe fn enable_cpu_interrupt(which: CpuInterrupt) {
         let cpu_interrupt_number = which as isize;
         let intr = INTERRUPT_CORE0::regs();

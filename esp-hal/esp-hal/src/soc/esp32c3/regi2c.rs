@@ -1,5 +1,6 @@
 use crate::rom::regi2c::{define_regi2c, RawRegI2cField, RegI2cMaster, RegI2cRegister};
 
+// 3
 define_regi2c! {
     master: REGI2C_BBPLL(0x66, 0) {
         // 16

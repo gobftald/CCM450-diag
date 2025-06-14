@@ -23,7 +23,6 @@ pub(crate) struct AlarmHandle {
 }
 
 // 26
-
 impl AlarmHandle {
     /// Create an AlarmHandle
     ///
@@ -71,6 +70,7 @@ impl Alarm {
 
 // 79
 impl Alarm {
+    // 80
     pub const fn new(handler: extern "C" fn()) -> Self {
         Alarm::Created(handler)
     }
@@ -147,6 +147,7 @@ embassy_time_driver::time_driver_impl!(static mut DRIVER: EmbassyTimer = Embassy
 
 // 147
 impl EmbassyTimer {
+    // 148
     pub(super) fn init(timers: &'static mut [Timer]) {
         // Reset timers
         timers.iter_mut().for_each(|timer| {

@@ -2,7 +2,7 @@ use std::sync::OnceLock;
 
 use strum::IntoEnumIterator;
 
-// 6
+// 7
 macro_rules! include_toml {
     ($type:ty, $file:expr) => {{
         static LOADED_TOML: OnceLock<$type> = OnceLock::new();
@@ -28,7 +28,7 @@ macro_rules! include_toml {
 )]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
-// 31
+// 32
 pub enum Arch {
     /// RISC-V architecture
     RiscV,
@@ -52,7 +52,7 @@ pub enum Arch {
     strum::EnumString,
     strum::AsRefStr,
 )]
-// 54
+// 55
 pub enum Cores {
     /// Single CPU core
     #[serde(rename = "single_core")]
@@ -83,7 +83,7 @@ pub enum Cores {
 )]
 #[serde(rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
-// 85
+// 86
 pub enum Chip {
     /// ESP32
     Esp32,
@@ -101,8 +101,9 @@ pub enum Chip {
     Esp32s3,
 }
 
-// 102
+// 103
 impl Chip {
+    // 130
     pub fn target(&self) -> &str {
         use Chip::*;
 
@@ -117,7 +118,7 @@ impl Chip {
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-// 152
+// 180
 pub struct MemoryRegion {
     name: String,
     start: u32,
@@ -125,7 +126,7 @@ pub struct MemoryRegion {
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-// 160
+// 187
 struct Device {
     pub name: String,
     pub arch: Arch,
@@ -137,15 +138,15 @@ struct Device {
 
 /// Device configuration file format.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-// 171
+// 198
 pub struct Config {
     device: Device,
 }
 
-// 175
+// 202
 impl Config {
     /// The configuration for the specified chip.
-    // 177
+    // 204
     pub fn for_chip(chip: &Chip) -> &Self {
         match chip {
             Chip::Esp32 => include_toml!(Config, "../devices/esp32.toml"),
@@ -162,13 +163,13 @@ impl Config {
     ///
     /// Will be available as env-variables `REGION-<NAME>-START` /
     /// `REGION-<NAME>-END`
-    // 218
+    // 259
     pub fn memory(&self) -> &[MemoryRegion] {
         &self.device.memory
     }
 
     /// All configuration values for the device.
-    // 223
+    // 264
     pub fn all(&self) -> impl Iterator<Item = &str> + '_ {
         [
             self.device.name.as_str(),
@@ -181,7 +182,7 @@ impl Config {
     }
 
     /// Define all symbols for a given configuration.
-    // 239
+    // 281
     pub fn define_symbols(&self) {
         define_all_possible_symbols();
         // Define all necessary configuration symbols for the configured device:
@@ -211,7 +212,7 @@ impl Config {
 /// regardless of the chosen configuration.
 ///
 /// This is required to avoid triggering the unexpected-cfgs lint.
-// 269
+// 310
 fn define_all_possible_symbols() {
     // Used by our documentation builds to prevent the huge red warning banner.
     println!("cargo:rustc-check-cfg=cfg(not_really_docsrs)");

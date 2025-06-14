@@ -35,6 +35,7 @@ impl Peripheral {
         Peripheral::Timg0,
     ];
 
+    // 140
     const ALL: &[Self] = &[
         #[cfg(timg0)]
         // 178
