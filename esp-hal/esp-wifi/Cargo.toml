@@ -1,0 +1,14 @@
+[package]
+name = "esp-wifi"
+version = "0.14.0"
+edition = "2024"
+
+[dependencies]
+console = { path = "../../console", features = ["usb_uart"]}
+defmt = { version = "0.3.10", optional = true }
+esp-hal = { path = "../esp-hal" }
+rand_core = { path = "../../rand_core" }
+
+[features]
+## Enable WiFi support
+wifi = []

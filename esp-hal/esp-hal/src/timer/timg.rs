@@ -22,9 +22,22 @@
 
 use core::marker::PhantomData;
 
-// 76
-use crate::{pac::timg0::RegisterBlock, peripherals::TIMG0, system::PeripheralClockControl};
+// 71
+use super::Error;
 
+// 76
+use crate::{
+    clock::Clocks,
+    interrupt::{self, InterruptHandler},
+    pac::timg0::RegisterBlock,
+    peripherals::{Interrupt, TIMG0},
+    system::PeripheralClockControl,
+    time::{Duration, Rate},
+};
+
+/// A timer group consisting of
+/// a general purpose timer
+/// and a watchdog timer.
 // 103
 pub struct TimerGroup<'d, T>
 where
@@ -151,6 +164,61 @@ where
     }
 }
 
+// 277
+impl super::Timer for Timer<'_> {
+    // 278
+    fn start(&self) {
+        self.set_counter_active(false);
+        self.set_alarm_active(false);
+
+        self.reset_counter();
+        self.set_counter_decrementing(false);
+
+        self.set_counter_active(true);
+        self.set_alarm_active(true);
+    }
+
+    // 289
+    fn stop(&self) {
+        self.set_counter_active(false);
+    }
+
+    // 293
+    fn reset(&self) {
+        self.reset_counter()
+    }
+
+    // 297
+    fn is_running(&self) -> bool {
+        self.is_counter_active()
+    }
+
+    // 305
+    fn load_value(&self, value: Duration) -> Result<(), Error> {
+        self.load_value(value)
+    }
+
+    // 309
+    fn enable_auto_reload(&self, auto_reload: bool) {
+        self.set_auto_reload(auto_reload)
+    }
+
+    // 313
+    fn enable_interrupt(&self, state: bool) {
+        self.set_interrupt_enabled(state);
+    }
+
+    // 317
+    fn clear_interrupt(&self) {
+        self.clear_interrupt()
+    }
+
+    // 351
+    fn set_interrupt_handler(&self, handler: InterruptHandler) {
+        self.set_interrupt_handler(handler)
+    }
+}
+
 /// A timer within a Timer Group.
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -162,14 +230,185 @@ pub struct Timer<'d> {
     tg: u8,
 }
 
+/// Timer peripheral instance
+// 374
+impl Timer<'_> {
+    // 398
+    pub(crate) fn set_interrupt_handler(&self, handler: InterruptHandler) {
+        let interrupt = match (self.timer_group(), self.timer_number()) {
+            (0, 0) => Interrupt::TG0_T0_LEVEL,
+            /*
+            #[cfg(timg_timer1)]
+            (0, 1) => Interrupt::TG0_T1_LEVEL,
+            #[cfg(timg1)]
+            (1, 0) => Interrupt::TG1_T0_LEVEL,
+            #[cfg(all(timg_timer1, timg1))]
+            (1, 1) => Interrupt::TG1_T1_LEVEL,
+            */
+            _ => unreachable!(),
+        };
+
+        //for core in crate::system::Cpu::other() {
+        //crate::interrupt::disable(core, interrupt);
+        crate::interrupt::disable(interrupt as u8);
+        //}
+        unsafe { interrupt::bind_interrupt(interrupt, handler.handler()) };
+        unwrap!(interrupt::enable(interrupt, handler.priority()));
+    }
+
+    // 417
+    fn register_block(&self) -> &RegisterBlock {
+        unsafe { &*self.register_block }
+    }
+
+    // 421
+    fn timer_group(&self) -> u8 {
+        self.tg
+    }
+
+    // 425
+    fn timer_number(&self) -> u8 {
+        self.timer
+    }
+
+    // 429
+    fn t(&self) -> &crate::pac::timg0::T {
+        self.register_block().t(self.timer_number().into())
+    }
+
+    // 433
+    fn reset_counter(&self) {
+        let t = self.t();
+
+        t.loadlo().write(|w| unsafe { w.load_lo().bits(0) });
+        t.loadhi().write(|w| unsafe { w.load_hi().bits(0) });
+
+        t.load().write(|w| unsafe { w.load().bits(1) });
+    }
+
+    // 442
+    fn set_counter_active(&self, state: bool) {
+        self.t().config().modify(|_, w| w.en().bit(state));
+    }
+
+    // 446
+    fn is_counter_active(&self) -> bool {
+        self.t().config().read().en().bit_is_set()
+    }
+
+    // 450
+    fn set_counter_decrementing(&self, decrementing: bool) {
+        self.t()
+            .config()
+            .modify(|_, w| w.increase().bit(!decrementing));
+    }
+
+    // 456
+    fn set_auto_reload(&self, auto_reload: bool) {
+        self.t()
+            .config()
+            .modify(|_, w| w.autoreload().bit(auto_reload));
+    }
+
+    // 462
+    fn set_alarm_active(&self, state: bool) {
+        self.t().config().modify(|_, w| w.alarm_en().bit(state));
+    }
+
+    // 466
+    fn load_value(&self, value: Duration) -> Result<(), Error> {
+        #[cfg(not(esp32h2))]
+        let clk_src = Clocks::get().apb_clock;
+        let Some(ticks) = timeout_to_ticks(value, clk_src, self.divider()) else {
+            return Err(Error::InvalidTimeout);
+        };
+
+        // The counter is 54-bits wide, so we must ensure that the provided
+        // value is not too wide:
+        if (ticks & !0x3F_FFFF_FFFF_FFFF) != 0 {
+            return Err(Error::InvalidTimeout);
+        }
+
+        let high = (ticks >> 32) as u32;
+        let low = (ticks & 0xFFFF_FFFF) as u32;
+
+        let t = self.t();
+
+        t.alarmlo().write(|w| unsafe { w.alarm_lo().bits(low) });
+        t.alarmhi().write(|w| unsafe { w.alarm_hi().bits(high) });
+
+        Ok(())
+    }
+
+    // 496
+    fn clear_interrupt(&self) {
+        self.register_block()
+            .int_clr()
+            .write(|w| w.t(self.timer).clear_bit_by_one());
+        let periodic = self.t().config().read().autoreload().bit_is_set();
+        self.set_alarm_active(periodic);
+    }
+
+    // 529
+    fn divider(&self) -> u32 {
+        let t = self.t();
+
+        // From the ESP32 TRM, "11.2.1 16­-bit Prescaler and Clock Selection":
+        //
+        // "The prescaler can divide the APB clock by a factor from 2 to 65536.
+        // Specifically, when TIMGn_Tx_DIVIDER is either 1 or 2, the clock divisor is 2;
+        // when TIMGn_Tx_DIVIDER is 0, the clock divisor is 65536. Any other value will
+        // cause the clock to be divided by exactly that value."
+        match t.config().read().divider().bits() {
+            0 => 65536,
+            1 | 2 => 2,
+            n => n as u32,
+        }
+    }
+
+    // 553
+    fn set_interrupt_enabled(&self, state: bool) {
+        cfg_if::cfg_if! {
+            if #[cfg(any(esp32, esp32s2))] {
+                // On ESP32 and S2, the `int_ena` register is ineffective - interrupts fire even
+                // without int_ena enabling them. We use level interrupts so that we have a status
+                // bit available.
+                self.register_block()
+                    .t(self.timer as usize)
+                    .config()
+                    .modify(|_, w| w.level_int_en().bit(state));
+            /* we have no timg1 yet
+            } else if #[cfg(timergroup_timg_has_timer1)] {
+                lock(&INT_ENA_LOCK[self.timer_group() as usize], || {
+                    self.register_block()
+                        .int_ena()
+                        .modify(|_, w| w.t(self.timer_number()).bit(state));
+                });
+            */
+            } else {
+                self.register_block()
+                    .int_ena()
+                    .modify(|_, w| w.t(0).bit(state));
+            }
+        }
+    }
+}
+
+fn timeout_to_ticks(timeout: Duration, clock: Rate, divider: u32) -> Option<u64> {
+    let micros = timeout.as_micros();
+    let ticks_per_sec = (clock.as_hz() / divider) as u64;
+
+    micros.checked_mul(ticks_per_sec).map(|n| n / 1_000_000)
+}
+
 /// Watchdog timer
-// 623
+// 607
 pub struct Wdt<TG> {
     phantom: PhantomData<TG>,
 }
 
 /// Watchdog driver
-// 628
+// 623
 impl<TG> Wdt<TG>
 where
     TG: TimerGroupInstance,

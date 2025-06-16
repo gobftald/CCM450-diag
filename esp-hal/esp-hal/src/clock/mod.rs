@@ -227,6 +227,21 @@ impl Clocks {
         })
     }
 
+    // 302
+    fn try_get<'a>() -> Option<&'a Clocks> {
+        unsafe {
+            // Safety: ACTIVE_CLOCKS is only set in `init` and never modified after that.
+            let clocks = &*core::ptr::addr_of!(ACTIVE_CLOCKS);
+            clocks.as_ref()
+        }
+    }
+
+    /// Get the active clock configuration.
+    // 311
+    pub fn get<'a>() -> &'a Clocks {
+        unwrap!(Self::try_get())
+    }
+
     /// Returns the xtal frequency.
     ///
     /// This function will run the frequency estimation if called before

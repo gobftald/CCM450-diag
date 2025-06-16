@@ -13,6 +13,8 @@ esp-hal-embassy  = { path = "../../esp-hal/esp-hal-embassy"  }
 embassy-executor = { path = "../../embassy/embassy-executor" }
 embassy-time = { path = "../../embassy/embassy-time" }
 
+esp-wifi = { path = "../../esp-hal/esp-wifi", features = ["wifi"] }
+
 [dependencies.esp-backtrace]
     version = "0.16.0"
     features = ["panic-handler", "exception-handler"]
@@ -42,6 +44,7 @@ defmt = [
     "embassy-executor/defmt",
     "embassy-time/defmt",
     "embassy-time/defmt-timestamp-uptime",
+    "esp-wifi/defmt",
 ]
 
 backtrace = ["dep:esp-backtrace"]       # needs "-C", "force-frame-pointers" rustflag in config.toml

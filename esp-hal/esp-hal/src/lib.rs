@@ -74,6 +74,10 @@
 extern crate console;
 
 // 206
+#[cfg(riscv)]
+pub use esp_riscv_rt::riscv;
+
+// 210
 pub use self::soc::peripherals;
 pub(crate) use self::soc::peripherals::pac;
 

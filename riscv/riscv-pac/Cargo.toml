@@ -5,6 +5,3 @@ edition = "2021"
 
 [dependencies]
 defmt  = { version = "0.3.10", optional = true }
-
-[features]
-defmt = ["dep:defmt"]

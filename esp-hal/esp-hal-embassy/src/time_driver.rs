@@ -239,16 +239,17 @@ impl EmbassyTimer {
     /// highest value possible.
     // 246
     pub(crate) unsafe fn allocate_alarm(&mut self, priority: Priority) -> Option<AlarmHandle> {
-        //for (i, alarm) in self.alarms.iter().enumerate() {
-        for (i, alarm) in self.alarms.iter_mut().enumerate() {
-            //let handle = alarm.inner.with(|alarm| {
-            let handle = {
-                //let AlarmState::Created(interrupt_handler) = alarm.state else {
-                let Alarm::Created(interrupt_handler) = *alarm else {
-                    return None;
-                };
+        unsafe {
+            //for (i, alarm) in self.alarms.iter().enumerate() {
+            for (i, alarm) in self.alarms.iter_mut().enumerate() {
+                //let handle = alarm.inner.with(|alarm| {
+                let handle = {
+                    //let AlarmState::Created(interrupt_handler) = alarm.state else {
+                    let Alarm::Created(interrupt_handler) = *alarm else {
+                        return None;
+                    };
 
-                let timer = /*self.available_timers.with(|available_timers|*/ {
+                    let timer = /*self.available_timers.with(|available_timers|*/ {
                     //if let Some(timers) = available_timers.take() {
                     if let Some(timers) = self.available_timers.take() {
                         // If the driver is initialized, we can allocate a timer.
@@ -265,21 +266,24 @@ impl EmbassyTimer {
                 //});
                 };
 
-                //alarm.state = AlarmState::initialize(
-                *alarm =
-                    Alarm::initialize(timer, InterruptHandler::new(interrupt_handler, priority));
+                    //alarm.state = AlarmState::initialize(
+                    *alarm = Alarm::initialize(
+                        timer,
+                        InterruptHandler::new(interrupt_handler, priority),
+                    );
 
-                Some(AlarmHandle::new(i))
+                    Some(AlarmHandle::new(i))
 
-                //});
-            };
+                    //});
+                };
 
-            if handle.is_some() {
-                return handle;
+                if handle.is_some() {
+                    return handle;
+                }
             }
-        }
 
-        None
+            None
+        }
     }
 
     /// Set an alarm to fire at a certain timestamp.

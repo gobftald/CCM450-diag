@@ -54,3 +54,5 @@ impl Rng {
         RNG::regs().data().read().bits()
     }
 }
+
+impl rand_core_09::RngCore for Rng {}

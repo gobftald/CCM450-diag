@@ -12,6 +12,8 @@
 
 use core::arch::global_asm;
 
+pub use riscv;
+
 pub use riscv_rt_macros::entry;
 
 #[unsafe(export_name = "error: esp-riscv-rt appears more than once in the dependency graph")]

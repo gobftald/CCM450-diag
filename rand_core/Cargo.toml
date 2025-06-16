@@ -1,0 +1,6 @@
+[package]
+name = "rand_core"
+version = "0.9.3"
+edition = "2021"
+
+[dependencies]

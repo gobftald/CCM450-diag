@@ -30,6 +30,9 @@ impl Mstatus {
     }
 }
 
+// 516
+read_csr_as!(Mstatus, 0x300);
+
 // 518
 set!(0x300);
 clear!(0x300);

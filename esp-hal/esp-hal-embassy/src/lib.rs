@@ -65,10 +65,10 @@ pub trait TimeBase {
     fn timers(self) -> &'static mut [Timer];
 }
 
+use core::cell::OnceCell;
 // 89
 macro_rules! impl_timebase {
     ($timebase:path) => {
-        use core::cell::OnceCell;
         impl TimeBase for $timebase {
             fn timers(self) -> &'static mut [Timer] {
                 //mk_static!([Timer; 1], [Timer::new(self)])
@@ -79,6 +79,8 @@ macro_rules! impl_timebase {
     };
 }
 
+// 138
+impl_timebase!(esp_hal::timer::timg::Timer<'static>);
 #[cfg(systimer)]
 // 140
 impl_timebase!(esp_hal::timer::systimer::Alarm<'static>);

@@ -41,7 +41,55 @@ macro_rules! any_peripheral {
                 )*
             }
 
+            #[cfg(feature = "defmt")]
+            // 157
+            impl defmt::Format for [< $name Inner >]<'_> {
+                fn format(&self, fmt: defmt::Formatter<'_>) {
+                    match self {
+                        $(
+                            $(#[cfg($variant_meta)])*
+                            [< $name Inner >]::$variant(inner) => inner.format(fmt),
+                        )*
+                    }
+                }
+            }
+
+            // Trick to make peripherals implement Into, without
+            // requiring Instance traits to have lifetimes.
+            // 171
+            //pub trait [<Into $name>]: Sized + $crate::private::Sealed {
+            pub trait [<Into $name>]: Sized {
+                fn degrade<'a>(self) -> $name<'a>
+                where
+                    Self: 'a;
+            }
+
+            // AnyPeripheral converts into itself
+            // 178
+            impl<'d> [<Into $name>] for $name<'d> {
+                #[inline]
+                fn degrade<'a>(self) -> $name<'a>
+                where
+                    Self: 'a,
+                {
+                    self
+                }
+            }
+
             $(
+                // Variants convert into AnyPeripheral
+                $(#[cfg($variant_meta)])*
+                // 191
+                impl<'d> [<Into $name>] for $inner {
+                    #[inline]
+                    fn degrade<'a>(self) -> $name<'a>
+                    where
+                        Self: 'a,
+                    {
+                        $name::from(self)
+                    }
+                }
+
                 // 201
                 $(#[cfg($variant_meta)])*
                 // 202

@@ -1,4 +1,10 @@
 //! # General-purpose Timers
+//!
+//! ## Overview
+//! The [OneShotTimer] and [PeriodicTimer] types can be backed by any hardware
+//! peripheral which implements the [Timer] trait. This means that the same API
+//! can be used to interact with different hardware timers, like the `TIMG` and
+//! SYSTIMER.
 
 // 50
 use crate::{interrupt::InterruptHandler, time::Duration};
@@ -7,7 +13,7 @@ use crate::{interrupt::InterruptHandler, time::Duration};
 // 62
 pub mod systimer;
 #[cfg(any(timg0, /*timg1*/))]
-// 64
+#[cfg(timergroup)]
 pub mod timg;
 
 /// Timer errors.
@@ -67,6 +73,7 @@ pub trait Timer {
 /// A one-shot timer.
 //pub struct OneShotTimer<'d, Dm: DriverMode> {
 // 136
+//pub struct OneShotTimer<'d, Dm: DriverMode> {
 pub struct OneShotTimer<'d> {
     inner: AnyTimer<'d>,
     //_ph: PhantomData<Dm>,
@@ -130,11 +137,33 @@ impl<'d> OneShotTimer<'d> {
     }
 }
 
+/// A periodic timer.
+//334
+//pub struct PeriodicTimer<'d, Dm: DriverMode> {
+pub struct PeriodicTimer<'d> {
+    inner: AnyTimer<'d>,
+    //_ph: PhantomData<Dm>,
+}
+
+// 339
+//impl<'d> PeriodicTimer<'d, Blocking> {
+impl<'d> PeriodicTimer<'d> {
+    /// Construct a new instance of [`PeriodicTimer`].
+    //pub fn new(inner: impl Timer + Into<AnyTimer<'d>>) -> PeriodicTimer<'d, Blocking> {
+    pub fn new(inner: impl Timer + Into<AnyTimer<'d>>) -> PeriodicTimer<'d> {
+        Self {
+            inner: inner.into(),
+            //_ph: PhantomData,
+        }
+    }
+}
+
 // 416
 crate::any_peripheral! {
     /// Any Timer peripheral.
     pub peripheral AnyTimer<'d> {
-        //TimgTimer(timg::Timer<'d>),
+        #[cfg(timergroup)]
+        TimgTimer(timg::Timer<'d>),
         #[cfg(systimer)]
         SystimerAlarm(systimer::Alarm<'d>),
     }
@@ -144,7 +173,7 @@ crate::any_peripheral! {
 impl Timer for AnyTimer<'_> {
     delegate::delegate! {
         to match &self.0 {
-            //AnyTimerInner::TimgTimer(inner) => inner,
+            AnyTimerInner::TimgTimer(inner) => inner,
             #[cfg(systimer)]
             AnyTimerInner::SystimerAlarm(inner) => inner,
         } {

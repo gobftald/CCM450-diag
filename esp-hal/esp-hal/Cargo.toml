@@ -5,11 +5,14 @@ edition = "2021"
 
 [dependencies]
 console = { path = "../../console", features = ["usb_uart"]}
-cfg-if = "1.0.0"
-critical-section = { version = "1.2.0" }
 defmt = { version = "0.3.10", optional = true }
-delegate = "0.13.3"
+critical-section = { version = "1.2.0" }
 fugit = "0.3.7"
+rand_core-09 = { package = "rand_core", path = "../../rand_core" }
+
+# for macros
+cfg-if = "1.0.0"
+delegate = "0.13.3"
 paste = "1.0.15"
 procmacros = { package = "esp-hal-procmacros", path = "../esp-hal-procmacros" }
 

@@ -30,6 +30,7 @@ crate::peripherals! {
         I2C_ANA_MST <= I2C_ANA_MST,
         INTERRUPT_CORE0 <= INTERRUPT_CORE0,
         LPWR <= RTC_CNTL,
+        RADIO_CLK <= virtual,
         RNG <= RNG,
         SYSTEM <= SYSTEM,
         SYSTIMER <= SYSTIMER,
