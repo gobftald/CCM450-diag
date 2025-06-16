@@ -73,11 +73,11 @@
 #[macro_use(assert, unreachable, panic, debug, unwrap)]
 extern crate console;
 
-// 206
 #[cfg(riscv)]
+// 192
 pub use esp_riscv_rt::riscv;
 
-// 210
+// 206
 pub use self::soc::peripherals;
 pub(crate) use self::soc::peripherals::pac;
 

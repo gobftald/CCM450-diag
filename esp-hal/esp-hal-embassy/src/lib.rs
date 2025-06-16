@@ -72,8 +72,8 @@ macro_rules! impl_timebase {
         impl TimeBase for $timebase {
             fn timers(self) -> &'static mut [Timer] {
                 //mk_static!([Timer; 1], [Timer::new(self)])
-                static mut STATIC_TIMER_CELL: OnceCell<[Timer; 1]> = OnceCell::new();
-                unsafe { STATIC_TIMER_CELL.get_mut_or_init(|| [Timer::new(self)]) }
+                static mut STATIC_CELL: OnceCell<[Timer; 1]> = OnceCell::new();
+                unsafe { STATIC_CELL.get_mut_or_init(|| [Timer::new(self)]) }
             }
         }
     };

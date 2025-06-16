@@ -219,6 +219,25 @@ pub static __EXTERNAL_INTERRUPTS: [Vector; 62] = [
 pub mod interrupt;
 pub use self::interrupt::Interrupt;
 
+/// APB (Advanced Peripheral Bus) Controller
+// 257
+pub struct APB_CTRL {
+    _marker: PhantomData<*const ()>,
+}
+unsafe impl Send for APB_CTRL {}
+impl APB_CTRL {
+    /// Pointer to the register block
+    pub const PTR: *const apb_ctrl::RegisterBlock = 0x6002_6000 as *const _;
+}
+impl Deref for APB_CTRL {
+    type Target = apb_ctrl::RegisterBlock;
+    #[inline(always)]
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*Self::PTR }
+    }
+}
+pub mod apb_ctrl;
+
 /// Interrupt Controller (Core 0)
 // 855
 pub struct INTERRUPT_CORE0 {

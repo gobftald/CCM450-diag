@@ -1,5 +1,7 @@
-use std::sync::OnceLock;
+use core::str::FromStr;
 
+use anyhow::{Result, bail};
+use std::sync::OnceLock;
 use strum::IntoEnumIterator;
 
 // 7
@@ -103,6 +105,33 @@ pub enum Chip {
 
 // 103
 impl Chip {
+    // 105
+    pub fn from_cargo_feature() -> Result<Self> {
+        let all_chips = Chip::iter().map(|c| c.to_string()).collect::<Vec<_>>();
+
+        let mut chip = None;
+        for c in all_chips.iter() {
+            if std::env::var(format!("CARGO_FEATURE_{}", c.to_uppercase())).is_ok() {
+                if chip.is_some() {
+                    bail!(
+                        "Expected exactly one of the following features to be enabled: {}",
+                        all_chips.join(", ")
+                    );
+                }
+                chip = Some(c);
+            }
+        }
+
+        let Some(chip) = chip else {
+            bail!(
+                "Expected exactly one of the following features to be enabled: {}",
+                all_chips.join(", ")
+            );
+        };
+
+        Ok(Self::from_str(chip.as_str()).unwrap())
+    }
+
     // 130
     pub fn target(&self) -> &str {
         use Chip::*;

@@ -16,6 +16,9 @@ pub type DG_PERI_FORCE_NOISO_W<'a, REG> = crate::BitWriter<'a, REG>;
 /// Field `CPU_TOP_FORCE_NOISO` writer - cpu force no ISO
 pub type CPU_TOP_FORCE_NOISO_W<'a, REG> = crate::BitWriter<'a, REG>;
 
+/// Field `WIFI_FORCE_ISO` writer - wifi force ISO
+pub type WIFI_FORCE_ISO_W<'a, REG> = crate::BitWriter<'a, REG>;
+
 /// Field `WIFI_FORCE_NOISO` writer - wifi force no ISO
 pub type WIFI_FORCE_NOISO_W<'a, REG> = crate::BitWriter<'a, REG>;
 
@@ -51,6 +54,12 @@ impl W {
     #[inline(always)]
     pub fn cpu_top_force_noiso(&mut self) -> CPU_TOP_FORCE_NOISO_W<DIG_ISO_SPEC> {
         CPU_TOP_FORCE_NOISO_W::new(self, 27)
+    }
+
+    /// Bit 28 - wifi force ISO
+    #[inline(always)]
+    pub fn wifi_force_iso(&mut self) -> WIFI_FORCE_ISO_W<DIG_ISO_SPEC> {
+        WIFI_FORCE_ISO_W::new(self, 28)
     }
 
     /// Bit 29 - wifi force no ISO

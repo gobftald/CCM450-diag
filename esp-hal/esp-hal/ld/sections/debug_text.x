@@ -36,7 +36,7 @@
         *(.text.*esp_hal*TIMG0*)
     } > ROTEXT
 
-.esphal-embsy : ALIGN(4)
+.esp-embassy : ALIGN(4)
     {
         *(.text.*esp_hal_embassy8Executor*)
         *(.text.*esp_hal_embassy11time_driver*)
@@ -56,8 +56,13 @@
         *(.text.*_embassy_time*)
     } > ROTEXT
 
-.esphal-alloc : ALIGN(4)
+.esp-alloc : ALIGN(4)
     {
         *(.text.*esp_alloc*)
         *(.text.*linked_list_allocator*)
+    } > ROTEXT
+
+.esp-wifi : ALIGN(4)
+    {
+        *(.text.*esp_wifi*)
     } > ROTEXT

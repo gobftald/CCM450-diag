@@ -33,6 +33,7 @@ esp32c3 = [
     "esp-hal/esp32c3",
     "esp-hal-embassy/esp32c3",
     "embassy-executor/nightly",     # for 'task' embassy-executor-macro 
+    "esp-wifi/esp32c3",
 ]
 
 defmt = [

@@ -7,6 +7,9 @@ pub type BT_FORCE_PU_W<'a, REG> = crate::BitWriter<'a, REG>;
 /// Field `DG_PERI_FORCE_PU` writer - digital peri force power up
 pub type DG_PERI_FORCE_PU_W<'a, REG> = crate::BitWriter<'a, REG>;
 
+/// Field `WIFI_FORCE_PD` writer - wifi force power down
+pub type WIFI_FORCE_PD_W<'a, REG> = crate::BitWriter<'a, REG>;
+
 /// Field `WIFI_FORCE_PU` writer - wifi force power up
 pub type WIFI_FORCE_PU_W<'a, REG> = crate::BitWriter<'a, REG>;
 
@@ -27,6 +30,12 @@ impl W {
     #[inline(always)]
     pub fn dg_peri_force_pu(&mut self) -> DG_PERI_FORCE_PU_W<DIG_PWC_SPEC> {
         DG_PERI_FORCE_PU_W::new(self, 14)
+    }
+
+    /// Bit 17 - wifi force power down
+    #[inline(always)]
+    pub fn wifi_force_pd(&mut self) -> WIFI_FORCE_PD_W<DIG_PWC_SPEC> {
+        WIFI_FORCE_PD_W::new(self, 17)
     }
 
     /// Bit 18 - wifi force power up

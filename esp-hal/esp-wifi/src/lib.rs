@@ -3,7 +3,7 @@
 
 #![no_std]
 
-#[macro_use(info)]
+#[macro_use(info, unwrap)]
 extern crate console;
 
 // 108
@@ -18,8 +18,15 @@ use hal::{
     timer::{AnyTimer, PeriodicTimer},
 };
 
+#[cfg(feature = "builtin-scheduler")]
+// 135
+mod preempt_builtin;
+
 // 151
 pub mod config;
+
+// 154
+pub(crate) mod common_adapter;
 
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -147,7 +154,7 @@ pub fn init<'d>(
     _rng: impl EspWifiRngSource + 'd,
     _radio_clocks: RADIO_CLK<'d>,
 ) -> Result<EspWifiController<'d>, InitializationError> {
-    if crate::is_interrupts_disabled() {
+    if is_interrupts_disabled() {
         return Err(InitializationError::InterruptsDisabled);
     }
 
@@ -158,7 +165,12 @@ pub fn init<'d>(
         return Err(InitializationError::WrongClockConfig);
     }
 
-    info!("esp-wifi configuration {:?}", crate::CONFIG);
+    info!("esp-wifi configuration {:?}", CONFIG);
+    common_adapter::chip_specific::enable_wifi_power_domain();
+    common_adapter::chip_specific::phy_mem_init();
+
+    // no-op
+    //setup_radio_isr();
 
     Ok(EspWifiController {
         _inner: PhantomData,
