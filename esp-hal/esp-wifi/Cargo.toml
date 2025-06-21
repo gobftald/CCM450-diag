@@ -9,16 +9,35 @@ defmt = { version = "0.3.10", optional = true }
 esp-hal = { path = "../esp-hal" }
 rand_core = { path = "../../rand_core" }
 cfg-if = "1.0.0"
+esp-alloc = { path = "../esp-alloc", optional = true }
+allocator-api2 = { path = "../../allocator-api2"}
 
 [build-dependencies]
 esp-metadata = { path = "../esp-metadata" }
 
 [features]
+default = ["builtin-scheduler", "esp-alloc"]
+
 # Target the ESP32-C3.
 esp32c3 = [
   "esp-hal/esp32c3",
   #"esp-wifi-sys/esp32c3",
 ]
 
+## Use `esp-alloc` for dynamic allocations.
+##
+## If you opt-out you need to provide implementations for the following functions:
+## - `pub extern "C" fn esp_wifi_free_internal_heap() -> usize`
+## - `pub extern "C" fn esp_wifi_allocate_from_internal_ram(size: usize) -> *mut u8`
+## - `pub extern "C" fn esp_wifi_deallocate_internal_ram(ptr: *mut u8)`
+esp-alloc = ["dep:esp-alloc"]
+
 ## Enable WiFi support
 wifi = []
+
+## Use builtin scheduler
+#builtin-scheduler = ["esp-hal/__esp_wifi_builtin_scheduler"]
+# we don't use SW interrupts yet, so we don't want 'skip' Software interrupt 2
+builtin-scheduler = []
+
+defmt = ["dep:defmt", "esp-alloc/defmt"]

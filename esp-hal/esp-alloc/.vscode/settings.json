@@ -1,6 +1,7 @@
 {
     "rust-analyzer.cargo.features": [
-        "esp32c3"
+        "internal-heap-stats",
+        "defmt"
     ],
     "rust-analyzer.checkOnSave.allTargets": false,
 }

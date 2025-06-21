@@ -1,5 +1,13 @@
 use crate::register::mstatus;
 
+/// Disables all interrupts in the current hart (machine mode).
+#[inline]
+// 101
+pub fn disable() {
+    // SAFETY: It is safe to disable interrupts
+    unsafe { mstatus::clear_mie() }
+}
+
 /// Enables all the interrupts in the current hart (machine mode).
 ///
 /// # Safety

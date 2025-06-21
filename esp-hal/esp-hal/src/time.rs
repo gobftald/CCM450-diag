@@ -19,6 +19,13 @@ pub struct Rate(InnerRate);
 
 // 49
 impl Rate {
+    /// Shorthand for creating a rate which represents hertz.
+    #[inline]
+    // 52
+    pub const fn from_hz(val: u32) -> Self {
+        Self(InnerRate::Hz(val))
+    }
+
     /// Shorthand for creating a rate which represents megahertz.
     #[inline]
     // 64
@@ -38,6 +45,12 @@ impl Rate {
     // 82
     pub const fn as_mhz(&self) -> u32 {
         self.0.to_MHz()
+    }
+
+    /// Convert the `Rate` to a `Duration`.
+    #[inline]
+    pub const fn as_duration(&self) -> Duration {
+        Duration::from_micros(1_000_000 / self.as_hz() as u64)
     }
 }
 

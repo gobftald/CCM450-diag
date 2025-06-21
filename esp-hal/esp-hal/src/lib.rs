@@ -118,6 +118,15 @@ pub mod rtc_cntl;
 // 336
 pub mod rng;
 
+/// State of the CPU saved when entering exception or interrupt
+// 356
+pub mod trapframe {
+    #[cfg(riscv)]
+    pub use esp_riscv_rt::TrapFrame;
+    #[cfg(xtensa)]
+    pub use xtensa_lx_rt::exception::Context as TrapFrame;
+}
+
 // The `soc` module contains chip-specific implementation details
 // and should not be directly exposed.
 // 365

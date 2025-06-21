@@ -71,7 +71,6 @@ pub trait Timer {
 }
 
 /// A one-shot timer.
-//pub struct OneShotTimer<'d, Dm: DriverMode> {
 // 136
 //pub struct OneShotTimer<'d, Dm: DriverMode> {
 pub struct OneShotTimer<'d> {
@@ -155,6 +154,50 @@ impl<'d> PeriodicTimer<'d> {
             inner: inner.into(),
             //_ph: PhantomData,
         }
+    }
+}
+
+// 349
+//impl<Dm> PeriodicTimer<'_, Dm>
+impl PeriodicTimer<'_>
+//where
+//    Dm: DriverMode,
+{
+    /// Start a new count down.
+    // 354
+    pub fn start(&mut self, period: Duration) -> Result<(), Error> {
+        if self.inner.is_running() {
+            self.inner.stop();
+        }
+
+        self.inner.clear_interrupt();
+        self.inner.reset();
+
+        self.inner.enable_auto_reload(true);
+        self.inner.load_value(period)?;
+        self.inner.start();
+
+        Ok(())
+    }
+
+    /// Set the interrupt handler
+    ///
+    /// Note that this will replace any previously set interrupt handler
+    // 390
+    pub fn set_interrupt_handler(&mut self, handler: InterruptHandler) {
+        self.inner.set_interrupt_handler(handler);
+    }
+
+    /// Enable/disable listening for interrupts
+    // 394
+    pub fn enable_interrupt(&mut self, enable: bool) {
+        self.inner.enable_interrupt(enable);
+    }
+
+    /// Clear the interrupt flag
+    // 400
+    pub fn clear_interrupt(&mut self) {
+        self.inner.clear_interrupt();
     }
 }
 

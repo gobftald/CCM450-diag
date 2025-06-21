@@ -12,6 +12,7 @@ defmt = { version = "0.3.10", optional = true }
 critical-section = { version = "1.2.0" }
 enumset = "1.1.6"
 linked-list-allocator = { path = "../../linked-list-allocator" }
+allocator-api2 = { path = "../../allocator-api2", features = ["alloc"]}
 
 [features]
 
@@ -22,3 +23,5 @@ linked-list-allocator = { path = "../../linked-list-allocator" }
 ##
 ## ⚠️ Note: Enabling this feature will require extra computation every time alloc/dealloc is called.
 internal-heap-stats = []
+
+defmt = ["dep:defmt", "allocator-api2/defmt"]

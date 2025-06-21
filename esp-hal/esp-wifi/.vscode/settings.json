@@ -1,0 +1,8 @@
+{
+    "rust-analyzer.cargo.features": [
+        "wifi",
+        "builtin-scheduler",
+        "esp-alloc",
+        "esp32c3"
+    ]
+}

@@ -2,8 +2,10 @@
 //! the esp-wifi documentation on the esp-rs website.
 
 #![no_std]
+#![allow(static_mut_refs)]
 
-#[macro_use(info, unwrap)]
+#[allow(unused_imports)]
+#[macro_use(info, unwrap, panic, debug)]
 extern crate console;
 
 // 108
@@ -21,6 +23,9 @@ use hal::{
 #[cfg(feature = "builtin-scheduler")]
 // 135
 mod preempt_builtin;
+
+// 137
+pub mod preempt;
 
 // 151
 pub mod config;
@@ -171,6 +176,18 @@ pub fn init<'d>(
 
     // no-op
     //setup_radio_isr();
+
+    // Enable timer tick interrupt
+    #[cfg(feature = "builtin-scheduler")]
+    // 365
+    preempt_builtin::setup_timer(unsafe { timer.timer() });
+
+    // This initializes the task switcher
+    preempt::enable();
+
+    unsafe {
+        debug!("{}", esp_alloc::HEAP.stats());
+    }
 
     Ok(EspWifiController {
         _inner: PhantomData,

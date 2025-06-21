@@ -401,6 +401,7 @@ mod vectored {
             // Don't use `Interrupt::try_from`. It's slower and placed in flash
             let interrupt: Interrupt = unsafe { core::mem::transmute(interrupt_nr as u16) };
             unsafe {
+                debug!("{:?}", cpu_intr);
                 handle_interrupt(interrupt, context);
             }
         }

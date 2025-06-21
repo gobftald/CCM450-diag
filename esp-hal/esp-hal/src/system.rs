@@ -9,7 +9,6 @@ use crate::peripherals::SYSTEM;
 /// peripherals will be available for enabling.
 // FIXME: This enum needs to be public because it's exposed via a bunch of traits, but it's not
 // useful to users.
-#[doc(hidden)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
