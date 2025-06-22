@@ -16,6 +16,7 @@ use super::{AllocError, Allocator, Layout};
 /// if there is one, or the `std` crate’s default.
 ///
 #[derive(Copy, Clone, Default, Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 // 18
 pub struct Global;
 

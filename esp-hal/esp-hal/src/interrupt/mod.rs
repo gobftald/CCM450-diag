@@ -70,8 +70,8 @@ impl InterruptHandler {
 const STATUS_WORDS: usize = 2;
 
 /// Representation of peripheral-interrupt status bits.
-//#[derive(Clone, Copy, Default, Debug)]
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 // 163
 pub struct InterruptStatus {
     status: [u32; STATUS_WORDS],

@@ -10,8 +10,8 @@ use crate::peripherals::SYSTEM;
 // FIXME: This enum needs to be public because it's exposed via a bunch of traits, but it's not
 // useful to users.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[repr(u8)]
 // 20
 pub enum Peripheral {
     /// Timer Group 0 peripheral.

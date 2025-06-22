@@ -125,7 +125,7 @@ fn allocate_main_task() {
             //thread_semaphore: 0,
             next: core::ptr::null_mut(),
             //_allocated_stack: Box::<[u8], _>::new_uninit_slice_in(0, InternalMemory),
-            _allocated_stack: Box::<[u8], _>::new_uninit_slice(0),
+            _allocated_stack: Box::<[u8]>::new_uninit_slice(0),
         },
         //InternalMemory,
     );

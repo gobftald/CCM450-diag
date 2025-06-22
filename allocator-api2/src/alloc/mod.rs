@@ -18,6 +18,7 @@ pub use self::global::Global;
 /// something wrong when combining the given input arguments with this
 /// allocator.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct AllocError;
 
 /// An implementation of `Allocator`

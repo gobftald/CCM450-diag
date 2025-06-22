@@ -12,6 +12,7 @@ use alloc_crate::alloc::handle_alloc_error;
 
 /// The error type for `try_reserve` methods.
 #[derive(Clone, PartialEq, Eq, Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 // 19
 pub struct TryReserveError {
     kind: TryReserveErrorKind,
@@ -19,6 +20,7 @@ pub struct TryReserveError {
 
 /// Details of the allocation that caused a `TryReserveError`
 #[derive(Clone, PartialEq, Eq, Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 // 32
 #[allow(dead_code)] // until we use AllocError
 pub enum TryReserveErrorKind {
@@ -78,8 +80,7 @@ enum AllocInit {
 /// `Box<[T]>`, since `capacity()` won't yield the length.
 ///
 // 116
-//pub(crate) struct RawVec<T, A: Allocator = Global> {
-pub(crate) struct RawVec<T, A: Allocator> {
+pub(crate) struct RawVec<T, A: Allocator = Global> {
     ptr: NonNull<T>,
     cap: usize,
     alloc: A,

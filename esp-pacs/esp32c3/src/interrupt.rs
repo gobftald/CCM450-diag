@@ -1,6 +1,6 @@
 /// Enumeration of all the interrupts.
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[repr(u16)]
 pub enum Interrupt {
     /// 0 - WIFI_MAC
@@ -131,8 +131,8 @@ pub enum Interrupt {
 
 /*
 /// TryFromInterruptError
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct TryFromInterruptError(());
 impl Interrupt {
     /// Attempt to convert a given value into an `Interrupt`

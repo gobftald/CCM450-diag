@@ -17,6 +17,23 @@ type InnerDuration = fugit::Duration<u64, 1, 1_000_000>;
 // 18
 pub struct Rate(InnerRate);
 
+// 34
+impl Debug for Rate {
+    #[inline]
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        write!(f, "Rate({} Hz)", self.as_hz())
+    }
+}
+
+#[cfg(feature = "defmt")]
+// 42
+impl defmt::Format for Rate {
+    #[inline]
+    fn format(&self, f: defmt::Formatter<'_>) {
+        defmt::write!(f, "{=u32} Hz", self.as_hz())
+    }
+}
+
 // 49
 impl Rate {
     /// Shorthand for creating a rate which represents hertz.

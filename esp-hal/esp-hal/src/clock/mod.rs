@@ -115,7 +115,8 @@ impl Clock for CpuClock {
 }
 
 /// XTAL clock speed
-#[derive(/*Debug,*/ Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[non_exhaustive]
 // 147
 pub enum XtalClock {
@@ -173,7 +174,8 @@ pub(crate) enum PllClock {
 }
 
 #[allow(unused)]
-#[derive(/*Debug,*/ Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 // 229
 pub(crate) enum ApbClock {
     #[cfg(esp32h2)]
@@ -201,7 +203,8 @@ impl Clock for ApbClock {
 }
 
 /// Clock frequencies.
-#[derive(/*Debug,*/ Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[non_exhaustive]
 // 258
 pub struct Clocks {
