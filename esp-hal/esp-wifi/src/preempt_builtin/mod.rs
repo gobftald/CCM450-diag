@@ -3,12 +3,15 @@ mod arch_specific;
 pub mod timer;
 
 // 6
-use core::mem::MaybeUninit;
+use core::{ffi::c_void, mem::MaybeUninit};
 
 // 8
 use allocator_api2::boxed::Box;
 use arch_specific::*;
 pub(crate) use timer::setup_timer;
+
+// 11
+use timer::setup_multitasking;
 
 // 13
 use crate::{hal::trapframe::TrapFrame, preempt::Scheduler};
@@ -20,6 +23,29 @@ struct Context {
     pub next: *mut Context,
     //pub _allocated_stack: Box<[MaybeUninit<u8>], InternalMemory>,
     pub _allocated_stack: Box<[MaybeUninit<u8>]>,
+}
+
+// 27
+impl Context {
+    pub(crate) fn new(
+        task_fn: extern "C" fn(*mut c_void),
+        param: *mut c_void,
+        task_stack_size: usize,
+    ) -> Self {
+        trace!("task_create {:?} {:?} {}", task_fn, param, task_stack_size);
+
+        //let mut stack = Box::<[u8], _>::new_uninit_slice_in(task_stack_size, InternalMemory);
+        let mut stack = Box::<[u8], _>::new_uninit_slice(task_stack_size);
+
+        let stack_top = unsafe { stack.as_mut_ptr().add(task_stack_size).cast() };
+
+        Context {
+            trap_frame: new_task_context(task_fn, param, stack_top),
+            //thread_semaphore: 0,
+            next: core::ptr::null_mut(),
+            _allocated_stack: stack,
+        }
+    }
 }
 
 // 48
@@ -111,7 +137,44 @@ impl Scheduler for BuiltinScheduler {
     fn enable(&self) {
         // allocate the main task
         allocate_main_task();
-        //setup_multitasking();
+        setup_multitasking();
+    }
+
+    // 141
+    fn task_create(
+        &self,
+        task: extern "C" fn(*mut c_void),
+        param: *mut c_void,
+        task_stack_size: usize,
+    ) -> *mut c_void {
+        //let task = Box::new_in(Context::new(task, param, task_stack_size), InternalMemory);
+        let task = Box::new(Context::new(task, param, task_stack_size));
+        let task_ptr = Box::into_raw(task);
+
+        //SCHEDULER_STATE.with(|state| unsafe {
+        //let current_task = state.current_task;
+        let current_task = unsafe { SCHEDULER_STATE.current_task };
+
+        #[cfg(not(feature = "defmt"))]
+        debug_assert!(
+            !current_task.is_null(),
+            "Tried to allocate a task before allocating the main task"
+        );
+
+        #[cfg(all(debug_assertions, feature = "defmt"))]
+        if current_task.is_null() {
+            panic!("")
+        }
+
+        // Insert the new task at the next position.
+        unsafe {
+            let next = (*current_task).next;
+            (*task_ptr).next = next;
+            (*current_task).next = task_ptr;
+        }
+        //});
+
+        task_ptr as *mut c_void
     }
 }
 

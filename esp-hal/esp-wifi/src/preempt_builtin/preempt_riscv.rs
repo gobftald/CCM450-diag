@@ -1,6 +1,26 @@
+// 1
+use esp_wifi_sys::c_types;
+
 // 3
 use super::*;
 pub use crate::hal::interrupt::TrapFrame;
+
+// 6
+pub(crate) fn new_task_context(
+    task: extern "C" fn(*mut c_types::c_void),
+    param: *mut c_types::c_void,
+    stack_top: *mut (),
+) -> TrapFrame {
+    let stack_top = stack_top as usize;
+    let stack_top = stack_top - (stack_top % 16);
+
+    TrapFrame {
+        pc: task as usize,
+        a0: param as usize,
+        sp: stack_top,
+        ..Default::default()
+    }
+}
 
 // 21
 pub(crate) fn restore_task_context(ctx: &mut Context, trap_frame: &mut TrapFrame) {

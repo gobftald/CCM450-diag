@@ -55,15 +55,10 @@ pub(crate) fn clear_timer_interrupt() {
 extern "C" fn timer_tick_handler(_context: &mut TrapFrame) {
     clear_timer_interrupt();
 
-    unsafe {
-        crate::hal::riscv::interrupt::enable();
-    }
-
     // `task_switch` must be called on a single interrupt priority level only.
     // Because on ESP32 the software interrupt is triggered at priority 3 but
     // the timer interrupt is triggered at priority 1, we need to trigger the
     // software interrupt manually.
-    /*
     cfg_if::cfg_if! {
         if #[cfg(esp32)] {
             yield_task();
@@ -71,5 +66,4 @@ extern "C" fn timer_tick_handler(_context: &mut TrapFrame) {
             super::task_switch(_context);
         }
     }
-    */
 }

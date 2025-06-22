@@ -11,6 +11,7 @@ rand_core = { path = "../../rand_core" }
 cfg-if = "1.0.0"
 esp-alloc = { path = "../esp-alloc", optional = true }
 allocator-api2 = { path = "../../allocator-api2"}
+esp-wifi-sys = { path = "../../esp-wifi-sys" }
 
 [build-dependencies]
 esp-metadata = { path = "../esp-metadata" }
