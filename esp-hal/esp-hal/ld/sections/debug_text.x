@@ -66,3 +66,13 @@
     {
         *(.text.*esp_wifi*)
     } > ROTEXT
+
+.core : ALIGN(4)
+    {
+        *(.text.*alloc*)
+        *(.text.*___rustc*)
+        *(.text.*cell*)
+        *(.text.*compiler_builtins*)
+        *(.text.*__udivdi3)
+        *(.text.*memset)
+    } > ROTEXT

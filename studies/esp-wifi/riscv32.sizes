@@ -1,9 +1,9 @@
 DEFMT_LOG=info cargo run --release
 
-esp_image: segment 0: paddr=00010020 vaddr=3c000020 size=00070h (   124) map    .rodata*
-esp_image: segment 1: paddr=00010224 vaddr=3fc80724 size=00024h (    44)        .data
+esp_image: segment 0: paddr=00010020 vaddr=3c000020 size=00070h (   208) map    .rodata*
+esp_image: segment 1: paddr=00010224 vaddr=3fc80724 size=00024h (    56)        .data
 esp_image: segment 2: paddr=000100c4 vaddr=40380000 size=006cch (  1740) load   .trap* + .rwtext*
-esp_image: segment 4: paddr=00020020 vaddr=42010020 size=01024h (  6104) map    .text*
+esp_image: segment 4: paddr=00020020 vaddr=42010020 size=01024h (  7280) map    .text*
 
 .trap
     40380000 _start_trap:
@@ -33,32 +33,39 @@ esp_image: segment 4: paddr=00020020 vaddr=42010020 size=01024h (  6104) map    
     3fc80000 . + SIZEOF(.rwtext) + SIZEOF(.trap) + padding                          (914 + 2 + 824) 1740    0x6cc
 
 .data
+    esp_wifi::preempt_builtin::timer::TIMER                                                12
     esp_hal_embassy::time_driver::DRIVER                                                   32
-    esp_hal_embassy::TimeBase::timers::STATIC_TIMER_CELL                                   12       44      0x2c
+    esp_hal_embassy::TimeBase::timers::STATIC_TIMER_CELL                                   12       56      0x38
 
 .bss
     esp_embassy::__embassy_main::POOL                                                      40
     esp_wifi::____embassy_main_task::closure::HEAP                                      73728
-    esp_wifi::____embassy_main_task::closure::STATIC_CELL                                   8                                                                      
+    esp_wifi::____embassy_main_task::closure::STATIC_CELL                                   1
+    padding                                                                                 7
     esp_wifi::run::POOL                                                                    56
+    __rust_no_alloc_shim_is_unstable                                                        1
+    padding                                                                                 3
     esp_wifi::common_adapter::chip_specific::SOC_PHY_DIG_REGS_MEM                          84
     esp_wifi::common_adapter::chip_specific::G_PHY_DIGITAL_REGS_MEM                         4
-    esp_alloc::HEAP                                                                        96
+    esp_alloc::HEAP                                                                        32
     esp_hal_embassy::SIGNAL_WORK_THREAD_MODE                                                1
     padding                                                                                 3
-    esp_hal::clock::ACTIVE_CLOCKS                                                          16
     _ESP_HAL_DEVICE_PERIPHERALS                                                             1
-    padding                                                                                 3       74040   0x12138
+    padding                                                                                 3
+    esp_hal::clock::ACTIVE_CLOCKS                                                          16       74980   0x120fc
 
 .rodata
-    esp-wifi                                                                                1
-    esp-wifi                                                                                1
-    <internal>:(.rodata.cst32)                                                             32
+    esp_wifi                                                                                1
+    esp_wifi                                                                                1
+    esp_alloc                                                                              52
     padding                                                                                 2
-    switch.table esp_hal::timer::OneShotTimer::schedule                                    12
-    esp-wifi                                                                               60
+    esp_alloc                                                                              16
+    esp_alloc                                                                              16
+    <internal>:(.rodata.cst32)                                                             32
+    switch.table esp_hal::timer::PeriodicTimer::start                                      12
+    esp_hal                                                                                60
     embassy_executor::raw::waker::VTABLE                                                   16
-                                                                                                    124     0x7c
+                                                                                                    208     0xd0
 
 .rotext_dummy
     42000020 . + SIZEOF(.rodata)
@@ -87,31 +94,33 @@ esp_image: segment 4: paddr=00020020 vaddr=42010020 size=01024h (  6104) map    
     padding                                                                                 2       2
 
 .esp-hal
-    _setup_interrupts                                                                     272
-    esp_hal::interrupt::riscv::vectored::init_vectoring                                   458
+    _setup_interrupts                                                                     718
     hal_main                                                                                8
-    esp_hal::init                                                                         172
+    esp_hal::init                                                                         622
     EspDefaultHandler                                                                       2
     _critical_section_1_0_acquire                                                          10
-    _critical_section_1_0_release                                                          12       934     0x3a6
-    padding                                                                                 2       2
+    _critical_section_1_0_release                                                          12       1372    0x55c
 
 .esphal-clock
-    esp_hal::clock::Clocks::init                                                          474
-    esp_hal::clock::Clocks::get                                                            22       496     0x1f0
+    #esp_hal::clock::Clocks::init (probably inline)
+    esp_hal::clock::Clocks::get                                                            18       18      0x12
+    padding                                                                                 2       2
 
 .esphal-timer
     esp_hal::timer::systimer::SystemTimer::new                                             44
     esp_hal::timer::systimer::SystemTimer1::unit_value                                     58
-    esp_hal::timer::OneShotTimer::schedule                                                508
+    esp_hal::timer::OneShotTimer::schedule                                                504
     esp_hal::timer::OneShotTimer::stop                                                     50
+    esp_hal::timer::PeriodicTimer::set_interrupt_handler
     esp_hal::timer::OneShotTimer::set_interrupt_handler                                   116
+    esp_hal::timer::PeriodicTime::::enable_interrupt
     esp_hal::timer::OneShotTimer::enable_interrupt                                         58
+    esp_hal::timer::PeriodicTime::clear_interrupt
     esp_hal::timer::OneShotTimer::clear_interrupt                                          64
+    esp_hal::timer::PeriodicTimer::start                                                  506
     esp_hal::timer::timg::TimerGroupInstance::configure_src_clk                            14
     esp_hal::timer::timg::TimerGroupInstance::enable_peripheral                            44
-    esp_hal::timer::timg::TimerGroupInstance::configure_wdt_src_clk                        18       974     0x3ce
-    padding                                                                                 2       2
+    esp_hal::timer::timg::TimerGroupInstance::configure_wdt_src_clk                        18       1476    0x5c4
 
  .esp-embassy   
     esp_hal_embassy::Executor::run                                                         84
@@ -124,7 +133,7 @@ esp_image: segment 4: paddr=00020020 vaddr=42010020 size=01024h (  6104) map    
 .embassy-exec
     embassy_executor::raw::poll_exited                                                      2
     embassy_executor::raw::TaskStorage::poll                                              146
-    embassy_executor::raw::TaskStorage::poll                                              256
+    embassy_executor::raw::TaskStorage::poll                                              242
     embassy_executor::raw::util1::UninitCell::write_in_place                               10
     embassy_executor::raw::util1::UninitCell::write_in_place                               16
     embassy_executor::raw::waker::clone                                                    16
@@ -135,8 +144,8 @@ esp_image: segment 4: paddr=00020020 vaddr=42010020 size=01024h (  6104) map    
     embassy_executor::raw::wake_task                                                       84
     embassy_executor::spawner::Spawner::spawn                                              70
     embassy_executor::spawner::Spawner::must_spawn                                         82
-    __pender                                                                               12       860     0x35c
-
+    __pender                                                                               12       846     0x34e
+    padding                                                                                 2       2
 .embassy-time
     _embassy_time_now                                                                      40
     _embassy_time_schedule_wake                                                           102
@@ -145,23 +154,37 @@ esp_image: segment 4: paddr=00020020 vaddr=42010020 size=01024h (  6104) map    
     padding                                                                                 2       2
 
 .esp-alloc
-    esp_alloc::HeapRegion::new                                                             74
-    esp_alloc::EspHeap::add_region                                                         92
-    linked_list_allocator::Heap::init                                                      52       218     0xda
-    padding                                                                                 2       2
+    esp_alloc::EspHeap::init                                                              100
+    linked_list_allocator::hole::HoleList::allocate_first_fit                             248
+    linked_list_allocator::Heap::init                                                      52
+    linked_list_allocator::Heap::allocate_first_fit                                        48       448     0x1c0
 
 .esp-wifi
-    esp_wifi1::common_adapter::chip_specific::enable_wifi_power_domain                    100       64      0x40
-
-.text
-    core::cell::once::OnceCell::try_init                                                   82
-    main                                                                                   16
-    __udivdi3                                                                              32
-    compiler_builtins::int::specialized_div_rem::_div_rem                                 976       1106    0x452
+    esp_wifi::preempt_builtin::timer::arch_specific::setup_timer                           98
+    esp_wifi::preempt_builtin::timer::timer_tick_handler                                   48
+    esp_wifi_preempt_enable
+    esp_wifi::preempt::enable                                                              80
+    esp_wifi1::common_adapter::chip_specific::enable_wifi_power_domain                     64       290     0x122
     padding                                                                                 2       2
 
-                                                                                                    6104    0x17d8
+.core
+    alloc::alloc::handle_alloc_error                                                        2
+    ___rustc12___rust_alloc                                                               104
+    core::alloc::layout::Layout::is_size_align_valid                                       28
 
-                                                                                                    7968 image
-                                                                                                    6228 flash
-                                                                                                    1784 RAM
+    core::cell::once::OnceCell::try_init                                                  112
+    core::cell::panic_already_borrowed
+    core::cell::panic_already_mutably_borrowed                                              2
+
+    compiler_builtins::int::specialized_div_rem::_div_rem                                 976
+    __udivdi3                                                                              32
+    memset                                                                                108       1364    0x554
+
+.text
+    main                                                                                   16       16
+
+                                                                                                    7280    0x1c70
+
+                                                                                                    9228 image
+                                                                                                    7480 flash
+                                                                                                    1796 RAM
