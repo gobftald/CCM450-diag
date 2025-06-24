@@ -22,7 +22,7 @@ default = ["builtin-scheduler", "esp-alloc"]
 # Target the ESP32-C3.
 esp32c3 = [
   "esp-hal/esp32c3",
-  #"esp-wifi-sys/esp32c3",
+  "esp-wifi-sys/esp32c3",
 ]
 
 ## Use `esp-alloc` for dynamic allocations.

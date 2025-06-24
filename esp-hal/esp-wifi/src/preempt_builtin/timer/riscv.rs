@@ -33,6 +33,7 @@ pub(crate) fn setup_multitasking() {
 }
 
 #[unsafe(no_mangle)]
+// 39
 extern "C" fn FROM_CPU_INTR2(trap_frame: &mut TrapFrame) {
     // clear FROM_CPU_INTR3
     SystemPeripheral::regs()
@@ -40,4 +41,11 @@ extern "C" fn FROM_CPU_INTR2(trap_frame: &mut TrapFrame) {
         .modify(|_, w| w.cpu_intr_from_cpu_2().clear_bit());
 
     task_switch(trap_frame);
+}
+
+// 48
+pub(crate) fn yield_task() {
+    SystemPeripheral::regs()
+        .cpu_intr_from_cpu_2()
+        .modify(|_, w| w.cpu_intr_from_cpu_2().set_bit());
 }

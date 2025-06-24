@@ -11,6 +11,10 @@ pub trait Scheduler: 'static {
     // 25
     fn enable(&self);
 
+    // 31
+    /// This function is called by threads and should switch to the next thread.
+    fn yield_task(&self);
+
     /// This function is used to create threads.
     /// It should allocate the stack.
     // 40
@@ -25,6 +29,7 @@ pub trait Scheduler: 'static {
 // 59
 unsafe extern "Rust" {
     fn esp_wifi_preempt_enable();
+    fn esp_wifi_preempt_yield_task();
     fn esp_wifi_preempt_task_create(
         task: extern "C" fn(*mut c_void),
         param: *mut c_void,
@@ -45,6 +50,11 @@ pub(crate) fn task_create(
     unsafe { esp_wifi_preempt_task_create(task, param, task_stack_size) }
 }
 
+// 81
+pub(crate) fn yield_task() {
+    unsafe { esp_wifi_preempt_yield_task() }
+}
+
 /// Set the Scheduler implementation.
 ///
 /// See the module documentation for an example.
@@ -59,6 +69,12 @@ macro_rules! scheduler_impl {
         // 114
         fn esp_wifi_preempt_enable() {
             <$t as $crate::preempt::Scheduler>::enable(&$name)
+        }
+
+        #[unsafe(no_mangle)]
+        // 122
+        fn esp_wifi_preempt_yield_task() {
+            <$t as $crate::preempt::Scheduler>::yield_task(&$name)
         }
 
         #[unsafe(no_mangle)]

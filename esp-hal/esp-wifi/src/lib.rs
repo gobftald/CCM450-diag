@@ -8,6 +8,9 @@
 #[macro_use(info, unwrap, panic, debug, trace)]
 extern crate console;
 
+// 103
+extern crate alloc;
+
 // 108
 use core::marker::PhantomData;
 
@@ -20,18 +23,35 @@ use hal::{
     timer::{AnyTimer, PeriodicTimer},
 };
 
+// 124
+use crate::tasks::init_tasks;
+
+// 130
+mod binary {
+    pub use esp_wifi_sys::*;
+}
+
+// 133
+mod compat;
+
 #[cfg(feature = "builtin-scheduler")]
-// 135
+// 136
 mod preempt_builtin;
 
-// 137
+// 138
 pub mod preempt;
 
-// 151
+// 141
+mod time;
+
+// 152
 pub mod config;
 
 // 154
 pub(crate) mod common_adapter;
+
+// 157
+pub mod tasks;
 
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -184,6 +204,8 @@ pub fn init<'d>(
 
     // This initializes the task switcher
     preempt::enable();
+
+    init_tasks();
 
     unsafe {
         debug!("{}", esp_alloc::HEAP.stats());

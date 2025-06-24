@@ -140,6 +140,11 @@ impl Scheduler for BuiltinScheduler {
         setup_multitasking();
     }
 
+    // 137
+    fn yield_task(&self) {
+        timer::yield_task()
+    }
+
     // 141
     fn task_create(
         &self,
