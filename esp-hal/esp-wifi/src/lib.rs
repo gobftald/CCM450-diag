@@ -15,7 +15,7 @@ extern crate alloc;
 use core::marker::PhantomData;
 
 // 112
-use esp_hal::{self as hal, peripherals::RADIO_CLK};
+use esp_hal::{self as hal, clock::RadioClockController, peripherals::RADIO_CLK};
 use hal::{
     clock::Clocks,
     rng::Rng,
@@ -24,7 +24,7 @@ use hal::{
 };
 
 // 124
-use crate::tasks::init_tasks;
+use crate::{preempt::yield_task, tasks::init_tasks};
 
 // 130
 mod binary {
@@ -206,10 +206,10 @@ pub fn init<'d>(
     preempt::enable();
 
     init_tasks();
+    yield_task(); // don't wait for the next builtin scheduler tick IRQ
 
-    unsafe {
-        debug!("{}", esp_alloc::HEAP.stats());
-    }
+    wifi_set_log_verbose();
+    init_clocks();
 
     Ok(EspWifiController {
         _inner: PhantomData,
@@ -229,6 +229,20 @@ fn is_interrupts_disabled() -> bool {
     //|| hal::interrupt::current_runlevel() >= hal::interrupt::Priority::Priority1;
 }
 
+/// Enable verbose logging within the WiFi driver
+/// Does nothing unless the `sys-logs` feature is enabled.
+// 417
+pub fn wifi_set_log_verbose() {
+    #[cfg(all(feature = "sys-logs", not(esp32h2)))]
+    unsafe {
+        use crate::binary::include::{
+            esp_wifi_internal_set_log_level, wifi_log_level_t_WIFI_LOG_VERBOSE,
+        };
+
+        esp_wifi_internal_set_log_level(wifi_log_level_t_WIFI_LOG_VERBOSE);
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 /// Error which can be returned during [`init`].
@@ -240,4 +254,10 @@ pub enum InitializationError {
     /// Tried to initialize while interrupts are disabled.
     /// This is not supported.
     InterruptsDisabled,
+}
+
+// 520
+fn init_clocks() {
+    let radio_clocks = unsafe { RADIO_CLK::steal() };
+    RadioClockController::new(radio_clocks).init_clocks();
 }

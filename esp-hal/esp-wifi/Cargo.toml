@@ -33,6 +33,9 @@ esp32c3 = [
 ## - `pub extern "C" fn esp_wifi_deallocate_internal_ram(ptr: *mut u8)`
 esp-alloc = ["dep:esp-alloc"]
 
+## Logs the WiFi logs from the driver at log level info (needs a nightly-compiler)
+sys-logs = ["esp-wifi-sys/sys-logs"]
+
 ## Enable WiFi support
 wifi = []
 

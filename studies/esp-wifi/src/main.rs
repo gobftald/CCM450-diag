@@ -10,7 +10,7 @@
 mod panic;
 
 #[allow(unused_imports)]
-#[macro_use(core_println, info, unwrap)] // core_println for panic_handler in mod panic
+#[macro_use(core_println, debug, unwrap)] // core_println for panic_handler in mod panic
 extern crate console;
 
 use embassy_executor::Spawner;
@@ -40,6 +40,10 @@ async fn main(spawner: Spawner) {
         esp_wifi::EspWifiController<'static>,
         esp_wifi::init(timg0.timer0, rng.clone(), peripherals.RADIO_CLK).unwrap()
     );
+
+    unsafe {
+        debug!("{}", esp_alloc::HEAP.stats());
+    }
 
     let systimer = esp_hal::timer::systimer::SystemTimer::new(peripherals.SYSTIMER);
     esp_hal_embassy::init(systimer.alarm0);

@@ -7,6 +7,9 @@ pub type DG_PAD_FORCE_NOISO_W<'a, REG> = crate::BitWriter<'a, REG>;
 /// Field `DG_PAD_FORCE_UNHOLD` writer - digital pad force un-hold
 pub type DG_PAD_FORCE_UNHOLD_W<'a, REG> = crate::BitWriter<'a, REG>;
 
+/// Field `BT_FORCE_ISO` writer - bt force ISO
+pub type BT_FORCE_ISO_W<'a, REG> = crate::BitWriter<'a, REG>;
+
 /// Field `BT_FORCE_NOISO` writer - bt force no ISO
 pub type BT_FORCE_NOISO_W<'a, REG> = crate::BitWriter<'a, REG>;
 
@@ -36,6 +39,12 @@ impl W {
     #[inline(always)]
     pub fn dg_pad_force_unhold(&mut self) -> DG_PAD_FORCE_UNHOLD_W<DIG_ISO_SPEC> {
         DG_PAD_FORCE_UNHOLD_W::new(self, 14)
+    }
+
+    /// Bit 22 - bt force ISO
+    #[inline(always)]
+    pub fn bt_force_iso(&mut self) -> BT_FORCE_ISO_W<DIG_ISO_SPEC> {
+        BT_FORCE_ISO_W::new(self, 22)
     }
 
     /// Bit 23 - bt force no ISO

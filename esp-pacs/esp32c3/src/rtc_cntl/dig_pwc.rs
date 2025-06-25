@@ -1,6 +1,9 @@
 /// Register `DIG_PWC` writer
 pub type W = crate::W<DIG_PWC_SPEC>;
 
+/// Field `BT_FORCE_PD` writer - bt force power down
+pub type BT_FORCE_PD_W<'a, REG> = crate::BitWriter<'a, REG>;
+
 /// Field `BT_FORCE_PU` writer - bt force power up
 pub type BT_FORCE_PU_W<'a, REG> = crate::BitWriter<'a, REG>;
 
@@ -20,6 +23,12 @@ pub type DG_WRAP_FORCE_PU_W<'a, REG> = crate::BitWriter<'a, REG>;
 pub type CPU_TOP_FORCE_PU_W<'a, REG> = crate::BitWriter<'a, REG>;
 
 impl W {
+    /// Bit 11 - bt force power down
+    #[inline(always)]
+    pub fn bt_force_pd(&mut self) -> BT_FORCE_PD_W<DIG_PWC_SPEC> {
+        BT_FORCE_PD_W::new(self, 11)
+    }
+
     /// Bit 12 - bt force power up
     #[inline(always)]
     pub fn bt_force_pu(&mut self) -> BT_FORCE_PU_W<DIG_PWC_SPEC> {

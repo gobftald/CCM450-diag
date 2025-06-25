@@ -303,3 +303,30 @@ impl Clocks {
         }
     }
 }
+
+/// Control the radio peripheral clocks
+//#[cfg(any(/*bt,ieee802154,*/ wifi))]
+// 597
+pub struct RadioClockController<'d> {
+    _rcc: crate::peripherals::RADIO_CLK<'d>,
+}
+
+#[cfg(any(/*bt, ieee802154,*/ wifi))]
+//#[instability::unstable]
+// 602
+impl<'d> RadioClockController<'d> {
+    /// Create a new instance of the radio clock controller
+    //#[instability::unstable]
+    // 605
+    pub fn new(rcc: crate::peripherals::RADIO_CLK<'d>) -> Self {
+        Self { _rcc: rcc }
+    }
+
+    /// Do any common initial initialization needed
+    //#[instability::unstable]
+    #[inline]
+    // 651
+    pub fn init_clocks(&mut self) {
+        clocks_ll::init_clocks();
+    }
+}

@@ -5,6 +5,12 @@ edition = "2024"
 
 [dependencies]
 
+[build-dependencies]
+anyhow = "1.0.95"
+
 
 [features]
 esp32c3 = []
+
+# Enable log output from binary blobs - requires nightly
+sys-logs = []

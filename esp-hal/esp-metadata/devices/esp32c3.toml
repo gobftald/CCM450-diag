@@ -18,8 +18,13 @@ symbols = [
     "low_power_wait",
     "integrated_timers",
     "single_queue",
+    
     #[device.timergroup]
-    "timergroup"
+    "timergroup",
+
+    ## Radio
+    #[device.wifi]
+    "wifi",
 ]
 
 memory = []

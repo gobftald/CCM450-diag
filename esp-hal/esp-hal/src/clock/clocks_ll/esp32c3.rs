@@ -1,6 +1,6 @@
 use crate::{
     clock::{ApbClock, Clock, CpuClock, PllClock, XtalClock},
-    peripherals::{I2C_ANA_MST, LPWR, SYSTEM},
+    peripherals::{APB_CTRL, I2C_ANA_MST, LPWR, SYSTEM},
     soc::regi2c,
 };
 
@@ -167,4 +167,31 @@ pub(crate) fn esp32c3_rtc_apb_freq_update(apb_freq: ApbClock) {
     LPWR::regs()
         .store5()
         .modify(|_, w| unsafe { w.scratch5().bits(value) });
+}
+
+// SYSTEM_WIFI_CLK_EN : R/W ;bitpos:[31:0] ;default: 32'hfffce030
+// 171
+const SYSTEM_WIFI_CLK_EN: u32 = 0x00FB9FCF;
+
+// 204
+pub(super) fn init_clocks() {
+    // undo the power down in base_settings (esp32c3_sleep)
+    LPWR::regs().dig_iso().modify(|_, w| {
+        w.wifi_force_iso().clear_bit();
+        w.bt_force_iso().clear_bit()
+    });
+
+    LPWR::regs().dig_pwc().modify(|_, w| {
+        w.wifi_force_pd().clear_bit();
+        w.bt_force_pd().clear_bit()
+    });
+
+    // from `esp_perip_clk_init`
+    const SYSTEM_WIFI_CLK_I2C_CLK_EN: u32 = 1 << 5;
+    const SYSTEM_WIFI_CLK_UNUSED_BIT12: u32 = 1 << 12;
+    const WIFI_BT_SDIO_CLK: u32 = SYSTEM_WIFI_CLK_I2C_CLK_EN | SYSTEM_WIFI_CLK_UNUSED_BIT12;
+
+    APB_CTRL::regs()
+        .wifi_clk_en()
+        .modify(|r, w| unsafe { w.bits(r.bits() & !WIFI_BT_SDIO_CLK | SYSTEM_WIFI_CLK_EN) });
 }
