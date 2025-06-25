@@ -5,7 +5,7 @@
 #![allow(static_mut_refs)]
 
 #[allow(unused_imports)]
-#[macro_use(info, unwrap, panic, debug, trace)]
+#[macro_use(info, unwrap, panic, debug, trace, warn)]
 extern crate console;
 
 // 103
@@ -43,6 +43,10 @@ pub mod preempt;
 
 // 141
 mod time;
+
+#[cfg(feature = "wifi")]
+// 143
+pub mod wifi;
 
 // 152
 pub mod config;

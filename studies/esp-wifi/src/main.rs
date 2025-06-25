@@ -41,6 +41,9 @@ async fn main(spawner: Spawner) {
         esp_wifi::init(timg0.timer0, rng.clone(), peripherals.RADIO_CLK).unwrap()
     );
 
+    let (mut controller, interfaces) =
+        esp_wifi::wifi::new(&esp_wifi_ctrl, peripherals.WIFI).unwrap();
+
     unsafe {
         debug!("{}", esp_alloc::HEAP.stats());
     }

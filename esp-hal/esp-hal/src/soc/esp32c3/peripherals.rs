@@ -36,5 +36,6 @@ crate::peripherals! {
         SYSTEM <= SYSTEM,
         SYSTIMER <= SYSTIMER,
         TIMG0 <= TIMG0,
+        WIFI <= virtual,
     ],
 }

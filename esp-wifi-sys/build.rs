@@ -32,9 +32,15 @@ fn copy_file(out: &PathBuf, from: &str, to: &str) -> Result<()> {
 fn copy_libraries(out: &PathBuf) -> Result<()> {
     copy_file(out, "libs/esp32c3/libcore.a", "libcore.a")?;
     copy_file(out, "libs/esp32c3/libnet80211.a", "libnet80211.a")?;
+    copy_file(
+        out,
+        "libs/esp32c3/libwpa_supplicant.a",
+        "libwpa_supplicant.a",
+    )?;
 
     println!("cargo:rustc-link-lib={}", "core");
     println!("cargo:rustc-link-lib={}", "net80211");
+    println!("cargo:rustc-link-lib={}", "wpa_supplicant");
 
     Ok(())
 }
