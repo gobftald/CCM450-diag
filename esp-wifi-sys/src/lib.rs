@@ -1,6 +1,7 @@
 #![no_std]
 #![cfg_attr(feature = "sys-logs", feature(c_variadic))]
 
+#[allow(unused_imports)]
 #[macro_use(info, unwrap)]
 extern crate console;
 
@@ -17,18 +18,24 @@ pub mod log {
     #[unsafe(no_mangle)]
     // 26
     pub unsafe extern "C" fn phy_printf(s: *const u8, args: ...) {
-        syslog(0, s, args);
+        unsafe {
+            syslog(0, s, args);
+        }
     }
 
     #[unsafe(no_mangle)]
     pub unsafe extern "C" fn net80211_printf(s: *const u8, args: ...) {
-        syslog(0, s, args);
+        unsafe {
+            syslog(0, s, args);
+        }
     }
 
     // 41
     #[unsafe(no_mangle)]
     pub unsafe extern "C" fn pp_printf(s: *const u8, args: ...) {
-        syslog(0, s, args);
+        unsafe {
+            syslog(0, s, args);
+        }
     }
 
     // 46
@@ -44,11 +51,16 @@ pub mod log {
         }
 
         let mut buf = [0u8; 512];
-        vsnprintf(&mut buf as *mut u8, 512, format, args);
-        let res_str = unsafe {
-            core::ffi::CStr::from_ptr(&buf as *const _ as *const core::ffi::c_char);
-        };
-        info!("{}", res_str.to_str().unwrap());
+        let _res_str;
+        unsafe {
+            vsnprintf(&mut buf as *mut u8, 512, format, args);
+            let res_cstr = core::ffi::CStr::from_ptr(&buf as *const _ as *const core::ffi::c_char);
+            _res_str = res_cstr
+                .to_str()
+                .unwrap_or_else(|_err| core::str::from_utf8_unchecked(br"Utf8Error"));
+        }
+        //info!("{}", res_str.to_str().unwrap());
+        info!("{}", _res_str);
     }
 }
 

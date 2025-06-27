@@ -1,5 +1,5 @@
 // 15
-use crate::compat::common::{create_recursive_mutex, lock_mutex};
+use crate::compat::common::{create_recursive_mutex, lock_mutex, unlock_mutex};
 
 /// **************************************************************************
 /// Name: esp_recursive_mutex_create
@@ -35,6 +35,24 @@ pub unsafe extern "C" fn recursive_mutex_create() -> *mut crate::binary::c_types
 // 353
 pub unsafe extern "C" fn mutex_lock(mutex: *mut crate::binary::c_types::c_void) -> i32 {
     lock_mutex(mutex)
+}
+
+/// **************************************************************************
+/// Name: esp_mutex_unlock
+///
+/// Description:
+///   Unlock mutex
+///
+/// Input Parameters:
+///   mutex_data - mutex data pointer
+///
+/// Returned Value:
+///   True if success or false if fail
+///
+/// *************************************************************************
+// 370
+pub unsafe extern "C" fn mutex_unlock(mutex: *mut crate::binary::c_types::c_void) -> i32 {
+    unlock_mutex(mutex)
 }
 
 /// **************************************************************************

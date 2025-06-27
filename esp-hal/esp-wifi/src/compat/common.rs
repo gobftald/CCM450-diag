@@ -89,3 +89,19 @@ pub(crate) fn lock_mutex(mutex: *mut c_void) -> i32 {
         yield_task();
     }
 }
+
+// 324
+pub(crate) fn unlock_mutex(mutex: *mut c_void) -> i32 {
+    trace!("mutex_unlock {:?}", mutex);
+
+    let ptr = mutex as *mut Mutex;
+    critical_section::with(|_| unsafe {
+        memory_fence();
+        if (*ptr).count > 0 {
+            (*ptr).count -= 1;
+            1
+        } else {
+            0
+        }
+    })
+}

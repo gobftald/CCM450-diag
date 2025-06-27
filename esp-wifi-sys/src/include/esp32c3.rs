@@ -86,16 +86,6 @@ unsafe extern "C" {
 }
 
 unsafe extern "C" {
-    // 2072
-    pub fn vsnprintf(
-        arg1: *mut crate::c_types::c_char,
-        arg2: crate::c_types::c_uint,
-        arg3: *const crate::c_types::c_char,
-        arg4: __builtin_va_list,
-    ) -> crate::c_types::c_int;
-}
-
-unsafe extern "C" {
     // 3166
     pub fn malloc(arg1: crate::c_types::c_uint) -> *mut crate::c_types::c_void;
 }

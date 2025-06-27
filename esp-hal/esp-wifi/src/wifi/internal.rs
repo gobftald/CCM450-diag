@@ -5,7 +5,9 @@ use esp_wifi_sys::include::{
 };
 
 // 10
-use super::os_adapter::{malloc, mutex_lock, recursive_mutex_create, task_get_current_task};
+use super::os_adapter::{
+    malloc, mutex_lock, mutex_unlock, recursive_mutex_create, task_get_current_task,
+};
 
 #[unsafe(no_mangle)]
 // 70
@@ -32,7 +34,7 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _recursive_mutex_create: Some(recursive_mutex_create), // 76
     _mutex_delete: None,                          // 80 Some(mutex_delete),
     _mutex_lock: Some(mutex_lock),                // 84
-    _mutex_unlock: None,                          // 88 Some(mutex_unlock),
+    _mutex_unlock: Some(mutex_unlock),            // 88
     _queue_create: None,                          // 92 Some(queue_create),
     _queue_delete: None,                          // 96 Some(queue_delete),
     _queue_send: None,                            // 100 Some(queue_send),
@@ -93,50 +95,52 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _get_time: None,                              // 320 Some(get_time),
     _random: None,                                // 324 Some(random),
 
-    /* experience from an earlier implementation
+    // experience from an earlier implementation
     // _slowclk_cal_get was inserted here
     #[cfg(any(esp32c3, esp32c2, esp32c6, esp32h2, esp32s3, esp32s2))]
-    _slowclk_cal_get: Some(slowclk_cal_get), // 328
-    */
+    _slowclk_cal_get: None, // 328 Some(slowclk_cal_get)
+
     #[cfg(feature = "sys-logs")]
-    _log_write: None, // 328 Some(log_write),
+    _log_write: None, // 332 Some(log_write),
     #[cfg(not(feature = "sys-logs"))]
     _log_write: None,
     #[cfg(feature = "sys-logs")]
-    _log_writev: None, // 332 Some(log_writev),
+    _log_writev: None, // 336 Some(log_writev),
     #[cfg(not(feature = "sys-logs"))]
     _log_writev: None,
-    _log_timestamp: None,              // 336 Some(log_timestamp),
-    _malloc_internal: None,            // 340 Some(malloc_internal),
-    _realloc_internal: None,           // 344 Some(realloc_internal),
-    _calloc_internal: None,            // 348 Some(calloc_internal),
-    _zalloc_internal: None,            // 352 Some(zalloc_internal),
-    _wifi_malloc: None,                // 356 Some(wifi_malloc),
-    _wifi_realloc: None,               // 360 Some(wifi_realloc),
-    _wifi_calloc: None,                // 364 Some(wifi_calloc),
-    _wifi_zalloc: None,                // 368 Some(wifi_zalloc),
-    _wifi_create_queue: None,          // 372 Some(wifi_create_queue),
-    _wifi_delete_queue: None,          // 376 Some(wifi_delete_queue),
-    _coex_init: None,                  // 380 Some(super::coex_init),
-    _coex_deinit: None,                // 384 Some(coex_deinit),
-    _coex_enable: None,                // 388 Some(coex_enable),
-    _coex_disable: None,               // 392 Some(coex_disable),
-    _coex_status_get: None,            // 396 Some(coex_status_get),
-    _coex_condition_set: None,         // 400
-    _coex_wifi_request: None,          // 404 Some(coex_wifi_request),
-    _coex_wifi_release: None,          // 408 Some(coex_wifi_release),
-    _coex_wifi_channel_set: None,      // 412 Some(coex_wifi_channel_set),
-    _coex_event_duration_get: None,    // 416 Some(coex_event_duration_get),
-    _coex_pti_get: None,               // 420 Some(coex_pti_get),
-    _coex_schm_status_bit_clear: None, // 424 Some(coex_schm_status_bit_clear),
-    _coex_schm_status_bit_set: None,   // 428 Some(coex_schm_status_bit_set),
-    _coex_schm_interval_set: None,     // 432 Some(coex_schm_interval_set),
-    _coex_schm_interval_get: None,     // 436 Some(coex_schm_interval_get),
-    _coex_schm_curr_period_get: None,  // 440 Some(coex_schm_curr_period_get),
-    _coex_schm_curr_phase_get: None,   // 444 Some(coex_schm_curr_phase_get),
+    _log_timestamp: None,              // 340 Some(log_timestamp),
+    _malloc_internal: None,            // 344 Some(malloc_internal),
+    _realloc_internal: None,           // 348 Some(realloc_internal),
+    _calloc_internal: None,            // 352 Some(calloc_internal),
+    _zalloc_internal: None,            // 356 Some(zalloc_internal),
+    _wifi_malloc: None,                // 360 Some(wifi_malloc),
+    _wifi_realloc: None,               // 364 Some(wifi_realloc),
+    _wifi_calloc: None,                // 368 Some(wifi_calloc),
+    _wifi_zalloc: None,                // 372 Some(wifi_zalloc),
+    _wifi_create_queue: None,          // 376 Some(wifi_create_queue),
+    _wifi_delete_queue: None,          // 380 Some(wifi_delete_queue),
+    _coex_init: None,                  // 384 Some(super::coex_init),
+    _coex_deinit: None,                // 388 Some(coex_deinit),
+    _coex_enable: None,                // 392 Some(coex_enable),
+    _coex_disable: None,               // 396 Some(coex_disable),
+    _coex_status_get: None,            // 400 Some(coex_status_get),
+    _coex_condition_set: None,         // 404
+    _coex_wifi_request: None,          // 408 Some(coex_wifi_request),
+    _coex_wifi_release: None,          // 412 Some(coex_wifi_release),
+    _coex_wifi_channel_set: None,      // 416 Some(coex_wifi_channel_set),
+    _coex_event_duration_get: None,    // 420 Some(coex_event_duration_get),
+    _coex_pti_get: None,               // 424 Some(coex_pti_get),
+    _coex_schm_status_bit_clear: None, // 428 Some(coex_schm_status_bit_clear),
+    _coex_schm_status_bit_set: None,   // 432 Some(coex_schm_status_bit_set),
+    _coex_schm_interval_set: None,     // 436 Some(coex_schm_interval_set),
+    _coex_schm_interval_get: None,     // 440 Some(coex_schm_interval_get),
+    _coex_schm_curr_period_get: None,  // 444 Some(coex_schm_curr_period_get),
+    _coex_schm_curr_phase_get: None,   // 448 Some(coex_schm_curr_phase_get),
 
+    /*
     //#[cfg(any(esp32c3, esp32c2, esp32c6, esp32h2, esp32s3, esp32s2))]
     _slowclk_cal_get: None, // 448 Some(slowclk_cal_get),
+    */
     //#[cfg(any(esp32, esp32s2))]
     //_phy_common_clock_disable: Some(os_adapter_chip_specific::phy_common_clock_disable),
     //#[cfg(any(esp32, esp32s2))]

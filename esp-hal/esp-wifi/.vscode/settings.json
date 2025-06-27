@@ -3,6 +3,7 @@
         "wifi",
         "builtin-scheduler",
         "esp-alloc",
-        "esp32c3"
+        "esp32c3",
+        "sys-logs"
     ]
 }
