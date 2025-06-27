@@ -57,6 +57,9 @@ pub(crate) mod common_adapter;
 // 157
 pub mod tasks;
 
+// 159
+pub(crate) mod memory_fence;
+
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 /// Tunable parameters for the WiFi driver

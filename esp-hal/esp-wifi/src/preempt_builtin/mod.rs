@@ -181,6 +181,11 @@ impl Scheduler for BuiltinScheduler {
 
         task_ptr as *mut c_void
     }
+
+    // 165
+    fn current_task(&self) -> *mut c_void {
+        current_task() as *mut c_void
+    }
 }
 
 // 181
@@ -221,6 +226,12 @@ fn allocate_main_task() {
         SCHEDULER_STATE.current_task = context_ptr;
     }
     //})
+}
+
+// 240
+fn current_task() -> *mut Context {
+    //SCHEDULER_STATE.with(|state| state.current_task)
+    unsafe { SCHEDULER_STATE.current_task }
 }
 
 // 256

@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+console = { path = "../console", features = ["usb_uart"]}
+defmt = { version = "0.3.10", optional = true }
 
 [build-dependencies]
 anyhow = "1.0.95"

@@ -12,6 +12,16 @@
 
 } > RWDATA
 
+.data.wifi :
+{
+    . = ALIGN(4);
+
+    *( .dram1 .dram1.*)
+
+    . = ALIGN(4);
+
+} > RWDATA
+
 .bss (NOLOAD) : ALIGN(4)
 {
     _bss_start = ABSOLUTE(.);

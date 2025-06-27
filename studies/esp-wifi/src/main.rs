@@ -44,9 +44,11 @@ async fn main(spawner: Spawner) {
     let (mut controller, interfaces) =
         esp_wifi::wifi::new(&esp_wifi_ctrl, peripherals.WIFI).unwrap();
 
+    /*
     unsafe {
         debug!("{}", esp_alloc::HEAP.stats());
     }
+    */
 
     let systimer = esp_hal::timer::systimer::SystemTimer::new(peripherals.SYSTIMER);
     esp_hal_embassy::init(systimer.alarm0);

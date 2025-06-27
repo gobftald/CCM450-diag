@@ -12,6 +12,9 @@ cfg-if = "1.0.0"
 esp-alloc = { path = "../esp-alloc", optional = true }
 allocator-api2 = { path = "../../allocator-api2"}
 esp-wifi-sys = { path = "../../esp-wifi-sys" }
+num-derive = { version = "0.4.2" }
+num-traits = { version = "0.2.19", default-features = false }
+critical-section = { version = "1.2.0" }
 
 [build-dependencies]
 esp-metadata = { path = "../esp-metadata" }

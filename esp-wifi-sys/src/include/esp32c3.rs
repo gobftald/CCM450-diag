@@ -10,6 +10,36 @@ pub const CONFIG_ESP_WIFI_RX_MGMT_BUF_NUM_DEF: u32 = 5;
 // 861
 pub const CONFIG_ESP_WIFI_ESPNOW_MAX_ENCRYPT_NUM: u32 = 7;
 
+// 1277
+pub const ESP_OK: u32 = 0;
+pub const ESP_FAIL: i32 = -1;
+pub const ESP_ERR_NO_MEM: u32 = 257;
+pub const ESP_ERR_INVALID_ARG: u32 = 258;
+
+// 1354
+pub const ESP_ERR_WIFI_NOT_INIT: u32 = 12289;
+pub const ESP_ERR_WIFI_NOT_STARTED: u32 = 12290;
+pub const ESP_ERR_WIFI_NOT_STOPPED: u32 = 12291;
+pub const ESP_ERR_WIFI_IF: u32 = 12292;
+pub const ESP_ERR_WIFI_MODE: u32 = 12293;
+pub const ESP_ERR_WIFI_STATE: u32 = 12294;
+pub const ESP_ERR_WIFI_CONN: u32 = 12295;
+pub const ESP_ERR_WIFI_NVS: u32 = 12296;
+pub const ESP_ERR_WIFI_MAC: u32 = 12297;
+pub const ESP_ERR_WIFI_SSID: u32 = 12298;
+pub const ESP_ERR_WIFI_PASSWORD: u32 = 12299;
+pub const ESP_ERR_WIFI_TIMEOUT: u32 = 12300;
+pub const ESP_ERR_WIFI_WAKE_FAIL: u32 = 12301;
+pub const ESP_ERR_WIFI_WOULD_BLOCK: u32 = 12302;
+pub const ESP_ERR_WIFI_NOT_CONNECT: u32 = 12303;
+
+// 1369
+pub const ESP_ERR_WIFI_POST: u32 = 12306;
+pub const ESP_ERR_WIFI_INIT_STATE: u32 = 12307;
+pub const ESP_ERR_WIFI_STOP_STATE: u32 = 12308;
+pub const ESP_ERR_WIFI_NOT_ASSOC: u32 = 12309;
+pub const ESP_ERR_WIFI_TX_DISALLOW: u32 = 12310;
+
 // 1381
 pub const WIFI_CACHE_TX_BUFFER_NUM: u32 = 0;
 
@@ -41,8 +71,40 @@ pub struct ets_timer {
 // 1550
 pub type va_list = __builtin_va_list;
 
+unsafe extern "C" {
+    // 1979
+    pub fn puts(arg1: *const crate::c_types::c_char) -> crate::c_types::c_int;
+}
+
+unsafe extern "C" {
+    // 2037
+    pub fn sprintf(
+        arg1: *mut crate::c_types::c_char,
+        arg2: *const crate::c_types::c_char,
+        ...
+    ) -> crate::c_types::c_int;
+}
+
+unsafe extern "C" {
+    // 2072
+    pub fn vsnprintf(
+        arg1: *mut crate::c_types::c_char,
+        arg2: crate::c_types::c_uint,
+        arg3: *const crate::c_types::c_char,
+        arg4: __builtin_va_list,
+    ) -> crate::c_types::c_int;
+}
+
+unsafe extern "C" {
+    // 3166
+    pub fn malloc(arg1: crate::c_types::c_uint) -> *mut crate::c_types::c_void;
+}
+
 // 3692
 pub type esp_err_t = crate::c_types::c_int;
+
+// 3724
+pub type esp_event_base_t = *const crate::c_types::c_char;
 
 /// @brief The AES 128 encrypt callback function used by esp_wifi.
 /// @param key  Encryption key.
@@ -656,6 +718,27 @@ pub const wifi_log_level_t_WIFI_LOG_VERBOSE: wifi_log_level_t = 5;
 /// @brief WiFi log level\n
 // 7166
 pub type wifi_log_level_t = crate::c_types::c_uint;
+
+// 7173
+unsafe extern "C" {
+    /// @brief Initialize Wi-Fi Driver
+    ///     Alloc resource for WiFi driver, such as WiFi control structure, RX/TX buffer,
+    ///     WiFi NVS structure among others.
+    ///
+    /// For the most part, you need not call this function directly. It gets called
+    /// from esp_wifi_init().
+    ///
+    /// This function may be called, if you only need to initialize the Wi-Fi driver
+    /// without having to use the network stack on top.
+    ///
+    /// @param  config provide WiFi init configuration
+    ///
+    /// @return
+    ///     - ESP_OK: succeed
+    ///     - ESP_ERR_NO_MEM: out of memory
+    ///     - others: refer to error code esp_err.h
+    pub fn esp_wifi_init_internal(config: *const wifi_init_config_t) -> esp_err_t;
+}
 
 // 7308
 unsafe extern "C" {

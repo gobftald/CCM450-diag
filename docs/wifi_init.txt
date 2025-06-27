@@ -1,0 +1,1205 @@
+esp-wifi/src/wifi/mod.rs
+wifi_init
+    G_CONFIG.wpa_crypto_funcs = g_wifi_default_wpa_crypto_funcs;
+    G_CONFIG.feature_caps = g_wifi_feature_caps;
+    esp_wifi_result!(esp_wifi_init_internal(addr_of!(G_CONFIG)))?;
+
+static mut G_CONFIG
+    osi_funcs: addr_of!(g_wifi_osi_funcs).cast_mut()            // ptr
+     wpa_crypto_funcs                                           // 'struct wpa_crypto_funcs_t'
+     static_rx_buf_num  crate::CONFIG.static_rx_buf_num as i32  // comes from 'struct Config' in lib
+                                                                // which can be set/config by a file
+     ...
+     tx_buf_type: 1,                                            // default 
+     ...
+     ampdu_rx_enable: crate::CONFIG.ampdu_rx_enable as i32,
+     ...
+     feature_caps: WIFI_FEATURE_CAPS,
+     
+     espnow_max_encrypt_num: 7,
+     sta_disconnected_pm: false,
+
+     magic: WIFI_INIT_CONFIG_MAGIC as i32,
+
+static g_wifi_osi_funcs
+     _version: ESP_WIFI_OS_ADAPTER_VERSION as i32,
+     _env_is_chip: None,
+     _set_intr: None,
+     _clear_intr: None, 
+     _set_isr: None, 
+     _ints_on: None,
+     _ints_off: None, 
+     _is_from_isr: None,  
+     _spin_lock_create: Some(spin_lock_create),             // wifi/os_adapter.rs
+     _spin_lock_delete: None,
+     _wifi_int_disable: Some(wifi_int_disable),             // wifi/os_adapter.rs -> wifi/os_adapter_esp32c3.rs
+    _wifi_int_restore: Some(wifi_int_restore),              // wifi/os_adapter.rs -> wifi/os_adapter_esp32c3.rs
+    _task_yield_from_isr: None, 
+    _semphr_create: Some(semphr_create),                    // common_adapter/mod.rs -> compat/common.rs
+    _semphr_delete: Some(semphr_delete),                    // common_adapter/mod.rs -> compat/common.rs
+    _semphr_take: Some(semphr_take),                        // common_adapter/mod.rs -> compat/common.rs
+    _semphr_give: Some(semphr_give),                        // common_adapter/mod.rs -> compat/common.rs
+    _wifi_thread_semphr_get: Some(wifi_thread_semphr_get),  // wifi/os_adapter.rs -> compat/common.rs
+    _mutex_create: None,
+    _recursive_mutex_create: Some(recursive_mutex_create),  // wifi/os_adapter.rs -> compat/common.rs
+    _mutex_delete: None,
+    _mutex_lock: Some(mutex_lock),                          // wifi/os_adapter.rs -> compat/common.rs
+    _mutex_unlock: Some(mutex_unlock),                      // wifi/os_adapter.rs -> compat/common.rs
+    _queue_create: None, 
+    _queue_delete: None, 
+    _queue_send: Some(queue_send),                          // wifi/os_adapter.rs -> compat/common.rs
+    _queue_send_from_isr: None,
+    _queue_send_to_back: None,
+    _queue_send_to_front: None,
+    _queue_recv: Some(queue_recv),                          // wifi/os_adapter.rs -> compat/common.rs
+    _queue_msg_waiting: None,
+    _event_group_create: None,
+    _event_group_delete: None,
+    _event_group_set_bits: None,
+    _event_group_clear_bits: None, 
+    _event_group_wait_bits: None, 
+    _task_create_pinned_to_core: Some(task_create_pinned_to_core),
+                                                            // wifi/os_adapter.rs -> compat/task_runner.rs
+    _task_create: None,
+    _task_delete: None,
+    _task_delay: Some(task_delay),                          // wifi/os_adapter.rs -> timer/riscv.rs
+                                                            //                    -> timer/mod.rs
+    _task_ms_to_tick: Some(task_ms_to_tick),                // wifi/os_adapter.rs -> timer/mod.rs
+    _task_get_current_task: Some(task_get_current_task),    // wifi/os_adapter.rs -> preempt/mod.rs
+    _task_get_max_priority: Some(task_get_max_priority),    // wifi/os_adapter.rs                                                 
+    _malloc: None, 
+    _free: Some(free),                                      // wifi/os_adapter.rs -> compat/malloc.rs
+    _event_post: None,
+    _get_free_heap_size: None,
+    _rand: None,
+    _dport_access_stall_other_cpu_start_wrap: None,
+    _dport_access_stall_other_cpu_end_wrap: None,
+    _wifi_apb80m_request: None,
+    _wifi_apb80m_release: None, 
+    _phy_disable: None,
+    _phy_enable: None,
+    _phy_update_country_info: None,
+    _read_mac: Some(read_mac),                              // common_adapter/mod.rs -> esp-hal/src/soc/mod.rs
+    _timer_arm: None,
+    _timer_disarm: Some(ets_timer_disarm),                  // common_adapter/mod.rs -> compat/timer_compat.rs
+    _timer_done: None,
+    _timer_setfn: Some(ets_timer_setfn),                    // common_adapter/mod.rs -> compat/timer_compat.rs
+    _timer_arm_us: None,
+    _wifi_reset_mac: None,
+    _wifi_clock_enable: None,
+    _wifi_clock_disable: None,
+    _wifi_rtc_enable_iso: None,
+    _wifi_rtc_disable_iso: None,
+    _esp_timer_get_time: None,
+    _nvs_set_i8: None,
+    _nvs_get_i8: None,
+    _nvs_set_u8: None,
+    _nvs_get_u8: None,
+    _nvs_set_u16: None,
+    _nvs_get_u16: None,
+    _nvs_open: None,
+    _nvs_close: None,
+    _nvs_commit: None,
+    _nvs_set_blob: None,
+    _nvs_get_blob: None,
+    _nvs_erase_key: None,
+    _get_random: None,
+    _get_time: None,
+    _random: None,
+    _slowclk_cal_get: None,
+    _log_write: None,
+    _log_writev: None,
+    _log_timestamp: None,
+    _malloc_internal: Some(malloc_internal),                // wifi/os_adapter.rs -> compat/malloc.rs
+    _realloc_internal: None,
+    _calloc_internal: Some(calloc_internal),                // wifi/os_adapter.rs -> compat/malloc.rs
+    _zalloc_internal: Some(zalloc_internal),                // wifi/os_adapter.rs -> compat/malloc.rs
+    _wifi_malloc: Some(wifi_malloc),                        // wifi/os_adapter.rs -> compat/malloc.rs
+    _wifi_realloc: None,
+    _wifi_calloc: None,
+    _wifi_zalloc: Some(wifi_zalloc),                        // wifi/os_adapter.rs -> compat/malloc.rs
+    _wifi_create_queue: Some(wifi_create_queue),            // wifi/os_adapter.rs -> compat/common.rs
+    _wifi_delete_queue: None,
+    _coex_init: None,
+    _coex_deinit: None, 
+    _coex_enable: None,
+    _coex_disable: None,
+    _coex_status_get: None,
+    _coex_condition_set: None,
+    _coex_wifi_request: None,
+    _coex_wifi_release: None, 
+    _coex_wifi_channel_set: None, 
+    _coex_event_duration_get: None,
+    _coex_pti_get: None,
+    _coex_schm_status_bit_clear: None,
+    _coex_schm_status_bit_set: None, 
+    _coex_schm_interval_set: None,
+    _coex_schm_interval_get: None, 
+    _coex_schm_curr_period_get: None, 
+    _coex_schm_curr_phase_get: None, 
+    _coex_schm_process_restart: None,
+    _coex_schm_register_cb: Some(coex_schm_register_cb_wrapper),    // wifi/os_adapter.rs
+    _coex_register_start_cb: Some(coex_register_start_cb),          // wifi/os_adapter.rs
+    _magic: ESP_WIFI_OS_ADAPTER_MAGIC as i32, 
+
+
+
+debug!("wifi init");
+##1## [DEBUG] - wifi init
+esp_wifi_init_internal                                      // libnet80211.a(ieee80211_api.o)
+    puts "config is NULL"                                   // esp_wifi
+    wifi_osi_funcs_register                                 // libnet80211.a(ieee80211_api.o)
+        lw      a4,-1708(a5) # 3fcdf954 <g_osi_funcs_p>
+        puts "OS adapter function is NULL"                  // esp_wifi
+        net80211_printf "OS adapter function version error! Version %d is expected, but it is %x\n" // esp_wifi
+        net80211_printf "OS adapter function magic error! Magic %d is expected, but it is %x\n" // esp_wifi
+        sw      a0,-1708(a5)    // addr_of!(G_CONFIG) which is g_wifi_osi_funcs -> g_osi_funcs_p
+    wifi_api_lock                                           // libnet80211.a(ieee80211_api.o)
+        _recursive_mutex_create
+        s_wifi_api_lock                                     // check
+##2## [TRACE] - recursive_mutex_create called 0x3fc829c8
+        current_task_is_wifi_task                           // libnet80211.a(ieee80211_ioctl.o)
+##x## [TRACE] - task get current task - return 0x2
+        _mutex_lock
+##x## [TRACE] - mutex_lock ptr = 0x3fc829c8
+        _mutex_unlock                                       // error branch
+    data.s_wifi_init_state = 0x1  goto wdev_funcs_init below    // set init_state to the next status value
+    wifi_api_unlock              // error branch from here  // libnet80211.a(ieee80211_api.o)
+        current_task_is_wifi_task                           // libnet80211.a(ieee80211_ioctl.o)
+        _mutex_unlock
+    wifi_log "init: init is in progress"                    // libnet80211.a(ieee80211_debug.o)
+    return                                                  // EOF error branch
+    wdev_funcs_init                                         // libpp.a(wdev.o)
+        esp_pp_rom_version_get                              // esp_pp_rom_version_get = 0x400015b0
+        "pp rom version: %s\n"
+        pp_printf                                           // esp_wifi
+##3## [INFO] - pp rom version: 9387209 
+        wdev_data_init          // wifi device data         // libpp.a(wdev.o)
+            TxRxCxt             -> pTxRx = 0x3fcdf968
+            lmacConfMib         -> lmacConfMib_ptr = 0x3fcdf964
+            wDevCtrl            -> wDevCtrl_ptr = 0x3fcdf950
+            wDevMacSleep        -> wDevMacSleep_ptr = 0x3fcdf94c
+            g_lmac_cnt          -> g_lmac_cnt_ptr = 0x3fcdf948
+            pp_sig_cnt          -> pp_sig_cnt_ptr = 0x3fcdf944
+            g_wifi_menuconfig   -> g_wifi_menuconfig_ptr = 0x3fcdf91c
+            g_eb_list_desc      -> g_eb_list_desc_ptr = 0x3fcdf940
+            s_fragment          -> s_fragment_ptr = 0x3fcdf93c
+            if_ctrl             -> if_ctrl_ptr = 0x3fcdf938
+            ap_no_lr            -> ap_no_lr_ptr = 0x3fcdf914
+            rcLoRaSchedTbl      -> rcLoRaSchedTbl_ptr = 0x3fcdf908
+            rc11NSchedTbl       -> rc11NSchedTbl_ptr = 0x3fcdf90c
+            rc11BSchedTbl       -> rc11BSchedTbl_ptr = 0x3fcdf910
+            BasicOFDMSched      -> BasicOFDMSched_ptr = 0x3fcdf904
+            trc_ctl             -> trc_ctl_ptr = 0x3fcdf900
+            g_pm_cfg            -> g_pm_cfg_ptr = 0x3fcdf8f4
+            g_pm                -> g_pm_ptr = 0x3fcdf8f8
+            g_txop_queue_status -> g_txop_queue_status_ptr = 0x3fcdf8ec
+            g_pm_cnt            -> g_pm_cnt_ptr = 0x3fcdf8fc
+
+        _calloc_internal            
+##x## [TRACE] - calloc 1 784                                // alloc space for wifi device functions
+##x## [TRACE] - alloc 784 0x3fc88580
+        "alloc pp wdev funcs fail\n"
+        wifi_log                                            // libnet80211.a(ieee80211_debug.o)
+        pp_wdev_funcs = 0x3fcdf958
+            0   wDev_ProcessFiq                             // wDev_ProcessFiq = 0x400017f0
+            4   pp_post                                     // pp_post = 0x40001738
+            8   rcUpdateTxDone                              // rcUpdateTxDone = 0x4000177c
+            12  rcUpdateTxDoneAmpdu2                        // rcUpdateTxDoneAmpdu2 = 0x40001780
+            16  rcGetSched                                  // rcGetSched = 0x40001764
+            20  trc_isTxAmpduOperational                    // trc_isTxAmpduOperational = 0x4000179c
+            24  trc_tid_isTxAmpduOperational                // trc_tid_isTxAmpduOperational = 0x400017ac
+            28  rcUpdateAckSnr                              // rcUpdateAckSnr = 0x40001774
+            32  rcTxUpdatePer                               // rcTxUpdatePer = 0x40001770
+            36  rcLowerSched                                // rcLowerSched = 0x40001768
+            40  rcClearCurSched                             // rcClearCurSched = 0x4000175c
+            44  rcClearCurStat                              // lrcClearCurStat = 0x40001760
+            48  rcAmpduLowerRate                            // rcAmpduLowerRate = 0x40001750
+            52  TRC_AMPDU_PER_DOWN_THRESHOLD                // TRC_AMPDU_PER_DOWN_THRESHOLD = 0x40001790
+            56  rssi_margin                                 // rssi_margin = 0x40001788
+            60  trcAmpduSetState                            // trcAmpduSetState = 0x400017b0
+            64  trc_SetTxAmpduState                         // trc_SetTxAmpduState = 0x400017a8
+            68  trc_onAmpduOp                               // trc_onAmpduOp = 0x400017a0
+            72  rcClearCurAMPDUSched                        // rcClearCurAMPDUSched = 0x40001758
+            76  rcSetTxAmpduLimit                           // rcSetTxAmpduLimit = 0x4000176c
+            80  rx11NRate2AMPDULimit                        // rx11NRate2AMPDULimit = 0x4000178c
+            84  trc_calc_duration                           // trc_calc_duration = 0x40001798
+            88  TRC_AMPDU_PER_UP_THRESHOLD                  // TRC_AMPDU_PER_UP_THRESHOLD = 0x40001794
+            92  rcUpdateRate                                // rcUpdateRate = 0x40001778
+            96  hal_mac_is_low_rate_enabled                 // hal_mac_is_low_rate_enabled = 0x400015cc
+            100 TRC_PER_IS_GOOD                             // TRC_PER_IS_GOOD = 0x400017a4
+            104 rcUpSched                                   // rcUpSched = 0x40001784
+            108 GetAccess                                   // GetAccess = 0x400015c8
+            112 lmacRecycleMPDU                             // lmacRecycleMPDU = 0x40001620
+            116 lmacEndFrameExchangeSequence                // lmacEndFrameExchangeSequence = 0x400015f8
+            120 lmacMSDUAged                                // lmacMSDUAged = 0x40001604
+            124 lmacAdjustTimestamp                         // lmacAdjustTimestamp = 0x400015ec
+            128 lmacTxFrame                                 // lmacTxFrame = 0x40001630
+            132 lmacTxDone                                  // libpp.a(lmac.o)
+            136 is_lmac_idle                                // is_lmac_idle = 0x400015e8
+            140 pp_process_hmac_waiting_txq                 // pp_process_hmac_waiting_txq = 0x4000173c
+            144 ppTask                                      // ppTask = 0x40001720
+            148 ppCalFrameTimes                             // ppCalFrameTimes = 0x400016ac
+            152 ppTxFragmentProc                            // libpp.a(pp.o)
+            156 ppAssembleMicHdr                            // libpp.a(pp.o)
+            160 ppCalTkipMic                                // libpp.a(pp.o)
+            164 ppCalTxopDur                                // libpp.a(pp.o)
+            168 ppTxProtoProc                               // ppTxProtoProc = 0x40001728
+            172 ppTxPkt                                     // ppTxPkt = 0x40001724
+            176 ppProcessTxQ                                // ppProcessTxQ = 0x400016e4
+            180 ppResumeTxAMPDU                             // ppResumeTxAMPDU = 0x40001700
+            184 ppCalSubFrameLength                         // ppCalSubFrameLength = 0x400016b0
+            188 ppEmptyDelimiterLength                      // ppEmptyDelimiterLength = 0x400016c4
+            192 ppSubFromAMPDU                              // ppSubFromAMPDU = 0x4000171c
+            196 ppCalTxAMPDULength                          // ppCalTxAMPDULength = 0x400016b4
+            200 ppResortTxAMPDU                             // ppResortTxAMPDU = 0x400016fc
+            204 ppSearchTxframe                             // ppSearchTxframe = 0x40001714
+            208 ppSearchTxQueue                             // ppSearchTxQueue = 0x40001710
+            212 ppMapTxQueue                                // ppMapTxQueue = 0x400016d8
+            216 ppProcTxSecFrame                            // ppProcTxSecFrame = 0x400016dc
+            220 lmacIsIdle                                  // lmacIsIdle = 0x400015fc
+            224 ppEnqueueTxDone                             // ppEnqueueTxDone = 0x400016cc
+            228 lmacIsLongFrame                             // lmacIsLongFrame = 0x40001600
+            232 lmacSetTxFrame                              // lmacSetTxFrame = 0x40001628
+            236 hal_mac_tx_set_ppdu                         // hal_mac_tx_set_ppdu = 0x400015d4
+            240 ppRecordBarRRC                              // ppRecordBarRRC = 0x400016e8
+            244 lmacRequestTxopQueue                        // lmacRequestTxopQueue = 0x400016ec
+            248 lmacReleaseTxopQueue                        // lmacReleaseTxopQueue = 0x400016f0
+            252 ppRecycleAmpdu                              // ppRecycleAmpdu = 0x400016f4
+            256 lmacDiscardAgedMSDU                         // lmacDiscardAgedMSDU = 0x400015f0
+            260 lmacDiscardMSDU                             // lmacDiscardMSDU = 0x400015f4
+            264 ppDequeueTxQ                                // ppDequeueTxQ = 0x400016c0
+            268 hal_mac_tx_get_blockack                     // hal_mac_tx_get_blockack = 0x400015d0
+            272 lmacReachShortLimit                         // lmacReachShortLimit = 0x4000161c
+            276 lmacReachLongLimit                          // lmacReachLongLimit = 0x40001618
+            280 ppTxqUpdateBitmap                           // lppTxqUpdateBitmap = 0x4000172c
+            284 ppReSendBar                                 // libpp.a(pp.o)
+            288 ppRegressAmpdu                              // libpp.a(pp.o)
+            292 lmacRetryTxFrame                            // libpp.a(lmac.o)
+            296 lmacEndRetryAMPDUFail                       // libpp.a(lmac.o)
+            300 RC_GetBlockAckTime                          // RC_GetBlockAckTime = 0x400015b4
+            304 esf_buf_recycle                             // esf_buf_recycle = 0x400015c4
+            308 esf_buf_recycle_default_handler             // libpp.a(esf_buf.o)
+            312 ppGetTxframe                                // ppGetTxframe = 0x400016d4
+            316 ppSelectNextQueue                           // ppSelectNextQueue = 0x40001718
+            320 ppDisableQueue                              // ppDisableQueue = 0x40001818
+            324 ppProcessWaitingQueue                       // ppProcessWaitingQueue = 0x40001814
+            328 pm_on_data_tx                               // libpp.a(pm.o)
+            332 ppAMPDU2Normal                              // ppAMPDU2Normal = 0x400016a4
+            336 pm_is_waked                                 // pm_is_waked = 0x40001674
+            340 ppCheckTxAMPDUlength                        // ppCheckTxAMPDUlength = 0x400016b8
+            344 ppAssembleAMPDU                             // ppAssembleAMPDU = 0x400016a8
+            348 rcGetAmpduSched                             // rcGetAmpduSched = 0x40001740
+            352 ppFillAMPDUBar                              // libpp.a(pp.o)
+            356 pp_timer_do_process                         // libpp.a(pp_timer.o)
+            360 ppRxPkt                                     // ppRxPkt = 0x40001708
+            364 ppProcTxDone                                // ppProcTxDone = 0x40001804
+            368 ppProcessRxPktHdr                           // ppProcessRxPktHdr = 0x400016e0
+            372 lmacProcessTxTimeout                        // libpp.a(lmac.o)
+            376 lmacProcessTxComplete                       // libpp.a(lmac.o)
+            380 lmacProcessCollisions_task                  // libpp.a(lmac.o)
+            384 wdevProcessRxSucDataAll                     // wdevProcessRxSucDataAll = 0x400017f8
+            388 rc_get_trc                                  // rc_get_trc = 0x40001748
+            392 esf_buf_alloc                               // esf_buf_alloc = 0x400015bc
+            396 esf_buf_alloc_dynamic                       // esf_buf_alloc_dynamic = 0x400015c0
+            400 esf_buf_alloc_default_handler               // libpp.a(esf_buf.o)
+            404 esf_buf_alloc_dynamic_default_handler       // libpp.a(esf_buf.o)
+            408 ppRxProtoProc                               // ppRxProtoProc = 0x4000170c
+            412 pp_hdrsize                                  // pp_hdrsize = 0x40001734
+            416 rcUpdateRxDone                              // rcUpdateRxDone = 0x40001744
+            420 pm_on_data_rx                               // pm_on_data_rx = 0x40001680
+            424 pm_sleep_for                                // pm_sleep_for = 0x4000169c
+            428 pm_on_beacon_rx                             // pm_on_beacon_rx = 0x4000167c
+            432 ppRxFragmentProc                            // ppRxFragmentProc = 0x40001704
+            436 ppRecycleRxPkt                              // ppRecycleRxPkt = 0x400016f8
+            440 wDev_AppendRxBlocks                         // wDev_AppendRxBlocks = 0x400017b8
+            444 ppEnqueueRxq                                // ppEnqueueRxq = 0x400016c8
+            448 ppDequeueRxq_Locked                         // ppDequeueRxq_Locked = 0x400016bc
+            452 wDevCheckBlockError                         // wDevCheckBlockError = 0x400017b4
+            456 wDev_IndicateFrame                          // wDev_IndicateFrame = 0x400017c8
+            460 wDev_DiscardFrame                           // wDev_DiscardFrame = 0x400017bc
+            464 wdev_csi_len_align                          // wdev_csi_len_align = 0x400017fc
+            468 wdev_csi_hw_bug_check                       // libpp.a(wdev.o)
+            472 wdev_csi_rx_process                         // libpp.a(wdev.o)
+            476 lmacRxDone                                  // lmacRxDone = 0x40001624
+            480 0
+            484 wDev_SnifferRxAmpdu                         // libpp.a(wdev.o)
+            488 ic_interface_enabled                        // ic_interface_enabled = 0x400015e4
+            492 ic_obtain_key                               // libpp.a(if_hwctrl.o)
+            496 ic_get_key                                  // libpp.a(if_hwctrl.o)
+            500 wDev_ProcessRxSucData                       // wDev_ProcessRxSucData = 0x400017f4
+            504 wDev_SnifferRxData                          // libpp.a(wdev.o)
+            508 wdev_mac_sleep                              // wdev_mac_sleep = 0x400017e8;
+            512 wdev_mac_wakeup                             // wdev_mac_wakeup = 0x400017e4
+            516 wdev_mac_reg_load                           // wdev_mac_reg_load = 0x400017d4
+            520 wdev_mac_reg_store                          // wdev_mac_reg_store = 0x400017d8
+            524 wdev_mac_special_reg_load                   // wdev_mac_special_reg_load = 0x400017dc
+            528 wdev_mac_special_reg_store                  // wdev_mac_special_reg_store = 0x400017e0
+            532 wdev_bank_store                             // wdev_bank_store = 0x400017cc
+            536 wdev_bank_load                              // wdev_bank_load = 0x400017d0;
+            540 wdev_is_data_in_rxlist                      // libpp.a(wdev.o)
+            544 hal_mac_is_dma_enable                       // hal_mac_is_dma_enable = 0x400017ec
+            548 ic_get_trc                                  // ic_get_trc = 0x400015d8
+            552 rc_get_trc_by_index                         // rc_get_trc_by_index = 0x4000174c
+            556 pp_coex_tx_request                          // libpp.a(pp.o)
+            526 pm_on_tbtt                                  // pm_on_tbtt = 0x40001684
+            564 pm_enable_active_timer                      // pm_enable_active_timer = 0x40001660
+            568 pm_send_nullfunc                            // libpp.a(pm.o)
+            572 pm_dream                                    // pm_dream = 0x40001654
+            576 pm_disable_dream_timer                      // pm_disable_dream_timer = 0x4000164c
+            580 pm_enable_dream_timer                       // libpp.a(pm.o)
+            584 pm_pend_noise_check                         // libpp.a(pm.o)
+            588 pm_mac_sleep                                // pm_mac_sleep = 0x4000165c
+            592 pm_mac_wakeup                               // pm_mac_wakeup = 0x40001658
+            596 ic_mac_init                                 // ic_mac_init = 0x400015e0
+            600 ic_mac_deinit                               // ic_mac_deinit = 0x400015dc
+            604 pm_disable_sleep_delay_timer                // pm_disable_sleep_delay_timer = 0x40001650
+            608 pm_sleep                                    // pm_sleep = 0x40001698
+            612 pm_check_state                              // pm_check_state = 0x40001648
+            616 pm_update_params                            // libpp.a(pm.o)
+            620 pm_set_next_tbtt                            // libpp.a(pm.o)
+            624 pm_mesh_set_next_tbtt                       // libpp.a(pm.o)
+            628 pm_coex_tbtt_process                        // libpp.a(pm.o)
+            632 pm_tbtt_process                             // pm_tbtt_process = 0x400016a0
+            636 pm_go_to_wake                               // libpp.a(pm.o)
+            640 pm_rx_beacon_process                        // pm_rx_beacon_process = 0x40001690
+            644 pm_beacon_misc_process                      // libpp.a(pm.o)
+            648 pm_local_tsf_process                        // pm_local_tsf_process = 0x40001668
+            652 pm_set_beacon_filter                        // pm_set_beacon_filter = 0x4000166c
+            656 pm_is_in_wifi_slice_threshold               // pm_is_in_wifi_slice_threshold = 0x40001670
+            660 pm_parse_beacon                             // pm_parse_beacon = 0x40001688
+            664 pm_update_next_tbtt                         // libpp.a(pm.o)
+            668 pm_process_tim                              // pm_process_tim = 0x4000168c
+            672 pm_keep_alive                               // pm_keep_alive = 0x40001678
+            676 pm_rx_data_process                          // pm_rx_data_process = 0x40001694
+            680 pm_hmac_rx_data_process                     // libpp.a(pm.o)
+            684 pm_enable_sleep_delay_timer                 // pm_enable_sleep_delay_timer = 0x40001664
+            688 config_is_cache_tx_buf_enabled              // config_is_cache_tx_buf_enabled = 0x4000180c
+            692 ppDequeueTxDone_Locked                      // ppDequeueTxDone_Locked = 0x40001800
+            696 pp_coex_tx_release                          // libpp.a(pp.o)
+            700 trc_onPPTxDone                              // libpp.a(trc.o)
+            704 pm_tx_data_done_process                     // pm_tx_data_done_process = 0x40001808
+            708 ppMapWaitTxq                                // ppMapWaitTxq = 0x40001810
+            712 0
+            716 pp_default_event_handler                    // libpp.a(pp.o)
+            720 0 or wDev_record_ftm_data                   // libpp.a(wdev.o)
+            724 0 or lmac_record_txtime                     // libpp.a(lmac.o)
+            728 wDev_IndicateCtrlFrame                      // libpp.a(wdev.o)
+            732 ppProcTxCallback                            // libpp.a(pp.o)
+            736 0 wDev_ftm_set_t1t4                         // libpp.a(wdev.o)
+            740 pm_on_tsf_timer                             // libpp.a(pm.o)
+            744 lmac_update_tx_statistic                    // libpp.a(lmac.o)
+            748 sta_reset_beacon_timeout                    // libnet80211.a(wl_cnx.o)
+            752 pm_disable_beacon_monitor_timer             // libpp.a(pm.o)
+            756 pm_enable_beacon_monitor_timer              // libpp.a(pm.o)
+            760 pm_noise_check                              // libpp.a(pm.o)
+            764 pm_update_by_connectionless_status          // libpp.a(pm.o)
+            768 ppCheckTxIdle                               // libpp.a(pp.o)
+            772 pm_enable_disconnected_sleep_delay_timer    // libpp.a(pm.o)
+            776 pm_scale_listen_interval                    // libpp.a(pm.o)
+            780 ppProcessLifeTime                           // libpp.a(pp.o)
+
+    net80211_funcs_init                                     // libnet80211.a(ieee80211_api.o)
+        esp_net80211_rom_version_get                        // esp_net80211_rom_version_get = 0x40001820
+        "net80211 rom version: %s\n"
+        net80211_printf
+##4## [INFO] - net80211 rom version: 9387209
+        net80211_data_ptr_init
+        .bss.s_net80211_data_init                           // check this bool variable, whether we already inited 
+        .bss.s_wifi_nvs                                     // 500 byte static struct in libnet80211.a(ieee80211_nvs.o)
+        .data.g_wifi_nvs                                    // static variable containing a ptr to the previous struct in libnet80211.a/ieee80211_nvs.o
+        s_wifi_nvs -> g_wifi_nvs
+        .bss.gScanStruct                                    // libnet80211.a(ieee80211_scan.o)
+        -> g_scan = 0x3fcdf868                              // from here rom_net80211's ram 
+        .bss.gChmCxt                                        // libnet80211.a(wl_chm.o)
+        -> g_chm = 0x3fcdf864
+        .bss.g_ic                                           // libnet80211.a(ieee80211.o)
+        -> g_ic_ptr = 0x3fcdf860
+        .bss.g_hmac_cnt                                     // libnet80211.a(ieee80211_debug.o)
+        -> g_hmac_cnt_ptr = 0x3fcdf85c
+        .bss.s_tx_cacheq                                    // libnet80211.a(ieee80211_output.o)
+        -> g_tx_cacheq_ptr = 0x3fcdf858
+        .bss.g_mac_sleep_en                                 // libnet80211.a(ieee80211_ioctl.o)
+        -> g_mac_sleep_en_ptr = 0x3fcdf8e8;                 // from herer rom_pp's RAM
+        .bss.esp_mesh_quick_funcs                           // libnet80211.a(ieee80211_mesh_quick.o)
+        -> g_esp_mesh_quick_funcs_ptr = 0x3fcdf8f0
+        .data.wifi g_mesh_init_ps_type                      // libnet80211.a(ieee80211_mesh_quick.o)
+        -> g_mesh_init_ps_type_ptr = 0x3fcdf8dc
+        .data.wifi g_mesh_is_started                        // libnet80211.a(ieee80211_mesh_quick.o)
+        -> g_mesh_is_started_ptr = 0x3fcdf8d8
+        .data.wifi g_mesh_is_root                           // libnet80211.a(ieee80211_mesh_quick.o)
+        -> g_mesh_is_root_ptr = 0x3fcdf8e4
+        .bss.g_mesh_topology                                // libnet80211.a(ieee80211_mesh_quick.o)
+        -> g_mesh_topology_ptr = 0x3fcdf8e0
+
+        _calloc_internal
+##x## [TRACE] - calloc 1 220                                // alloc space for net80211 functions
+##xx## [TRACE] - alloc 220 0x3fc88894
+        sw      a0,-1940(a5) # 3fcdf86c <net80211_funcs>    // net80211_funcs = 0x3fcdf86c;
+        wifi_log "alloc net80211 funcs fail\n"              // error branch
+        net80211_funcs contents
+            0   cnx_node_is_existing                        // cnx_node_is_existing = 0x4000183c
+            4   cnx_node_search                             // cnx_node_search = 0x40001840
+            8   chm_is_at_home_channel                      // chm_is_at_home_channel = 0x40001838
+            12  ieee80211_copy_eb_header                    // ieee80211_copy_eb_header = 0x40001888
+            16  ieee80211_output_process                    // ieee80211_output_process = 0x40001868
+            20  ieee80211_output_pending_eb                 // ieee80211_output_pending_eb = 0x40001864
+            24  wifi_is_started                             // wifi_is_started = 0x400018a8
+            28  ieee80211_search_node                       // ieee80211_search_node = 0x40001890
+            32  ieee80211_recycle_cache_eb                  // ieee80211_recycle_cache_eb = 0x4000188c
+            36  ieee80211_classify                          // ieee80211_classify = 0x40001884
+            40  ieee80211_output_raw_process                // libnet80211.a(ieee80211_output.o)
+            44  ic_ebuf_alloc                               // ic_ebuf_alloc = 0x40001880
+            48  ic_ebuf_recycle_tx                          // ic_ebuf_recycle_tx = 0x40001848
+            52  ieee80211_encap_esfbuf                      // ieee80211_encap_esfbuf = 0x4000185c
+            56  ieee80211_pwrsave                           // libnet80211.a(ieee80211_power.o)
+            60  ieee80211_is_tx_allowed                     // ieee80211_is_tx_allowed = 0x40001860
+            64  wifi_get_macaddr                            // wifi_get_macaddr = 0x40001874
+            68  ieee80211_crypto_encap                      // ieee80211_crypto_encap = 0x40001898
+            72  ieee80211_align_eb                          // ieee80211_align_eb = 0x40001850
+            76  ieee80211_ampdu_request                     // libnet80211.a(ieee80211_ht.o)
+            80  0
+            84  ieee80211_set_tx_desc                       // ieee80211_set_tx_desc = 0x4000186c
+            88  sta_input                                   // libnet80211.a(ieee80211_sta.o) wifirxiram
+            92  ieee80211_ampdu_reorder                     // ieee80211_ampdu_reorder = 0x40001854
+            96  ieee80211_crypto_decap                      // ieee80211_crypto_decap = 0x4000189c
+            100 ieee80211_decap                             // ieee80211_decap = 0x400018a0
+            104 sta_rx_eapol                                // libnet80211.a(ieee80211_sta.o) wifiextrairam
+            108 ieee80211_decap_amsdu                       // libnet80211.a(ieee80211_ht.o)
+            112 ic_ebuf_recycle_rx                          // ic_ebuf_recycle_rx = 0x40001844
+            116 sta_bip_check                               // libnet80211.a(ieee80211_sta.o)
+            120 sta_recv_mgmt                               // libnet80211.a(ieee80211_sta.o)
+            124 sta_recv_ctl                                // libnet80211.a(ieee80211_sta.o)
+            128 ampdu_dispatch                              // ampdu_dispatch = 0x40001824
+            132                                             // see in net80211_softap_funcs_init
+            136 ampdu_dispatch_as_many_as_possible          // ampdu_dispatch_as_many_as_possible = 0x4000182c
+            140 ampdu_dispatch_movement                     // libnet80211.a(ieee80211_ht.o)
+            144 ampdu_dispatch_all                          // ampdu_dispatch_all = 0x40001828
+            148 ampdu_dispatch_upto                         // ampdu_dispatch_upto = 0x40001834
+            152 ieee80211_ampdu_start_age_timer             // ieee80211_ampdu_start_age_timer = 0x40001858
+            156 ic_reset_rx_ba                              // ic_reset_rx_ba = 0x4000184c
+            160 ieee80211_set_tx_pti                        // ieee80211_set_tx_pti = 0x400018a4
+            164 esp_wifi_get_mode                           // libnet80211.a(ieee80211_api.o)
+            168 wifi_ant_update_empty_func                  // libnet80211.a(ieee80211_api.o)
+            172 wifi_rf_phy_enable                          // libnet80211.a(ieee80211_ioctl.o) wifislprxiram
+            176 wifi_rf_phy_disable                         // wifi_rf_phy_disable = 0x40001878
+            180 wifi_log                                    // libnet80211.a(ieee80211_debug.o)
+            184                                             // see in net80211_softap_funcs_init
+            188 ieee80211_gettid                            // libnet80211.a(ieee80211_proto.o)
+            192 - 212                                       // see in net80211_softap_funcs_init
+
+        net80211_softap_funcs_init
+            ieee80211_register_hostap_timer
+                addi    a5,a5,-520 # 3fc82df8 <g_timer_info>            // load g_timer_info
+                addi    a4,a4,704 # 420242c0 <ieee80211_hostap_handle>  // libnet80211.a(ieee80211_timer.o)
+                addi    a3,a3,762 # 420242fa <ieee80211_send_beacon>    // libnet80211.a(ieee80211_timer.o)
+                sw      a3,4(a5)                                        // g_timer_info[4]
+                or
+                sw      a4,4(a5)                                        // g_timer_info[4]
+            lw      a5,-1940(a5) # 3fcdf86c <net80211_funcs>    // load missing items 
+
+            132 hostap_input                                // libnet80211.a(ieee80211_hostap.o)
+            192 wifi_create_softap                          // libnet80211.a(ieee80211.o)
+            196 wifi_destroy_softap                         // libnet80211.a(ieee80211.o)
+            200 wifi_softap_start                           // libnet80211.a(ieee80211_hostap.o)
+            204 wifi_softap_stop                            // libnet80211.a(ieee80211_hostap.o)
+            208 wifi_softap_set_config                      // libnet80211.a(ieee80211_ioctl.o)
+            212 wifi_softap_get_config                      // libnet80211.a(ieee80211_api.o)
+            184 wifi_softap_cur_max_ap_bss_num              // libnet80211.a(ieee80211_hostap.o) wifi0iram
+    
+    // if error goto error branch (see below)
+    // normal route
+    wifi_api_unlock                                         // unlock esp_wifi_init_internal's very first wifi_api_lock
+        current_task_is_wifi_task
+##xx## [TRACE] - task get current task - return 0x2
+        _mutex_unlock
+##xx## [TRACE] - mutex_unlock 0x3fc829c8
+    wifi_init_in_caller_task                                // libnet80211.a(ieee80211_api.o)
+        g_intr_lock_mux = 0x3fcdf934
+        // if not locked -> _spin_lock_create
+##5## [TRACE] - spin_lock_create 0x3fc829a4
+        store spin_lock -> g_intr_lock_mux
+        _recursive_mutex_create
+##6## [TRACE] - recursive_mutex_create called 0x3fc829d4
+        g_wifi_global_lock = 0x3fcdf930                     // check
+        // if g_wifi_global_lock locked
+        wifi_log "init failed to wifi global lock"
+        li      s0,257                                      // set error and return
+        // EOF error branch 
+        // normal route if no g_wifi_global_lock
+        wifi_menuconfig_init                                // libnet80211.a(ieee80211_ioctl.o)
+            .bss.g_wifi_menuconfig                          // libnet80211.a(ieee80211_ioctl.o)
+            memset                                          // fill/clear with zero
+            checkings:
+                "parameter config should not be NULL"
+                "invalid magic number %x, call WIFI_INIT_CONFIG_DEFAULT to init config"
+                "wpa crypto funcs expected size=%d version=%d, actual size=%d version=%d"
+                "static rx buf number %d is out of range"
+                "dynamic rx buf number %d is out of range"
+                "static tx buf number %d is out of range"
+                "dynamic tx buf number %d is out of range"
+                "tx buf type %d error"
+                "management short buf number %d is out of range"
+                "rx ba window %d error"
+                "invalid core id %d"
+            
+            tx_buf_type -> g_wifi_menuconfig[8]
+            static_tx_buf_num -> g_wifi_menuconfig[12]
+            dynamic_tx_buf_num -> g_wifi_menuconfig[16]
+            nvs_enable -> g_wifi_menuconfig[36]
+            rx_mgmt_buf_type -> g_wifi_menuconfig[84]
+            rx_mgmt_buf_num -> g_wifi_menuconfig[88]
+            static_rx_buf_num -> g_wifi_menuconfig[0]
+            cache_tx_buf_num -> g_wifi_menuconfig[20]
+            ampdu_rx_enable -> g_wifi_menuconfig[28]
+            rx_ba_win -> g_wifi_menuconfig[48]
+            csi_enable -> g_wifi_menuconfig[24]
+            wifi_task_core_id -> g_wifi_menuconfig[52]
+            ampdu_tx_enable -> g_wifi_menuconfig[32]
+            dynamic_rx_buf_num -> g_wifi_menuconfig[4]
+            nano_enable -> g_wifi_menuconfig[40]
+            amsdu_tx_enable -> g_wifi_menuconfig[76]
+            mgmt_sbuf_num -> g_wifi_menuconfig[60]
+            beacon_max_len -> g_wifi_menuconfig[56]
+            feature_caps0 -> g_wifi_menuconfig[64]
+            feature_caps1 -> g_wifi_menuconfig[68]
+            sta_disconnected_pm -> g_wifi_menuconfig[72]
+            espnow_max_encrypt_num -> g_wifi_menuconfig[80]
+        // save return value, then if error -> wifi_deinit_in_caller_task -> store error code in a0 -> return
+
+        misc_nvs_init                                       // libcore.a(misc_nvs.o)
+            libcore.a(misc_nvs.o):(.bss.g_misc_nvs_init)    // check for init value   
+            misc_nvs_load                                   // libcore.a(misc_nvs.o)
+                .bss.g_misc_nvs     // load                 // libcore.a(misc_nvs.o)
+                _malloc_internal
+##xx## [TRACE] - alloc 60 0x3fc88974
+                // return value -> g_misc_nvs as ptr
+                if error wifi_log "misc nvs f\n" -> return         
+                memset 0
+                config_get_wifi_nvs_enable                  // libpp.a(wdev.o)
+                    return with g_wifi_menuconfig[0x4c] == nvs_enable
+                    // return with default false      
+                _nvs_open                                   // but we don't get here yet
+                "wifi osi_nvs_open fail ret=%d\n"
+                // after returning with false from config_get_wifi_nvs_enable
+                g_misc_nvs[8] = 0;                          // status for not enabled, not inited
+            if error returned -> misc_nvs_deinit***         // libcore.a(misc_nvs.o)
+
+        // save return value, then if error -> wifi_deinit_in_caller_task -> store error code in a0 -> return
+        ic_create_wifi_task     // jmp pp_create_task       // libpp.a(if_hwctrl.o)
+        pp_create_task                                      // libpp.a(pp.o)
+            config_get_wifi_task_core_id
+                get g_wifi_menuconfig[52] = wifi_task_core_id = 0
+            _task_get_max_priority                          // 0xff = 255 = max
+##7## [TRACE] - task_get_max_priority            
+            pp_task_hdl = 0x3fcdf928                        // check for handle 
+            // if there is already a handle that is an error
+            wifi_log "create wifi task: task not null"
+            // ihandle was 0/empty
+            s_wifi_queue = 0x3fcdf92c                       // check for queue
+            // if there is a already a queue that is an error
+            wifi_log "create wifi task: queue not null"
+            // queue does not exist
+            _wifi_create_queue                              // it is called with 200 x 8, but it is the original statically allocated queue
+                                                            // 200 is not, but 8 is checked and paniced
+##8## [TRACE] - wifi_create_queue len=200 size=8 ptr=0x3fc829ac real-queue 0x3fc87f34  - not checked
+            // if error            
+            wifi_log "create wifi task: failed to create queue"
+            // after queue creation
+            queue handle/ptr is stored in to s_wifi_queue = 0x3fcdf92c
+                // static mut FAKE_WIFI_QUEUE: *const SimpleQueue<[u8; 8], 200> = unsafe { addr_of!(REAL_WIFI_QUEUE) };
+            // if error wifi_log "create wifi task: failed to create queue"
+
+            // REAL_WIFI_QUEUE's first slot point contains a ptr to the real queue
+            stored in to xphyQueue = 0x3fcdf918             // this is a queue between wifi task and phy
+            // if it is null -> wifi_log "create wifi task: failed to create queue"
+            _wifi_delete_queue
+?            s_pp_task_create_sem = 0x3fcdf924
+?            _semphr_delete
+            // after queue checking
+            _semphr_create
+##9## [TRACE] - semphr_create - max 1 init 0
+##10## [TRACE] - sem created res = 0 (+1)            
+            //if error wifi_log "create wifi task: failed to create sem"
+            store semaphore into s_pp_task_create_sem = 0x3fcdf924;
+            // if error in sempahore creation wifi_log "create wifi task: failed to create sem"
+            config_get_wifi_task_stack_size             // libpp.a(wdev.o)
+                get g_wifi_menuconfig[64] = feature_caps0
+                andi    a4,a4,1                         // mask first bit CONFIG_FEATURE_WPA3_SAE_BIT which is set
+                if true/set store tmp = 0x1800
+                get g_wifi_menuconfig[40] = nano_enable // default false
+                if false add 512 -> 0x1a00 and return
+            _task_get_max_priority
+##11## [TRACE] - task_get_max_priority
+            a5 = pp_task_hdl = 0x3fcdf928; 
+            a4 = max priority - 2 = 0xff - 2 = 0xfd
+            a3 = 0
+            a2 = stack_size
+            a1 = "wifi"
+            a0 = addr of "pp_task" function
+            _task_create_pinned_to_core
+##12## [TRACE] - task_create_pinned_to_core task_func 0x40001720 name wifi stack_depth 6656 param 0x0 prio 253, task_handle 0x3fcdf928 core_id 0
+                spawn_task(
+                    task_func = addr of pp_task,
+                    name = "wifi",
+                    stack_depth = 0x1a00,
+                    param = 0,
+                    prio = 0xfd,
+                    task_handle = pp_task_hdl = 0x3fcdf928,
+                    core_id = core_if coming from config_get_wifi_task_core_id)
+##13## [DEBUG] - spawning task wifi: 0x40001720 param 0x0 prio 253
+                    TASK_SPAWN_QUEUE.enqueue((core::mem::transmute(task_func), param))
+            // if task_create_pinned_to_core error wifi_log "create wifi task: failed to create task"
+            _semphr_take s_pp_task_create_sem, -1
+##14## [TRACE] - >>>> semphr_take 0x1 block_time_tick 4294967295            
+                loop {
+                    ...
+                    yield_task()
+                        (&*SystemPeripheral::PTR).cpu_intr_from_cpu_3().modify(|_, w| w.cpu_intr_from_cpu_3().set_bit());
+                }
+// waiting for semaphore forever
+
+->  #[interrupt]
+    fn FROM_CPU_INTR3(trap_frame: &mut TrapFrame)
+        ...
+        task_switch(trap_frame);
+
+->  run_c_task()
+        TASK_SPAWN_QUEUE.dequeue()
+        debug!("task started: {:?} {:?}", f, p);
+##15## [DEBUG] - task started: 0x40001720 0x0
+        f(p);        
+
+ppTask (with parameter 0)   // ppTask = 0x40001720 ROM function 
+    _semphr_give s_pp_task_create_sem = 0x3fcdf924
+##16## [TRACE] - semphr_give 0x1                        // after first yied from now this switches back to pp_create_task
+                                                        // signalling that ppTask (pp_task) is running
+    arg0: handle in xphyQueue
+    arg1: message
+    arg2: OSI_FUNCS_TIME_BLOCKING
+    _queue_recv
+        receive_queued
+##17## [TRACE] - queue_recv 0x3fc87f34 item 0x3fc85d98 block_time_tick 4294967295
+            loop {
+                ...
+                yield_task()
+                    (&*SystemPeripheral::PTR).cpu_intr_from_cpu_3().modify(|_, w| w.cpu_intr_from_cpu_3().set_bit());
+            }
+
+// get out of waiting for semaphore
+pp_create_task continuing
+##18## [TRACE] - >>>> return from semphr_take
+
+            _task_delay 1 tick
+##19## [TRACE] - task_delay tick 1
+                yield_task()        
+            _semphr_delete s_pp_task_create_sem
+##20## [TRACE] - semphr_delete 0x1
+##21## [TRACE] - >>> sem delete
+            config_get_wifi_task_stack_size                // libpp.a(wdev.o)
+            "wifi driver task: %x, prio:%d, stack:%d, core=%d"
+            wifi_log
+##22## [INFO] - I (206) wifi: wifi driver task: 0, prio:253, stack:6656, core=0
+        EOF pp_create_task / ic_create_wifi_task
+        // save return value, then if error -> wifi_deinit_in_caller_task -> store error code in a0 -> return
+
+        ieee80211_ioctl_init                                // libnet80211.a(ieee80211_ioctl.o)
+            a0 = ieee80211_ioctl_process                    // libnet80211.a(ieee80211_ioctl.o) 
+            ic_register_config_cb                           // libpp.a(if_hwctrl.o)
+                pp_register_config_cb                       // libpp.a(pp.o)
+                    store ieee80211_ioctl_process -> g_config_func = 0x3fcdf8d4
+            a0 = ieee80211_timer_process                    // libnet80211.a(ieee80211_timer.o)
+            ic_register_timer_post_cb>                      // libpp.a(if_hwctrl.o)
+                pp_timer_register_post_cb                   // libpp.a(pp_timer.o)
+                    store ieee80211_timer_process -> .bss.s_timer_post   // libpp.a(pp_timer.o)
+            ic_get_pp_hdl                                   // libpp.a(if_hwctrl.o)
+                ppGetTaskHdl                                // libpp.a(pp.o)
+                    get pp_task_hdl = 0x3fcdf928            // we crearted and spawned before
+                store content of pp_task_hdl -> .bss.s_wifi_task_hdl    // libnet80211.a(ieee80211_ioctl.o)
+        // if error -> wifi_deinit_in_caller_task 
+        // if not return with success (0)
+    EOF wifi_init_in_caller_task
+
+    _wifi_zalloc a0 = 24
+##xx## [TRACE] - wifi_calloc 24 1
+##xx## [TRACE] - calloc 24 1
+##xx## [TRACE] - alloc 24 0x3fc889b4
+    store 38, 0(a0)                                         // some type of signal/parameter
+    store wifi_init_process, 4(a0)
+    store 0, 8(a0)
+    store 0, 10(a0)
+    store G_CONFIG, 12(a0)
+    ieee80211_ioctl                                         // libnet80211.a(ieee80211_ioctl.o)
+        current_task_is_wifi_task
+##xx## [TRACE] - task get current task - return 0x2         // return with false
+        _wifi_thread_semphr_get
+##xx## [TRACE] - wifi_thread_semphr_get
+##23## [TRACE] - sem created res = 0 (+1)
+##xx## [TRACE] - wifi_thread_semphr_get - create for 2 0x1
+        store 'got semaphore handle' , 16(a0)
+        // if error wifi_log "ioctl: failed to get wifi thread sem"
+        wifi_api_lock     // see above                      // libnet80211.a(ieee80211_api.o)
+##xx## [TRACE] - task get current task - return 0x2
+##xx## [TRACE] - mutex_lock ptr = 0x3fc829c8
+        wifi_get_init_state                                 // libnet80211.a(ieee80211_api.o)
+            get .data.s_wifi_init_state                     // libnet80211.a(ieee80211_api.o)
+        wifi_is_stop_in_progress
+            get bss.s_wifi_stop_in_progress   // false      // libnet80211.a(ieee80211_api.o)
+        pp_post a0 = 6, a1 = allocated struct, which is ieee80211_ioctl's arg
+            get g_intr_lock_mux
+            wifi_int_disable(*g_intr_lock_mux)              // created in wifi_init_in_caller_task above
+                                                            // *g_intr_lock_mux = void *wifi_int_mux a spinlock
+##xx## [TRACE] - wifi_int_disable
+##xx## [TRACE] - wifi_int_disable wifi_int_mux 0x3fc829a4 - return  // esp_wifi::wifi::os_adapter::FAKE_SPIN_LOCK
+            get pp_sig_cnt_ptr
+            pp_sig_cnt_ptr[signal]                          // it is a set of counters, indexed by signal
+            // if it is 0 -> increment -> modulo 256 -> store back
+            wifi_int_restore(*g_intr_lock_mux)              // *g_intr_lock_mux = void *wifi_int_mux a spinlock
+##xx## [TRACE] - wifi_int_restore
+##xx## [TRACE] - wifi_int_restore wifi_int_mux 0x3fc829a4 tmp 1 // esp_wifi::wifi::os_adapter::FAKE_SPIN_LOCK
+            task_ms_to_tick 10 ticks
+##xx## [TRACE] - task_ms_to_tick ms 10
+            a0 = xphyQueue
+            a1 = item =  2 x uint32 (a queue item)          // the first u32 is the cmd = 6
+                                                            // the second u32 is a ptr to the struct
+                                                            //      from the arg of ieee80211_ioctl
+                                                            // store 38, 0(a0) plus some flags in the second byte
+                                                            // store wifi_init_process, 4(a0)
+                                                            // store 0, 8(a0)
+                                                            // store G_CONFIG, 12(a0)
+            a2 = ticks = 160000 (10 ms)
+            queue_send(xphyQueue, item: *ptr, 10ms)
+##24## [TRACE] - queue_send queue 0x3fc87f34 item 3fccfe38 block_time_tick 160000
+##25## [TRACE] - queue posting [6, 0, 0, 0, 180, 137, 200, 63]  // 0x00000006, 0x3fc889b4
+            // check for return value 'pdPASS'
+            // if it was OK -> return
+        // if returned with error
+        wifi_log "ioctl: failed to post WiFi task %d"
+        wifi_api_unlock
+##xx## [TRACE] - task get current task - return 0x2
+##xx## [TRACE] - mutex_unlock 0x3fc829c8        
+        _free ieee80211_ioctl's allocated struct for item
+        return/exit
+        // if returned with success
+        wifi_api_unlock
+        _semphr_take 'semaphore handle'                     // wait for this sempahore and yield
+##26## [TRACE] - >>>> semphr_take 0x1 block_time_tick 4294967295
+
+
+**task switch to ppTask**
+##27## [TRACE] - received [6, 0, 0, 0, 180, 137, 200, 63]               // g_config_func
+##xx## [TRACE] - wifi_int_disable
+##xx## [TRACE] - wifi_int_disable wifi_int_mux 0x3fc829a4 - return 1
+##xx## [TRACE] - wifi_int_restore
+##xx## [TRACE] - wifi_int_restore wifi_int_mux 0x3fc829a4 tmp 1
+##28## [DEBUG] - timer_disarm 3fc9b1f0 not found
+##29## [TRACE] - read_mac 0x3fc98a52 0
+##30## [TRACE] - read_mac 0x3fc98a4c 1
+##xx## [TRACE] - wifi_calloc 3068 1
+##xx## [TRACE] - calloc 3068 1
+##xx## [TRACE] - alloc 3068 0x3fc889d0
+##xx## [TRACE] - alloc 1024 0x3fc895d0
+##31## [TRACE] - sprintf format: ESP_%02X%02X%02X
+##32## [TRACE] - sprintf result: ESP_163088
+##xx## [TRACE] - free 0x3fc895d0                                            // drop everything which was allocated till now
+##33## [INFO] - I (191) wifi: wifi firmware version: e309346
+##34## [INFO] - I (191) wifi: wifi certification version: v7.0
+##35## [INFO] - I (191) wifi: config NVS flash: disabled
+##36## [INFO] - I (191) wifi: config nano formating: disabled
+##xx## [TRACE] - wifi_calloc 136 1
+##xx## [TRACE] - calloc 136 1
+##xx## [TRACE] - alloc 136 0x3fc895d0
+##xx## [TRACE] - wifi_calloc 136 1
+##xx## [TRACE] - calloc 136 1
+##xx## [TRACE] - alloc 136 0x3fc8965c
+##37## [INFO] - I (192) wifi: Init data frame dynamic rx buffer num: 32
+
+##xx## [TRACE] - mutex_lock ptr = 0x3fc8407c
+##xx## [TRACE] - mutex_unlock 0x3fc8407c
+##xx## [TRACE] - alloc 600 0x3fc896e8
+##xx## [TRACE] - free 0x3fc896e8
+
+##xx## [TRACE] - mutex_lock ptr = 0x3fc829d4
+##xx## [TRACE] - mutex_unlock 0x3fc829d4
+##xx## [TRACE] - mutex_lock ptr = 0x3fc829d4
+##xx## [TRACE] - mutex_unlock 0x3fc829d4
+##xx## [TRACE] - alloc 600 0x3fc896e8
+##xx## [TRACE] - free 0x3fc896e8
+
+##xx## [TRACE] - mutex_lock ptr = 0x3fc829d4
+##xx## [TRACE] - mutex_unlock 0x3fc829d4
+##xx## [TRACE] - mutex_lock ptr = 0x3fc829d4
+##xx## [TRACE] - mutex_unlock 0x3fc829d4
+##xx## [TRACE] - alloc 600 0x3fc896e8
+##xx## [TRACE] - free 0x3fc896e8
+
+##xx## [TRACE] - mutex_lock ptr = 0x3fc829d4
+##xx## [TRACE] - mutex_unlock 0x3fc829d4
+##xx## [TRACE] - mutex_lock ptr = 0x3fc829d4
+##xxx## [TRACE] - mutex_unlock 0x3fc829d4
+##xxx## [TRACE] - alloc 600 0x3fc896e8
+##xxx## [TRACE] - free 0x3fc896e8
+
+##xxx## [TRACE] - mutex_lock ptr = 0x3fc829d4
+##xxx## [TRACE] - mutex_unlock 0x3fc829d4
+##xxx## [TRACE] - mutex_lock ptr = 0x3fc829d4
+##xxx## [TRACE] - mutex_unlock 0x3fc829d4
+##xxx## [TRACE] - alloc 600 0x3fc896e8
+##xxx## [TRACE] - free 0x3fc896e8
+
+##xxx## [TRACE] - mutex_lock ptr = 0x3fc829d4
+##xxx## [TRACE] - mutex_unlock 0x3fc829d4
+##xxx## [TRACE] - mutex_lock ptr = 0x3fc829d4
+##xxx## [TRACE] - mutex_unlock 0x3fc829d4
+##xxx## [TRACE] - alloc 600 0x3fc896e8
+##xxx## [TRACE] - free 0x3fc896e8
+
+##xxx## [TRACE] - mutex_lock ptr = 0x3fc829d4
+##xxx## [TRACE] - mutex_unlock 0x3fc829d4
+##xxx## [TRACE] - mutex_lock ptr = 0x3fc829d4
+##xxx## [TRACE] - mutex_unlock 0x3fc829d4
+##xxx## [TRACE] - alloc 600 0x3fc896e8
+##xxx## [TRACE] - free 0x3fc896e8
+
+##xxx## [TRACE] - mutex_lock ptr = 0x3fc829d4
+##xxx## [TRACE] - mutex_unlock 0x3fc829d4
+##xxx## [TRACE] - mutex_lock ptr = 0x3fc829d4
+##xxx## [TRACE] - mutex_unlock 0x3fc829d4
+##xxx## [TRACE] - alloc 600 0x3fc896e8
+##xxx## [TRACE] - free 0x3fc896e8
+
+##xxx## [TRACE] - mutex_lock ptr = 0x3fc829d4
+##xxx## [TRACE] - mutex_unlock 0x3fc829d4
+##xxx## [TRACE] - mutex_lock ptr = 0x3fc829d4
+##xxx## [TRACE] - mutex_unlock 0x3fc829d4
+##xxx## [TRACE] - alloc 600 0x3fc896e8
+##xxx## [TRACE] - free 0x3fc896e8
+
+##xxx## [TRACE] - mutex_lock ptr = 0x3fc829d4
+##xxx## [TRACE] - mutex_unlock 0x3fc829d4
+##38## [INFO] - I (194) wifi: Init static rx mgmt buffer num: 10
+##39## [INFO] - I (194) wifi: Init management short buffer num: 32
+##40## [INFO] - I (194) wifi: Init dynamic tx buffer num: 32
+
+##xxx## [TRACE] - mutex_lock ptr = 0x3fc829d4
+##xxx## [TRACE] - mutex_unlock 0x3fc829d4
+##xxx## [TRACE] - alloc 736 0x3fc896e8
+
+##xxx## [TRACE] - mutex_lock ptr = 0x3fc829d4
+##xxx## [TRACE] - mutex_unlock 0x3fc829d4
+##xxx## [TRACE] - mutex_lock ptr = 0x3fc829d4
+##xxx## [TRACE] - mutex_unlock 0x3fc829d4
+##xxx## [TRACE] - alloc 736 0x3fc899cc
+
+##xxx## [TRACE] - mutex_lock ptr = 0x3fc829d4
+##xxx## [TRACE] - mutex_unlock 0x3fc829d4
+##41## [INFO] - I (194) wifi: Init static tx FG buffer num: 2
+
+##xxx## [TRACE] - mutex_lock ptr = 0x3fc8407c
+##xxx## [TRACE] - mutex_unlock 0x3fc8407c
+
+##xxx## [TRACE] - mutex_lock ptr = 0x3fc8407c
+##xxx## [TRACE] - mutex_unlock 0x3fc8407c
+
+##xxx## [TRACE] - mutex_lock ptr = 0x3fc8407c
+##xxx## [TRACE] - mutex_unlock 0x3fc8407c
+
+##xxx## [TRACE] - mutex_lock ptr = 0x3fc8407c
+##xxx## [TRACE] - mutex_unlock 0x3fc8407c
+
+##xxx## [TRACE] - mutex_lock ptr = 0x3fc8407c
+##xxx## [TRACE] - mutex_unlock 0x3fc8407c
+
+##xxx## [TRACE] - mutex_lock ptr = 0x3fc8407c
+##xxx## [TRACE] - mutex_unlock 0x3fc8407c
+
+##xxx## [TRACE] - mutex_lock ptr = 0x3fc8407c
+##xxx## [TRACE] - mutex_unlock 0x3fc8407c
+
+##xxx## [TRACE] - mutex_lock ptr = 0x3fc8407c
+##xxx## [TRACE] - mutex_unlock 0x3fc8407c
+
+##xxx## [TRACE] - calloc 120 1
+##xxx## [TRACE] - alloc 120 0x3fc89cb0
+
+##42## [INFO] - I (195) wifi: Init static rx buffer size: 2212
+
+##xxx## [TRACE] - alloc 2216 0x3fc89d2c
+##xxx## [TRACE] - alloc 2216 0x3fc8a5d8
+##xxx## [TRACE] - alloc 2216 0x3fc8ae84
+##xxx## [TRACE] - alloc 2216 0x3fc8b730
+##xxx## [TRACE] - alloc 2216 0x3fc8bfdc
+##xxx## [TRACE] - alloc 2216 0x3fc8c888
+##xxx## [TRACE] - alloc 2216 0x3fc8d134
+##xxx## [TRACE] - alloc 2216 0x3fc8d9e0
+##xxx## [TRACE] - alloc 2216 0x3fc8e28c
+##xxx## [TRACE] - alloc 2216 0x3fc8eb38
+
+##43## [INFO] - I (195) wifi: Init static rx buffer num: 10
+##44## [INFO] - I (195) wifi: Init dynamic rx buffer num: 32
+
+##45## [DEBUG] - timer_setfn 3fc9b17c 0x4200704e 0x0               // pm_active_timeout
+##46## [DEBUG] - timer_setfn 3fc9b190 0x42007046 0x0               // pm_sleep_delay_timeout
+##47## [DEBUG] - timer_setfn 3fc9b1cc 0x4200703e 0x0               // pm_coex_slice_wifi_timeout
+##48## [DEBUG] - timer_setfn 3fc9b1b8 0x42007036 0x0               // pm_disconnected_sleep_delay_timeout
+#49## [DEBUG] - timer_setfn 3fc9b1f0 0x4200702e 0x0               // pm_connectionless_wake_interval_timeout
+##50## [DEBUG] - timer_setfn 3fc9b204 0x42007026 0x0               // pm_connectionless_wake_window_timeout
+##51## [DEBUG] - timer_setfn 3fc9b218 0x4200701e 0x0               // pm_beacon_monitor_timeout
+##52## [DEBUG] - timer_setfn 3fc9b234 0x42007016 0x3fc9b0c8        // pm_beacon_monitor_tbtt_timeout
+##53## [TRACE] - coex_schm_register_cb_wrapper 0 Some(0x4200f294)  // esp_wifi_internal_on_coex_start
+##54## [DEBUG] - timer_setfn 3fc99d34 0x4201e91e 0x0               // scan_enter_oper_channel
+##55## [DEBUG] - timer_setfn 3fc99d48 0x4201e914 0x0               // scan_enter_oper_channel
+
+##56## [INFO] - V (257) wifi: hint=255, act_dur=<0,120>, pas_dur=360, nchans=14 history_num=0   
+##57## [TRACE] - semphr_give 0x1       // release sepmahore ieee80211_ioctl is waiting for
+##58## [TRACE] - queue_recv 0x3fc87f34 item 0x3fc85d98 block_time_tick 4294967295  // wait for next message/command 
+         // this calls a yield_task()
+
+##59## [TRACE] - >>>> return from semphr_take      // ieee80211_ioctl scheduled, woken up 
+        _free
+##xxx## [TRACE] - free 0x3fc88a2c
+    EOF ieee80211_ioctl
+    // esp_wifi_init_internal
+
+    wifi_api_lock
+##xxx## [TRACE] - task get current task - return 0x2
+##xxx## [TRACE] - mutex_lock ptr = 0x3fc829c8
+    // update init_state
+    wifi_api_unlock
+##xxx## [TRACE] - task get current task - return 0x2
+##xxx## [TRACE] - mutex_unlock 0x3fc829c8
+EOF  esp_wifi_init_internal
+
+
+esp_wifi_set_mode(wifi_mode_t_WIFI_MODE_NULL)
+    wifi_init_completed
+        wifi_api_lock
+##xxx## [TRACE] - task get current task - return 0x2
+##xxx## [TRACE] - mutex_lock ptr = 0x3fc82a40
+        get .data.s_wifi_init_state
+        if s_wifi_init_state == 3 return true
+        else return false
+        both case before retunr call wifi_api_unlock
+##xxx## [TRACE] - task get current task - return 0x2
+##xxx## [TRACE] - mutex_unlock 0x3fc82a40
+    if true (completed) _wifi_zalloc 24
+##xxx## [TRACE] - wifi_calloc 24 1
+##xxx## [TRACE] - calloc 24 1
+##xxx## [TRACE] - alloc 24 0x3fc88a2c
+    message.0 = 10
+    message.4 = wifi_set_mode_process (0x4202ec24)
+    message.8 = 0
+    jmp ieee80211_ioctl
+##xxx## [TRACE] - task get current task - return 0x2
+##xxx## [TRACE] - wifi_thread_semphr_get
+##xxx## [TRACE] - wifi_thread_semphr_get - return for 2 0x1
+##xxx## [TRACE] - task get current task - return 0x2
+##xxx## [TRACE] - mutex_lock ptr = 0x3fc82a40
+##xxx## [TRACE] - wifi_int_disable
+##xxx## [TRACE] - wifi_int_disable wifi_int_mux 0x3fc82a1c - return 1
+##xxx## [TRACE] - wifi_int_restore
+##xxx## [TRACE] - wifi_int_restore wifi_int_mux 0x3fc82a1c tmp 1
+##xxx## [TRACE] - task_ms_to_tick ms 10
+##60## [TRACE] - queue_send queue 0x3fc87fac item 3fccfe68 block_time_tick 160000
+##61## [TRACE] - queue posting [6, 0, 0, 0, 44, 138, 200, 63]  (0x3fc88a2c, see above)
+##xxx## [TRACE] - task get current task - return 0x2
+##xxx## [TRACE] - mutex_unlock 0x3fc84070
+##62## [TRACE] - >>>> semphr_take 0x1 block_time_tick 4294967295       // yield_task()
+
+ppTask
+##63## [TRACE] - received [6, 0, 0, 0, 248, 78, 200, 63]
+##xxx## [TRACE] - wifi_int_disable
+##xxx## [TRACE] - wifi_int_disable wifi_int_mux 0x3fc82a1c - return 1
+##xxx## [TRACE] - wifi_int_restore
+##xxx## [TRACE] - wifi_int_restore wifi_int_mux 0x3fc82a1c tmp 1
+
+##64## [DEBUG] - timer_disarm 3fc9b268            // reset a timeout
+##65## [TRACE] - semphr_give 0x1
+##66## [TRACE] - queue_recv 0x3fc87fac item 0x3fc85e18 block_time_tick 4294967295      // yield_task()
+
+ieee80211_ioctl
+##67## [TRACE] - >>>> return from semphr_take
+##xxx## [TRACE] - free 0x3fc88a2c
+EOF esp_wifi_set_mode
+
+// in wifi_init check for error
+esp_supplicant_init()
+    calloc 1 104
+##xxx## [TRACE] - calloc 1 104
+##xxx## [TRACE] - alloc 104 0x3fc8f714
+    wpa_cb = ptr of allocated space
+    wpa_cb[0] = wpa_attach
+    wpa_cb[4] = wpa_deattach
+    wpa_cb[8] = wpa_sta_connect
+    wpa_cb[12] = wpa_sta_connected_cb
+    wpa_cb[16] = wpa_sta_disconnected_cb
+    wpa_cb[20] = wpa_sm_rx_eapol
+    wpa_cb[24] = wpa_sta_in_4way_handshake
+    wpa_cb[28] = hostap_init
+    wpa_cb[32] = hostap_deinit
+    wpa_cb[36] = hostap_sta_join
+    wpa_cb[40] = wpa_ap_remove
+    wpa_cb[44] = wpa_ap_get_wpa_ie
+    wpa_cb[48] = wpa_ap_rx_eapol
+    wpa_cb[52] = wpa_ap_get_peer_spp_msg
+    wpa_cb[56] = wpa_config_parse_string
+    wpa_cb[60] = wpa_parse_wpa_ie_wrapper
+    wpa_cb[64] = 
+    wpa_cb[68] = wpa_michael_mic_failure
+    wpa_cb[72] = 
+    wpa_cb[76] = 
+    wpa_cb[80] = 
+    wpa_cb[84] = 
+    wpa_cb[88] = wpa_config_done
+    wpa_cb[92] = 
+    wpa_cb[96] = 
+    wpa_cb[100] = wpa_sm_set_ap_rsnxe
+
+    eloop_init
+        memset
+        os_timer_disarm.constprop
+            _timer_disarm: Some(ets_timer_disarm)
+##68## [DEBUG] - timer_disarm 3fc9baf0 not found
+        _timer_setfn: Some(ets_timer_setfn)
+##68## [DEBUG] - timer_setfn 3fc9baf0 0x4202b364 0x0
+        _recursive_mutex_create
+##69## [TRACE] - recursive_mutex_create called 0x3fc82d00
+        eloop_data_lock = 'created recursive_mutex'
+
+    esp_supplicant_common_init
+        get g_wpa_supp
+        g_wpa_supp[128] = 0x80a
+        g_wpa_supp[132] = 0
+        esp_wifi_register_mgmt_frame_internal
+            wifi_init_completed
+                wifi_api_lock
+##xxx## [TRACE] - task get current task - return 0x2
+##xxx## [TRACE] - mutex_lock ptr = 0x3fc82ce8                
+                get s_wifi_init_state
+                if s_wifi_init_state == 3 -> wifi_api_unlock -> return with true
+##xxx## [TRACE] - task get current task - return 0x2
+##xxx## [TRACE] - mutex_unlock 0x3fc82ce8
+
+            if true (completed) _wifi_zalloc 24
+##xxx## [TRACE] - wifi_calloc 24 1
+##xxx## [TRACE] - calloc 24 1
+##xxx## [TRACE] - alloc 24 0x3fc88ce4
+            message.0 = 84
+            message.4 = wifi_register_mgmt_frame
+            message.8 = 0
+            message.12 = 0x80a
+            message.20 = s0=0
+            jmp ieee80211_ioctl
+##xxx## [TRACE] - task get current task - return 0x2
+##xxx## [TRACE] - wifi_thread_semphr_get
+##xxx## [TRACE] - wifi_thread_semphr_get - return for 2 0x1
+##xxx## [TRACE] - task get current task - return 0x2
+##xxx## [TRACE] - mutex_lock ptr = 0x3fc82ce8
+##xxx## [TRACE] - wifi_int_disable
+##xxx## [TRACE] - wifi_int_disable wifi_int_mux 0x3fc82cbc - return 1
+##xxx## [TRACE] - wifi_int_restore
+##xxx## [TRACE] - wifi_int_restore wifi_int_mux 0x3fc82cbc tmp 1
+##xxx## [TRACE] - task_ms_to_tick ms 10
+##70## [TRACE] - queue_send queue 0x3fc88264 item 3fccfe48 block_time_tick 160000
+##71## [TRACE] - queue posting [6, 0, 0, 0, 220, 102, 200, 63]
+##xxx## [TRACE] - task get current task - return 0x2
+##xxx## [TRACE] - mutex_unlock 0x3fc82ce8
+##72## [TRACE] - >>>> semphr_take 0x1 block_time_tick 4294967295
+
+ppTask
+##73## [TRACE] - received [6, 0, 0, 0, 228, 140, 200, 63]               // g_config_func
+##xxx## [TRACE] - wifi_int_disable
+##xxx## [TRACE] - wifi_int_disable wifi_int_mux 0x3fc82cbc - return 1
+##xxx## [TRACE] - wifi_int_restore
+##xxx## [TRACE] - wifi_int_restore wifi_int_mux 0x3fc82cbc tmp 1
+##74## [DEBUG] - timer_disarm 3fc9b528
+##75## [TRACE] - semphr_give 0x1
+##76## [TRACE] - queue_recv 0x3fc88264 item 0x3fc860c8 block_time_tick 4294967295      // yield_task()
+
+ieee80211_ioctl
+##77## [TRACE] - >>>> return from semphr_take
+##xxx## [TRACE] - free 0x3fc88ce4
+    EOF esp_supplicant_common_init
+esp_supplicant_init
+
+    esp_wifi_register_wpa_cb_internal( wpa_cb)
+        esp_wifi_unregister_wpa_cb_internal
+            get g_ic[436]
+            if this is 0 // and it was, i.e. there was not registered callback 
+            g_ic[436] = 0
+        g_ic[436] = 'arg=wpa_cb'
+    // check for error
+EOF 
+
+esp_wifi_set_tx_done_cb(esp_wifi::wifi::esp_wifi_tx_done_cb)
+    wifi_init_completed     // see above
+##xxx## [TRACE] - task get current task - return 0x2
+##xxx## [TRACE] - mutex_lock ptr = 0x3fc82d60
+##xxx## [TRACE] - task get current task - return 0x2
+##xxx## [TRACE] - mutex_unlock 0x3fc84070
+    jmp ic_register_pp_tx_done_cb
+ic_register_pp_tx_done_cb
+    jmp ppRegisterTxDoneUserActionCallback
+ppRegisterTxDoneUserActionCallback
+    g_tx_done_cb_func = esp_wifi::wifi::esp_wifi_tx_done_cb
+
+// error check
+esp_wifi_internal_reg_rxcb(esp_interface_t_ESP_IF_WIFI_STA=0, esp_wifi::wifi::recv_cb_sta)
+    wifi_init_completed
+##xxx## [TRACE] - task get current task - return 0x2
+##xxx## [TRACE] - mutex_lock ptr = 0x3fc82d60
+##xxx## [TRACE] - task get current task - return 0x2
+##xxx## [TRACE] - mutex_unlock 0x3fc82d60
+    _wifi_zalloc: Some(wifi_zalloc) = wifi_calloc (24, 1)
+##xxx## [TRACE] - wifi_calloc 24 1
+##xxx## [TRACE] - calloc 24 1
+##xxx## [TRACE] - alloc 24 0x3fc89034
+    message.0 = 0x1c
+    message.4 = wifi_set_rxcb_process
+    message.8 = $fp=0
+    message.9 = 0
+    message.10 = 0
+    message.12 = esp_wifi::wifi::recv_cb_sta
+    jmp ieee80211_ioctl
+
+ieee80211_ioctl
+##xxx## [TRACE] - task get current task - return 0x2
+##xxx## [TRACE] - wifi_thread_semphr_get
+##xxx## [TRACE] - wifi_thread_semphr_get - return for 2 0x1
+##xxx## [TRACE] - task get current task - return 0x2
+##xxx## [TRACE] - mutex_lock ptr = 0x3fc82d60
+##xxx## [TRACE] - wifi_int_disable
+##xxx## [TRACE] - wifi_int_disable wifi_int_mux 0x3fc82d30 - return 1
+##xxx## [TRACE] - wifi_int_disable
+##xxx## [TRACE] - wifi_int_disable wifi_int_mux 0x3fc82d30 - return 1
+##xxx## [TRACE] - wifi_int_restore
+##xxx## [TRACE] - wifi_int_restore wifi_int_mux 0x3fc82d30 tmp 1
+##xxx## [TRACE] - task_ms_to_tick ms 10
+##78## [TRACE] - queue_send queue 0x3fc84518 item 3fccfe68 block_time_tick 160000
+##79## [TRACE] - queue posting [6, 0, 0, 0, 52, 144, 200, 63]
+##xxx## [TRACE] - task get current task - return 0x2
+##xxx## [TRACE] - mutex_unlock 0x3fc82d60
+##80## [TRACE] - >>>> semphr_take 0x1 block_time_tick 4294967295
+
+ppTask
+##81## [TRACE] - received [6, 0, 0, 0, 52, 144, 200, 63]                // g_config_func
+##xxx## [TRACE] - wifi_int_disable
+##xxx## [TRACE] - wifi_int_disable wifi_int_mux 0x3fc82d30 - return 1
+##xxx## [TRACE] - wifi_int_restore
+##xxx## [TRACE] - wifi_int_restore wifi_int_mux 0x3fc82d30 tmp 1
+##82## [DEBUG] - timer_disarm 3fc9b5f0
+##83## [TRACE] - semphr_give 0x1
+##84## [TRACE] - queue_recv 0x3fc84518 item 0x3fc86ad8 block_time_tick 4294967295
+
+ieee80211_ioctl
+##85## [TRACE] - >>>> return from semphr_take
+##xxx## [TRACE] - free 0x3fc89034
+EOF esp_wifi_internal_reg_rxcb(esp_interface_t_ESP_IF_WIFI_STA=0, esp_wifi::wifi::recv_cb_sta)
+
+../esp_wifi::initialize
+// li	a0,3
+// li	a1,251
+ret
+EOF esp_wifi::initialize
+
+

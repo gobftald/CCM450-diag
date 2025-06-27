@@ -10,9 +10,9 @@ SECTIONS {
             KEEP(*(.init.rust));
             KEEP(*(.text.abort));
         #ENDIF
-    
+
         *(.literal .text .literal.* .text.*)
         _etext = ABSOLUTE(.);
-  
+
     } > ROTEXT
 }

@@ -33,7 +33,7 @@ SECTIONS {
 
         /* Create an empty gap as big as .text section */
 
-        . = . + SIZEOF(.rodata);
+        . = . + SIZEOF(.rodata) + SIZEOF(.rodata.wifi);
         
         /* Prepare the alignment of the section above. Few bytes (0x20) must be
         * added for the mapping header.
@@ -51,7 +51,7 @@ INSERT BEFORE .esp-riscv-rt;
 SECTIONS {
     .rwdata_dummy (NOLOAD) : ALIGN(4)
     {
-        . = . + SIZEOF(.trap) + 2 + SIZEOF(.rwtext);
+        . = . + SIZEOF(.trap) + SIZEOF(.rwtext) + SIZEOF(.rwtext.wifi);
 
     }  > RWDATA
 }
