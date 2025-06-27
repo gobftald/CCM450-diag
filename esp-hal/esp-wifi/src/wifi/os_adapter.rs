@@ -1,5 +1,8 @@
 // 15
-use crate::compat::common::{create_recursive_mutex, lock_mutex, unlock_mutex};
+use crate::compat::{
+    common::{create_recursive_mutex, lock_mutex, unlock_mutex},
+    malloc::calloc,
+};
 
 /// **************************************************************************
 /// Name: esp_recursive_mutex_create
@@ -112,4 +115,25 @@ pub unsafe extern "C" fn free(p: *mut crate::binary::c_types::c_void) {
     unsafe {
         crate::compat::malloc::free(p.cast());
     }
+}
+
+/// **************************************************************************
+/// Name: esp_calloc_internal
+///
+/// Description:
+///   Drivers allocate some continuous blocks of memory
+///
+/// Input Parameters:
+///   n    - memory block number
+///   size - memory block size
+///
+/// Returned Value:
+///   New memory pointer
+///
+/// *************************************************************************
+pub unsafe extern "C" fn calloc_internal(
+    n: usize,
+    size: usize,
+) -> *mut crate::binary::c_types::c_void {
+    unsafe { calloc(n as u32, size) as *mut crate::binary::c_types::c_void }
 }

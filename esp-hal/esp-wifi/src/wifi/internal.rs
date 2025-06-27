@@ -6,7 +6,8 @@ use esp_wifi_sys::include::{
 
 // 10
 use super::os_adapter::{
-    malloc, mutex_lock, mutex_unlock, recursive_mutex_create, task_get_current_task,
+    calloc_internal, malloc, mutex_lock, mutex_unlock, recursive_mutex_create,
+    task_get_current_task,
 };
 
 #[unsafe(no_mangle)]
@@ -108,34 +109,34 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _log_writev: None, // 336 Some(log_writev),
     #[cfg(not(feature = "sys-logs"))]
     _log_writev: None,
-    _log_timestamp: None,              // 340 Some(log_timestamp),
-    _malloc_internal: None,            // 344 Some(malloc_internal),
-    _realloc_internal: None,           // 348 Some(realloc_internal),
-    _calloc_internal: None,            // 352 Some(calloc_internal),
-    _zalloc_internal: None,            // 356 Some(zalloc_internal),
-    _wifi_malloc: None,                // 360 Some(wifi_malloc),
-    _wifi_realloc: None,               // 364 Some(wifi_realloc),
-    _wifi_calloc: None,                // 368 Some(wifi_calloc),
-    _wifi_zalloc: None,                // 372 Some(wifi_zalloc),
-    _wifi_create_queue: None,          // 376 Some(wifi_create_queue),
-    _wifi_delete_queue: None,          // 380 Some(wifi_delete_queue),
-    _coex_init: None,                  // 384 Some(super::coex_init),
-    _coex_deinit: None,                // 388 Some(coex_deinit),
-    _coex_enable: None,                // 392 Some(coex_enable),
-    _coex_disable: None,               // 396 Some(coex_disable),
-    _coex_status_get: None,            // 400 Some(coex_status_get),
-    _coex_condition_set: None,         // 404
-    _coex_wifi_request: None,          // 408 Some(coex_wifi_request),
-    _coex_wifi_release: None,          // 412 Some(coex_wifi_release),
-    _coex_wifi_channel_set: None,      // 416 Some(coex_wifi_channel_set),
-    _coex_event_duration_get: None,    // 420 Some(coex_event_duration_get),
-    _coex_pti_get: None,               // 424 Some(coex_pti_get),
-    _coex_schm_status_bit_clear: None, // 428 Some(coex_schm_status_bit_clear),
-    _coex_schm_status_bit_set: None,   // 432 Some(coex_schm_status_bit_set),
-    _coex_schm_interval_set: None,     // 436 Some(coex_schm_interval_set),
-    _coex_schm_interval_get: None,     // 440 Some(coex_schm_interval_get),
-    _coex_schm_curr_period_get: None,  // 444 Some(coex_schm_curr_period_get),
-    _coex_schm_curr_phase_get: None,   // 448 Some(coex_schm_curr_phase_get),
+    _log_timestamp: None,                    // 340 Some(log_timestamp),
+    _malloc_internal: None,                  // 344 Some(malloc_internal),
+    _realloc_internal: None,                 // 348 Some(realloc_internal),
+    _calloc_internal: Some(calloc_internal), // 352
+    _zalloc_internal: None,                  // 356 Some(zalloc_internal),
+    _wifi_malloc: None,                      // 360 Some(wifi_malloc),
+    _wifi_realloc: None,                     // 364 Some(wifi_realloc),
+    _wifi_calloc: None,                      // 368 Some(wifi_calloc),
+    _wifi_zalloc: None,                      // 372 Some(wifi_zalloc),
+    _wifi_create_queue: None,                // 376 Some(wifi_create_queue),
+    _wifi_delete_queue: None,                // 380 Some(wifi_delete_queue),
+    _coex_init: None,                        // 384 Some(super::coex_init),
+    _coex_deinit: None,                      // 388 Some(coex_deinit),
+    _coex_enable: None,                      // 392 Some(coex_enable),
+    _coex_disable: None,                     // 396 Some(coex_disable),
+    _coex_status_get: None,                  // 400 Some(coex_status_get),
+    _coex_condition_set: None,               // 404
+    _coex_wifi_request: None,                // 408 Some(coex_wifi_request),
+    _coex_wifi_release: None,                // 412 Some(coex_wifi_release),
+    _coex_wifi_channel_set: None,            // 416 Some(coex_wifi_channel_set),
+    _coex_event_duration_get: None,          // 420 Some(coex_event_duration_get),
+    _coex_pti_get: None,                     // 424 Some(coex_pti_get),
+    _coex_schm_status_bit_clear: None,       // 428 Some(coex_schm_status_bit_clear),
+    _coex_schm_status_bit_set: None,         // 432 Some(coex_schm_status_bit_set),
+    _coex_schm_interval_set: None,           // 436 Some(coex_schm_interval_set),
+    _coex_schm_interval_get: None,           // 440 Some(coex_schm_interval_get),
+    _coex_schm_curr_period_get: None,        // 444 Some(coex_schm_curr_period_get),
+    _coex_schm_curr_phase_get: None,         // 448 Some(coex_schm_curr_phase_get),
 
     /*
     //#[cfg(any(esp32c3, esp32c2, esp32c6, esp32h2, esp32s3, esp32s2))]
