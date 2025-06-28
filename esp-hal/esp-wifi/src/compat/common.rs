@@ -132,6 +132,14 @@ pub(crate) fn create_recursive_mutex() -> *mut c_void {
     ptr as *mut c_void
 }
 
+// 287
+pub(crate) fn mutex_delete(mutex: *mut c_void) {
+    let ptr = mutex as *mut Mutex;
+    unsafe {
+        free(mutex.cast());
+    }
+}
+
 /// Lock a mutex. Block until successful.
 // 295
 pub(crate) fn lock_mutex(mutex: *mut c_void) -> i32 {
@@ -192,4 +200,14 @@ pub(crate) fn create_queue(queue_len: c_int, item_size: c_int) -> *mut Concurren
     trace!("created queue @{:?}", ptr);
 
     ptr
+}
+
+// 353
+pub(crate) fn delete_queue(queue: *mut ConcurrentQueue) {
+    trace!("delete_queue {:?}", queue);
+
+    unsafe {
+        core::ptr::drop_in_place(queue);
+        crate::compat::malloc::free(queue.cast());
+    }
 }

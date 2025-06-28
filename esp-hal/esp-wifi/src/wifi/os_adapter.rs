@@ -3,7 +3,10 @@ use core::ptr::addr_of_mut;
 
 // 15
 use crate::compat::{
-    common::{ConcurrentQueue, create_queue, create_recursive_mutex, lock_mutex, unlock_mutex},
+    common::{
+        ConcurrentQueue, create_queue, create_recursive_mutex, delete_queue, lock_mutex,
+        unlock_mutex,
+    },
     malloc::calloc,
 };
 
@@ -32,6 +35,26 @@ pub unsafe extern "C" fn spin_lock_create() -> *mut crate::binary::c_types::c_vo
 }
 
 /// **************************************************************************
+/// Name: esp_spin_lock_delete
+///
+/// Description:
+///   Delete spin lock
+///
+/// Input Parameters:
+///   lock - Spin lock data pointer
+///
+/// Returned Value:
+///   None
+///
+/// *************************************************************************
+// 200
+pub unsafe extern "C" fn spin_lock_delete(lock: *mut crate::binary::c_types::c_void) {
+    trace!("spin_lock_delete {:?}", lock);
+
+    crate::compat::common::sem_delete(lock);
+}
+
+/// **************************************************************************
 /// Name: esp_recursive_mutex_create
 ///
 /// Description:
@@ -47,6 +70,24 @@ pub unsafe extern "C" fn spin_lock_create() -> *mut crate::binary::c_types::c_vo
 // 319
 pub unsafe extern "C" fn recursive_mutex_create() -> *mut crate::binary::c_types::c_void {
     create_recursive_mutex()
+}
+
+/// **************************************************************************
+/// Name: esp_mutex_delete
+///
+/// Description:
+///   Delete mutex
+///
+/// Input Parameters:
+///   mutex_data - mutex data pointer
+///
+/// Returned Value:
+///   None
+///
+/// *************************************************************************
+// 336
+pub unsafe extern "C" fn mutex_delete(mutex: *mut crate::binary::c_types::c_void) {
+    crate::compat::common::mutex_delete(mutex);
 }
 
 /// **************************************************************************
@@ -227,5 +268,29 @@ pub unsafe extern "C" fn wifi_create_queue(
         QUEUE_HANDLE = queue;
 
         addr_of_mut!(QUEUE_HANDLE).cast()
+    }
+}
+
+/// **************************************************************************
+/// Name: esp_wifi_delete_queue
+///
+/// Description:
+///   Delete Wi-Fi static message queue
+///
+/// Input Parameters:
+///   queue - Wi-Fi static message queue data pointer
+///
+/// Returned Value:
+///   None
+///
+/// *************************************************************************
+pub unsafe extern "C" fn wifi_delete_queue(queue: *mut crate::binary::c_types::c_void) {
+    trace!("wifi_delete_queue {:?}", queue);
+    unsafe {
+        if core::ptr::eq(queue, addr_of_mut!(QUEUE_HANDLE).cast()) {
+            delete_queue(QUEUE_HANDLE);
+        } else {
+            warn!("unknown queue when trying to delete WIFI queue");
+        }
     }
 }
