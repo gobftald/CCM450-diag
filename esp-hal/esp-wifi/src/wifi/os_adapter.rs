@@ -5,7 +5,7 @@ use core::ptr::addr_of_mut;
 use crate::compat::{
     common::{
         ConcurrentQueue, create_queue, create_recursive_mutex, delete_queue, lock_mutex,
-        unlock_mutex,
+        str_from_c, unlock_mutex,
     },
     malloc::calloc,
 };
@@ -124,6 +124,61 @@ pub unsafe extern "C" fn mutex_lock(mutex: *mut crate::binary::c_types::c_void) 
 // 370
 pub unsafe extern "C" fn mutex_unlock(mutex: *mut crate::binary::c_types::c_void) -> i32 {
     unlock_mutex(mutex)
+}
+
+/// **************************************************************************
+/// Name: esp_task_create_pinned_to_core
+///
+/// Description:
+///   Create task and bind it to target CPU, the task will run when it
+///   is created
+///
+/// Input Parameters:
+///   entry       - Task entry
+///   name        - Task name
+///   stack_depth - Task stack size
+///   param       - Task private data
+///   prio        - Task priority
+///   task_handle - Task handle pointer which is used to pause, resume
+///                 and delete the task
+///   core_id     - CPU which the task runs in
+///
+/// Returned Value:
+///   True if success or false if fail
+///
+/// *************************************************************************
+// 646
+pub unsafe extern "C" fn task_create_pinned_to_core(
+    task_func: *mut crate::binary::c_types::c_void,
+    name: *const crate::binary::c_types::c_char,
+    stack_depth: u32,
+    param: *mut crate::binary::c_types::c_void,
+    prio: u32,
+    task_handle: *mut crate::binary::c_types::c_void,
+    core_id: u32,
+) -> i32 {
+    trace!(
+        "task_create_pinned_to_core task_func {:?} name {} stack_depth {} param {:?} prio {}, task_handle {:?} core_id {}",
+        task_func,
+        unsafe { str_from_c(name as _) },
+        stack_depth,
+        param,
+        prio,
+        task_handle,
+        core_id
+    );
+
+    unsafe {
+        let task_func = core::mem::transmute::<
+            *mut crate::binary::c_types::c_void,
+            extern "C" fn(*mut esp_wifi_sys::c_types::c_void),
+        >(task_func);
+
+        let task = crate::preempt::task_create(task_func, param, stack_depth as usize);
+        *(task_handle as *mut usize) = task as usize;
+
+        1
+    }
 }
 
 /// **************************************************************************
@@ -284,6 +339,7 @@ pub unsafe extern "C" fn wifi_create_queue(
 ///   None
 ///
 /// *************************************************************************
+// 1713
 pub unsafe extern "C" fn wifi_delete_queue(queue: *mut crate::binary::c_types::c_void) {
     trace!("wifi_delete_queue {:?}", queue);
     unsafe {
