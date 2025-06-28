@@ -95,6 +95,16 @@ impl<T> Box<[T]> {
     pub fn new_uninit_slice(len: usize) -> Box<[mem::MaybeUninit<T>]> {
         unsafe { RawVec::with_capacity(len).into_box(len) }
     }
+
+    /// Constructs a new boxed slice with uninitialized contents, with the memory
+    /// being filled with `0` bytes.
+    ///
+    #[must_use]
+    #[inline(always)]
+    // 648
+    pub fn new_zeroed_slice(len: usize) -> Box<[mem::MaybeUninit<T>]> {
+        unsafe { RawVec::with_capacity_zeroed(len).into_box(len) }
+    }
 }
 
 // 857
@@ -113,6 +123,18 @@ impl<T, A: Allocator> Box<mem::MaybeUninit<T>, A> {
     pub unsafe fn assume_init(self) -> Box<T, A> {
         let (raw, alloc) = Self::into_raw_with_allocator(self);
         unsafe { Box::<T, A>::from_raw_in(raw as *mut T, alloc) }
+    }
+}
+
+// 928
+impl<T, A: Allocator> Box<[mem::MaybeUninit<T>], A> {
+    /// Converts to `Box<[T], A>`.
+    ///
+    #[inline(always)]
+    // 960
+    pub unsafe fn assume_init(self) -> Box<[T], A> {
+        let (raw, alloc) = Self::into_raw_with_allocator(self);
+        unsafe { Box::<[T], A>::from_raw_in(raw as *mut [T], alloc) }
     }
 }
 

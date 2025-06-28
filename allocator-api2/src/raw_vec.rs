@@ -100,6 +100,14 @@ impl<T> RawVec<T, Global> {
     pub fn with_capacity(capacity: usize) -> Self {
         Self::with_capacity_in(capacity, Global)
     }
+
+    /// Like `with_capacity`, but guarantees the buffer is zeroed.
+    #[must_use]
+    #[inline(always)]
+    // 175
+    pub fn with_capacity_zeroed(capacity: usize) -> Self {
+        Self::with_capacity_zeroed_in(capacity, Global)
+    }
 }
 
 // 180
@@ -123,6 +131,14 @@ impl<T, A: Allocator> RawVec<T, A> {
     // 210
     pub fn with_capacity_in(capacity: usize, alloc: A) -> Self {
         Self::allocate_in(capacity, AllocInit::Uninitialized, alloc)
+    }
+
+    /// Like `with_capacity_zeroed`, but parameterized over the choice
+    /// of allocator for the returned `RawVec`.
+    #[inline(always)]
+    // 218
+    pub fn with_capacity_zeroed_in(capacity: usize, alloc: A) -> Self {
+        Self::allocate_in(capacity, AllocInit::Zeroed, alloc)
     }
 
     /// Converts the entire buffer into `Box<[MaybeUninit<T>]>` with the specified `len`.

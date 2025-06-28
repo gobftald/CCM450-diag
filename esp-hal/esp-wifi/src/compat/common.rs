@@ -1,9 +1,13 @@
+// 10
+use allocator_api2::boxed::Box;
+
 // 11
 use esp_wifi_sys::{c_types::c_char, include::malloc};
 
 // 14
 use crate::{
-    binary::c_types::c_void,
+    binary::c_types::{c_int, c_void},
+    hal::sync::Locked,
     memory_fence::memory_fence,
     preempt::{current_task, yield_task},
 };
@@ -15,6 +19,54 @@ struct Mutex {
     locking_pid: usize,
     count: u32,
     recursive: bool,
+}
+
+// 31
+pub(crate) struct ConcurrentQueue {
+    raw_queue: Locked<RawQueue>,
+}
+
+// 35
+impl ConcurrentQueue {
+    // 36
+    pub(crate) fn new(count: usize, item_size: usize) -> Self {
+        Self {
+            raw_queue: Locked::new(RawQueue::new(count, item_size)),
+        }
+    }
+}
+
+/// A naive and pretty much unsafe queue to back the queues used in drivers and
+/// supplicant code.
+///
+/// The [ConcurrentQueue] wrapper should be used.
+// 63
+pub struct RawQueue {
+    item_size: usize,
+    capacity: usize,
+    current_read: usize,
+    current_write: usize,
+    //storage: Box<[u8], InternalMemory>,
+    storage: Box<[u8]>,
+}
+
+// 71
+impl RawQueue {
+    /// This allocates underlying storage. See [release_storage]
+    // 73
+    pub fn new(capacity: usize, item_size: usize) -> Self {
+        let storage =
+            //unsafe { Box::new_zeroed_slice_in(capacity * item_size, InternalMemory).assume_init() };
+            unsafe { Box::new_zeroed_slice(capacity * item_size).assume_init() };
+
+        Self {
+            item_size,
+            capacity,
+            current_read: 0,
+            current_write: 0,
+            storage,
+        }
+    }
 }
 
 // 167
@@ -41,6 +93,7 @@ unsafe extern "C" fn strnlen(chars: *const c_char, maxlen: usize) -> usize {
     len as usize
 }
 
+// 189
 pub(crate) fn sem_create(max: u32, init: u32) -> *mut c_void {
     unsafe {
         let ptr = malloc(4) as *mut u32;
@@ -114,4 +167,19 @@ pub(crate) fn unlock_mutex(mutex: *mut c_void) -> i32 {
             0
         }
     })
+}
+
+// 339
+pub(crate) fn create_queue(queue_len: c_int, item_size: c_int) -> *mut ConcurrentQueue {
+    trace!("wifi_create_queue len={} size={}", queue_len, item_size,);
+
+    let queue = ConcurrentQueue::new(queue_len as usize, item_size as usize);
+    let ptr = unsafe { malloc(size_of_val(&queue) as u32) as *mut ConcurrentQueue };
+    unsafe {
+        ptr.write(queue);
+    }
+
+    trace!("created queue @{:?}", ptr);
+
+    ptr
 }

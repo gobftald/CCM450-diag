@@ -98,6 +98,9 @@ mod macros;
 // 232
 pub use procmacros::blocking_main as main;
 
+// 277
+pub mod sync;
+
 // 288
 pub mod config;
 

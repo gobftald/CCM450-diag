@@ -1,8 +1,14 @@
+// 10
+use core::ptr::addr_of_mut;
+
 // 15
 use crate::compat::{
-    common::{create_recursive_mutex, lock_mutex, unlock_mutex},
+    common::{ConcurrentQueue, create_queue, create_recursive_mutex, lock_mutex, unlock_mutex},
     malloc::calloc,
 };
+
+// 43
+static mut QUEUE_HANDLE: *mut ConcurrentQueue = core::ptr::null_mut();
 
 /// **************************************************************************
 /// Name: esp_spin_lock_create
@@ -113,6 +119,7 @@ pub unsafe extern "C" fn task_get_current_task() -> *mut crate::binary::c_types:
 ///   Task maximum priority
 ///
 /// *************************************************************************
+// 806
 pub unsafe extern "C" fn task_get_max_priority() -> i32 {
     trace!("task_get_max_priority");
     255
@@ -194,4 +201,31 @@ pub unsafe extern "C" fn calloc_internal(
     size: usize,
 ) -> *mut crate::binary::c_types::c_void {
     unsafe { calloc(n as u32, size) as *mut crate::binary::c_types::c_void }
+}
+
+/// **************************************************************************
+/// Name: esp_wifi_create_queue
+///
+/// Description:
+///   Create Wi-Fi static message queue
+///
+/// Input Parameters:
+///   queue_len - queue message number
+///   item_size - message size
+///
+/// Returned Value:
+///   Wi-Fi static message queue data pointer
+///
+/// *************************************************************************
+// 1688
+pub unsafe extern "C" fn wifi_create_queue(
+    queue_len: crate::binary::c_types::c_int,
+    item_size: crate::binary::c_types::c_int,
+) -> *mut crate::binary::c_types::c_void {
+    unsafe {
+        let queue = create_queue(queue_len, item_size);
+        QUEUE_HANDLE = queue;
+
+        addr_of_mut!(QUEUE_HANDLE).cast()
+    }
 }
