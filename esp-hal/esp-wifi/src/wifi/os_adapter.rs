@@ -101,6 +101,24 @@ pub unsafe extern "C" fn task_get_current_task() -> *mut crate::binary::c_types:
 }
 
 /// **************************************************************************
+/// Name: esp_task_get_max_priority
+///
+/// Description:
+///   Get OS task maximum priority
+///
+/// Input Parameters:
+///   None
+///
+/// Returned Value:
+///   Task maximum priority
+///
+/// *************************************************************************
+pub unsafe extern "C" fn task_get_max_priority() -> i32 {
+    trace!("task_get_max_priority");
+    255
+}
+
+/// **************************************************************************
 /// Name: esp_malloc
 ///
 /// Description:

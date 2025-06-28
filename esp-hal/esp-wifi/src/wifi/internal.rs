@@ -7,7 +7,7 @@ use esp_wifi_sys::include::{
 // 10
 use super::os_adapter::{
     calloc_internal, malloc, malloc_internal, mutex_lock, mutex_unlock, recursive_mutex_create,
-    spin_lock_create, task_get_current_task,
+    spin_lock_create, task_get_current_task, task_get_max_priority,
 };
 
 #[unsafe(no_mangle)]
@@ -54,8 +54,8 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _task_delete: None,                           // 152 Some(task_delete),
     _task_delay: None,                            // 156 Some(task_delay),
     _task_ms_to_tick: None,                       // 160 Some(task_ms_to_tick),
-    _task_get_current_task: Some(task_get_current_task), //164
-    _task_get_max_priority: None,                 // 168 Some(task_get_max_priority),
+    _task_get_current_task: Some(task_get_current_task), // 164
+    _task_get_max_priority: Some(task_get_max_priority), // 168
     _malloc: Some(malloc),                        // 172
     _free: None,                                  // 176 Some(free),
     _event_post: None,                            // 180 Some(event_post),
