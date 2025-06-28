@@ -213,7 +213,7 @@ esp_wifi_init_internal                                      // libnet80211.a(iee
             32  rcTxUpdatePer                               // rcTxUpdatePer = 0x40001770
             36  rcLowerSched                                // rcLowerSched = 0x40001768
             40  rcClearCurSched                             // rcClearCurSched = 0x4000175c
-            44  rcClearCurStat                              // lrcClearCurStat = 0x40001760
+            44  rcClearCurStat                              // rcClearCurStat = 0x40001760
             48  rcAmpduLowerRate                            // rcAmpduLowerRate = 0x40001750
             52  TRC_AMPDU_PER_DOWN_THRESHOLD                // TRC_AMPDU_PER_DOWN_THRESHOLD = 0x40001790
             56  rssi_margin                                 // rssi_margin = 0x40001788
@@ -272,7 +272,7 @@ esp_wifi_init_internal                                      // libnet80211.a(iee
             268 hal_mac_tx_get_blockack                     // hal_mac_tx_get_blockack = 0x400015d0
             272 lmacReachShortLimit                         // lmacReachShortLimit = 0x4000161c
             276 lmacReachLongLimit                          // lmacReachLongLimit = 0x40001618
-            280 ppTxqUpdateBitmap                           // lppTxqUpdateBitmap = 0x4000172c
+            280 ppTxqUpdateBitmap                           // ppTxqUpdateBitmap = 0x4000172c
             284 ppReSendBar                                 // libpp.a(pp.o)
             288 ppRegressAmpdu                              // libpp.a(pp.o)
             292 lmacRetryTxFrame                            // libpp.a(lmac.o)
@@ -342,7 +342,7 @@ esp_wifi_init_internal                                      // libnet80211.a(iee
             548 ic_get_trc                                  // ic_get_trc = 0x400015d8
             552 rc_get_trc_by_index                         // rc_get_trc_by_index = 0x4000174c
             556 pp_coex_tx_request                          // libpp.a(pp.o)
-            526 pm_on_tbtt                                  // pm_on_tbtt = 0x40001684
+            560 pm_on_tbtt                                  // pm_on_tbtt = 0x40001684
             564 pm_enable_active_timer                      // pm_enable_active_timer = 0x40001660
             568 pm_send_nullfunc                            // libpp.a(pm.o)
             572 pm_dream                                    // pm_dream = 0x40001654
