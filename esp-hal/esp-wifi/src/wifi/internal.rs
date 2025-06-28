@@ -10,6 +10,9 @@ use super::os_adapter::{
     spin_lock_create, task_get_current_task, task_get_max_priority, wifi_create_queue,
 };
 
+// 11
+use crate::common_adapter::{semphr_create, semphr_delete};
+
 #[unsafe(no_mangle)]
 // 70
 static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
@@ -26,8 +29,8 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _wifi_int_disable: None,                      // 40 Some(wifi_int_disable),
     _wifi_int_restore: None,                      // 44 Some(wifi_int_restore),
     _task_yield_from_isr: None,                   // 48 Some(task_yield_from_isr),
-    _semphr_create: None,                         // 52 Some(semphr_create),
-    _semphr_delete: None,                         // 56 Some(semphr_delete),
+    _semphr_create: Some(semphr_create),          // 52
+    _semphr_delete: Some(semphr_delete),          // 56
     _semphr_take: None,                           // 60 Some(semphr_take),
     _semphr_give: None,                           // 64 Some(semphr_give),
     _wifi_thread_semphr_get: None,                // 68 Some(wifi_thread_semphr_get),

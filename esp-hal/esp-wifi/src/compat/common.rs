@@ -4,7 +4,8 @@ use allocator_api2::boxed::Box;
 // 11
 use esp_wifi_sys::{c_types::c_char, include::malloc};
 
-// 14
+// 13
+use super::malloc::free;
 use crate::{
     binary::c_types::{c_int, c_void},
     hal::sync::Locked,
@@ -101,6 +102,15 @@ pub(crate) fn sem_create(max: u32, init: u32) -> *mut c_void {
 
         trace!("sem created res = {:?}", ptr);
         ptr.cast()
+    }
+}
+
+// 199
+pub(crate) fn sem_delete(semphr: *mut c_void) {
+    trace!(">>> sem delete");
+
+    unsafe {
+        free(semphr.cast());
     }
 }
 
