@@ -41,6 +41,16 @@ unsafe extern "C" fn strnlen(chars: *const c_char, maxlen: usize) -> usize {
     len as usize
 }
 
+pub(crate) fn sem_create(max: u32, init: u32) -> *mut c_void {
+    unsafe {
+        let ptr = malloc(4) as *mut u32;
+        ptr.write_volatile(init);
+
+        trace!("sem created res = {:?}", ptr);
+        ptr.cast()
+    }
+}
+
 // 270
 pub(crate) fn create_recursive_mutex() -> *mut c_void {
     let mutex = Mutex {

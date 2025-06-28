@@ -6,7 +6,7 @@ use esp_wifi_sys::include::{
 
 // 10
 use super::os_adapter::{
-    calloc_internal, malloc, mutex_lock, mutex_unlock, recursive_mutex_create,
+    calloc_internal, malloc, mutex_lock, mutex_unlock, recursive_mutex_create, spin_lock_create,
     task_get_current_task,
 };
 
@@ -21,7 +21,7 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _ints_on: None,                               // 20 Some(ints_on),
     _ints_off: None,                              // 24 Some(ints_off),
     _is_from_isr: None,                           // 28 Some(is_from_isr),
-    _spin_lock_create: None,                      // 32 Some(spin_lock_create),
+    _spin_lock_create: Some(spin_lock_create),    // 32
     _spin_lock_delete: None,                      // 36 Some(spin_lock_delete),
     _wifi_int_disable: None,                      // 40 Some(wifi_int_disable),
     _wifi_int_restore: None,                      // 44 Some(wifi_int_restore),

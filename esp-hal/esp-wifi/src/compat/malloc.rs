@@ -1,7 +1,7 @@
 #[unsafe(no_mangle)]
 // 2
 pub unsafe extern "C" fn malloc(size: usize) -> *mut u8 {
-    trace!("alloc {}", size);
+    //trace!("alloc {}", size);
 
     unsafe extern "C" {
         fn esp_wifi_allocate_from_internal_ram(size: usize) -> *mut u8;
@@ -13,6 +13,7 @@ pub unsafe extern "C" fn malloc(size: usize) -> *mut u8 {
         warn!("Unable to allocate {} bytes", size);
     }
 
+    trace!("alloc {} {:?}", size, ptr);
     ptr
 }
 

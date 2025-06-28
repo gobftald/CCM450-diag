@@ -5,6 +5,27 @@ use crate::compat::{
 };
 
 /// **************************************************************************
+/// Name: esp_spin_lock_create
+///
+/// Description:
+///   Create spin lock in SMP mode
+///
+/// Input Parameters:
+///   None
+///
+/// Returned Value:
+///   Spin lock data pointer
+///
+/// *************************************************************************
+// 180
+pub unsafe extern "C" fn spin_lock_create() -> *mut crate::binary::c_types::c_void {
+    let ptr = crate::compat::common::sem_create(1, 1);
+
+    trace!("spin_lock_create {:?}", ptr);
+    ptr as *mut crate::binary::c_types::c_void
+}
+
+/// **************************************************************************
 /// Name: esp_recursive_mutex_create
 ///
 /// Description:
