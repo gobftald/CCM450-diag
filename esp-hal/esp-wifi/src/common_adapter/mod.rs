@@ -3,7 +3,8 @@ use esp_wifi_sys::c_types::c_char;
 // 13
 use crate::{
     binary::include::esp_event_base_t,
-    compat::common::{sem_create, sem_delete, str_from_c},
+    compat::common::{sem_create, sem_delete, sem_give, sem_take, str_from_c},
+    hal::ram,
 };
 
 // 19
@@ -49,6 +50,48 @@ pub unsafe extern "C" fn semphr_create(max: u32, init: u32) -> *mut crate::binar
 pub unsafe extern "C" fn semphr_delete(semphr: *mut crate::binary::c_types::c_void) {
     trace!("semphr_delete {:?}", semphr);
     sem_delete(semphr);
+}
+
+/// **************************************************************************
+/// Name: esp_semphr_take
+///
+/// Description:
+///   Wait semaphore within a certain period of time
+///
+/// Input Parameters:
+///   semphr - Semaphore data pointer
+///   ticks  - Wait system ticks
+///
+/// Returned Value:
+///   True if success or false if fail
+///
+/// *************************************************************************
+#[ram]
+// 91
+pub unsafe extern "C" fn semphr_take(
+    semphr: *mut crate::binary::c_types::c_void,
+    tick: u32,
+) -> i32 {
+    sem_take(semphr, tick)
+}
+
+/// **************************************************************************
+/// Name: esp_semphr_give
+///
+/// Description:
+///   Post semaphore
+///
+/// Input Parameters:
+///   semphr - Semaphore data pointer
+///
+/// Returned Value:
+///   True if success or false if fail
+///
+/// *************************************************************************
+#[ram]
+// 112
+pub unsafe extern "C" fn semphr_give(semphr: *mut crate::binary::c_types::c_void) -> i32 {
+    sem_give(semphr)
 }
 
 // other functions

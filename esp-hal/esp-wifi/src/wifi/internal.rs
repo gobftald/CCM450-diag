@@ -12,7 +12,7 @@ use super::os_adapter::{
 };
 
 // 11
-use crate::common_adapter::{semphr_create, semphr_delete};
+use crate::common_adapter::{semphr_create, semphr_delete, semphr_give, semphr_take};
 
 #[unsafe(no_mangle)]
 // 70
@@ -32,8 +32,8 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _task_yield_from_isr: None,                   // 48 Some(task_yield_from_isr),
     _semphr_create: Some(semphr_create),          // 52
     _semphr_delete: Some(semphr_delete),          // 56
-    _semphr_take: None,                           // 60 Some(semphr_take),
-    _semphr_give: None,                           // 64 Some(semphr_give),
+    _semphr_take: Some(semphr_take),              // 60
+    _semphr_give: Some(semphr_give),              // 64
     _wifi_thread_semphr_get: None,                // 68 Some(wifi_thread_semphr_get),
     _mutex_create: None,                          // 72 Some(mutex_create),
     _recursive_mutex_create: Some(recursive_mutex_create), // 76

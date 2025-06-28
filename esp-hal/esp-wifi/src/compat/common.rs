@@ -13,6 +13,9 @@ use crate::{
     preempt::{current_task, yield_task},
 };
 
+// 22
+pub(crate) const OSI_FUNCS_TIME_BLOCKING: u32 = u32::MAX;
+
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 // 25
@@ -112,6 +115,66 @@ pub(crate) fn sem_delete(semphr: *mut c_void) {
     unsafe {
         free(semphr.cast());
     }
+}
+
+// 207
+pub(crate) fn sem_take(semphr: *mut c_void, tick: u32) -> i32 {
+    // This shouldn't normally happen if we always report the correct state from
+    // `is_in_isr`. This is a last resort if the driver calls this anyways.
+    // (I haven't observed this to happen)
+    let tick = if tick == OSI_FUNCS_TIME_BLOCKING && crate::is_interrupts_disabled() {
+        warn!("blocking sem_take probably called from an ISR - return early");
+        1
+    } else {
+        tick
+    };
+
+    trace!(">>>> semphr_take {:?} block_time_tick {}", semphr, tick);
+
+    let forever = tick == OSI_FUNCS_TIME_BLOCKING;
+    let timeout = tick as u64;
+    let start = crate::time::systimer_count();
+
+    let sem = semphr as *mut u32;
+
+    'outer: loop {
+        let res = critical_section::with(|_| unsafe {
+            memory_fence();
+            let cnt = *sem;
+            if cnt > 0 {
+                *sem = cnt - 1;
+                1
+            } else {
+                0
+            }
+        });
+
+        if res == 1 {
+            trace!(">>>> return from semphr_take");
+            return 1;
+        }
+
+        if !forever && crate::time::elapsed_time_since(start) > timeout {
+            break 'outer;
+        }
+
+        yield_task();
+    }
+
+    trace!(">>>> return from semphr_take with timeout");
+    0
+}
+
+// 254
+pub(crate) fn sem_give(semphr: *mut c_void) -> i32 {
+    trace!("semphr_give {:?}", semphr);
+    let sem = semphr as *mut u32;
+
+    critical_section::with(|_| unsafe {
+        let cnt = *sem;
+        *sem = cnt + 1;
+        1
+    })
 }
 
 // 270

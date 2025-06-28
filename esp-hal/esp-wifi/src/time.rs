@@ -16,3 +16,10 @@ pub(crate) fn time_diff(start: u64, end: u64) -> u64 {
     // 52-bit wrapping sub
     end.wrapping_sub(start) & 0x000f_ffff_ffff_ffff
 }
+
+/// Do not call this in a critical section!
+// 48
+pub(crate) fn elapsed_time_since(start: u64) -> u64 {
+    let now = systimer_count();
+    time_diff(start, now)
+}

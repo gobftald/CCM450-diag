@@ -77,6 +77,9 @@ extern crate console;
 // 192
 pub use esp_riscv_rt::riscv;
 
+// 203
+pub use procmacros::ram;
+
 // 206
 pub use self::soc::peripherals;
 pub(crate) use self::soc::peripherals::pac;
