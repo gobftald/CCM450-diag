@@ -549,12 +549,12 @@ esp_wifi_init_internal                                      // libnet80211.a(iee
             nvs_enable -> g_wifi_menuconfig[36]
             rx_mgmt_buf_type -> g_wifi_menuconfig[84]
             rx_mgmt_buf_num -> g_wifi_menuconfig[88]
-            static_rx_buf_num -> g_wifi_menuconfig[0]
-            cache_tx_buf_num -> g_wifi_menuconfig[20]
             ampdu_rx_enable -> g_wifi_menuconfig[28]
+            cache_tx_buf_num -> g_wifi_menuconfig[20]
             rx_ba_win -> g_wifi_menuconfig[48]
             csi_enable -> g_wifi_menuconfig[24]
             wifi_task_core_id -> g_wifi_menuconfig[52]
+            static_rx_buf_num -> g_wifi_menuconfig[0]
             ampdu_tx_enable -> g_wifi_menuconfig[32]
             dynamic_rx_buf_num -> g_wifi_menuconfig[4]
             nano_enable -> g_wifi_menuconfig[40]
@@ -565,6 +565,7 @@ esp_wifi_init_internal                                      // libnet80211.a(iee
             feature_caps1 -> g_wifi_menuconfig[68]
             sta_disconnected_pm -> g_wifi_menuconfig[72]
             espnow_max_encrypt_num -> g_wifi_menuconfig[80]
+
         // save return value, then if error -> wifi_deinit_in_caller_task -> store error code in a0 -> return
 
         misc_nvs_init                                       // libcore.a(misc_nvs.o)

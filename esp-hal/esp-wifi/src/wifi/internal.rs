@@ -6,8 +6,8 @@ use esp_wifi_sys::include::{
 
 // 10
 use super::os_adapter::{
-    calloc_internal, malloc, mutex_lock, mutex_unlock, recursive_mutex_create, spin_lock_create,
-    task_get_current_task,
+    calloc_internal, malloc, malloc_internal, mutex_lock, mutex_unlock, recursive_mutex_create,
+    spin_lock_create, task_get_current_task,
 };
 
 #[unsafe(no_mangle)]
@@ -110,7 +110,7 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     #[cfg(not(feature = "sys-logs"))]
     _log_writev: None,
     _log_timestamp: None,                    // 340 Some(log_timestamp),
-    _malloc_internal: None,                  // 344 Some(malloc_internal),
+    _malloc_internal: Some(malloc_internal), // 344
     _realloc_internal: None,                 // 348 Some(realloc_internal),
     _calloc_internal: Some(calloc_internal), // 352
     _zalloc_internal: None,                  // 356 Some(zalloc_internal),
