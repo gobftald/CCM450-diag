@@ -7,10 +7,10 @@ use esp_wifi_sys::include::{
 // 10
 use super::os_adapter::{
     calloc_internal, log_timestamp, log_write, log_writev, malloc, malloc_internal, mutex_delete,
-    mutex_lock, mutex_unlock, queue_recv, recursive_mutex_create, spin_lock_create,
+    mutex_lock, mutex_unlock, queue_recv, queue_send, recursive_mutex_create, spin_lock_create,
     spin_lock_delete, task_create_pinned_to_core, task_delay, task_get_current_task,
-    task_get_max_priority, wifi_calloc, wifi_create_queue, wifi_delete_queue, wifi_int_disable,
-    wifi_int_restore, wifi_thread_semphr_get, wifi_zalloc,
+    task_get_max_priority, task_ms_to_tick, wifi_calloc, wifi_create_queue, wifi_delete_queue,
+    wifi_int_disable, wifi_int_restore, wifi_thread_semphr_get, wifi_zalloc,
 };
 
 // 11
@@ -44,7 +44,7 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _mutex_unlock: Some(mutex_unlock),            // 88
     _queue_create: None,                          // 92 Some(queue_create),
     _queue_delete: None,                          // 96 Some(queue_delete),
-    _queue_send: None,                            // 100 Some(queue_send),
+    _queue_send: Some(queue_send),                // 100
     _queue_send_from_isr: None,                   // 104 Some(queue_send_from_isr),
     _queue_send_to_back: None,                    // 108 Some(queue_send_to_back),
     _queue_send_to_front: None,                   // 112 Some(queue_send_to_front),
@@ -59,7 +59,7 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _task_create: None,                           // 148 Some(task_create),
     _task_delete: None,                           // 152 Some(task_delete),
     _task_delay: Some(task_delay),                // 156
-    _task_ms_to_tick: None,                       // 160 Some(task_ms_to_tick),
+    _task_ms_to_tick: Some(task_ms_to_tick),      // 160
     _task_get_current_task: Some(task_get_current_task), // 164
     _task_get_max_priority: Some(task_get_max_priority), // 168
     _malloc: Some(malloc),                        // 172

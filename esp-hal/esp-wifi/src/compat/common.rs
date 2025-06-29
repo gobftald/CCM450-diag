@@ -39,6 +39,11 @@ impl ConcurrentQueue {
         }
     }
 
+    // 42
+    pub(crate) fn enqueue(&mut self, item: *mut c_void) -> i32 {
+        self.raw_queue.with(|q| unsafe { q.enqueue(item) })
+    }
+
     // 46
     pub(crate) fn try_dequeue(&mut self, item: *mut c_void) -> bool {
         self.raw_queue.with(|q| unsafe { q.try_dequeue(item) })
@@ -83,9 +88,35 @@ impl RawQueue {
         &self.storage[item_start..][..self.item_size]
     }
 
+    // 91
+    fn get_mut(&mut self, index: usize) -> &mut [u8] {
+        let item_start = self.item_size * index;
+        &mut self.storage[item_start..][..self.item_size]
+    }
+
+    // 96
+    fn full(&self) -> bool {
+        self.count() == self.capacity
+    }
+
     // 100
     fn empty(&self) -> bool {
         self.count() == 0
+    }
+
+    // 104
+    unsafe fn enqueue(&mut self, item: *mut c_void) -> i32 {
+        if !self.full() {
+            let item = unsafe { core::slice::from_raw_parts(item as *const u8, self.item_size) };
+
+            let dst = self.get_mut(self.current_write);
+            dst.copy_from_slice(item);
+
+            self.current_write = (self.current_write + 1) % self.capacity;
+            1
+        } else {
+            0
+        }
     }
 
     // 118
@@ -319,6 +350,20 @@ pub(crate) fn delete_queue(queue: *mut ConcurrentQueue) {
         core::ptr::drop_in_place(queue);
         crate::compat::malloc::free(queue.cast());
     }
+}
+
+pub(crate) fn send_queued(
+    queue: *mut ConcurrentQueue,
+    item: *mut c_void,
+    block_time_tick: u32,
+) -> i32 {
+    trace!(
+        "queue_send queue {:?} item {:x} block_time_tick {}",
+        queue, item as usize, block_time_tick
+    );
+
+    let queue: *mut ConcurrentQueue = queue.cast();
+    unsafe { (*queue).enqueue(item) }
 }
 
 // 376

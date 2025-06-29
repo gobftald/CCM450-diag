@@ -1,3 +1,6 @@
+// Time keeping
+pub const TICKS_PER_SECOND: u64 = 1_000_000;
+
 /// Current systimer count value
 /// A tick is 1 / 1_000_000 seconds
 /// This function must not be called in a critical section. Doing so may return
@@ -15,6 +18,11 @@ pub(crate) fn systimer_count() -> u64 {
 pub(crate) fn time_diff(start: u64, end: u64) -> u64 {
     // 52-bit wrapping sub
     end.wrapping_sub(start) & 0x000f_ffff_ffff_ffff
+}
+
+// 33
+pub(crate) fn millis_to_ticks(ms: u64) -> u64 {
+    ms * (TICKS_PER_SECOND / 1_000)
 }
 
 /// Do not call this in a critical section!

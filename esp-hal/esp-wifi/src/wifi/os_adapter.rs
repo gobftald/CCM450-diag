@@ -6,7 +6,7 @@ use crate::{
     compat::{
         common::{
             ConcurrentQueue, create_queue, create_recursive_mutex, delete_queue, lock_mutex,
-            receive_queued, str_from_c, thread_sem_get, unlock_mutex,
+            receive_queued, send_queued, str_from_c, thread_sem_get, unlock_mutex,
         },
         malloc::calloc,
     },
@@ -200,6 +200,30 @@ pub unsafe extern "C" fn mutex_unlock(mutex: *mut crate::binary::c_types::c_void
 }
 
 /// **************************************************************************
+/// Name: esp_queue_send
+///
+/// Description:
+///   Send message of low priority to queue within a certain period of time
+///
+/// Input Parameters:
+///   queue - Message queue data pointer
+///   item  - Message data pointer
+///   ticks - Wait ticks
+///
+/// Returned Value:
+///   True if success or false if fail
+///
+/// *************************************************************************
+// 436
+pub unsafe extern "C" fn queue_send(
+    queue: *mut crate::binary::c_types::c_void,
+    item: *mut crate::binary::c_types::c_void,
+    block_time_tick: u32,
+) -> i32 {
+    send_queued(queue.cast(), item, block_time_tick)
+}
+
+/// **************************************************************************
 /// Name: esp_queue_recv
 ///
 /// Description:
@@ -298,6 +322,25 @@ pub unsafe extern "C" fn task_delay(tick: u32) {
     while crate::time::elapsed_time_since(start_time) < tick as u64 {
         yield_task();
     }
+}
+
+/// **************************************************************************
+/// Name: esp_task_ms_to_tick
+///
+/// Description:
+///   Transform from millim seconds to system ticks
+///
+/// Input Parameters:
+///   ms - Millim seconds
+///
+/// Returned Value:
+///   System ticks
+///
+/// *************************************************************************
+// 768
+pub unsafe extern "C" fn task_ms_to_tick(ms: u32) -> i32 {
+    trace!("task_ms_to_tick ms {}", ms);
+    crate::time::millis_to_ticks(ms as u64) as i32
 }
 
 /// **************************************************************************
