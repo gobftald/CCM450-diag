@@ -5,7 +5,7 @@ use core::ptr::addr_of_mut;
 use crate::compat::{
     common::{
         ConcurrentQueue, create_queue, create_recursive_mutex, delete_queue, lock_mutex,
-        str_from_c, unlock_mutex,
+        receive_queued, str_from_c, unlock_mutex,
     },
     malloc::calloc,
 };
@@ -124,6 +124,30 @@ pub unsafe extern "C" fn mutex_lock(mutex: *mut crate::binary::c_types::c_void) 
 // 370
 pub unsafe extern "C" fn mutex_unlock(mutex: *mut crate::binary::c_types::c_void) -> i32 {
     unlock_mutex(mutex)
+}
+
+/// **************************************************************************
+/// Name: esp_queue_recv
+///
+/// Description:
+///   Receive message from queue within a certain period of time
+///
+/// Input Parameters:
+///   queue - Message queue data pointer
+///   item  - Message data pointer
+///   ticks - Wait ticks
+///
+/// Returned Value:
+///   True if success or false if fail
+///
+/// *************************************************************************
+// 533
+pub unsafe extern "C" fn queue_recv(
+    queue: *mut crate::binary::c_types::c_void,
+    item: *mut crate::binary::c_types::c_void,
+    block_time_tick: u32,
+) -> i32 {
+    receive_queued(queue.cast(), item, block_time_tick)
 }
 
 /// **************************************************************************

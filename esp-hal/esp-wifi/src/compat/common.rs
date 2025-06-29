@@ -38,6 +38,11 @@ impl ConcurrentQueue {
             raw_queue: Locked::new(RawQueue::new(count, item_size)),
         }
     }
+
+    // 46
+    pub(crate) fn try_dequeue(&mut self, item: *mut c_void) -> bool {
+        self.raw_queue.with(|q| unsafe { q.try_dequeue(item) })
+    }
 }
 
 /// A naive and pretty much unsafe queue to back the queues used in drivers and
@@ -69,6 +74,42 @@ impl RawQueue {
             current_read: 0,
             current_write: 0,
             storage,
+        }
+    }
+
+    // 86
+    fn get(&self, index: usize) -> &[u8] {
+        let item_start = self.item_size * index;
+        &self.storage[item_start..][..self.item_size]
+    }
+
+    // 100
+    fn empty(&self) -> bool {
+        self.count() == 0
+    }
+
+    // 118
+    unsafe fn try_dequeue(&mut self, item: *mut c_void) -> bool {
+        if !self.empty() {
+            let item = unsafe { core::slice::from_raw_parts_mut(item as *mut u8, self.item_size) };
+
+            let src = self.get(self.current_read);
+            item.copy_from_slice(src);
+
+            self.current_read = (self.current_read + 1) % self.capacity;
+
+            true
+        } else {
+            false
+        }
+    }
+
+    // 158
+    fn count(&self) -> usize {
+        if self.current_write >= self.current_read {
+            self.current_write - self.current_read
+        } else {
+            self.capacity - self.current_read + self.current_write
         }
     }
 }
@@ -272,5 +313,35 @@ pub(crate) fn delete_queue(queue: *mut ConcurrentQueue) {
     unsafe {
         core::ptr::drop_in_place(queue);
         crate::compat::malloc::free(queue.cast());
+    }
+}
+
+// 376
+pub(crate) fn receive_queued(
+    queue: *mut ConcurrentQueue,
+    item: *mut c_void,
+    block_time_tick: u32,
+) -> i32 {
+    trace!(
+        "queue_recv {:?} item {:?} block_time_tick {}",
+        queue, item, block_time_tick
+    );
+
+    let forever = block_time_tick == OSI_FUNCS_TIME_BLOCKING;
+    let timeout = block_time_tick as u64;
+    let start = crate::time::systimer_count();
+
+    loop {
+        if unsafe { (*queue).try_dequeue(item) } {
+            trace!("received");
+            return 1;
+        }
+
+        if !forever && crate::time::elapsed_time_since(start) > timeout {
+            trace!("queue_recv returns with timeout");
+            return -1;
+        }
+
+        yield_task();
     }
 }

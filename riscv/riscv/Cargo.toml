@@ -11,4 +11,7 @@ critical-section = "1.2.0"
 [features]
 defmt = ["dep:defmt", "riscv-pac/defmt"]
 s-mode = []
-critical-section-single-hart = ["critical-section/restore-state-bool"]
+
+#critical-section-single-hart = ["critical-section/restore-state-bool"]
+# because of REENTRY_FLAG in critical_section implemantation in esp-hal/sync
+critical-section-single-hart = ["critical-section/restore-state-u8"]
