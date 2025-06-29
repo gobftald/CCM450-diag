@@ -14,7 +14,9 @@ use super::os_adapter::{
 };
 
 // 11
-use crate::common_adapter::{semphr_create, semphr_delete, semphr_give, semphr_take};
+use crate::common_adapter::{
+    ets_timer_disarm, semphr_create, semphr_delete, semphr_give, semphr_take,
+};
 
 #[unsafe(no_mangle)]
 // 70
@@ -76,7 +78,7 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _phy_update_country_info: None,               // 216 Some(phy_update_country_info),
     _read_mac: None,                              // 220 Some(read_mac),
     _timer_arm: None,                             // 224 Some(ets_timer_arm),
-    _timer_disarm: None,                          // 228 Some(ets_timer_disarm),
+    _timer_disarm: Some(ets_timer_disarm),        // 228
     _timer_done: None,                            // 232 Some(ets_timer_done),
     _timer_setfn: None,                           // 236 Some(ets_timer_setfn),
     _timer_arm_us: None,                          // 240 Some(ets_timer_arm_us),

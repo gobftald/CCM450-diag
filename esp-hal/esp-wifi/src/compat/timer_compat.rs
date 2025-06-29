@@ -1,4 +1,8 @@
+// 1
 use alloc::boxed::Box;
+
+// 3
+use esp_hal::sync::Locked;
 
 // 5
 use crate::binary::{c_types, include::ets_timer};
@@ -33,6 +37,14 @@ pub(crate) struct Timer {
     next: Option<Box<Timer>>,
 }
 
+// 45
+impl Timer {
+    // 46
+    pub(crate) fn id(&self) -> usize {
+        self.ets_timer as usize
+    }
+}
+
 // 51
 pub(crate) struct TimerQueue {
     head: Option<Box<Timer>>,
@@ -43,6 +55,19 @@ impl TimerQueue {
     // 56
     const fn new() -> Self {
         Self { head: None }
+    }
+
+    // 60
+    fn find(&mut self, ets_timer: *mut ets_timer) -> Option<&mut Box<Timer>> {
+        let mut current = self.head.as_mut();
+        while let Some(timer) = current {
+            if core::ptr::eq(timer.ets_timer, ets_timer) {
+                return Some(timer);
+            }
+            current = timer.next.as_mut();
+        }
+
+        None
     }
 
     // 72
@@ -65,5 +90,19 @@ impl TimerQueue {
 }
 
 // 145
-//pub(crate) static TIMERS: Locked<TimerQueue> = Locked::new(TimerQueue::new());
-pub(crate) static mut TIMERS: TimerQueue = TimerQueue::new();
+pub(crate) static mut TIMERS: Locked<TimerQueue> = Locked::new(TimerQueue::new());
+
+// 172
+pub fn compat_timer_disarm(ets_timer: *mut ets_timer) {
+    trace!("timer disarm");
+    unsafe {
+        TIMERS.with(|timers| {
+            if let Some(timer) = timers.find(ets_timer) {
+                trace!("timer_disarm {:x}", timer.id());
+                timer.active = false;
+            } else {
+                trace!("timer_disarm {:x} not found", ets_timer as usize);
+            }
+        });
+    }
+}

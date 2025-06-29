@@ -3,7 +3,10 @@ use esp_wifi_sys::c_types::c_char;
 // 13
 use crate::{
     binary::include::esp_event_base_t,
-    compat::common::{sem_create, sem_delete, sem_give, sem_take, str_from_c},
+    compat::{
+        common::{sem_create, sem_delete, sem_give, sem_take, str_from_c},
+        timer_compat::compat_timer_disarm,
+    },
     hal::ram,
 };
 
@@ -108,3 +111,9 @@ pub unsafe extern "C" fn puts(s: *const c_char) {
 #[unsafe(no_mangle)]
 // 222
 static mut WIFI_EVENT: esp_event_base_t = c"WIFI_EVENT".as_ptr();
+
+#[unsafe(no_mangle)]
+// 249
+pub unsafe extern "C" fn ets_timer_disarm(timer: *mut crate::binary::c_types::c_void) {
+    compat_timer_disarm(timer.cast());
+}

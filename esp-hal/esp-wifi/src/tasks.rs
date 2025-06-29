@@ -17,12 +17,10 @@ pub(crate) fn init_tasks() {
 pub(crate) extern "C" fn timer_task(_param: *mut esp_wifi_sys::c_types::c_void) {
     loop {
         let current_timestamp = systimer_count();
-        //let to_run = TIMERS.with(|timers| {
-        let to_run = {
-            // let to_run = unsafe { timers.find_next_due(current_timestamp) }?;
-            let to_run = unsafe { TIMERS.find_next_due(current_timestamp) };
+        let to_run = unsafe {
+            TIMERS.with(|timers| {
+                let to_run = unsafe { timers.find_next_due(current_timestamp) }?;
 
-            if let Some(to_run) = to_run {
                 to_run.active = to_run.periodic;
 
                 if to_run.periodic {
@@ -30,11 +28,8 @@ pub(crate) extern "C" fn timer_task(_param: *mut esp_wifi_sys::c_types::c_void) 
                 }
 
                 Some(to_run.callback)
-            } else {
-                None
-            }
+            })
         };
-        //});
 
         // run the due timer callback NOT in an interrupt free context
         if let Some(to_run) = to_run {
