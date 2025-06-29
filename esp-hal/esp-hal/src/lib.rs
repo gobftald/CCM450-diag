@@ -243,3 +243,11 @@ pub fn init(config: Config) -> Peripherals {
 
     peripherals
 }
+
+#[cfg(feature = "defmt")]
+defmt::timestamp!("{=u64:us}", {
+    // NOTE(interrupt-safe) single instruction volatile read operation
+    crate::time::Instant::now()
+        .duration_since_epoch()
+        .as_micros()
+});
