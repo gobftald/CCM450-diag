@@ -19,7 +19,7 @@ use crate::{hal::trapframe::TrapFrame, preempt::Scheduler};
 // 20
 struct Context {
     trap_frame: TrapFrame,
-    //pub thread_semaphore: u32,
+    pub thread_semaphore: u32,
     pub next: *mut Context,
     //pub _allocated_stack: Box<[MaybeUninit<u8>], InternalMemory>,
     pub _allocated_stack: Box<[MaybeUninit<u8>]>,
@@ -41,7 +41,7 @@ impl Context {
 
         Context {
             trap_frame: new_task_context(task_fn, param, stack_top),
-            //thread_semaphore: 0,
+            thread_semaphore: 0,
             next: core::ptr::null_mut(),
             _allocated_stack: stack,
         }
@@ -186,6 +186,14 @@ impl Scheduler for BuiltinScheduler {
     fn current_task(&self) -> *mut c_void {
         current_task() as *mut c_void
     }
+
+    // 173
+    fn current_task_thread_semaphore(&self) -> *mut crate::binary::c_types::c_void {
+        unsafe {
+            &mut ((*current_task()).thread_semaphore) as *mut _
+                as *mut crate::binary::c_types::c_void
+        }
+    }
 }
 
 // 181
@@ -195,7 +203,7 @@ fn allocate_main_task() {
     let context = Box::new(
         Context {
             trap_frame: TrapFrame::default(),
-            //thread_semaphore: 0,
+            thread_semaphore: 0,
             next: core::ptr::null_mut(),
             //_allocated_stack: Box::<[u8], _>::new_uninit_slice_in(0, InternalMemory),
             _allocated_stack: Box::<[u8]>::new_uninit_slice(0),

@@ -3,30 +3,55 @@
 use core::cell::Cell;
 use core::cell::UnsafeCell;
 
-// 10
+/// Opaque token that can be used to release a lock.
+// The interpretation of this value depends on the lock type that created it,
+// but bit #31 is reserved for the reentry flag.
+//
+#[derive(Clone, Copy, Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+// 25
+pub struct RestoreState(u32);
+
+// 26
+impl RestoreState {
+    const REENTRY_FLAG: u32 = 1 << 31;
+
+    fn mark_reentry(&mut self) {
+        self.0 |= Self::REENTRY_FLAG;
+    }
+
+    fn is_reentry(&self) -> bool {
+        self.0 & Self::REENTRY_FLAG != 0
+    }
+}
+
+// 52
 mod single_core {
     use core::sync::atomic::{compiler_fence, Ordering};
 
+    // 55
+    use super::RestoreState;
+
     /// Trait for single-core locks.
-    // 16
+    // 59
     pub trait RawLock {
-        unsafe fn enter(&self) -> critical_section::RawRestoreState;
-        unsafe fn exit(&self, token: critical_section::RawRestoreState);
+        unsafe fn enter(&self) -> RestoreState;
+        unsafe fn exit(&self, token: RestoreState);
     }
 
     /// A lock that disables interrupts.
-    // 72
+    // 114
     pub struct InterruptLock;
 
-    // 74
+    // 116
     impl RawLock for InterruptLock {
-        // 75
-        unsafe fn enter(&self) -> critical_section::RawRestoreState {
+        // 117
+        unsafe fn enter(&self) -> RestoreState {
             cfg_if::cfg_if! {
                 if #[cfg(riscv)] {
                     let mut mstatus = 0u32;
                     core::arch::asm!("csrrci {0}, mstatus, 8", inout(reg) mstatus);
-                    let token = ((mstatus & 0b1000) != 0) as critical_section::RawRestoreState;
+                    let token = mstatus & 0b1000;
                 } else {
                     compile_error!("Unsupported architecture")
                 }
@@ -36,14 +61,16 @@ mod single_core {
             // disabled.
             compiler_fence(Ordering::SeqCst);
 
-            token
+            RestoreState(token)
         }
 
-        // 96
-        unsafe fn exit(&self, token: critical_section::RawRestoreState) {
+        // 138
+        unsafe fn exit(&self, token: RestoreState) {
             // Ensure no preceeding memory accesses are reordered to after interrupts are
             // enabled.
             compiler_fence(Ordering::SeqCst);
+
+            let RestoreState(token) = token;
 
             cfg_if::cfg_if! {
                 if #[cfg(riscv)] {
@@ -58,17 +85,11 @@ mod single_core {
     }
 }
 
-// 176
-#[cfg(riscv)]
-// The restore state is a u8 that is casted from a bool, so it has a value of
-// 0x00 or 0x01 before we add the reentry flag to it.
-pub const REENTRY_FLAG: u8 = 1 << 7;
-
 /// A generic lock that wraps [`single_core::RawLock`] and
 /// [`multicore::AtomicLock`] and tracks whether the caller has locked
 /// recursively.
 /// We don't implement the 'multicore' part
-// 193
+// 226
 struct GenericRawMutex<L: single_core::RawLock> {
     lock: L,
     #[cfg(multi_core)]
@@ -77,9 +98,10 @@ struct GenericRawMutex<L: single_core::RawLock> {
     is_locked: Cell<bool>,
 }
 
-// 203
+// 236
 impl<L: single_core::RawLock> GenericRawMutex<L> {
     /// Create a new lock.
+    // 238
     pub const fn new(lock: L) -> Self {
         Self {
             lock,
@@ -92,14 +114,14 @@ impl<L: single_core::RawLock> GenericRawMutex<L> {
 
     /// Acquires the lock.
     ///
-    // 223
-    unsafe fn acquire(&self) -> critical_section::RawRestoreState {
+    // 256
+    unsafe fn acquire(&self) -> RestoreState {
         #[cfg(single_core)]
         {
             let mut tkn = unsafe { self.lock.enter() };
             let was_locked = self.is_locked.replace(true);
             if was_locked {
-                tkn |= REENTRY_FLAG;
+                tkn.mark_reentry();
             }
             tkn
         }
@@ -107,13 +129,20 @@ impl<L: single_core::RawLock> GenericRawMutex<L> {
 
     /// Releases the lock.
     ///
-    // 276
-    unsafe fn release(&self, token: critical_section::RawRestoreState) {
-        if token & REENTRY_FLAG == 0 {
-            #[cfg(single_core)]
-            self.is_locked.set(false);
+    /// - This function must only be called if the lock was acquired by the
+    ///   current thread.
+    /// - The caller must ensure to release the locks in the reverse order they
+    ///   were acquired.
+    /// - Each release call must be paired with an acquire call.
+    // 309
+    unsafe fn release(&self, token: RestoreState) {
+        unsafe {
+            if !token.is_reentry() {
+                #[cfg(single_core)]
+                self.is_locked.set(false);
 
-            self.lock.exit(token)
+                self.lock.exit(token)
+            }
         }
     }
 
@@ -121,7 +150,7 @@ impl<L: single_core::RawLock> GenericRawMutex<L> {
     ///
     /// Note that this function is not reentrant, calling it reentrantly will
     /// panic.
-    // 292
+    // 327
     pub fn lock<R>(&self, f: impl FnOnce() -> R) -> R {
         let _token = LockGuard::new(self);
         f()
@@ -131,18 +160,34 @@ impl<L: single_core::RawLock> GenericRawMutex<L> {
 /// A mutual exclusion primitive.
 ///
 /// This lock disables interrupts on the current core while locked.
-// 306
+// 341
 pub struct RawMutex {
     inner: GenericRawMutex<single_core::InterruptLock>,
 }
 
-// 316
+// 351
 impl RawMutex {
     /// Create a new lock.
-    // 318
+    // 353
     pub const fn new() -> Self {
         Self {
             inner: GenericRawMutex::new(single_core::InterruptLock),
+        }
+    }
+
+    /// Acquires the lock.
+    ///
+    // 367
+    pub unsafe fn acquire(&self) -> RestoreState {
+        unsafe { self.inner.acquire() }
+    }
+
+    /// Releases the lock.
+    ///
+    // 380
+    pub unsafe fn release(&self, token: RestoreState) {
+        unsafe {
+            self.inner.release(token);
         }
     }
 
@@ -150,7 +195,7 @@ impl RawMutex {
     ///
     /// Note that this function is not reentrant, calling it reentrantly will
     /// panic.
-    // 353
+    // 390
     pub fn lock<R>(&self, f: impl FnOnce() -> R) -> R {
         self.inner.lock(f)
     }
@@ -159,7 +204,7 @@ impl RawMutex {
 // Prefer this over a critical-section as this allows you to have multiple
 // locks active at the same time rather than using the global mutex that is
 // critical-section.
-// 408
+// 445
 pub(crate) fn lock<T>(lock: &RawMutex, f: impl FnOnce() -> T) -> T {
     lock.lock(f)
 }
@@ -170,16 +215,16 @@ pub(crate) fn lock<T>(lock: &RawMutex, f: impl FnOnce() -> T) -> T {
 /// This is largely equivalent to a `Mutex<RefCell<T>>`, but accessing the inner
 /// data doesn't hold a critical section on multi-core systems.
 /// But we don't implement multi-core
-// 416
+// 453
 pub struct Locked<T> {
     lock_state: RawMutex,
     data: UnsafeCell<T>,
 }
 
-// 421
+// 458
 impl<T> Locked<T> {
     /// Create a new instance
-    // 423
+    // 460
     pub const fn new(data: T) -> Self {
         Self {
             lock_state: RawMutex::new(),
@@ -190,27 +235,28 @@ impl<T> Locked<T> {
     /// Provide exclusive access to the protected data to the given closure.
     ///
     /// Calling this reentrantly will panic.
-    // 433
+    // 470
     pub fn with<R>(&self, f: impl FnOnce(&mut T) -> R) -> R {
         lock(&self.lock_state, || f(unsafe { &mut *self.data.get() }))
     }
 }
 
-// 456
+// 477
 struct LockGuard<'a, L: single_core::RawLock> {
     lock: &'a GenericRawMutex<L>,
-    token: critical_section::RawRestoreState,
+    token: RestoreState,
 }
 
-// 461
+// 482
 impl<'a, L: single_core::RawLock> LockGuard<'a, L> {
+    // 483
     fn new(lock: &'a GenericRawMutex<L>) -> Self {
         let this = Self::new_reentrant(lock);
-        assert!(this.token & REENTRY_FLAG == 0, "lock is not reentrant");
+        assert!(!this.token.is_reentry(), "lock is not reentrant");
         this
     }
 
-    // 468
+    // 489
     fn new_reentrant(lock: &'a GenericRawMutex<L>) -> Self {
         let token = unsafe {
             // SAFETY: the same lock will be released when dropping the guard.
@@ -223,7 +269,7 @@ impl<'a, L: single_core::RawLock> LockGuard<'a, L> {
     }
 }
 
-// 480
+// 501
 impl<L: single_core::RawLock> Drop for LockGuard<'_, L> {
     fn drop(&mut self) {
         unsafe { self.lock.release(self.token) };

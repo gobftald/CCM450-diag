@@ -124,7 +124,7 @@ pub unsafe fn str_from_c<'a>(s: *const c_char) -> &'a str {
 
 // 175
 #[unsafe(no_mangle)]
-unsafe extern "C" fn strnlen(chars: *const c_char, maxlen: usize) -> usize {
+unsafe extern "C" fn strnlen(chars: *const c_char, _maxlen: usize) -> usize {
     let mut len = 0;
     loop {
         unsafe {
@@ -139,7 +139,7 @@ unsafe extern "C" fn strnlen(chars: *const c_char, maxlen: usize) -> usize {
 }
 
 // 189
-pub(crate) fn sem_create(max: u32, init: u32) -> *mut c_void {
+pub(crate) fn sem_create(_max: u32, init: u32) -> *mut c_void {
     unsafe {
         let ptr = malloc(4) as *mut u32;
         ptr.write_volatile(init);
@@ -216,6 +216,11 @@ pub(crate) fn sem_give(semphr: *mut c_void) -> i32 {
         *sem = cnt + 1;
         1
     })
+}
+
+pub(crate) fn thread_sem_get() -> *mut c_void {
+    trace!("wifi_thread_semphr_get");
+    crate::preempt::current_task_thread_semaphore()
 }
 
 // 270

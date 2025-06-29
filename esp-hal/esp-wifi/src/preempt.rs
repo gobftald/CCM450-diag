@@ -30,6 +30,12 @@ pub trait Scheduler: 'static {
         param: *mut c_void,
         task_stack_size: usize,
     ) -> *mut c_void;
+
+    /// This function should return an opaque per-thread pointer to an
+    /// usize-sized memory location, which will be used to store a pointer
+    /// to a semaphore for this thread.
+    // 56
+    fn current_task_thread_semaphore(&self) -> *mut c_void;
 }
 
 // 59
@@ -42,6 +48,7 @@ unsafe extern "Rust" {
         param: *mut c_void,
         task_stack_size: usize,
     ) -> *mut c_void;
+    fn esp_wifi_preempt_current_task_thread_semaphore() -> *mut c_void;
 }
 
 // 73
@@ -66,6 +73,11 @@ pub(crate) fn task_create(
 // 81
 pub(crate) fn yield_task() {
     unsafe { esp_wifi_preempt_yield_task() }
+}
+
+// 101
+pub(crate) fn current_task_thread_semaphore() -> *mut c_void {
+    unsafe { esp_wifi_preempt_current_task_thread_semaphore() }
 }
 
 /// Set the Scheduler implementation.
@@ -104,6 +116,12 @@ macro_rules! scheduler_impl {
             task_stack_size: usize,
         ) -> *mut c_void {
             <$t as $crate::preempt::Scheduler>::task_create(&$name, task, param, task_stack_size)
+        }
+
+        #[unsafe(no_mangle)]
+        // 142
+        fn esp_wifi_preempt_current_task_thread_semaphore() -> *mut c_void {
+            <$t as $crate::preempt::Scheduler>::current_task_thread_semaphore(&$name)
         }
     };
 }

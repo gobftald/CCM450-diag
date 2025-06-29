@@ -6,12 +6,15 @@ use crate::{
     compat::{
         common::{
             ConcurrentQueue, create_queue, create_recursive_mutex, delete_queue, lock_mutex,
-            receive_queued, str_from_c, unlock_mutex,
+            receive_queued, str_from_c, thread_sem_get, unlock_mutex,
         },
         malloc::calloc,
     },
+    hal::sync::RawMutex,
     preempt::yield_task,
 };
+
+static mut WIFI_LOCK: RawMutex = RawMutex::new();
 
 // 43
 static mut QUEUE_HANDLE: *mut ConcurrentQueue = core::ptr::null_mut();
@@ -55,6 +58,73 @@ pub unsafe extern "C" fn spin_lock_delete(lock: *mut crate::binary::c_types::c_v
     trace!("spin_lock_delete {:?}", lock);
 
     crate::compat::common::sem_delete(lock);
+}
+
+/// **************************************************************************
+/// Name: esp_wifi_int_disable
+///
+/// Description:
+///   Enter critical section by disabling interrupts and taking the spin lock
+///   if in SMP mode.
+///
+/// Input Parameters:
+///   wifi_int_mux - Spin lock data pointer
+///
+/// Returned Value:
+///   CPU PS value.
+///
+/// *************************************************************************
+// 220
+pub unsafe extern "C" fn wifi_int_disable(
+    _wifi_int_mux: *mut crate::binary::c_types::c_void,
+) -> u32 {
+    trace!("wifi_int_disable");
+    // TODO: can we use wifi_int_mux?
+    let token = unsafe { WIFI_LOCK.acquire() };
+    unsafe { core::mem::transmute::<esp_hal::sync::RestoreState, u32>(token) }
+}
+
+/// **************************************************************************
+/// Name: esp_wifi_int_restore
+///
+/// Description:
+///   Exit from critical section by enabling interrupts and releasing the spin
+///   lock if in SMP mode.
+///
+/// Input Parameters:
+///   wifi_int_mux - Spin lock data pointer
+///   tmp          - CPU PS value.
+///
+/// Returned Value:
+///   None
+///
+/// *************************************************************************
+// 244
+pub unsafe extern "C" fn wifi_int_restore(
+    _wifi_int_mux: *mut crate::binary::c_types::c_void,
+    tmp: u32,
+) {
+    trace!("wifi_int_restore");
+    let token = unsafe { core::mem::transmute::<u32, esp_hal::sync::RestoreState>(tmp) };
+    unsafe { WIFI_LOCK.release(token) }
+}
+
+/// **************************************************************************
+/// Name: esp_thread_semphr_get
+///
+/// Description:
+///   Get thread self's semaphore
+///
+/// Input Parameters:
+///   None
+///
+/// Returned Value:
+///   Semaphore data pointer
+///
+/// *************************************************************************
+// 285
+pub unsafe extern "C" fn wifi_thread_semphr_get() -> *mut crate::binary::c_types::c_void {
+    thread_sem_get()
 }
 
 /// **************************************************************************
@@ -429,6 +499,44 @@ pub unsafe extern "C" fn calloc_internal(
     size: usize,
 ) -> *mut crate::binary::c_types::c_void {
     unsafe { calloc(n as u32, size) as *mut crate::binary::c_types::c_void }
+}
+
+/// **************************************************************************
+/// Name: esp_wifi_calloc
+///
+/// Description:
+///   Applications allocate some continuous blocks of memory
+///
+/// Input Parameters:
+///   n    - memory block number
+///   size - memory block size
+///
+/// Returned Value:
+///   New memory pointer
+///
+/// *************************************************************************
+// 1652
+pub unsafe extern "C" fn wifi_calloc(n: usize, size: usize) -> *mut crate::binary::c_types::c_void {
+    trace!("wifi_calloc {} {}", n, size);
+    unsafe { calloc(n as u32, size) as *mut crate::binary::c_types::c_void }
+}
+
+/// **************************************************************************
+/// Name: esp_wifi_zalloc
+///
+/// Description:
+///   Applications allocate a block of memory and clear it with 0
+///
+/// Input Parameters:
+///   size - memory size
+///
+/// Returned Value:
+///   New memory pointer
+///
+/// *************************************************************************
+// 1670
+pub unsafe extern "C" fn wifi_zalloc(size: usize) -> *mut crate::binary::c_types::c_void {
+    unsafe { wifi_calloc(size, 1) }
 }
 
 /// **************************************************************************

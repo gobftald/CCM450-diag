@@ -9,7 +9,8 @@ use super::os_adapter::{
     calloc_internal, log_timestamp, log_write, log_writev, malloc, malloc_internal, mutex_delete,
     mutex_lock, mutex_unlock, queue_recv, recursive_mutex_create, spin_lock_create,
     spin_lock_delete, task_create_pinned_to_core, task_delay, task_get_current_task,
-    task_get_max_priority, wifi_create_queue, wifi_delete_queue,
+    task_get_max_priority, wifi_calloc, wifi_create_queue, wifi_delete_queue, wifi_int_disable,
+    wifi_int_restore, wifi_thread_semphr_get, wifi_zalloc,
 };
 
 // 11
@@ -28,14 +29,14 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _is_from_isr: None,                           // 28 Some(is_from_isr),
     _spin_lock_create: Some(spin_lock_create),    // 32
     _spin_lock_delete: Some(spin_lock_delete),    // 36
-    _wifi_int_disable: None,                      // 40 Some(wifi_int_disable),
-    _wifi_int_restore: None,                      // 44 Some(wifi_int_restore),
+    _wifi_int_disable: Some(wifi_int_disable),    // 40
+    _wifi_int_restore: Some(wifi_int_restore),    // 44
     _task_yield_from_isr: None,                   // 48 Some(task_yield_from_isr),
     _semphr_create: Some(semphr_create),          // 52
     _semphr_delete: Some(semphr_delete),          // 56
     _semphr_take: Some(semphr_take),              // 60
     _semphr_give: Some(semphr_give),              // 64
-    _wifi_thread_semphr_get: None,                // 68 Some(wifi_thread_semphr_get),
+    _wifi_thread_semphr_get: Some(wifi_thread_semphr_get), // 68
     _mutex_create: None,                          // 72 Some(mutex_create),
     _recursive_mutex_create: Some(recursive_mutex_create), // 76
     _mutex_delete: Some(mutex_delete),            // 80
@@ -121,8 +122,8 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _zalloc_internal: None,                      // 356 Some(zalloc_internal),
     _wifi_malloc: None,                          // 360 Some(wifi_malloc),
     _wifi_realloc: None,                         // 364 Some(wifi_realloc),
-    _wifi_calloc: None,                          // 368 Some(wifi_calloc),
-    _wifi_zalloc: None,                          // 372 Some(wifi_zalloc),
+    _wifi_calloc: Some(wifi_calloc),             // 368
+    _wifi_zalloc: Some(wifi_zalloc),             // 372
     _wifi_create_queue: Some(wifi_create_queue), // 376
     _wifi_delete_queue: Some(wifi_delete_queue), // 380
     _coex_init: None,                            // 384 Some(super::coex_init),
