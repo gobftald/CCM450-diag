@@ -167,6 +167,10 @@ impl Duration {
             #[call(to_micros)]
             // 316
             pub const fn as_micros(&self) -> u64;
+
+            /// Convert the `Duration` to an interger number of milliseconds.
+            #[call(to_millis)]
+            pub const fn as_millis(&self) -> u64;
         }
     }
 }

@@ -6,9 +6,10 @@ use esp_wifi_sys::include::{
 
 // 10
 use super::os_adapter::{
-    calloc_internal, malloc, malloc_internal, mutex_delete, mutex_lock, mutex_unlock, queue_recv,
-    recursive_mutex_create, spin_lock_create, spin_lock_delete, task_create_pinned_to_core,
-    task_get_current_task, task_get_max_priority, wifi_create_queue, wifi_delete_queue,
+    calloc_internal, log_timestamp, log_write, log_writev, malloc, malloc_internal, mutex_delete,
+    mutex_lock, mutex_unlock, queue_recv, recursive_mutex_create, spin_lock_create,
+    spin_lock_delete, task_create_pinned_to_core, task_delay, task_get_current_task,
+    task_get_max_priority, wifi_create_queue, wifi_delete_queue,
 };
 
 // 11
@@ -56,7 +57,7 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _task_create_pinned_to_core: Some(task_create_pinned_to_core), // 144
     _task_create: None,                           // 148 Some(task_create),
     _task_delete: None,                           // 152 Some(task_delete),
-    _task_delay: None,                            // 156 Some(task_delay),
+    _task_delay: Some(task_delay),                // 156
     _task_ms_to_tick: None,                       // 160 Some(task_ms_to_tick),
     _task_get_current_task: Some(task_get_current_task), // 164
     _task_get_max_priority: Some(task_get_max_priority), // 168
@@ -106,14 +107,14 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _slowclk_cal_get: None, // 328 Some(slowclk_cal_get)
 
     #[cfg(feature = "sys-logs")]
-    _log_write: None, // 332 Some(log_write),
+    _log_write: Some(log_write), // 332
     #[cfg(not(feature = "sys-logs"))]
     _log_write: None,
     #[cfg(feature = "sys-logs")]
-    _log_writev: None, // 336 Some(log_writev),
+    _log_writev: Some(log_writev), // 336
     #[cfg(not(feature = "sys-logs"))]
     _log_writev: None,
-    _log_timestamp: None,                        // 340 Some(log_timestamp),
+    _log_timestamp: Some(log_timestamp),         // 340
     _malloc_internal: Some(malloc_internal),     // 344
     _realloc_internal: None,                     // 348 Some(realloc_internal),
     _calloc_internal: Some(calloc_internal),     // 352

@@ -2,12 +2,15 @@
 use core::ptr::addr_of_mut;
 
 // 15
-use crate::compat::{
-    common::{
-        ConcurrentQueue, create_queue, create_recursive_mutex, delete_queue, lock_mutex,
-        receive_queued, str_from_c, unlock_mutex,
+use crate::{
+    compat::{
+        common::{
+            ConcurrentQueue, create_queue, create_recursive_mutex, delete_queue, lock_mutex,
+            receive_queued, str_from_c, unlock_mutex,
+        },
+        malloc::calloc,
     },
-    malloc::calloc,
+    preempt::yield_task,
 };
 
 // 43
@@ -206,6 +209,28 @@ pub unsafe extern "C" fn task_create_pinned_to_core(
 }
 
 /// **************************************************************************
+/// Name: esp_task_delay
+///
+/// Description:
+///   Current task wait for some ticks
+///
+/// Input Parameters:
+///   tick - Waiting ticks
+///
+/// Returned Value:
+///   None
+///
+/// *************************************************************************
+// 747
+pub unsafe extern "C" fn task_delay(tick: u32) {
+    trace!("task_delay tick {}", tick);
+    let start_time = crate::time::systimer_count();
+    while crate::time::elapsed_time_since(start_time) < tick as u64 {
+        yield_task();
+    }
+}
+
+/// **************************************************************************
 /// Name: esp_task_get_current_task
 ///
 /// Description:
@@ -281,6 +306,89 @@ pub unsafe extern "C" fn free(p: *mut crate::binary::c_types::c_void) {
     unsafe {
         crate::compat::malloc::free(p.cast());
     }
+}
+
+/// **************************************************************************
+/// Name: esp_log_write
+///
+/// Description:
+///   Output log with by format string and its arguments
+///
+/// Input Parameters:
+///   level  - log level, no mean here
+///   tag    - log TAG, no mean here
+///   format - format string
+///
+/// Returned Value:
+///   None
+///
+/// *************************************************************************
+#[cfg(feature = "sys-logs")]
+// 1465
+pub unsafe extern "C" fn log_write(
+    level: u32,
+    _tag: *const crate::binary::c_types::c_char,
+    format: *const crate::binary::c_types::c_char,
+    args: ...
+) {
+    unsafe {
+        crate::binary::log::syslog(level, format as _, args);
+    }
+}
+
+/// **************************************************************************
+/// Name: esp_log_writev
+///
+/// Description:
+///   Output log with by format string and its arguments
+///
+/// Input Parameters:
+///   level  - log level, no mean here
+///   tag    - log TAG, no mean here
+///   format - format string
+///   args   - arguments list
+///
+/// Returned Value:
+///   None
+///
+/// *************************************************************************
+#[cfg(feature = "sys-logs")]
+// 1492
+pub unsafe extern "C" fn log_writev(
+    level: u32,
+    _tag: *const crate::binary::c_types::c_char,
+    format: *const crate::binary::c_types::c_char,
+    args: crate::binary::include::va_list,
+) {
+    unsafe {
+        crate::binary::log::syslog(
+            level,
+            format as _,
+            core::mem::transmute::<crate::binary::include::va_list, core::ffi::VaListImpl<'_>>(
+                args,
+            ),
+        );
+    }
+}
+
+/// **************************************************************************
+/// Name: esp_log_timestamp
+///
+/// Description:
+///   Get system time by millim second
+///
+/// Input Parameters:
+///   None
+///
+/// Returned Value:
+///   System time
+///
+/// *************************************************************************
+// 1518
+pub unsafe extern "C" fn log_timestamp() -> u32 {
+    esp_hal::time::Instant::now()
+        .duration_since_epoch()
+        .as_millis() as u32
 }
 
 /// **************************************************************************

@@ -2,6 +2,7 @@
 //! the esp-wifi documentation on the esp-rs website.
 
 #![no_std]
+#![cfg_attr(feature = "sys-logs", feature(c_variadic))]
 #![allow(static_mut_refs)]
 
 #[allow(unused_imports)]
