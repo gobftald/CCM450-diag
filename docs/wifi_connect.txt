@@ -1,0 +1,1231 @@
+match controller.connect().await
+    // esp-wifi/src/wifi/mod.rs
+    mod asynch
+        impl<'d> WifiController<'d>
+            pub async fn connect(&mut self) -> Result<(), WifiError>
+                Self::clear_events(WifiEvent::StaConnected | WifiEvent::StaDisconnected);
+                let err = crate::wifi::WifiController::connect_impl(self).err();
+                if MultiWifiEventFuture::new(WifiEvent::StaConnected | WifiEvent::StaDisconnected)
+                    .await
+                    .contains(WifiEvent::StaDisconnected)
+                    Err(err.unwrap_or(WifiError::Disconnected))
+                else
+                    Ok(())
+
+// esp-wifi/src/wifi/mod.rs
+impl WifiController<'_>
+    pub(crate) fn connect_impl(&mut self) -> Result<(), WifiError> {
+        esp_wifi_result!(unsafe { esp_wifi_connect() })                 // esp_wifi_sys
+    }
+
+esp_wifi_connect                                        // libnet80211.a(ieee80211_api.o)
+    wifi_init_completed                                 // check wether we are connected
+                                                        // libnet80211.a(ieee80211_api.o)
+    wifi_zalloc                                                    
+    jmp ieee80211_ioctl -> wifi_connect_process
+ieee80211_ioctl -> wifi_connect_process
+
+wifi_connect_process                                    // libnet80211.a(ieee80211_ioctl.o)
+    check g_wifi_nvs[0] = 'wifi mode'
+    if not sta (g_wifi_nvs[0] = 1) -> wifi_log "not sta mode, return true\n"
+    wifi_log "Start wifi connect"
+##1## [INFO] - D (275) wifi: Start wifi connect
+    j _do_wifi_connect
+
+_do_wifi_connect                                        // libnet80211.a(ieee80211_ioctl.o)
+    check g_wifi_nvs[0] = 'wifi mode'
+    if g_wifi_nvs[0] && 0xfd != 0 -> wifi_log "not in right mode, opmode=%d sniffer=%d"
+    j ieee80211_sta_connect
+
+ieee80211_sta_connect                                   // libnet80211.a(ieee80211_ioctl.o)
+    if g_ic[16] == 0 -> wifi_log "sta is null"          // false 
+    if g_ic[16][320] == 1/true                          // wifi connection started 
+        wifi_log "sta is connecting, return error"
+    pm_wake_up                                          // libpp.a(pm.o)
+    wifi_log "connect status %d -> %d"
+##2## [INFO] - D (275) wifi: connect status 0 -> 0
+    clear g_ic[16]                                      // set it to 0
+    cnx_sta_connect_cmd
+        wifi_log "connect chan=%d"
+    ##3## [INFO] - D (276) wifi: [INFO] - connect chan=0    
+        if g_ic[116] == 0 (false)
+            scan_remove_probe_ssid                      // libnet80211.a(ieee80211_scan.o)
+        if g_ic[536] != 1 (true)
+            scan_remove_bssid                           // libnet80211.a(ieee80211_scan.o)
+        if g_cnxMgr[4] && 0x01 == 0 (false)
+            scan_add_probe_ssid                         // libnet80211.a(ieee80211_scan.o)
+        ieee80211_regdomain_min_chan                    // libnet80211.a(ieee80211_regdomain.o)
+            ieee80211_regdomain_get_country             // libnet80211.a(ieee80211_regdomain.o)
+        scan_prefer_chan                                // libnet80211.a(ieee80211_scan.o)
+            chm_get_home_channel                        // libnet80211.a(wl_chm.o)
+            memset 
+            memset
+            memcpy
+            wifi_log "nvs=%d, ssid=%s, channel=%d"
+    ##4## [INFO] - V (276) wifi: [INFO] - nvs=0, ssid=iWIFI-2.4, channel=255
+            memset
+            strncmp
+            wifi_log "ssid=%s match nvs %d, channel=%d"
+    ##5## [INFO] - V (277) wifi: ssid=iWIFI-2.4 match nvs 0, channel=255                
+        ieee80211_regdomain_min_chan                    // libnet80211.a(ieee80211_regdomain.o)
+            ieee80211_regdomain_get_country             // libnet80211.a(ieee80211_regdomain.o)
+        ieee80211_regdomain_max_chan                    // libnet80211.a(ieee80211_regdomain.o)
+            ieee80211_regdomain_get_country
+        ieee80211_regdomain_min_chan
+            ieee80211_regdomain_get_country
+        scan_build_chan_list                            // libnet80211.a(ieee80211_scan.o)
+            wifi_log "first chan=%d"
+    ##6## [INFO] - D (277) wifi: first chan=1        
+        wifi_log "connect status %d -> %d"
+    ##7## [INFO] - D (277) wifi: [INFO] - connect status 0 -> 1    
+        scan_hidden_ssid                                // libnet80211.a(ieee80211_scan.o)
+            get g_scan[163]
+        scan_start                                      // libnet80211.a(ieee80211_scan.o)
+            ets_timer_disarm                            // esp-wifi/src/common_adapter/mod.rs
+    ##8## [DEBUG] - timer_disarm 3fc94024 not found
+            ets_timer_setfn                             // esp-wifi/src/common_adapter/mod.rs
+    ##9## [DEBUG] - timer_setfn 3fc8f9c0 0x42028222 0x0
+            scan_cancel                                 // libnet80211.a(ieee80211_scan.o)
+            chm_acquire_lock                            // libnet80211.a(wl_chm.o)
+            pm_off_channel                              // libpp.a(pm.o)
+            wifi_connect "filter: set rx policy=%d"
+    ##10## [INFO] - D (277) wifi: filter: set rx policy=3  
+            wifi_set_rx_policy                          // libnet80211.a(ieee80211_supplicant.o)
+            clear_bss_queue                             // libnet80211.a(ieee80211_scan.o)
+                wifi_log "clear scan ap list"
+    ##11## [INFO] - D (277) wifi: clear scan ap list            
+            wifi_log "start scan: type=0x%x, priority=%d, cb=%p, arg=%p, ss_state=0x%x, time=%d, index=%d"
+    ##12## [INFO] - D (277) wifi: start scan: type=0x50f, priority=2, cb=420290f0, arg=0, ss_state=0x1, time=277865, index=0 
+            scan_inter_channel_timeout_process(0)
+                wifi_log "inter_channel_timeout: arg=%p, ss_state=0x%x"
+    ##13## [INFO] - V (278) wifi: inter_channel_timeout: arg=0, ss_state=0x1
+                jmp scan_next_channel
+
+
+// this is the beginning of scan loop
+            
+            
+                chm_get_chan_info
+                ieee80211_regdomain_chan_in_range
+                ieee80211_regdomain_is_active_scan
+                wifi_log "perform scan: ss_state=0x%x, chan<%d,%d>, dur<%d,%d>"
+    ##14## [INFO] - D (278) wifi: perform scan: ss_state=0x9, chan<1,0>, dur<0,120>
+                pm_on_coex_schm_status_config
+                    coex_schm_status_bit_clear
+    ##15## [TRACE] - coex_schm_status_bit_clear
+                    coex_schm_status_bit_set
+    ##16## [TRACE] - coex_schm_status_bit_set
+                    jmp coex_schm_interval_set
+                coex_schm_interval_set
+    ##17## [TRACE] - coex_schm_interval_set
+                coex_status_get
+    ##18## [TRACE] - coex_status_get
+                addi	a5,s0,-1192 # .bss.s_ch.12331
+                addi	a4,a4,1142 # 0x42022476 <scan_op_end>
+                addi	a3,a3,-854 # 0x42020caa <scan_op_start>          
+                chm_start_op
+                    chm_change_channel
+                        wifi_log "change: chan<%d,%d>, dur<%d,%d>"
+    ##19## [INFO] - V (278) wifi:change: chan<1,0>, dur<0,120>
+                        wifi_log "enter start op, arg=%p"
+    ##20## [INFO] - V (278) wifi: enter start op, arg=3fc9ab58
+                        scan_op_start
+                            wifi_log "scan operation: state=0x%x, chan<%d,%d>, arg=%p, status=%d"
+    ##21## [INFO] - V (278) wifi: scan operation: state=0x3, chan<1,0>, arg=3fc9ab58, status=0
+                            chm_get_chan_info
+                            ieee80211_regdomain_is_active_scan
+                            wifi_get_macaddr                        // ROM function
+                            wifi_log "scan specific ssid=%s"
+    ##22## [INFO] - V (278) wifi: scan specific ssid=iWIFI-2.4
+                            ieee80211_send_probereq
+                                reset_cs_thres
+                                ieee80211_vnd_lora_ie_size
+                                ieee80211_vnd_ie_size.part
+                                ieee80211_getmgtframe
+                                memcpy
+                                ieee80211_add_rates
+                                ieee80211_add_xrates
+                                ieee80211_add_probe_req_ies
+                                ieee80211_vnd_lora_ie_set
+                                ieee80211_vnd_ie_set
+                                ieee80211_send_setup
+                                ieee80211_set_tx_desc   // ROM function
+                                ieee80211_set_tx_pti    // ROM function
+                                    coex_pti_get
+    ##23## [TRACE] - coex_pti_get                                
+                                ic_tx_pkt
+                                    jmp ppTxPkt         // ROM function
+                                ppTxPkt
+                                    ic_interface_enabled
+                                    ppTxProtoProc
+                                    ppProcTxSecFrame
+                                    rcGetSched
+                                    ppCalFrameTimes
+                                    ppMapTxQueue
+                                    lmacIsIdle
+                                    pp_post
+                                        wifi_int_disable
+                                        wifi_int_restore
+                                        task_ms_to_tick
+                                        queue_send
+    ##24## [TRACE] - queue_send queue 0x3fc98c0c item 3fc968d8 block_time_tick 160000
+    ##25## [TRACE] - queue posting [0, 0, 0, 0, 0, 0, 0, 0]
+                        EOF scan_op_start
+
+                        wifi_log "start max timer"
+    ##26## [INFO] - V (279) wifi:start max timer
+                        ets_timer_disarm
+    ##27## [DEBUG] - timer_disarm 3fc9ac5c
+                        jmp ets_timer_arm
+    ##28## [DEBUG] - timer_arm_us 3fc9ac5c current: 4455750 ticks: 1920000 repeat: false
+                    ets_timer_arm
+                        jmp esp_wifi::compat::timer_compat::compat_timer_arm
+                    compat_timer_arm
+                EOF chm_start_op
+            EOF scan_next_channel
+        EOF scan_start
+    EOF cnx_sta_connect_cmd
+EOF ieee80211_sta_connect
+EOF _do_wifi_connect
+EOF wifi_connect_process
+
+ieee80211_ioctl wait for end of wifi_connect_process
+EOF ieee80211_ioctl
+EOF esp_wifi_connect
+EOF connect_impl
+so we are back to 'pub async fn connect'
+if MultiWifiEventFuture::new(WifiEvent::StaConnected | WifiEvent::StaDisconnected)
+    .await
+    .contains(WifiEvent::StaDisconnected)
+
+    Err(err.unwrap_or(WifiError::Disconnected))
+else
+    Ok(())
+
+
+wDev_ProcessFiq                         // ROM Function called by WIFI_MAC interrupt handler 
+0x40042d3e:	addi	sp,sp,-32           // locals' frame
+0x40042d40:	sw	s2,16(sp)               // push
+0x40042d42:	lui	s2,0x3fce0
+0x40042d46:	lw	a5,-1704(s2)            // pp_wdev_funcs
+0x40042d4a:	sw	s0,24(sp)
+0x40042d4c:	sw	s3,12(sp)
+0x40042d4e:	sw	s4,8(sp)
+0x40042d50:	sw	ra,28(sp)
+0x40042d52:	sw	s1,20(sp)               // pushes
+0x40042d54:	li	s0,0
+0x40042d56:	lui	s4,0x60034
+0x40042d5a:	lui	s3,0x60035
+0x40042d5e:	lw	a5,544(a5)
+0x40042d62:	jalr	a5                  // hal_mac_is_dma_enable
+    hal_mac_is_dma_enable
+    0x40042caa:	lui	a5,0x60035
+    0x40042cae:	lw	a5,296(a5)          // read from 0x60035296 -> a5 (0x1fe000)
+    0x40042cb2:	li	a0,0                // return value is set to success
+    0x40042cb4:	ret
+0x40042d64:	bnez	a0,0x40042d6a       // always 0 -> no jump
+0x40042d66:	lw	s0,-964(s4)             // 0x60034000[-964] = 0x60033c3c -> 0x80
+0x40042d6a:	lw	s1,280(s3)              // 0x60035000[280] = 0x60035118 -> 0x0
+0x40042d6e:	or	a5,s0,s1                // 0x80
+0x40042d72:	beqz	a5,0x40042e26       // no input bit -> exit
+
+0x40042d74:	lw	a5,-1704(s2)            // pp_wdev_funcs
+0x40042d78:	sw	s0,-960(s4)             // 0x60034000[-960] = 0x60033c40 <- 0x80
+0x40042d7c:	sw	s1,284(s3)              // 0x60035000[284] = 0x6003511c <- 0x0
+0x40042d80:	lw	a4,712(a5)              // in our case it is 0
+0x40042d84:	beqz	a4,0x40042d90       // we jump
+
+#0x40042d86:	mv	a1,s1
+#0x40042d88:	mv	a0,s0
+#0x40042d8a:	jalr	a4
+#0x40042d8c:	lw	a5,-1704(s2)
+
+0x40042d90:	andi	a1,s1,30            // in our case s1 was 0x0 -> 0 (may be it was a return value)
+0x40042d94:	beqz	a1,0x40042da0       // in our case 0 -> jump
+
+#0x40042d96:	lw	a5,4(a5)
+#0x40042d98:	li	a0,26               // no pp_post function implemented
+#0x40042d9a:	jalr	a5              // would be pp_post
+#0x40042d9c:	lw	a5,-1704(s2)
+
+0x40042da0:	slli	a4,s0,0x10          // s0 = 0x8, shift left by 0x10 -> a4 = 0x800000
+0x40042da4:	bgez	a4,0x40042db4       // we jump
+
+#0x40042da8:	lw	a5,4(a5)            
+#0x40042daa:	li	a1,0
+#0x40042dac:	li	a0,29               // pm_on_beacon_rx cmd by pp_post
+#0x40042dae:	jalr	a5              // would be pp_post
+#0x40042db0:	lw	a5,-1704(s2)
+
+0x40042db4:	slli	a4,s0,0xa           // s0 = 0x8, shift left by 0xa -> a4 = 0x20000
+0x40042db8:	bgez	a4,0x40042dc8       // we jump
+
+#0x40042dbc:	lw	a5,4(a5)
+#0x40042dbe:	li	a1,1
+#0x40042dc0:	li	a0,14               // ppResumeTxAMPDU by pp_post
+#0x40042dc2:	jalr	a5              // would be pp_post
+#0x40042dc4:	lw	a5,-1704(s2)
+
+0x40042dc8:	slli	a4,s0,0x11          // s0 = 0x8, shift left by 0x11 -> a4 = 0x1000000
+0x40042dcc:	bgez	a4,0x40042ddc       // we jump
+
+#0x40042dd0:	lw	a5,4(a5)
+#0x40042dd2:	li	a1,0
+#0x40042dd4:	li	a0,25               // wdevProcessRxSucDataAll by pp_post
+#0x40042dd6:	jalr	a5              // would be pp_post
+#0x40042dd8:	lw	a5,-1704(s2)
+
+0x40042ddc:	andi	a4,s0,128           // mask with 0x80
+0x40042de0:	beqz	a4,0x40042dee       // it is our case -> no jump
+0x40042de2:	lw	a5,4(a5)
+0x40042de4:	li	a1,0
+0x40042de6:	li	a0,23                   // this goes to queue: [23, 0, 0, 0, 0, 0, 0, 0]
+                                        // lmacProcessTxComplete
+0x40042de8:	jalr	a5                  // pp_post
+0x40042dea:	lw	a5,-1704(s2)
+0x40042dee:	slli	a4,s0,0xc           // s0 = 0x8, shift left by 0xc -> a4 = 0x80000
+0x40042df2:	bgez	a4,0x40042e02       // we jump
+
+#0x40042df6:	lw	a5,4(a5)
+#0x40042df8:	li	a1,0
+#0x40042dfa:	li	a0,22               // lmacProcessTxTimeout by pp_post
+#0x40042dfc:	jalr	a5              // would be pp_post
+#0x40042dfe:	lw	a5,-1704(s2)
+
+0x40042e02:	andi	a4,s0,256           // s0 = 0x8, masked by 0x100 -> a4 = 0x0
+0x40042e06:	beqz	a4,0x40042d5e       // we jump to the beginning
+
+#0x40042e08:	lw	a5,4(a5)
+#0x40042e0a:	li	a1,0
+#0x40042e0c:	li	a0,24               // lmacProcessCollisions_task by pp_post 
+#0x40042e0e:	jalr	a5              // would be pp_post
+#0x40042e10:	lw	a5,-1704(s2)
+
+#0x40042e14:	lw	a5,544(a5)
+#0x40042e18:	jalr	a5              // hal_mac_is_dma_enable (see above)
+#0x40042e1a:	beqz	a0,0x40042d66   // always 0
+#0x40042e1c:	lw	s1,280(s3)
+#0x40042e20:	or	a5,s0,s1
+#0x40042e24:	bnez	a5,0x40042d74   // would be jumping to the beginning
+
+exit
+#0x40042e26:	lw	ra,28(sp)
+#0x40042e28:	lw	s0,24(sp)
+#0x40042e2a:	lw	s1,20(sp)
+#0x40042e2c:	lw	s2,16(sp)
+#0x40042e2e:	lw	s3,12(sp)
+#0x40042e30:	lw	s4,8(sp)            // pops 
+#0x40042e32:	addi	sp,sp,32
+#0x40042e34:	ret
+
+
+ppTask 
+0x40040758:	addi	sp,sp,-64
+0x4004075a:	sw	s0,56(sp)           // push
+0x4004075c:	lui	s0,0x3fce0
+0x40040760:	lw	a5,-1708(s0)        // g_osi_funcs_p
+0x40040764:	lui	a4,0x3fce0
+0x40040768:	lw	a0,-1756(a4)        // s_pp_task_create_sem
+0x4004076c:	lw	a5,64(a5)           // semphr_give
+
+0x4004076e:	sw	s1,52(sp)
+0x40040770:	sw	s2,48(sp)
+0x40040772:	sw	s3,44(sp)
+0x40040774:	sw	s4,40(sp)
+0x40040776:	sw	s5,36(sp)
+0x40040778:	sw	s6,32(sp)
+0x4004077a:	sw	s7,28(sp)
+0x4004077c:	sw	s8,24(sp)
+0x4004077e:	sw	s9,20(sp)
+0x40040780:	sw	ra,60(sp)
+0x40040782:	sw	s10,16(sp)          // pushes
+
+0x40040784:	lui	s1,0x3fce0
+0x40040788:	lui	s3,0x3ff1b
+0x4004078c:	li	s2,0                // flag
+0x4004078e:	jalr	a5              // semphr_give s_pp_task_create_sem
+
+0x40040790:	addi	s1,s1,-1768     // xphyQueue
+0x40040794:	lui	s6,0x3fce0
+0x40040798:	lui	s5,0x3fce0
+0x4004079c:	lui	s4,0x3fce0
+0x400407a0:	addi	s3,s3,1448      // 0x3ff1b5a8 = pp task jump table
+0x400407a4:	lui	s9,0x3fce0
+0x400407a8:	lui	s8,0x3ff1b
+0x400407ac:	lui	s7,0x3fce0
+try to receive:
+0x400407b0:	lw	a5,-1708(s0)
+0x400407b4:	lw	a0,0(s1)
+0x400407b6:	li	a2,-1
+0x400407b8:	lw	a5,116(a5)          // queue_recv
+0x400407ba:	addi	a1,sp,8
+0x400407bc:	jalr	a5              // queue_recv
+
+0x400407be:	li	a5,1
+0x400407c0:	beq	a0,a5,0x400407d8    // 1 means received something
+0x400407c4:	beqz	s2,0x400407b0   // if flag is false (queue_msg_waiting was called) -> try to receive
+0x400407c8:	lw	a5,-1708(s0)
+0x400407cc:	lw	a0,0(s1)
+0x400407ce:	lw	a5,120(a5)
+0x400407d0:	jalr	a5              // queue_msg_waiting (not yet implemented)
+                                    // Get message number in the message queue
+0x400407d2:	beqz	a0,0x4004083c   // if it returns with 0 message -> clear and exit  
+0x400407d4:	li	s2,1                // if there is one or more messages, set flag to true
+0x400407d6:	j	0x400407b0          // try to receive
+
+received:
+0x400407d8:	lw	a0,8(sp)            // msg[0]
+
+msg[0] = 32
+0x400407da:	li	a5,32
+0x400407de:	bgeu	a5,a0,0x400407f0
+
+pp_default_event_handler with msg[4]
+0x400407e2:	lw	a5,-1704(s6)        // pp_wdev_funcs
+0x400407e6:	lw	a1,12(sp)           // msg[4]
+0x400407e8:	lw	a5,716(a5)          // pp_default_event_handler
+0x400407ec:	jalr	a5              // pp_default_event_handler
+0x400407ee:	j	0x400407c4          // read queue again
+
+msg[0] = 13
+0x400407f0:	li	a5,13
+0x400407f2:	beq	a0,a5,0x40040980
+
+msg[0] != 32 & != 13
+increment individual counter
+0x400407f6:	lw	a5,-1708(s0)        // g_osi_funcs_p
+0x400407fa:	addi	s10,s5,-1740    // g_intr_lock_mux
+0x400407fe:	lw	a0,0(s10)           // *g_intr_lock_mux
+0x40040802:	lw	a5,40(a5)           // wifi_int_disable
+0x40040804:	jalr	a5              // wifi_int_disable
+0x40040806:	lw	a5,8(sp)            // msg[0]
+0x40040808:	lw	a4,-1724(s4)        // pp_sig_cnt_ptr
+0x4004080c:	mv	a1,a0               // save *g_intr_lock_mux
+0x4004080e:	add	a4,a4,a5            // pp_sig_cnt_ptr[msg[0]] (index in pp_sig_cnt_ptr)
+0x40040810:	lbu	a5,0(a4)            // get counter 
+0x40040814:	addi	a5,a5,-1        // increment counter
+0x40040816:	zext.b	a5,a5
+0x4004081a:	sb	a5,0(a4)            // restore incremented counter 
+0x4004081e:	lw	a5,-1708(s0)        // g_osi_funcs_p
+0x40040822:	lw	a0,0(s10)           // *g_intr_lock_mux
+0x40040826:	lw	a5,44(a5)           // wifi_int_restore
+0x40040828:	jalr	a5              // wifi_int_restore
+EOF counter section 
+
+0x4004082a:	lw	a0,8(sp)            // get cmd[0]
+0x4004082c:	li	a5,29
+
+cmd[0] >= 30
+0x4004082e:	bltu	a5,a0,0x400407e2    // pp_default_event_handler with msg[4]
+
+cmd[0] <= 29
+0x40040832:	slli	a5,a0,0x2       // cmd[0] * 4
+0x40040836:	add	a5,a5,s3            // pp task jump table base + cmd[0] * 4
+0x40040838:	lw	a5,0(a5)            // get address from jump table 
+0x4004083a:	jr	a5                  // jump to handler
+
+clear and exit
+0x4004083c:	lui	a5,0x3fce0
+0x40040840:	lw	a0,-1760(a5)        // s_pp_task_del_sem
+0x40040844:	lw	a5,-1708(s0)        // g_osi_funcs_p
+0x40040848:	beqz	a0,0x40040852
+if *s_pp_task_del_sem != 0
+0x4004084a:	lw	a5,64(a5)           // semphr_give
+0x4004084c:	jalr	a5              // semphr_give
+0x4004084e:	lw	a5,-1708(s0)
+if *s_pp_task_del_sem == 0
+0x40040852:	lui	s1,0x3fce0
+0x40040856:	addi	s1,s1,-1748     // s_wifi_queue
+0x4004085a:	lw	a0,0(s1)
+0x4004085c:	lw	a5,380(a5)          // wifi_delete_queue
+0x40040860:	jalr	a5              // wifi_delete_queue
+0x40040862:	lw	a5,-1708(s0)
+0x40040866:	lui	a4,0x3fce0
+0x4004086a:	sw	zero,0(s1)          // zero -> s_wifi_queue
+0x4004086e:	lw	a5,152(a5)          // task_delete
+0x40040872:	sw	zero,-1752(a4)      // pp_task_hdl
+0x40040876:	li	a0,0
+0x40040878:	jalr	a5              // task_delete
+
+0x4004087a:	lw	ra,60(sp)
+0x4004087a:	lw	ra,60(sp)
+0x4004087c:	lw	s0,56(sp)
+0x4004087e:	lw	s1,52(sp)
+0x40040880:	lw	s2,48(sp)
+0x40040882:	lw	s3,44(sp)
+0x40040884:	lw	s4,40(sp)
+0x40040886:	lw	s5,36(sp)
+0x40040888:	lw	s6,32(sp)
+0x4004088a:	lw	s7,28(sp)
+0x4004088c:	lw	s8,24(sp)
+0x4004088e:	lw	s9,20(sp)
+0x40040890:	lw	s10,16(sp)          // pops
+0x40040892:	addi	sp,sp,64
+0x40040894:	ret
+
+msg[0] = 29 pm_on_beacon_rx
+0x400408c6:	lw	a5,-1704(s6)        // pp_wdev_funcs
+0x400408ca:	li	a3,1
+0x400408cc:	li	a2,0
+0x400408ce:	lw	a5,428(a5)          // pm_on_beacon_rx
+0x400408d2:	li	a1,0
+0x400408d4:	li	a0,0
+0x400408d6:	jalr	a5              // pm_on_beacon_rx
+0x400408d8:	j	0x400407c4          // read queue again
+
+msg[0] = 28 pp_default_event_handler with msg[4]
+
+msg[0] = 27 pp_default_event_handler with msg[4]
+
+msg[0] = 26 not implemented
+0x400408da:	lw	a5,-1704(s6)        // pp_wdev_funcs
+0x400408de:	lw	a0,12(sp)           // msg[4]
+0x400408e0:	lw	a5,560(a5)          // not implemented
+0x400408e4:	jalr	a5              // cannot be called
+0x400408e6:	j	0x400407c4          // read queue again
+
+msg[0] = 25 wdevProcessRxSucDataAll
+0x40040896:	lw	a5,-1704(s6)        // pp_wdev_funcs
+0x4004089a:	lw	a5,384(a5)          // wdevProcessRxSucDataAll
+0x4004089e:	jalr	a5              // wdevProcessRxSucDataAll
+0x400408a0:	j	0x400407c4          // read queue again
+
+msg[0] = 24 lmacProcessCollisions_task
+0x400408a2:	lw	a5,-1704(s6)        // pp_wdev_funcs
+0x400408a6:	lw	a5,380(a5)          // lmacProcessCollisions_task
+0x400408aa:	jalr	a5              // lmacProcessCollisions_task
+0x400408ac:	j	0x400407c4          // read queue again
+
+msg[0] = 23 lmacProcessTxComplete
+0x400408ae:	lw	a5,-1704(s6)        // pp_wdev_funcs
+0x400408b2:	lw	a5,376(a5)          // lmacProcessTxComplete
+0x400408b6:	jalr	a5              // lmacProcessTxComplete
+0x400408b8:	j	0x400407c4          // read queue again
+
+msg[0] = 22 lmacProcessTxTimeout
+0x400408ba:	lw	a5,-1704(s6)        // pp_wdev_funcs
+0x400408be:	lw	a5,372(a5)          // lmacProcessTxTimeout
+0x400408c2:	jalr	a5              // lmacProcessTxTimeout
+0x400408c4:	j	0x400407c4          // read queue again
+
+msg[0] = 21 read queue again (no-op) 
+
+msg[0] = 20 read queue again (no-op) 
+
+msg[0] = 19 read queue again (no-op) 
+
+msg[0] = 18 ppResortTxAMPDU with msg[4]
+0x400408e8:	lw	a5,-1704(s6)        // pp_wdev_funcs
+0x400408ec:	lbu	a0,12(sp)           // msg[4]
+0x400408f0:	lw	a5,200(a5)          // ppResortTxAMPDU
+0x400408f4:	jalr	a5              // ppResortTxAMPDU
+0x400408f6:	j	0x400407c4          // read queue again
+
+msg[0] = 17 ppRxPkt
+0x400408f8:	lw	a5,-1704(s6)        // pp_wdev_funcs
+0x400408fc:	lw	a5,360(a5)          // ppRxPkt
+0x40040900:	jalr	a5              // ppRxPkt
+0x40040902:	j	0x400407c4          // read queue again
+
+msg[0] = 16 ppProcTxDone
+0x40040904: lw	a5,-1704(s6)        // pp_wdev_funcs
+0x40040908:	li	a0,1
+0x4004090a:	lw	a5,364(a5)          // ppProcTxDone
+0x4004090e:	jalr	a5              // ppProcTxDone
+0x40040910:	j	0x400407c4          // read queue again
+
+msg[0] = 15 read queue again but without checking flag that 'queue_msg_waiting was called'
+
+msg[0] = 14 ppResumeTxAMPDU (ROM) with msg[4] then fix args
+0x40040912:	lw	a5,-1940(s9)        // net80211_funcs
+0x40040916:	lw	a4,12(sp)           // msg[4]
+0x40040918:	lui	a1,0x1
+0x4004091a:	lw	a5,180(a5)          // ppResumeTxAMPDU = 0x40001700 (ROM)
+0x4004091e:	addi	a3,s8,1572      // 0x3ff1b + 0x624
+0x40040922:	li	a2,1
+0x40040924:	addi	a1,a1,-2048
+0x40040928:	li	a0,6
+0x4004092a:	jalr	a5              // ppResumeTxAMPDU = 0x40001700 (ROM)
+0x4004092c:	j	0x400407c4          // read queue again
+
+msg[0] = 8 pp_timer_do_process with // msg[4]
+0x4004092e:	lw	a5,-1704(s6)        // pp_wdev_funcs
+0x40040932:	lw	a0,12(sp)           // msg[4]
+0x40040934:	lw	a5,356(a5)          // pp_timer_do_process
+0x40040938:	jalr	a5              // pp_timer_do_process
+0x4004093a:	j	0x400407c4          // read queue again
+
+msg[0] = 7 g_timer_func with msg[4]
+0x4004093c:	lui	a5,0x3fce0
+0x40040940:	lw	a5,-1844(a5)        // g_timer_func
+0x40040944:	beqz	a5,0x400407c4   // if 0 -> no g_timer_func -> read queue again
+0x40040948:	lw	a0,12(sp)           // msg[4] is the timer arg 
+0x4004094a:	jalr	a5              // g_timer_func
+0x4004094c:	j	0x400407c4          // read queue again
+
+msg[0] = 6  g_config_func
+0x4004094e  lui	a5,0x3fce0
+0x40040952:	lw	a5,-1836(a5)        // g_config_func
+0x40040956:	bnez	a5,0x40040948   // g_config_func
+0x40040958:	j	0x400407c4          // read queue again
+
+msg[0] = 5  g_net80211_tx_func
+0x4004095a  lw	a5,-1840(s7)        // g_net80211_tx_func
+0x4004095e:	jalr	a5              // g_net80211_tx_func
+0x40040960:	j	0x400407c4          // read queue again
+
+msg[0] = 4  ppProcessTxQ
+0x40040962  lw	a5,-1704(s6)
+0x40040966:	li	a0,4
+0x40040968:	lw	a5,176(a5)          // ppProcessTxQ
+0x4004096c:	jalr	a5              // ppProcessTxQ 
+0x4004096e:	j	0x400407c4          // read queue again
+
+msg[0] = 0, 1, 2, 3 ppProcessTxQ with cmd[0]
+0x40040970  lw	a5,-1704(s6)        // pp_wdev_funcs
+0x40040974:	zext.b	a0,a0           // arg is cmd[0]
+0x40040978:	lw	a5,176(a5)          // ppProcessTxQ
+0x4004097c:	jalr	a5              // ppProcessTxQ
+0x4004097e:	j	0x400407c4          // read queue again
+
+msg[0] = 13 ppProcessRxPktHdr
+0x40040980:	lw	a5,-1704(s6)        // pp_wdev_funcs
+0x40040984:	lw	a0,12(sp)           // cmd[1]
+0x40040986:	lw	a5,368(a5)          // ppProcessRxPktHdr
+0x4004098a:	jalr	a5              // ppProcessRxPktHdr
+0x4004098c:	j	0x400407c4          // read queue again
+
+msg[0] = 12 pp_default_event_handler with msg[4]
+
+msg[0] = 11 pp_default_event_handler with msg[4]
+
+msg[0] = 10 pp_default_event_handler with msg[4]
+
+msg[0] = 9 pp_default_event_handler with msg[4]
+
+jump table
+0x3ff1b5a8
+// 0  0x3ff1b5a8:   0x40040970*
+// 1  0x3ff1b5ac:   0x40040970*
+// 2  0x3ff1b5b0:   0x40040970*
+// 3  0x3ff1b5b4:   0x40040970*
+// 4  0x3ff1b5b8:   0x40040962*
+// 5  0x3ff1b5bc:   0x4004095a*
+// 6  0x3ff1b5c0:   0x4004094e*
+// 7  0x3ff1b5c4:   0x4004093c*
+// 8  0x3ff1b5c8:   0x4004092e*
+// 9  0x3ff1b5cc:   0x400407e2*      // pp_default_event_handler with msg[4]
+// 10 0x3ff1b5d0:   0x400407e2*      // pp_default_event_handler with msg[4]
+// 11 0x3ff1b5d4:   0x400407e2*      // pp_default_event_handler with msg[4]
+// 12 0x3ff1b5d8:   0x400407e2*      // pp_default_event_handler with msg[4]
+// 13 0x3ff1b5dc:   0x40040980*
+// 14 0x3ff1b5e0:   0x40040912*
+// 15 0x3ff1b5e4:   0x400407c8*      // read queue again but without checking flag that 'queue_msg_waiting was called'
+// 16 0x3ff1b5e8:   0x40040904*
+// 17 0x3ff1b5ec:   0x400408f8*
+// 18 0x3ff1b5f0:   0x400408e8*
+// 19 0x3ff1b5f4:   0x400407c4*      // read queue again
+// 20 0x3ff1b5f8:   0x400407c4*      // read queue again
+// 21 0x3ff1b5fc:   0x400407c4*      // read queue again
+// 22 0x3ff1b600:   0x400408ba*
+// 23 0x3ff1b604:   0x400408ae*
+// 24 0x3ff1b608:   0x400408a2*
+// 25 0x3ff1b60c:   0x40040896*
+// 26 0x3ff1b610:   0x400408da*
+// 27 0x3ff1b614:   0x400407e2      // pp_default_event_handler with msg[4]
+// 28 0x3ff1b618:   0x400407e2      // pp_default_event_handler with msg[4]
+// 29 0x3ff1b61c:   0x400408c6*
+
+
+msg[0] = 16 ppProcTxDone(a0=1)
+ppProcTxDone = 0x40001804
+0x40001804:	j	0x40041694
+
+0x40041694:	addi	sp,sp,-64
+0x40041696:	sw	s1,52(sp)           // push
+0x40041698:	lui	s1,0x3fce0
+0x4004169c:	lw	a4,-1704(s1)        // pp_wdev_funcs
+...
+0x400416c2:	li	s6,0
+0x400416c4:	li	s3,0
+0x400416c6:	li	s9,0
+0x400416c8:	li	s7,0
+0x400416ca:	lui	s4,0x3fce0
+0x400416ce:	lui	s10,0x3fce0
+0x400416d2:	addi	s11,s8,-256
+0x400416d6:	addi	s5,s5,-1
+0x400416d8:	addi	s2,s2,8
+
+0x400416da:	lw	a5,692(a4)          // ppDequeueTxDone_Locked
+0x400416de:	jalr	a5              // ppDequeueTxDone_Locked
+0x400416e0:	mv	s0,a0               // save a0 = 0x3fc94628, somewhere in HEAP_DATA (0x3fc8bf9c)
+0x400416e2:	lw	a5,-1704(s1)        // pp_wdev_funcs
+0x400416e6:	beqz	a0,0x40041778   // return value was not 0 -> no jump 
+
+loop (ppDequeueTxDone_Locked returns with non zero)
+0x400416e8:	lw	a5,732(a5)          // ppProcTxCallback
+0x400416ec:	li	a1,0
+0x400416ee:	jalr	a5              // ppProcTxCallback !!!
+
+0x400416f0:	lw	a5,-1704(s1)        // pp_wdev_funcs   
+0x400416f4:	mv	a0,s0               // get back ppDequeueTxDone_Locked's return value = 0x3fc94628
+0x400416f6:	lw	a5,696(a5)          // pp_coex_tx_release
+0x400416fa:	jalr	a5              // pp_coex_tx_release
+
+0x400416fc:	lw	a4,44(s0)           // 0x3fc94628[44] = 0x3fc94664
+0x400416fe:	lw	a5,0(a4)            // 0x3fc94628[44][0] = 0x432 (0x432)
+0x40041700:	andi	a3,a5,8         // mask 3rd bit = 0x0
+0x40041704:	beqz	a3,0x4004173a   // so we jump
+...
+0x4004173a: slli	a3,a5,0x12      // 0x432 <-18 = 0x10c80000
+0x4004173e:	lw	a4,-1704(s1)        // pp_wdev_funcs
+0x40041742:	bgez	a3,0x400417ae   // no negative -> jump
+...
+0x400417ae:	slli	a3,a5,0x8       // 0x432 <-8 = 0x43200
+0x400417b2:	bltz	a3,0x400417d8   // non less than 0 -> no jump
+0x400417b6:	lbu	a5,26(s0)           // the magic 0x3fc94628[26] = 0x2 (0x2)
+0x400417ba:	li	a3,5                
+0x400417bc:	bne	a5,a3,0x40041756    // 0x3fc94628[26] != 5 -> jump
+...
+0x40041756:	li	a3,1
+0x40041758:	bne	a5,a3,0x4004175e    // 0x3fc94628[26] != 1 -> jump
+...
+0x4004175e:	lw	a5,304(a4)          // esf_buf_recycle
+0x40041762:	mv	a0,s0               // get back 0x3fc94628
+0x40041764:	jalr	a5              // esf_buf_recycle
+
+0x40041766:	lw	a4,-1704(s1)        // pp_wdev_funcs
+0x4004176a:	lw	a5,692(a4)          // ppDequeueTxDone_Locked
+0x4004176e:	jalr	a5
+0x40041770:	mv	s0,a0               // no we get a0=0 (0)
+0x40041772:	lw	a5,-1704(s1)        // pp_wdev_funcs
+0x40041776:	bnez	a0,0x400416e8   // if we got back non zero go back / loop back to the begining
+
+ppDequeueTxDone_Locked returns with zero (length of buffer)
+0x40041778:	beqz	s6,0x40041786   // it was reset at the beginning and not modified since then -> jump
+...                                 // pops
+0x4004179a:	lw	t1,704(a5)          // pm_tx_data_done_process
+0x4004179e:	mv	a2,s3               // return value
+0x400417a0:	mv	a1,s9               // return value
+0x400417a2:	lw	s3,44(sp)           // pop
+0x400417a4:	lw	s9,20(sp)           // pop 
+0x400417a6:	mv	a0,s7               // return value
+0x400417a8:	lw	s7,28(sp)           // pop
+0x400417aa:	addi	sp,sp,64
+0x400417ac:	jr	t1                  // jmp pm_tx_data_done_process
+
+pm_tx_data_done_process
+0x40001808:	j	0x4003ec30
+0x4003ec30:	addi	sp,sp,-16
+0x4003ec32:	sw	s1,4(sp)
+0x4003ec34:	sw	ra,12(sp)
+0x4003ec36:	sw	s0,8(sp)
+0x4003ec38:	mv	s1,a2               // a2 (was s3) = 0x0
+0x4003ec3a:	beqz	a0,0x4003ec4c   // jump
+...
+0x4003ec4c:	lui	s0,0x3fce0
+0x4003ec50:	lw	a5,-1704(s0)        // pp_wdev_funcs
+0x4003ec54:	lw	a5,612(a5)          // pm_check_state
+0x4003ec58:	jalr	a5              // pm_check_state returns a0=0
+0x4003ec5a:	beqz	a0,0x4003ec88   // a0=0 -> jump
+...
+0x4003ec88:	lw	ra,12(sp)
+0x4003ec8a:	lw	s0,8(sp)
+0x4003ec8c:	lw	s1,4(sp)
+0x4003ec8e:	addi	sp,sp,16
+0x4003ec90:	ret
+
+last instruction of msg[0] = 16 ppProcTxDone(a0=1)
+0x40040910:	j	0x400407c4          // read queue again
+
+next read brings the "received [25,..."
+
+ppProcTxCallback
+0x4038119a <+0>:	lw	a5,44(a0)           // a5 = 0x3fc94664 (0x3fc8bfd8)
+0x4038119c <+2>:	addi	sp,sp,-32
+0x4038119e <+4>:	sw	s4,8(sp)
+0x403811a0 <+6>:	lw	s4,20(a5)           // s4 = 0x2 (0x2)
+...                                         // pushes
+0x403811b0 <+22>:	mv	s5,a0               a0=s5 = 0x3fc94628 (0x3fc8bf9c)
+0x403811b2 <+24>:	mv	s3,a1               a1=s3 = 0x0 (0x0)
+0x403811b4 <+26>:	lui	s1,0x3fce0
+0x403811b8 <+30>:	li	s2,1
+
+0x403811ba <+32>:	bnez	s4,0x403811d0 <ppProcTxCallback+54> // s4 = 0x2 -> jump
+exit
+0x403811be
+...
+0x403811d0 <+54>:	mv	a0,s4               // 0x2
+0x403811d2 <+56>:	auipc	ra,0xffc7f
+0x403811d6 <+60>:	jalr	1494(ra) # 0x400007a8   // __ctzsi2 (ROM) - return the number of leading 0-bits -> a0 = 1 (1)
+0x403811da <+64>:	lw	a4,-1688(s1) # 0x3fcdf968   // pTxRx (ROMram) a4 = 0x3fc84924 = .data.TxRxCxt (.data.TxRxCxt)
+0x403811de <+68>:	sll	s0,s2,a0            // s2=1 shift left by got a0 -> 0x2 (0x2)
+0x403811e2 <+72>:	beqz	s3,0x4038120c <ppProcTxCallback+114>    // a1=s3 = 0x0 -> jump
+
+0x403811ea <+80>:	and	a5,a5,s0            // 0x164 && 0x2 -> 0x0
+0x403811ec <+82>:	snez	a5,a5           // set if not zero -> a5=0x0 (0x0)
+0x403811f0 <+86>:	beqz	a5,0x40381202 <ppProcTxCallback+104>
+...
+0x40381202 <+104>:	not	s0,s0               // s0 = 0xfffffffd
+0x40381206 <+108>:	and	s4,s4,s0            // 0x2 && 0xfffffffd = s4 = 0x0 (0x0)
+0x4038120a <+112>:	j	0x403811ba <ppProcTxCallback+32>
+
+0x4038120c <+114>:	lw	a5,852(a4)          // .data.TxRxCxt[852]   a5 = 0x164 (0x164)
+0x40381210 <+118>:	j	0x403811ea <ppProcTxCallback+80>
+
+
+interrupt WIFI_MAC 0x400017f0 0x0                           interrupt WIFI_MAC 0x400017f0 0x0
+queue posting [23, 0, 0, 0, 0, 0, 0, 0]                     queue posting [23, 0, 0, 0, 0, 0, 0, 0]
+
+received [23, 0, 0, 0, 0, 0, 0, 0]                          interrupt WIFI_MAC 0x400017f0 0x0                  
+queue posting [16, 0, 0, 0, 0, 0, 0, 0]
+received [16, 0, 0, 0, 0, 0, 0, 0]                          interrupt WIFI_MAC 0x400017f0 0x0 
+                                                            queue posting [25, 0, 0, 0, 0, 0, 0, 0]
+interrupt WIFI_MAC 0x400017f0 0x0 
+                                                            received [23, 0, 0, 0, 0, 0, 0, 0]
+interrupt WIFI_MAC 0x400017f0 0x0                           queue posting [16, 0, 0, 0, 0, 0, 0, 0]
+queue posting [25, 0, 0, 0, 0, 0, 0, 0]                     received [25, 0, 0, 0, 0, 0, 0, 0]
+                                                            queue posting [17, 0, 0, 0, 0, 0, 0, 0]
+received [25, 0, 0, 0, 0, 0, 0, 0]                          received [16, 0, 0, 0, 0, 0, 0, 0]
+queue posting [17, 0, 0, 0, 0, 0, 0, 0]                     received [17, 0, 0, 0, 0, 0, 0, 0]
+received [17, 0, 0, 0, 0, 0, 0, 0]
+                                                            interrupt WIFI_MAC 0x400017f0 0x0
+interrupt WIFI_MAC 0x400017f0 0x0                           queue posting [25, 0, 0, 0, 0, 0, 0, 0]
+queue posting [25, 0, 0, 0, 0, 0, 0, 0]
+                                                            received [25, 0, 0, 0, 0, 0, 0, 0]
+received [25, 0, 0, 0, 0, 0, 0, 0]                          queue posting [17, 0, 0, 0, 0, 0, 0, 0]
+queue posting [17, 0, 0, 0, 0, 0, 0, 0]                     received [17, 0, 0, 0, 0, 0, 0, 0]
+received [17, 0, 0, 0, 0, 0, 0, 0]                      
+                                                            timer is due.... 3fc9ac5c
+timer is due.... 3fc9e97c                                   trigger timer....
+trigger timer....
+                                                            queue posting [7, 0, 0, 0, 248, 78, 200, 63]
+queue posting [7, 0, 0, 0, 132, 213, 200, 63]               timer callback called
+timer callback called                                       received [7, 0, 0, 0, 248, 78, 200, 63]
+received [7, 0, 0, 0, 132, 213, 200, 63]
+                                                            scan end: arg=0, status=0, ss_state=0x3
+scan end: arg=0x0, status=0, ss_state=0x03
+
+
+// scan loop (only INFO)
+perform scan: ss_state=0x09, chan<1,0>, dur<0,120>
+change: chan<1,0>, dur<0,120>
+    ht20 freq=2417, chan=2
+enter start op, arg=0x3fc9e878
+scan operation: state=0x03, chan<1,0>, arg=0x3fc9e878, status=0
+scan specific ssid=B&B San Bartolomeo
+start max timer
+
+// if found something
+rsn valid: gcipher=1 ucipher=3 akm=5
+updated connection retries to 1
+profile match: ss_state=0x07
+scan histroy table is not full yet, add
+add ssid=B&B San Bartolomeo, chan=2 to scan history
+
+// not found or continue
+scan end: arg=0x0, status=0, ss_state=0x03
+
+// if found
+find first mathched ssid, scan done
+back home chan=<1,0>, current chan=<2,0>
+ht20 freq=2412, chan=1
+filter: set rx policy=4
+first chan=1
+scan_done: arg=0x0, status=0, cur_time=461588, scan_id=128, scan state=00
+call scan_done cb, arg=0x0
+handoff_cb: status=0
+best bss has set.
+ap found, mac=c4:12:f5:6f:c7:3a
+bssid=c4:12:f5:6f:c7:3a, LR=0
+new_bss=0x3fc9ea60, cur_bss=0x0, new_chan=<2,0>, cur_chan=1
+filter: set rx policy=5
+new:<2,0>, old:<1,0>, ap:<255,255>, sta:<2,0>, prof:1
+ht20 freq=2417, chan=2
+connect_op: status=0, auth=5, cipher=3
+
+auth mode is not none
+connect_bss: auth=1, reconnect=0
+state: init -> auth (b0)
+start 1s AUTH timer
+clear scan ap list
+
+recv auth: seq=2, status=0
+state: auth -> assoc (00)
+queue posting [0, 0, 0, 0, 0, 0, 0, 0]
+restart connect 1s timer for assoc
+
+recv assoc: type=0x10
+filter: set rx policy=6
+state: assoc -> run (10)
+
+start 10s connect timer for 4 way handshake
+wpa_psk start
+wpa_psk handle succeed
+wpa_psk start
+wpa_psk handle succeed
+connected with B&B San Bartolomeo, aid = 12, channel 2, BW20, bssid = c4:12:f5:6f:c7:3a
+security: WPA2-PSK, phy: bgn, rssi: -70 or security: WPA2-PSK, phy: bgn, rssi: 64
+remove all except c4:12:f5:6f:c7:3a from rc list
+clear blacklist
+
+filter: set rx policy=7
+pm start, type: 0
+dp: 1, bi: 102400, li: 3, scale listen interval from 307200 us to 307200 us
+set rx beacon pti, rx_bcn_pti: 0, bcn_timeout: 25000, mt_pti: 0, mt_time: 10000
+
+Send sta connected event
+[TRACE] - EVENT: StaConnected
+connect status 1 -> 5
+obss scan is disabled
+start obss scan: obss scan is stopped
+
+Wifi connected!
+(Waiting to get IP address...)
+
+BcnInt:102400, DTIM:1
+set max rate: from <rate=130, phy=3, sig=0> to <rate=144, phy=3 sig=0>
+sig_b=0, sig_g=0, sig_n=0, max_b=22, max_g=108, max_n=144
+update trc
+
+
+pm_on_tbtt // called from WIFI_PWR queue posting [26, 0, 0, 0, 16, 0, 0, 0] // cmd=26, a0(arg)=16
+0x40001684:	j	0x4003eabe
+
+0x4003eabe:	andi	a0,a0,16
+0x4003eac0:	beqz	a0,0x4003ead2       // if not 16 return
+0x4003eac2:	lui	a5,0x3fce0
+0x4003eac6:	lw	a5,-1704(a5)            // pp_wdev_funcs
+0x4003eaca:	li	a0,0                    // arg=0
+0x4003eacc:	lw	t1,632(a5)              // pm_tbtt_process
+0x4003ead0:	jr	t1                      // jmp pm_tbtt_process
+0x4003ead2:	ret
+
+pm_tbtt_process
+0x400016a0:	j	0x4003e24c
+
+0x4003e24c:	addi	sp,sp,-32
+0x4003e24e:	sw	s4,8(sp)
+0x4003e250:	lui	s4,0x3fce0
+0x4003e254:	lw	a5,-1708(s4)            // g_osi_funcs_p
+0x4003e258:	sw	ra,28(sp)
+0x4003e25a:	sw	s0,24(sp)
+0x4003e25c:	lw	a5,264(a5)              // _esp_timer_get_time
+0x4003e260:	sw	s1,20(sp)
+0x4003e262:	sw	s2,16(sp)
+0x4003e264:	sw	s3,12(sp)
+0x4003e266:	jalr	a5                  // _esp_timer_get_time
+
+0x4003e268:	lui	s1,0x3fce0
+0x4003e26c:	lw	a5,-1704(s1)            // pp_wdev_funcs
+0x4003e270:	lui	s0,0x3fce0
+0x4003e274:	addi	s0,s0,-1800         // g_pm_ptr = 0x3fcdf8f8
+0x4003e278:	lw	a4,0(s0)                // get *g_pm_ptr[0]=.bss.g_pm -> a4 (0x1d0 length)
+0x4003e27a:	lw	a5,612(a5)              // pm_check_state
+0x4003e27e:	mv	s2,a0                   // save lover half of time
+0x4003e280:	sw	a0,96(a4)               // store lower half of time to g_pm_ptr[96]
+0x4003e282:	sw	a1,100(a4)              // store upper half of time
+0x4003e284:	mv	s3,a1                   // save upper half of time               
+0x4003e286:	jalr	a5                  // pm_check_state with time as parameter
+
+0x4003e288:	lw	a0,0(s0)                // get *g_pm_ptr[0]=.bss.g_pm -> a0 (0x1d0 length)
+0x4003e28a:	lbu	a5,14(a0)               // .bss.g_pm[14]=1
+0x4003e28e:	beqz	a5,0x4003e336
+0x4003e290:	lbu	a4,1(a0)                // .bss.g_pm[1]=0x0
+0x4003e294:	li	a5,1
+0x4003e296:	sb	a5,19(a0)               // 0x1 -> .bss.g_pm[19]
+0x4003e29a:	li	a5,2
+0x4003e29c:	lw	a2,-1704(s1)            // pp_wdev_funcs
+0x4003e2a0:	beq	a4,a5,0x4003e316        // .bss.g_pm[1]=0x0 == 2
+
+0x4003e2a4:	lui	a5,0x3fce0
+0x4003e2a8:	lw	a3,-1796(a5)            // g_pm_cnt_ptr = 0x3fcdf8fc
+0x4003e2ac:	lhu	a4,30(a0)               // .bss.g_pm[30]=0x0 ->a4 
+0x4003e2b0:	lw	a5,0(a3)                // *g_pm_cnt_ptr[0]=0x0
+0x4003e2b2:	lw	a2,628(a2)              // pm_coex_tbtt_process
+0x4003e2b6:	addi	a4,a4,1             // 0x0 -> 0x1 -> a4
+0x4003e2b8:	sh	a4,30(a0)               // 0x1 -> .bss.g_pm[30]
+0x4003e2bc:	addi	a5,a5,1             // 0x0 -> 0x1
+0x4003e2be:	sw	a5,0(a3)                // 0x1 -> .bss.g_pm[0]
+0x4003e2c0:	mv	a0,s2                   // lower half of time
+0x4003e2c2:	mv	a1,s3                   // upper half of time
+0x4003e2c4:	jalr	a2                  // pm_coex_tbtt_process
+
+0x4003e2c6:	lw	a5,-1704(s1)            // pp_wdev_funcs
+0x4003e2ca:	lw	a5,584(a5)
+0x4003e2ce:	jalr	a5                  // pm_pend_noise_check
+
+0x4003e2d0:	lw	a5,-1704(s1)            // pp_wdev_funcs
+0x4003e2d4:	lw	a5,624(a5)
+0x4003e2d8:	jalr	a5                  // pm_mesh_set_next_tbtt
+            a0=0
+0x4003e2da:	bnez	a0,0x4003e306
+
+0x4003e2dc:	lw	a5,-1704(s1)            // pp_wdev_funcs
+0x4003e2e0:	lw	a5,620(a5)
+0x4003e2e4:	jalr	a5                  // pm_set_next_tbtt
+
+0x4003e2e6:	lw	a5,-1704(s1)            // pp_wdev_funcs
+0x4003e2ea:	lw	a5,580(a5)
+0x4003e2ee:	jalr	a5                  // pm_enable_dream_timer
+
+0x4003e2f0:	lw	a5,-1704(s1)            // pp_wdev_funcs
+0x4003e2f4:	lw	a5,616(a5)
+0x4003e2f8:	jalr	a5                  // pm_update_params
+
+0x4003e2fa:	lui	a4,0x60035
+0x4003e2fe:	lw	a5,44(a4)               // get *0x6003502a
+0x4003e300:	ori	a5,a5,1                 // set bit 0 to 1
+0x4003e304:	sw	a5,44(a4)               // store *0x6003502a
+
+0x4003e306:	lw	ra,28(sp)
+0x4003e308:	lw	s0,24(sp)
+0x4003e30a:	lw	s1,20(sp)
+0x4003e30c:	lw	s2,16(sp)
+0x4003e30e:	lw	s3,12(sp)
+0x4003e310:	lw	s4,8(sp)                // pops
+0x4003e312:	addi	sp,sp,32
+0x4003e314:	ret
+
+ppTask
+0x400408e6:	j	0x400407c4              // read queue again           
+
+
+0x4003e4fc  pm_parse_beacon
+0x4003e4fc:	sub	a4,a1,a0
+0x4003e500:	li	a5,11
+0x4003e502:	bge	a5,a4,0x4003e634
+0x4003e506:	addi	sp,sp,-32
+0x4003e508:	sw	s3,12(sp)
+0x4003e50a:	lui	s3,0x3fce0
+0x4003e50e:	sw	s2,16(sp)
+0x4003e510:	addi	s3,s3,-1800
+0x4003e514:	lhu	s2,8(a0)
+0x4003e518:	lw	a7,0(s3)
+0x4003e51c:	sw	s0,24(sp)
+0x4003e51e:	sw	s1,20(sp)
+0x4003e520:	sw	s4,8(sp)
+0x4003e522:	sw	ra,28(sp)
+0x4003e524:	sw	a0,0(a3)
+0x4003e526:	slli	s2,s2,0xa
+0x4003e528:	mv	s4,a2
+0x4003e52a:	mv	s0,a1
+0x4003e52c:	mv	s1,a0
+0x4003e52e:	lbu	t1,17(a7)
+0x4003e532:	beqz	s2,0x4003e608#
+
+0x4003e536:	addi	a5,s1,12
+0x4003e53a:	sub	a3,s0,a5
+0x4003e53e:	li	a4,1
+0x4003e540:	bge	a4,a3,0x4003e580#
+
+0x4003e544:	lbu	a4,13(s1)
+0x4003e548:	addi	a2,a4,1
+0x4003e54c:	bge	a2,a3,0x4003e580#
+
+0x4003e550:	lbu	a2,12(s1)
+0x4003e554:	li	a3,5
+0x4003e556:	beq	a2,a3,0x4003e69c#
+
+0x4003e55a:	li	a1,1
+0x4003e55c:	li	a6,5
+0x4003e55e:	j	0x4003e574
+
+0x4003e560:	lbu	a4,1(a5)
+0x4003e564:	addi	a0,a4,1
+0x4003e568:	bge	a0,a3,0x4003e580#
+0x4003e56c:	lbu	a3,0(a5)
+0x4003e570:	beq	a3,a6,0x4003e69c#
+0x4003e574:	addi	a4,a4,2
+0x4003e576:	add	a5,a5,a4
+0x4003e578:	sub	a3,s0,a5
+0x4003e57c:	blt	a1,a3,0x4003e560#
+
+0x4003e580:	lw	a5,0(s4)
+0x4003e584:	beqz	a5,0x4003e6a2#
+
+0x4003e588:	bnez	t1,0x4003e638#
+0x4003e58c:	lw	a5,0(s4)
+0x4003e590:	sw	s2,52(a7)
+0x4003e594:	beqz	a5,0x4003e59e#
+0x4003e596:	lbu	a5,3(a5)
+0x4003e59a:	sb	a5,11(a7)
+
+0x4003e59e:	lui	s0,0x3fce0
+0x4003e5a2:	lw	a5,-1708(s0)
+0x4003e5a6:	lw	a5,400(a5)
+0x4003e5aa:	jalr	a5                  // coex_status_get
+0x4003e5ac:	lw	a3,0(s3)
+0x4003e5b0:	beqz	a0,0x4003e5ce#
+0x4003e5b2:	lbu	a5,15(a3)
+0x4003e5b6:	beqz	a5,0x4003e5ce#
+0x4003e5b8:	li	a0,100
+0x4003e5bc:	divu	a0,s2,a0
+0x4003e5c0:	lw	a5,-1708(s0)
+0x4003e5c4:	lw	a5,436(a5)
+0x4003e5c8:	jalr	a5                  // coex_schm_interval_set
+0x4003e5ca:	lw	a3,0(s3)
+
+0x4003e5ce:	lui	a5,0x3fce0
+0x4003e5d2:	lw	a2,-1940(a5)            // net80211_funcs
+0x4003e5d6:	lw	a4,52(a3)
+0x4003e5d8:	lbu	a5,11(a3)
+0x4003e5dc:	lw	a6,180(a2)              // wifi_log
+0x4003e5e0:	li	a2,1
+0x4003e5e2:	sb	a2,17(a3)
+0x4003e5e6:	lui	a3,0x3ff1b              
+0x4003e5ea:	addi	a3,a3,1428          // 0x3ff1b594:	"BcnInt:%u, DTIM:%u"
+0x4003e5ee:	li	a2,3
+0x4003e5f0:	lui	a1,0x1
+0x4003e5f2:	li	a0,6
+0x4003e5f4:	jalr	a6                  // wifi_log
+
+0x4003e5f6:	li	a0,1
+
+0x4003e5f8:	lw	ra,28(sp)
+0x4003e5fa:	lw	s0,24(sp)
+0x4003e5fa:	lw	s0,24(sp)
+0x4003e5fc:	lw	s1,20(sp)
+0x4003e5fe:	lw	s2,16(sp)
+0x4003e600:	lw	s3,12(sp)
+0x4003e602:	lw	s4,8(sp)
+0x4003e604:	addi	sp,sp,32
+0x4003e606:	ret
+
+0x4003e608:	lui	s2,0x19
+0x4003e60a:	bnez	t1,0x4003e536#
+0x4003e60e:	lui	a5,0x3fce0
+0x4003e612:	lw	a5,-1940(a5)
+0x4003e616:	lui	a3,0x3ff1b
+0x4003e61a:	addi	a3,a3,1412
+0x4003e61e:	lw	a5,180(a5)
+0x4003e622:	li	a2,3
+0x4003e624:	lui	a1,
+0x4003e626:	li	a0,6
+0x4003e628:	jalr	a5
+0x4003e62a:	lw	a7,0(s3)
+0x4003e62e:	lbu	t1,17(a7)
+0x4003e632:	j	0x4003e536#
+0x4003e634:	li	a0,0
+0x4003e636:	ret
+
+0x4003e638:	lw	a5,52(a7)
+0x4003e63c:	beq	a5,s2,0x4003e65e#
+0x4003e640:	lui	s0,0x3fce0
+0x4003e644:	lw	a5,-1708(s0)
+0x4003e648:	sw	s2,52(a7)
+0x4003e64c:	lw	a5,400(a5)
+0x4003e650:	jalr	a5
+0x4003e652:	lw	a5,0(s3)
+0x4003e656:	bnez	a0,0x4003e6cc#
+
+0x4003e658:	li	a4,1
+0x4003e65a:	sb	a4,18(a5)
+
+0x4003e65e:	lw	a5,0(s4)
+0x4003e662:	beqz	a5,0x4003e5f6#
+0x4003e664:	lw	a4,0(s3)
+0x4003e668:	lbu	a5,3(a5)
+0x4003e66c:	lbu	a3,11(a4)
+0x4003e670:	beq	a3,a5,0x4003e5f6#
+0x4003e674:	lui	a3,0x3fce0
+0x4003e678:	lw	a3,-1708(a3)
+0x4003e67c:	sb	a5,11(a4)
+0x4003e680:	lw	a5,400(a3)
+0x4003e684:	jalr	a5
+0x4003e686:	bnez	a0,0x4003e5f6#
+0x4003e688:	lw	a5,0(s3)
+0x4003e68c:	li	a3,1
+0x4003e68e:	lw	a4,36(a5)
+0x4003e690:	bne	a4,a3,0x4003e5f6#
+0x4003e694:	sb	a4,18(a5)
+0x4003e698:	li	a0,1
+0x4003e69a:	j	0x4003e5f8#
+
+0x4003e69c:	sw	a5,0(s4)
+0x4003e6a0:	j	0x4003e588#
+
+0x4003e6a2:	bnez	t1,0x4003e638#
+0x4003e6a6:	lui	a5,0x3fce0
+0x4003e6aa:	lw	a5,-1940(a5)
+0x4003e6ae:	lui	a3,0x3ff1b
+0x4003e6b2:	addi	a3,a3,1420
+0x4003e6b6:	lw	a5,180(a5)
+0x4003e6ba:	li	a2,3
+0x4003e6bc:	lui	a1,0x1
+0x4003e6be:	li	a0,6
+0x4003e6c0:	jalr	a5
+0x4003e6c2:	lw	a7,0(s3)
+0x4003e6c6:	lbu	t1,17(a7)
+0x4003e6ca:	j	0x4003e588#
+
+0x4003e6cc:	lbu	a4,15(a5)
+0x4003e6d0:	beqz	a4,0x4003e658#
+
+0x4003e6d2:	li	a0,100
+0x4003e6d6:	divu	a0,s2,a0
+0x4003e6da:	lw	a5,-1708(s0)
+0x4003e6de:	lw	a5,436(a5)
+0x4003e6e2:	jalr	a5
+0x4003e6e4:	lw	a5,0(s3)
+0x4003e6e8:	j	0x4003e658#
+
+0x4003e6ea:	addi	sp,sp,-16
+0x4003e6ec:	sw	s0,8(sp)
+0x4003e6ee:	lui	s0,0x3fce0
+0x4003e6f2:	addi	s0,s0,-1800
+0x4003e6f6:	lw	a4,0(s0)
+0x4003e6f8:	sw	ra,12(sp)
+0x4003e6fa:	li	a5,1
+0x4003e6fc:	lbu	a4,1(a4)
+0x4003e700:	beq	a4,a5,0x4003e70e#
+
+0x4003e704:	li	a0,0
+
+0x4003e706:	lw	ra,12(sp)
+0x4003e708:	lw	s0,8(sp)
+0x4003e70a:	addi	sp,sp,16
+0x4003e70c:	ret
+
+0x4003e70e:	lui	a5,0x3fce0
+0x4003e712:	lw	a5,-1708(a5)
+0x4003e716:	lw	a5,264(a5)
+0x4003e71a:	jalr	a5
+0x4003e71c:	lui	a5,0x3fce0
+0x4003e720:	lw	a4,-1832(a5)
+0x4003e724:	lui	a5,0x3fce0
+0x4003e728:	lw	a5,-1804(a5)
+0x4003e72c:	lbu	a4,0(a4)
+0x4003e730:	mv	a6,a0
+0x4003e732:	lw	a5,28(a5)
+0x4003e734:	beqz	a4,0x4003e754#
+0x4003e736:	lui	a4,0x3fce0
+0x4003e73a:	lw	a4,-1820(a4)
+0x4003e73e:	lbu	a4,0(a4)
+0x4003e742:	zext.b	a4,a4
+0x4003e746:	bnez	a4,0x4003e754#
+0x4003e748:	lui	a5,0x2dc
+0x4003e74c:	addi	a2,a5,1728
+0x4003e750:	li	a0,0
+0x4003e752:	j	0x4003e758
+
+0x4003e754:	mv	a2,a5
+0x4003e756:	li	a0,0
+0x4003e758:	lw	a4,0(s0)
+0x4003e75a:	lw	a3,88(a4)
+0x4003e75c:	lw	a5,92(a4)
+0x4003e75e:	sub	a3,a6,a3
+0x4003e762:	sltu	a7,a6,a3
+0x4003e766:	sub	a5,a1,a5
+0x4003e76a:	sub	a5,a5,a7
+0x4003e76e:	beq	a0,a5,0x4003e784#
+0x4003e772:	lw	a5,72(a4)
+0x4003e774:	li	a0,1
+0x4003e776:	beqz	a5,0x4003e706#
+0x4003e778:	sw	zero,72(a4)
+0x4003e77c:	sw	a6,88(a4)
+0x4003e780:	sw	a1,92(a4)
+0x4003e782:	j	0x4003e704#
+
+0x4003e784:	bltu	a3,a2,0x4003e704#
+0x4003e788:	j	0x4003e772

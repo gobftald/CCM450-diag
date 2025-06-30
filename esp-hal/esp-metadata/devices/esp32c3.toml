@@ -5,6 +5,7 @@ cores = "single_core"
 
 peripherals = [
     # Peripherals available in the PAC:
+    "efuse",
     "interrupt_core0",
     "rng",
     "rtc_cntl",

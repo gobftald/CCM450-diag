@@ -1,0 +1,345 @@
+// esp-wifi/src/wifi/mod.rs
+impl<'d> WifiController<'d>
+    pub async fn start(&mut self) -> Result<(), WifiError> 
+        let mode = WifiMode::try_from(&self.config)?;
+        let mut events = enumset::enum_set! {};
+        if mode.is_sta() {
+            events |= WifiEvent::StaStart;
+        }
+        Self::clear_events(events);
+        wifi_start()?;                          // see below
+        self.wait_for_all_events(events, false).await;
+        Ok(())
+
+// esp-wifi/src/wifi/mod.rs
+pub(crate) fn wifi_start() -> Result<(), WifiError>
+    esp_wifi_start
+        wifi_init_completed
+            wifi_api_lock                       // see in wifi_init.txt 
+            check .data.s_wifi_init_state for 0x03
+            wifi_api_unlock
+        
+        ieee80211_ioctl -> wifi_start_process
+
+wifi_start_process                              // libnet80211.a(ieee80211_ioctl.o)
+    if g_ic[489] == 1
+        adc2_wifi_acquire                       // libnet80211.a(ieee80211_ioctl.o)
+        if returned with error -. return with this error
+    ieee80211_set_hmac_stop                     // libnet80211.a(ieee80211_output.o)
+    check g_wifi_nvs[0]
+    wifi_hw_start
+        ieee80211_set_hmac_stop                 // libnet80211.a(ieee80211_output.o)
+        wifi_apb80m_request                     // no op (there is only a trace)
+##1## [TRACE] - wifi_apb80m_request - no-op
+        wifi_clock_enable
+            unwrap!(RADIO_CLOCKS.as_mut()).enable(RadioPeripherals::Wifi);
+                trace!("wifi_clock_enable");
+##2## [TRACE] - wifi_clock_enable
+                common_wifi_bt_clock_enable     // `periph_ll_wifi_module_enable_clk_clear_rst`, no-op
+        if g_mac_sleep_en == true               // we have false
+            wifi_rtc_disable_iso
+        phy_enable                              // esp-wifi/src/wifi/os_adapter.rs
+            trace!("phy_enable");
+##3## [TRACE] - phy_enable
+            common_adapter::chip_specific::phy_enable()
+                PHY_ACCESS_REF++
+                if PHY_ACCESS_REF was 0
+                    phy_enable_clock()          // esp-wifi/src/common_adapter/common_adapter_esp32c3.rs
+                        trace!("phy_enable_clock");
+##4## [TRACE] - phy_enable_clock 
+                        unwrap!(RADIO_CLOCKS.as_mut()).enable(RadioPeripherals::Phy);
+                            enable_phy()
+                                let syscon = unsafe { &*esp32c3::APB_CTRL::PTR };
+                                syscon.wifi_clk_en()
+                                    .modify(|r, w| unsafe { w.bits(r.bits() | SYSTEM_WIFI_CLK_WIFI_BT_COMMON_M) });  
+                        trace!("phy_enable_clock done!");            
+##5## [TRACE] - phy_enable_clock done!
+
+                    if G_IS_PHY_CALIBRATED == false
+                        let mut cal_data = [0u8; core::mem::size_of::<esp_phy_calibration_data_t>()]
+                        let phy_version = get_phy_version_str();
+                        trace!("phy_version {}", str_from_c(phy_version as *const u8));
+##6## [TRACE] - sprintf format: %d,%s,%s,%s
+##7## [TRACE] - sprintf result: 1130,b4e4b80,Sep  5 2023,11:09:30
+##8## [TRACE] - phy_version 1130,b4e4b80,Sep  5 2023,11:09:30
+                        
+                        let init_data = &PHY_INIT_DATA_DEFAULT;               
+                        register_chipv7_phy(                    // libphy.a(phy_init.o)
+                            init_data,
+                            &mut cal_data as *mut _ as *mut esp_phy_calibration_data_t,
+                            esp_phy_calibration_mode_t_PHY_RF_CAL_FULL);
+                        G_IS_PHY_CALIBRATED = true;
+                    else 
+                        // esp_wifi_sys call
+                        phy_wakeup_init();
+                        phy_digital_regs_load();
+                    trace!("PHY ENABLE");
+##9## [TRACE] - PHY ENABLE
+        EOF phy_enable  
+        continue wifi_hw_start
+
+        coex_enable()                       // no-op, return with success
+            trace!("coex_enable");
+##10## [TRACE] - coex_enable
+        wifi_reset_mac                      // libnet80211.a(ieee80211_ioctl.o)
+            coex_wifi_request               // no-op, return with success
+             trace!("coex_wifi_request");
+##11## [TRACE] - coex_wifi_request
+            wifi_reset_mac                  // esp-wifi/src/wifi/os_adapter.rs
+                trace!("wifi_reset_mac");
+##12## [TRACE] - wifi_reset_mac
+                reset_mac                   // esp-hal/src/soc/esp32c3/radio_clocks.rs
+                    reset_mac               // esp-hal/src/soc/esp32c3/radio_clocks.rs
+                        const SYSTEM_MAC_RST: u32 = 1 << 2;
+                        let syscon = unsafe { &*esp32c3::APB_CTRL::PTR };
+                        syscon.wifi_rst_en()
+                            .modify(|r, w| unsafe { w.wifi_rst().bits(r.wifi_rst().bits() | SYSTEM_MAC_RST) });
+                        syscon.wifi_rst_en()
+                            .modify(|r, w| unsafe { w.wifi_rst().bits(r.wifi_rst().bits() & !SYSTEM_MAC_RST) });
+            coex_wifi_release               // no-op, return with success
+##13## [TRACE] - coex_wifi_release
+            *g_wdev_last_desc_reset_ptr = 1
+            manipulation of 0x60033084      // Reserved peripherial address 
+        EOF wifi_reset_mac
+        continue wifi_hw_start
+
+        ic_mac_init                         // ROM function 
+        chm_init                            // libnet80211.a(wl_chm.o)
+            chm_set_home_channel            // libnet80211.a(wl_chm.o)
+            chm_set_current_channel         // libnet80211.a(wl_chm.o)
+                chm_get_chan_info           // libnet80211.a(wl_chm.o)
+                env_is_chip                 // esp-wifi/src/wifi/os_adapter.rs
+                                            // True if on chip or false if on FPGA, so it always returns with true
+                chm_phy_change_channel.constprop        // libnet80211.a(wl_chm.o)
+##14## [INFO] - V (282) wifi: ht20 freq=2412, chan=1
+
+        ic_enable                           // libpp.a(if_hwctrl.o)
+##15## [DEBUG] - timer_disarm 3fc9bf30
+##16## [DEBUG] - timer_setfn 3fc9ac48 0x4202917c 0x0
+##17## [DEBUG] - timer_setfn 3fc9ac5c 0x4202917c 0x1
+            hal_init                        // libpp.a(hal_mac.o)
+                mac_txrx_init               // libpp.a(hal_mac.o)
+                hal_mac_rx_set_policy       // libpp.a(hal_mac.o)
+                mac_rxbuf_init              // libpp.a(hal_mac.o)
+                mac_last_rxbuf_init         // libpp.a(hal_mac.o)
+                hal_mac_rate_autoack_init   // libpp.a(hal_mac_tx.o)
+                hal_mac_disable_low_rate    // libpp.a(hal_mac.o)
+                hal_crypto_init             // libpp.a(hal_crypto.o)
+                hal_attenna_init            // libpp.a(hal_mac_tx.o)
+                slowclk_cal_get             // esp-wifi/src/wifi/os_adapter.rs                                            
+                    trace!("slowclk_cal_get");
+##18## [TRACE] - slowclk_cal_get
+                    return 28639;           // return the hardcoded 28639
+                coex_pti_get                // esp-wifi/src/wifi/os_adapter.rs
+                    trace!("coex_pti_get");
+##19## [TRACE] - coex_pti_get                
+                coex_pti_get                // esp-wifi/src/wifi/os_adapter.rs
+                    trace!("coex_pti_get");
+##20## [TRACE] - coex_pti_get
+                hal_set_rx_active_pti       // libpp.a(hal_coex.o)
+                hal_set_rx_ack_pti          // libpp.a(hal_coex.o)
+                hal_set_wifi_default_pti    // libpp.a(hal_coex.o)
+            EOF hal_init
+            continues with ic_enable
+            config_get_wifi_task_core_id    // libpp.a(wdev.o)
+            set_intr                        // esp-wifi/src/wifi/os_adapter.rs
+                                            // do nothing, interrupts were set up in setup_timer_isr
+                trace!("set_intr {} {} {} {}", ...  // WIFI_PWR
+##21## [TRACE] - set_intr 0 2 1 1
+            config_get_wifi_task_core_id    // libpp.a(wdev.o)
+            set_intr                        // esp-wifi/src/wifi/os_adapter.rs
+                                            // do nothing, interrupts were set up in setup_timer_isr
+                trace!("set_intr {} {} {} {}", ...  // WIFI_MAC
+##22## [TRACE] - set_intr 0 0 1 1
+            set_isr                         // esp-wifi/src/wifi/os_adapter_esp32c3.rs
+                trace!("set_isr - interrupt {} function {:?} arg {:?}", n, f, arg);
+##23## [TRACE] - set_isr - interrupt 1 function 0x400017f0 arg 0x0
+            ints_on                         // esp-wifi/src/wifi/os_adapter.rs
+                trace!("chip_ints_on {:x}", mask);
+##24## [TRACE] - chip_ints_on 2
+                wifi::os_adapter::os_adapter_chip_specific::chip_ints_on(mask); // esp-wifi/src/wifi/os_adapter_esp32c3.rs
+                    (*peripherals::INTERRUPT_CORE0::PTR).cpu_int_enable().modify(|r, w| w.bits(r.bits() | mask));
+        EOF ic_enable
+               
+        chip_enable                                         // libnet80211.a(ieee80211_ioctl.o)
+##25## [INFO] - D (300) wifi:  filter: set rx policy=0        
+        pm_noise_check_enable                               // libpp.a(pm.o)
+        pm_disconnected_start                               // libpp.a(pm.o)
+            pm_on_coex_schm_status_config                   // libpp.a(pm.o)
+            coex_schm_status_bit_clear                  // no-op, only trace
+                trace!("coex_schm_status_bit_clear");
+##26## [TRACE] - coex_schm_status_bit_clear
+            coex_schm_status_bit_set                    // no-op, only trace
+                trace!("coex_schm_status_bit_set");
+##27## [TRACE] - coex_schm_status_bit_set
+            coex_schm_interval_set                      // no-op, only trace, return w successful 0
+                trace!("coex_schm_interval_set");
+##28## [TRACE] - coex_schm_interval_set
+            coex_status_get                             // no-op, only trace, return w successful 0
+                trace!("coex_status_get");
+##29## [TRACE] - coex_status_get
+    EOF wifi_hw_start
+
+    wifi_mode_set
+        wifi_create_sta                                 // libnet80211.a(ieee80211.o)
+##xx## [TRACE] - wifi_calloc 552 1
+##xx## [TRACE] - calloc 552 1
+##xx## [TRACE] - alloc 552 0x3fc9033c
+##xx## [TRACE] - wifi_calloc 960 1
+##xx## [TRACE] - calloc 960 1
+##xx## [TRACE] - alloc 960 0x3fc90568
+##xx## [TRACE] - wifi_calloc 212 1
+##xx## [TRACE] - calloc 212 1
+##xx## [TRACE] - alloc 212 0x3fc9092c
+##xx## [TRACE] - free 0x3fc9092c
+
+        call net80211_funcs[196] = wifi_destroy_softap  // libnet80211.a(ieee80211.o)
+        wifi_log "mode : sta (%02x:%02x:%02x:%02x:%02x:%02x)"
+##30## [INFO] - I (285) wifi: mode : sta (f4:12:fa:16:30:88)
+    EOF wifi_mode_set
+    continue wifi_start_process
+
+    _do_wifi_start                                      // libnet80211.a(ieee80211_ioctl.o)
+        wifi_nvs_get                                    // libnet80211.a(ieee80211_nvs.o)
+        wifi_pmk_is_valid                               // libnet80211.a(ieee80211_ioctl.o)
+##xx## [TRACE] - calloc 1 20
+##xx## [TRACE] - alloc 20 0x3fc9092c
+        wifi_station_start                              // libnet80211.a(ieee80211_sta.o)
+            get g_ic[436]                               // wpa_cb function table
+            call wpa_cb[0] = wpa_attach                 // libwpa_supplicant.a(esp_wpa_main.c.obj)
+            hal_enable_sta_tsf                          // libpp.a(hal_tsf.o)
+            wifi_log "enable tsf"
+##31## [INFO] - I (286) wifi: enable tsf
+            ic_set_vif                                  // libpp.a(if_hwctrl.o)
+##32## [INFO] - D (286) wifi: filter: set rx policy=1
+            wifi_log "connect status %d -> %d"
+##33## [INFO] - D (286) wifi: connect status 0 -> 0
+            wifi_event_post                             // libnet80211.a(ieee80211_api.o)
+                event_post                              // esp-wifi/src/wifi/os_adapter.rs
+                    trace!("event_post {:?} {} {:?} {} {:?}", ...
+##34## [TRACE] - event_post 0x3fc84894 2 0x0 0 4294967295
+                let event = unwrap!(WifiEvent::from_i32(event_id));
+                trace!("EVENT: {:?}", event);
+##35## [TRACE] - EVENT: StaStart                
+                critical_section::with(|cs| WIFI_EVENTS.borrow_ref_mut(cs).insert(event));
+                    // pub(crate) static WIFI_EVENTS: Mutex<RefCell<EnumSet<WifiEvent>>> =
+                    //     Mutex::new(RefCell::new(enumset::enum_set!()));
+                    // pub enum WifiEvent {
+                    //    WifiReady = 0,
+                    //    ScanDone,
+                    //    StaStart,
+                    //    StaStop,
+                    //    StaConnected,
+                    //    StaDisconnected,
+                    //    StaAuthmodeChange,
+                    //    StaWpsErSuccess,
+                    //    StaWpsErFailed,
+                    //    StaWpsErTimeout,
+                    //    StaWpsErPin,
+                    //    StaWpsErPbcOverlap,
+                    //    //ApStart,
+                    //    //ApStop,
+                    //    //ApStaconnected,
+                    //    //ApStadisconnected,
+                    //    //ApProbereqrecved,
+                    //    FtmReport,
+                    //    StaBssRssiLow,
+                    //    ActionTxStatus,
+                    //    RocDone,
+                    //    StaBeaconTimeout,
+                    // } 
+                super::state::update_state(event);      // esp-wifi/src/wifi/state.rs
+                    STA_STATE.store(WifiState::from(event), Ordering::Relaxed),
+                        // pub(crate) static STA_STATE: AtomicWifiState = AtomicWifiState::new(WifiState::Invalid);
+                                                        // esp-wifi/src/wifi/state.rs
+                        // AtomicWifiState <-           // #[atomic_enum]
+                                                        // pub enum WifiState {
+                                                        //     StaStarted,
+                                                        //     StaConnected,
+                                                        //     StaDisconnected,
+                                                        //     StaStopped,
+                                                        //     //ApStarted,
+                                                        //     //ApStopped,
+                                                        //     Invalid,
+                                                        // }
+                event.waker().wake();                   // impl WifiEvent in mod asynch in esp-wifi/src/wifi/mod.rs
+                                                        // WifiEvent::StaStart => {
+                                                        //     static WAKER: AtomicWaker = AtomicWaker::new();
+                                                        //     &WAKER
+                                                        // }
+                                                        // fn from(event: WifiEvent) -> WifiState
+                                                        //     WifiEvent::StaStart => WifiState::StaStarted,
+                                                        //     WifiEvent::StaConnected => WifiState::StaConnected,
+                                                        //     WifiEvent::StaDisconnected => WifiState::StaDisconnected,
+                                                        //     WifiEvent::StaStop => WifiState::StaStopped,
+                                                        //     _ => WifiState::Invalid,
+                match event
+                    WifiEvent::StaConnected | WifiEvent::StaDisconnected => {
+                        crate::wifi::embassy::STA_LINK_STATE_WAKER.wake();
+                    }
+                memory_fence();
+                0
+        EOF wifi_station_start
+    EOF _do_wifi_start
+    continue wifi_start_process
+
+    g_ic[489] = 2   
+    ieee80211_update_phy_country                        // not implemented in original code
+        trace!("phy_update_country_info {}", *country as u8 as char);
+                                                        // trace then retunrn w error -1
+##36## [TRACE] - phy_update_country_info 0
+##37## [INFO] - I (273) wifi: Set ps type: 0, coexist: 0
+##38## [INFO] - I (274) wifi: set country: cc=HU schan=1 nchan=13 policy=1
+EOF wifi_start_process 
+
+// see the beginning of this file 
+// continue with WifiController's pub async fn start(&mut self) -> Result<(), WifiError> 
+    self.wait_for_all_events(events, false).await;
+    Ok(())
+// then return to the loop of embassy_executors 'connection' task
+// so for 'wait_for_all_events(events, false).await' is wakened by a wake sent to embassy executor
+
+pub async fn wait_for_all_events(&mut self, mut events: EnumSet<WifiEvent>, clear_pending: bool)
+    if clear_pending {
+        Self::clear_events(events);
+    }
+    while !events.is_empty() {
+        let fired = MultiWifiEventFuture::new(events).await;
+        events -= fired;
+    }
+
+pub(crate) struct MultiWifiEventFuture {
+    event: EnumSet<WifiEvent>,
+}
+
+impl core::future::Future for MultiWifiEventFuture
+    type Output = EnumSet<WifiEvent>;
+    fn poll(self: core::pin::Pin<&mut Self>, cx: &mut core::task::Context<'_>) -> Poll<Self::Output>
+        let output = critical_section::with
+            let mut events = WIFI_EVENTS.borrow_ref_mut(cs)
+            let active = events.intersection(self.event)
+            events.remove_all(active);
+            active
+        if output.is_empty()                            // none of the searched events were set/triggered yet
+            for event in self.event.iter() {
+                event.waker().register(cx.waker());     // register wakers for all of them 
+
+            }
+            Poll::Pending                               // don't return from wait_for_all_events.await
+        
+        else
+            Poll::Ready(output)                         // if these searched event were set/triggered
+                                                        // return with their mask/set
+// since WifiEvent::StaStart was set
+-> this poll above returns Poll::Ready(_) to 'self.wait_for_all_events(events, false).await'
+in impl<'d> WifiController<'d> 's fn start in 'connection task'
+loop {
+    if !matches!(controller.is_started(), Ok(true))
+        ...
+        println!("Wifi started!");
+##39## Wifi started!
+
+    println!("About to connect...");
+##40## About to connect...
+    Timer::after(Duration::from_millis(2_000)).await;
+}

@@ -1,0 +1,58 @@
+defmt works elegantly. If you made a fix dependency for it, and switch off its macros in a crate or a modul,
+by DEFMT_LOG, the expanded macro will zero size, so totally eliminated from source code. So it is not
+needed to coditinonally compile (#[cfg(feature = "defmt")]) and defmt macros which expand to 'empty/nop'.
+Alhough the fix compilation of defmt causes a small overhead, but it can manage those conditional 
+compilations via that elegant DEFMT_LOG= environment variable in the cargo run/build command.
+
+defmt when really used, i.e. DEFMT_LOG is switch on, needs implemenation of _defmt_write, _defmt_acquire and
+_defmt_release. It is implemented in esp-println where the final 'serial_jtag_printer'. So when defmt is not
+used but put/used with fixed dependency in modules to use demft macros, these overhead can be "featured out".
+We do this with '#[cfg(feature = "defmt-espflash")] unsafe impl defmt::Logger for Logger' which contains the
+four user functions (acquire, release, write, flush) which are called by the three funtions above.
+
+So 'defmt' feature in main app's Cargo.toml file manage the followings:
+
+1 Switch on/off defmt runtime in 'esp_println', which is needed for defmt macros, when they are switched on
+by DEFMT_LOG.
+
+2 Switch on/off/between 'println', 'panicing' (unwrap, todo, unreachable) macros implemented in stealed-panics
+between their 'no-op' and defmt version.
+'No-op' version eliminate (steal) the panic message and Location strings from the source code, which would be
+inserted by the orignal core::panic.
+
+When defmt is on, 'panicing' macros go defmt::panic and panic message and Location information is used again.
+However Location information points into defmt/src/lib.rs where defmt::panic finally calls core::panic, so it
+is not really usefull. To get proper Location information switch backtrace on.
+defmt::Format 'debug like trait' should be used in formatted strings, e.g. in defmt::unwrap macro. It also
+doesn't need to conditionally compiled as #[cfg_attr(feature = "defmt", derive(defmt::Format))]. The fixed
+defmt dependency is also works, so you can write #[derive(defmt::Format)] for all types which is needed in
+unwrap or anyhere where defmt needs {:?}. The only problems that rust-analyzer complains "missing mach arm"
+although there is no error during compilation.
+Finally I'm using the #[cfg_attr(feature = "defmt", derive(defmt::Format))] version everywhere.
+
+We tentatively don't use #[derive(Debug/Display) or any core::fmt in 'no defmt', to minimize code size.
+
+If "no deftm" println! get formatted arguments it stringifies and prints them as plane string.
+
+If we switched defmt on in Cargo.toml we also need to enable/uncomment 'runner' and
+link-arg=-Tdefmt.x rustflag in config.toml.
+
+esp-backtace works only with "defmt". Other case will trigger compile_error!.
+Although it works in release mode, but backtrace will show source line information in 'debug mode'
+
+
+Summary:
+1 if 'no defmt' and 'no bakctrace' 'panicing macros' steal all information, There is only a notice:
+"[ERROR] - stealed panic/unreachable/todo <- use defmt to see it". println works but outputs plain strings.
+The formatted strings are stringified. This case there is also a warning to use defmt.
+2 if 'defmt' on but 'backtrace' off 'panicing macros' and println work and format strings.
+Don't forget to change settings in 'config.toml.
+3 if 'dfmt' and 'backtrace' are on, additional backtrace frame wil be printed. Use cargo build in 'debug' mode
+to see source line information in the backtrace frame.
+Don't forget to change additonal settings in 'config.toml'.
+
+To get a minimal size build, switch off both 'defmt' and 'bactrace', switch rustfalgs off in 'config.toml' and
+build in --release mode.
+If you build with 'no defmt' and you also unswitch 'link-arg=-Tdefmt.x' (you can save 16 bytes with dropping
+__defmt_default_timestamp, __defmt_default_panic and defmt::default_panic::panic_cold_explicit). You should also
+change the 'runner' in 'config.toml'.

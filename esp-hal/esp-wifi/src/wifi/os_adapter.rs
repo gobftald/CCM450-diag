@@ -545,6 +545,42 @@ pub unsafe extern "C" fn calloc_internal(
 }
 
 /// **************************************************************************
+/// Name: esp_zalloc_internal
+///
+/// Description:
+///   Drivers allocate a block of memory and clear it with 0
+///
+/// Input Parameters:
+///   size - memory size
+///
+/// Returned Value:
+///   New memory pointer
+///
+/// *************************************************************************
+// 1583
+pub unsafe extern "C" fn zalloc_internal(size: usize) -> *mut crate::binary::c_types::c_void {
+    unsafe { calloc(size as u32, 1usize) as *mut crate::binary::c_types::c_void }
+}
+
+/// **************************************************************************
+/// Name: esp_wifi_malloc
+///
+/// Description:
+///   Applications allocate a block of memory
+///
+/// Input Parameters:
+///   size - memory size
+///
+/// Returned Value:
+///   Memory pointer
+///
+/// *************************************************************************
+// 1613
+pub unsafe extern "C" fn wifi_malloc(size: usize) -> *mut crate::binary::c_types::c_void {
+    unsafe { malloc(size) }
+}
+
+/// **************************************************************************
 /// Name: esp_wifi_calloc
 ///
 /// Description:

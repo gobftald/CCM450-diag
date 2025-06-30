@@ -13,10 +13,12 @@
 // 6
 use core::{marker::PhantomData, ops::Deref};
 
-// 10
 #[allow(unused_imports)]
+// 10
 use generic::*;
+
 /// Common register and bit access and modify traits
+// 12
 pub mod generic;
 
 #[cfg(feature = "rt")]
@@ -237,6 +239,25 @@ impl Deref for APB_CTRL {
     }
 }
 pub mod apb_ctrl;
+
+/// eFuse Controller
+// 533
+pub struct EFUSE {
+    _marker: PhantomData<*const ()>,
+}
+unsafe impl Send for EFUSE {}
+impl EFUSE {
+    /// Pointer to the register block
+    pub const PTR: *const efuse::RegisterBlock = 0x6000_8800 as *const _;
+}
+impl Deref for EFUSE {
+    type Target = efuse::RegisterBlock;
+    #[inline(always)]
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*Self::PTR }
+    }
+}
+pub mod efuse;
 
 /// Interrupt Controller (Core 0)
 // 855

@@ -1,0 +1,144 @@
+0x42004e1e <+76>:	addi	a0,a0,1658 # 0x3fc8067a <esp_println::serial_jtag_printer::TIMED_OUT>
+0x42004e26 <+84>:	addi	a2,a2,1740 # 0x3c0116cc
+0x42004e2e <+92>:	jalr	1424(ra) # 0x4200c3ba <portable_atomic::AtomicBool::load>
+
+pub fn load(&self, order: Ordering) -> bool {
+    self.as_atomic_u8().load(order) != 0
+}
+0x4200c3cc <+18>:	jalr	-22(ra) # 0x4200c3b2 <portable_atomic::AtomicBool::as_atomic_u8>
+
+#[inline]
+fn as_atomic_u8(&self) -> &imp::AtomicU8 {
+    // SAFETY: AtomicBool and imp::AtomicU8 have the same layout,
+    // and both access data in the same way.
+    unsafe { &*(self as *const Self as *const imp::AtomicU8) }
+}
+0x4200c3b4 <+2>:	sw	a0,12(sp)
+
+0x4200c3d0 <+22>:	lw	a1,12(sp)
+0x4200c3d2 <+24>:	lw	a2,16(sp)
+0x4200c3d8 <+30>:	jalr	70(ra) # 0x4200c41a <portable_atomic::imp::interrupt::AtomicU8::load>
+
+portable-atomic/src/imp/interrupt/mod.rs
+macro_rules! atomic_int
+    (load_store_atomic $([$kind:ident])?, $atomic_type:ident, $int_type:ident, $align:literal) =>
+        pub(crate) fn load(&self, order: Ordering) -> $int_type {
+            crate::utils::assert_load_ordering(order);
+            #[cfg(not(any(target_arch = "avr", feature = "critical-section")))]
+            {
+                self.as_native().load(order)
+            }
+        }
+0x4200c436 <+28>:	jalr	392(ra) # 0x4200c5ba <portable_atomic::utils::assert_load_ordering>
+
+pub(crate) fn assert_load_ordering(order: Ordering) {
+    #[cfg(not(feature = "defmt"))]
+    match order {
+        Ordering::Acquire | Ordering::Relaxed | Ordering::SeqCst => {}
+        Ordering::Release => panic!("there is no such thing as a release load"),
+        Ordering::AcqRel => panic!("there is no such thing as an acquire-release load"),
+        _ => unreachable!(),
+    }
+}
+0x4200c5da <+32>:	jr	a0
+
+self.as_native().load(order)
+0x4200c440 <+38>:	jalr	94(ra) # 0x4200c49a <portable_atomic::imp::interrupt::AtomicU8::as_native>
+
+#[inline]
+fn as_native(&self) -> &atomic::$atomic_type {
+    // SAFETY: $atomic_type and atomic::$atomic_type have the same layout and
+    // guarantee atomicity in a compatible way. (see module-level comments)
+    unsafe { &*(self as *const Self as *const atomic::$atomic_type) }
+}
+0x4200c49c <+2>:	sw	a0,12(sp)
+
+load(order)
+0x4200c44c <+50>:	jalr	90(ra) # 0x4200c4a2 <portable_atomic::imp::riscv::AtomicU8::load>
+
+// Send is implicitly implemented for atomic integers, but not for atomic pointers.
+// SAFETY: any data races are prevented by atomic operations.
+unsafe impl $(<$($generics)*>)? Send for $atomic_type $(<$($generics)*>)? {}
+// SAFETY: any data races are prevented by atomic operations.
+unsafe impl $(<$($generics)*>)? Sync for $atomic_type $(<$($generics)*>)? {}
+
+portable-atomic/src/imp/riscv.rs
+macro_rules! atomic_load_store
+    ($([$($generics:tt)*])? $atomic_type:ident, $value_type:ty, $asm_suffix:tt) =>
+        impl $(<$($generics)*>)? $atomic_type $(<$($generics)*>)?
+        pub(crate) fn load(&self, order: Ordering) -> $value_type {
+            crate::utils::assert_load_ordering(order);
+            let src = self.v.get();
+            // SAFETY: any data races are prevented by atomic intrinsics and the raw
+            // pointer passed in is valid because we got it from a reference.
+            unsafe {
+                let out;
+                match order {
+                    Ordering::Relaxed => {
+                        asm!(
+                            concat!("l", $asm_suffix, " {out}, 0({src})"),      // it is a simple "lb	a0,0(a0)"
+                            src = in(reg) ptr_reg!(src),
+                            out = lateout(reg) out,
+                            options(nostack, preserves_flags, readonly),
+                        );
+                    }
+                    Ordering::Acquire => {
+                        asm!(
+                            concat!("l", $asm_suffix, " {out}, 0({src})"),
+                            "fence r, rw",
+                            src = in(reg) ptr_reg!(src),
+                            out = lateout(reg) out,
+                            options(nostack, preserves_flags),
+                        );
+                    }
+                    Ordering::SeqCst => {
+                        asm!(
+                            "fence rw, rw",
+                            concat!("l", $asm_suffix, " {out}, 0({src})"),
+                            "fence r, rw",
+                            src = in(reg) ptr_reg!(src),
+                            out = lateout(reg) out,
+                            options(nostack, preserves_flags),
+                        );
+                    }
+                    _ => unreachable!(),
+                }
+                out
+            }
+        }
+0x4200c4bc <+26>:	jalr	258(ra) # 0x4200c5ba <portable_atomic::utils::assert_load_ordering>
+
+pub(crate) fn assert_load_ordering(order: Ordering) {
+
+0x4200c4fa <+88>:	lw	a0,4(sp)        // let src = self.v.get();  // load the pointer
+0x4200c4fc <+90>:	lb	a0,0(a0)        // concat!("l", $asm_suffix, " {out}, 0({src})"),   // the atomic operation itself
+0x4200c500 <+94>:	sb	a0,15(sp)       // output to stack
+0x4200c52a <+136>:	lbu	a0,15(sp)       // get output
+
+) -> bool
+0x4200c3dc <+34>:	zext.b	a0,a0
+0x4200c3e0 <+38>:	snez	a0,a0
+
+
+and in the release verison this will compile to:
+0x42000d6e <+14>:	addi	a0,a0,1213 # 0x3fc804bd <esp_println::serial_jtag_printer::TIMED_OUT>
+0x42000d72 <+18>:	lb	a0,0(a0)    // the atomic operation
+0x42000d76 <+22>:	zext.b	a0,a0   // bool evaluation
+0x42000d7a <+26>:	bnez	a0,0x42000de2 <esp_println::serial_jtag_printer::<impl esp_println::Printer>::write_bytes_assume_cs+130>
+0x42000de2 <+130>:	ret
+
+
+SIGNAL_WORK_THREAD_MODE in esp-hal/src/embassy/executor/thread.rs for signals of of penders is also AtomicBool. itself
+implementation is also so compact as we seen above.
+
+SIGNAL_WORK_THREAD_MODE is wrapped into a 'critical_section::with; whis is also extremly compact in --release version.
+Those critical 'acquires' and 'releases' are also only few bytes, disabling interrupt, saving its previous stated then
+in 'releases' enable interrupt if it was enabled perviously.
+
+Remember there is two versions of run_queue and state in embassy-executor in /embassy-executor/raw (see info in the
+atomic.txt in trebich-exec/doc). run_queue_atomic would use AtomicPtr whic is not really supported in portable-atomic.
+More precisely it also gives a fallback solution with critical-section. But in case of 'not(target_has_atomic = "ptr")'
+in embassy-executor/src/raw/mod.rs embassy-executor uses run_queue_critical_section.rs, and state_critical_section.rs.
+These cases 'RunQueueItem.next' and 'RunQueue.head' are 'Mutex<Cell<Option<TaskRef>>>'. These Mutexes are not come
+from std::sync. They are Mutex from critical_section. We implement it locally to redirect their panics to our
+stealed_panic.

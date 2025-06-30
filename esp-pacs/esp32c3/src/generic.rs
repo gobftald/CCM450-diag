@@ -292,6 +292,15 @@ pub struct Reg<REG: RegisterSpec> {
     _marker: marker::PhantomData<REG>,
 }
 
+impl<REG: RegisterSpec> Reg<REG> {
+    /// Returns the underlying memory address of register.
+    ///
+    #[inline(always)]
+    pub fn as_ptr(&self) -> *mut REG::Ux {
+        self.register.as_ptr()
+    }
+}
+
 // 474
 impl<REG: Readable> Reg<REG> {
     /// Reads the contents of a `Readable` register.

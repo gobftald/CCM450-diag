@@ -6,16 +6,17 @@ use esp_wifi_sys::include::{
 
 // 10
 use super::os_adapter::{
-    calloc_internal, log_timestamp, log_write, log_writev, malloc, malloc_internal, mutex_delete,
-    mutex_lock, mutex_unlock, queue_recv, queue_send, recursive_mutex_create, spin_lock_create,
-    spin_lock_delete, task_create_pinned_to_core, task_delay, task_get_current_task,
-    task_get_max_priority, task_ms_to_tick, wifi_calloc, wifi_create_queue, wifi_delete_queue,
-    wifi_int_disable, wifi_int_restore, wifi_thread_semphr_get, wifi_zalloc,
+    calloc_internal, free, log_timestamp, log_write, log_writev, malloc, malloc_internal,
+    mutex_delete, mutex_lock, mutex_unlock, queue_recv, queue_send, recursive_mutex_create,
+    spin_lock_create, spin_lock_delete, task_create_pinned_to_core, task_delay,
+    task_get_current_task, task_get_max_priority, task_ms_to_tick, wifi_calloc, wifi_create_queue,
+    wifi_delete_queue, wifi_int_disable, wifi_int_restore, wifi_malloc, wifi_thread_semphr_get,
+    wifi_zalloc, zalloc_internal,
 };
 
 // 11
 use crate::common_adapter::{
-    ets_timer_disarm, semphr_create, semphr_delete, semphr_give, semphr_take,
+    ets_timer_disarm, read_mac, semphr_create, semphr_delete, semphr_give, semphr_take,
 };
 
 #[unsafe(no_mangle)]
@@ -65,7 +66,7 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _task_get_current_task: Some(task_get_current_task), // 164
     _task_get_max_priority: Some(task_get_max_priority), // 168
     _malloc: Some(malloc),                        // 172
-    _free: None,                                  // 176 Some(free),
+    _free: Some(free),                            // 176
     _event_post: None,                            // 180 Some(event_post),
     _get_free_heap_size: None,                    // 184 Some(get_free_heap_size),
     _rand: None,                                  // 188 Some(rand),
@@ -76,7 +77,7 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _phy_disable: None,                           // 208 Some(phy_disable),
     _phy_enable: None,                            // 212 Some(phy_enable),
     _phy_update_country_info: None,               // 216 Some(phy_update_country_info),
-    _read_mac: None,                              // 220 Some(read_mac),
+    _read_mac: Some(read_mac),                    // 220
     _timer_arm: None,                             // 224 Some(ets_timer_arm),
     _timer_disarm: Some(ets_timer_disarm),        // 228
     _timer_done: None,                            // 232 Some(ets_timer_done),
@@ -121,8 +122,8 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _malloc_internal: Some(malloc_internal),     // 344
     _realloc_internal: None,                     // 348 Some(realloc_internal),
     _calloc_internal: Some(calloc_internal),     // 352
-    _zalloc_internal: None,                      // 356 Some(zalloc_internal),
-    _wifi_malloc: None,                          // 360 Some(wifi_malloc),
+    _zalloc_internal: Some(zalloc_internal),     // 356
+    _wifi_malloc: Some(wifi_malloc),             // 360
     _wifi_realloc: None,                         // 364 Some(wifi_realloc),
     _wifi_calloc: Some(wifi_calloc),             // 368
     _wifi_zalloc: Some(wifi_zalloc),             // 372

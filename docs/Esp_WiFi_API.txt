@@ -1,0 +1,289 @@
+https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/api-reference/network/esp_wifi.html#_CPPv415esp_wifi_deinitv
+
+Functions                                                   // all in esp-wifi/esp-wifi/src/wifi/mod.rs
+# esp_err_t esp_wifi_init(const wifi_init_config_t *config) // esp_wifi_init_internal
+esp_err_t esp_wifi_deinit(void)
+
+# esp_err_t esp_wifi_set_mode(wifi_mode_t mode)             // wifi_init
+                                                            // WifiController::new_with_config
+# esp_err_t esp_wifi_get_mode(wifi_mode_t *mode)            // WifiMode::esp_wifi_get_mode
+                                                            // WifiController::set_mode   
+
+# esp_err_t esp_wifi_start(void)                            // wifi_start
+esp_err_t esp_wifi_stop(void)                               // WifiController::stop_impl                      
+esp_err_t esp_wifi_restore(void)
+
+# esp_err_t esp_wifi_connect(void)                          // WifiController::connect_impl
+esp_err_t esp_wifi_disconnect(void)                         // WifiController::disconnect_impl
+esp_err_t esp_wifi_clear_fast_connect(void)
+
+esp_err_t esp_wifi_deauth_sta(uint16_t aid)
+
+esp_err_t esp_wifi_scan_start(const wifi_scan_config_t *config, bool block)     // wifi_start_scan
+esp_err_t esp_wifi_scan_stop(void)
+
+esp_err_t esp_wifi_scan_get_ap_num(uint16_t *number)        // WifiController::scan_result_count
+esp_err_t esp_wifi_scan_get_ap_records(uint16_t *number, wifi_ap_record_t *ap_records)  // // WifiController::scan_results
+esp_err_t esp_wifi_scan_get_ap_record(wifi_ap_record_t *ap_record)
+esp_err_t esp_wifi_clear_ap_list(void)                      // Drop for FreeApListOnDrop
+esp_err_t esp_wifi_sta_get_ap_info(wifi_ap_record_t *ap_info)
+
+# esp_err_t esp_wifi_set_ps(wifi_ps_type_t type)            // wifi_start
+esp_err_t esp_wifi_get_ps(wifi_ps_type_t *type)
+
+esp_err_t esp_wifi_set_protocol(wifi_interface_t ifx, uint8_t protocol_bitmap)  // WifiController::set_mode
+esp_err_t esp_wifi_get_protocol(wifi_interface_t ifx, uint8_t *protocol_bitmap)
+
+esp_err_t esp_wifi_set_bandwidth(wifi_interface_t ifx, wifi_bandwidth_t bw)
+esp_err_t esp_wifi_get_bandwidth(wifi_interface_t ifx, wifi_bandwidth_t *bw)
+
+esp_err_t esp_wifi_set_channel(uint8_t primary, wifi_second_chan_t second)
+esp_err_t esp_wifi_get_channel(uint8_t *primary, wifi_second_chan_t *second)
+
+# esp_err_t esp_wifi_set_country(const wifi_country_t *country) // wifi_start
+esp_err_t esp_wifi_get_country(wifi_country_t *country)
+
+esp_err_t esp_wifi_set_mac(wifi_interface_t ifx, const uint8_t mac[6])
+esp_err_t esp_wifi_get_mac(wifi_interface_t ifx, uint8_t mac[6])
+
+esp_err_t esp_wifi_set_promiscuous_rx_cb(wifi_promiscuous_cb_t cb)
+esp_err_t esp_wifi_set_promiscuous(bool en)
+esp_err_t esp_wifi_get_promiscuous(bool *en)
+esp_err_t esp_wifi_set_promiscuous_filter(const wifi_promiscuous_filter_t *filter)
+esp_err_t esp_wifi_get_promiscuous_filter(wifi_promiscuous_filter_t *filter)
+esp_err_t esp_wifi_set_promiscuous_ctrl_filter(const wifi_promiscuous_filter_t *filter)
+esp_err_t esp_wifi_get_promiscuous_ctrl_filter(wifi_promiscuous_filter_t *filter)
+
+# esp_err_t esp_wifi_set_config(wifi_interface_t interface, wifi_config_t *conf)    // apply_ap_config
+                                                                                    // apply_sta_config
+esp_err_t esp_wifi_get_config(wifi_interface_t interface, wifi_config_t *conf)
+
+esp_err_t esp_wifi_ap_get_sta_list(wifi_sta_list_t *sta)
+esp_err_t esp_wifi_ap_get_sta_aid(const uint8_t mac[6], uint16_t *aid)
+
+esp_err_t esp_wifi_set_storage(wifi_storage_t storage)
+
+esp_err_t esp_wifi_set_vendor_ie(bool enable, wifi_vendor_ie_type_t type, wifi_vendor_ie_id_t idx, const void *vnd_ie)
+esp_err_t esp_wifi_set_vendor_ie_cb(esp_vendor_ie_cb_t cb, void *ctx)
+
+esp_err_t esp_wifi_set_max_tx_power(int8_t power)
+esp_err_t esp_wifi_get_max_tx_power(int8_t *power)
+
+esp_err_t esp_wifi_set_event_mask(uint32_t mask)
+esp_err_t esp_wifi_get_event_mask(uint32_t *mask)
+
+esp_err_t esp_wifi_80211_tx(wifi_interface_t ifx, const void *buffer, int len, bool en_sys_seq)
+
+esp_err_t esp_wifi_set_csi_rx_cb(wifi_csi_cb_t cb, void *ctx)
+esp_err_t esp_wifi_set_csi_config(const wifi_csi_config_t *config)
+esp_err_t esp_wifi_set_csi(bool en)
+
+esp_err_t esp_wifi_set_ant_gpio(const wifi_ant_gpio_config_t *config)
+esp_err_t esp_wifi_get_ant_gpio(wifi_ant_gpio_config_t *config)
+esp_err_t esp_wifi_set_ant(const wifi_ant_config_t *config)
+esp_err_t esp_wifi_get_ant(wifi_ant_config_t *config)
+
+int64_t esp_wifi_get_tsf_time(wifi_interface_t interface)
+
+# esp_err_t esp_wifi_set_inactive_time(wifi_interface_t ifx, uint16_t sec)  // wifi_start
+esp_err_t esp_wifi_get_inactive_time(wifi_interface_t ifx, uint16_t *sec)
+
+esp_err_t esp_wifi_statis_dump(uint32_t modules)
+
+esp_err_t esp_wifi_set_rssi_threshold(int32_t rssi)
+
+esp_err_t esp_wifi_ftm_initiate_session(wifi_ftm_initiator_cfg_t *cfg)
+esp_err_t esp_wifi_ftm_end_session(void)
+esp_err_t esp_wifi_ftm_resp_set_offset(int16_t offset_cm)
+
+esp_err_t esp_wifi_config_11b_rate(wifi_interface_t ifx, bool disable)
+
+esp_err_t esp_wifi_connectionless_module_set_wake_interval(uint16_t wake_interval)
+
+esp_err_t esp_wifi_force_wakeup_acquire(void)
+esp_err_t esp_wifi_force_wakeup_release(void)
+
+esp_err_t esp_wifi_set_country_code(const char *country, bool ieee80211d_enabled)
+esp_err_t esp_wifi_get_country_code(char *country)
+
+esp_err_t esp_wifi_config_80211_tx_rate(wifi_interface_t ifx, wifi_phy_rate_t rate)
+
+esp_err_t esp_wifi_disable_pmf_config(wifi_interface_t ifx)
+
+esp_err_t esp_wifi_sta_get_aid(uint16_t *aid)
+esp_err_t esp_wifi_sta_get_negotiated_phymode(wifi_phy_mode_t *phymode)
+
+esp_err_t esp_wifi_set_dynamic_cs(bool enabled)
+
+esp_err_t esp_wifi_sta_get_rssi(int *rssi)
+
+
+Structures
+struct wifi_init_config_t
+struct wifi_country_t
+struct wifi_active_scan_time_t
+struct wifi_scan_time_t
+struct wifi_scan_config_t
+struct wifi_he_ap_info_t
+struct wifi_ap_record_t
+struct wifi_scan_threshold_t
+struct wifi_pmf_config_t
+struct wifi_ap_config_t
+struct wifi_sta_config_t
+struct wifi_nan_config_t
+struct wifi_sta_info_t
+struct wifi_sta_list_t
+struct vendor_ie_data_t
+struct wifi_pkt_rx_ctrl_t
+struct wifi_promiscuous_pkt_t
+struct wifi_promiscuous_filter_t
+struct wifi_csi_config_t
+struct wifi_csi_info_t
+struct wifi_ant_gpio_t
+struct wifi_ant_gpio_config_t
+struct wifi_ant_config_t
+struct wifi_action_tx_req_t
+struct wifi_ftm_initiator_cfg_t
+struct wifi_beacon_monitor_config_t
+struct wifi_nan_publish_cfg_t
+struct wifi_nan_subscribe_cfg_t
+struct wifi_nan_followup_params_t
+struct wifi_nan_datapath_req_t
+struct wifi_nan_datapath_resp_t
+struct wifi_nan_datapath_end_req_t
+struct wifi_event_sta_scan_done_t
+struct wifi_event_sta_connected_t
+struct wifi_event_sta_disconnected_t
+struct wifi_event_sta_authmode_change_t
+struct wifi_event_sta_wps_er_pin_t
+struct wifi_event_sta_wps_er_success_t
+struct wifi_event_ap_staconnected_t
+struct wifi_event_ap_stadisconnected_t
+struct wifi_event_ap_probe_req_rx_t
+struct wifi_event_bss_rssi_low_t
+struct wifi_event_home_channel_change_t
+struct wifi_ftm_report_entry_t
+struct wifi_event_ftm_report_t
+struct wifi_event_action_tx_status_t
+struct wifi_event_roc_done_t
+struct wifi_event_ap_wps_rg_pin_t
+struct wifi_event_ap_wps_rg_fail_reason_t
+struct wifi_event_ap_wps_rg_success_t
+struct wifi_event_nan_svc_match_t
+struct wifi_event_nan_replied_t
+struct wifi_event_nan_receive_t
+struct wifi_event_ndp_indication_t
+struct wifi_event_ndp_confirm_t
+struct wifi_event_ndp_terminated_t
+
+Enumerations
+enum wifi_mode_t
+enum wifi_interface_t
+enum wifi_country_policy_t
+enum wifi_auth_mode_t
+enum wifi_err_reason_t
+enum wifi_second_chan_t
+enum wifi_scan_type_t
+enum wifi_cipher_type_t
+enum wifi_ant_t
+enum wifi_scan_method_t
+enum wifi_sort_method_t
+enum wifi_ps_type_t
+enum wifi_bandwidth_t
+enum wifi_sae_pwe_method_t
+enum wifi_sae_pk_mode_t
+enum wifi_storage_t
+enum wifi_vendor_ie_type_t
+enum wifi_vendor_ie_id_t
+enum wifi_phy_mode_t
+enum wifi_promiscuous_pkt_type_t
+enum wifi_ant_mode_t
+enum wifi_nan_service_type_t
+enum wifi_phy_rate_t
+enum wifi_event_t
+enum wifi_event_sta_wps_fail_reason_t
+enum wifi_ftm_status_t
+enum wps_fail_reason_t
+
+Functions
+esp_err_t esp_wifi_sta_enterprise_enable(void)
+esp_err_t esp_wifi_sta_enterprise_disable(void)
+
+esp_err_t esp_eap_client_set_identity(const unsigned char *identity, int len)
+void esp_eap_client_clear_identity(void)
+
+esp_err_t esp_eap_client_set_username(const unsigned char *username, int len)
+void esp_eap_client_clear_username(void)
+
+esp_err_t esp_eap_client_set_password(const unsigned char *password, int len)
+void esp_eap_client_clear_password(void)
+
+esp_err_t esp_eap_client_set_new_password(const unsigned char *new_password, int len)
+void esp_eap_client_clear_new_password(void)
+
+esp_err_t esp_eap_client_set_ca_cert(const unsigned char *ca_cert, int ca_cert_len)
+void esp_eap_client_clear_ca_cert(void)
+esp_err_t esp_eap_client_set_certificate_and_key(const unsigned char *client_cert, int client_cert_len, const unsigned char *private_key, int private_key_len, const unsigned char *private_key_password, int private_key_passwd_len)
+void esp_eap_client_clear_certificate_and_key(void)
+
+esp_err_t esp_eap_client_set_disable_time_check(bool disable)
+esp_err_t esp_eap_client_get_disable_time_check(bool *disable)
+
+esp_err_t esp_eap_client_set_ttls_phase2_method(esp_eap_ttls_phase2_types type)
+
+esp_err_t esp_eap_client_set_suiteb_192bit_certification(bool enable)
+
+esp_err_t esp_eap_client_set_pac_file(const unsigned char *pac_file, int pac_file_len)
+
+esp_err_t esp_eap_client_set_fast_params(esp_eap_fast_config config)
+
+esp_err_t esp_eap_client_use_default_cert_bundle(bool use_default_bundle)
+
+
+Structures
+struct esp_eap_fast_config
+
+Enumerations
+enum esp_eap_ttls_phase2_types
+
+Functions
+esp_err_t esp_wifi_wps_enable(const esp_wps_config_t *config)
+esp_err_t esp_wifi_wps_disable(void)
+
+esp_err_t esp_wifi_wps_start(int timeout_ms)
+
+esp_err_t esp_wifi_ap_wps_enable(const esp_wps_config_t *config)
+esp_err_t esp_wifi_ap_wps_disable(void)
+
+esp_err_t esp_wifi_ap_wps_start(const unsigned char *pin)
+
+Structures
+struct wps_factory_information_t
+struct esp_wps_config_t
+
+Enumerations
+enum wps_type
+
+
+Functions
+int esp_rrm_send_neighbor_rep_request(neighbor_rep_request_cb cb, void *cb_ctx)
+bool esp_rrm_is_rrm_supported_connection(void)
+
+
+Functions
+int esp_wnm_send_bss_transition_mgmt_query(enum btm_query_reason query_reason, const char *btm_candidates, int cand_list)
+bool esp_wnm_is_btm_supported_connection(void)
+
+Enumerations
+enum btm_query_reason
+
+
+Functions
+int esp_mbo_update_non_pref_chan(struct non_pref_chan_s *non_pref_chan)
+
+Structures
+struct non_pref_chan
+struct non_pref_chan_s
+
+Enumerations
+enum non_pref_chan_reason

@@ -77,6 +77,10 @@ extern crate console;
 // 192
 pub use esp_riscv_rt::riscv;
 
+#[cfg(efuse)]
+// 201
+pub use self::soc::efuse;
+
 // 203
 pub use procmacros::ram;
 

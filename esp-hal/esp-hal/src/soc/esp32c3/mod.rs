@@ -9,6 +9,9 @@
 //!    * I2S_SCLK: 160_000_000 - I2S clock frequency
 //!    * I2S_DEFAULT_CLK_SRC: 2 - I2S clock source
 
+// 13
+pub mod efuse;
+
 // 17
 pub mod peripherals;
 pub(crate) mod regi2c;

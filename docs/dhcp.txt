@@ -1,0 +1,1513 @@
+// trebich-wifi/src/bin/basic.rs
+let config = Config::dhcpv4(Default::default());
+    // embassy-net/src/lib.rs
+    pub struct Config                                       ## embassy
+        pub ipv4: ConfigV4,
+    
+    // embassy-net/src/lib.rs
+    pub enum ConfigV4                                       ## embassy
+        #[default]
+        None,
+        Static(StaticConfigV4),
+        Dhcp(DhcpConfig),
+    
+    // embassy-net/src/lib.rs
+    pub struct DhcpConfig                                   ## embassy
+        pub max_lease_duration: Option<embassy_time::Duration>,
+        pub retry_config: RetryConfig, 
+        pub ignore_naks: bool,                              // don't stop using the assigned IP when receiving a NAK
+        pub server_port: u16,                               // This is almost always 67.
+        pub client_port: u16,                               // This is almost always 68.
+    
+    // embassy-net/src/lib.rs
+    impl Default for DhcpConfig                             ## embassy
+        fn default() -> Self {
+        Self {
+                max_lease_duration: Default::default(),             // None
+                retry_config: Default::default(),
+                ignore_naks: Default::default(),                    // false
+                server_port: smoltcp::wire::DHCP_SERVER_PORT,       // 67
+                client_port: smoltcp::wire::DHCP_CLIENT_PORT,       // 68
+            }
+        }
+
+    // smoltcp/src/socket/dhcpv4.rs
+    pub struct RetryConfig                                  ## smoltcp
+        pub discover_timeout: Duration,
+        pub initial_request_timeout: Duration,
+        pub request_retries: u16,
+        pub min_renew_timeout: Duration,
+        pub max_renew_timeout: Duration,
+    
+    // smoltcp/src/socket/dhcpv4.rs
+    impl Default for RetryConfig                            ## smoltcp
+        fn default() -> Self {
+            Self {
+                discover_timeout: Duration::from_secs(10),
+                initial_request_timeout: Duration::from_secs(5),
+                request_retries: 5,
+                min_renew_timeout: Duration::from_secs(60),
+                max_renew_timeout: Duration::MAX,
+            }
+        }
+    
+    // embassy-net/src/lib.rs                               ## embassy
+    impl Config
+        pub fn dhcpv4(config: DhcpConfig) -> Self {
+            Self {
+                ipv4: ConfigV4::Dhcp(config),
+            }
+        }
+let config <- Config
+
+
+// trebich-wifi/src/bin/basic.rs
+let seed = 1234; // very random, very secure seed
+
+
+// trebich-wifi/src/bin/basic.rs
+// Init network stack
+    let stack = &*make_static!(Stack::new(
+        wifi_interface,
+        config,
+        make_static!(StackResources::<3>::new()),
+        seed
+    ));
+Stack::new(wifi_interface, config, make_static!(StackResources::<3>::new()), seed)
+
+// after we clarify config (dhcpv4) continue with the first argument: wifi_interface
+wifi_interface (WifiDevice cotaining WifiStaDevice) (and meantime controller (WifiController) as well)                                            ## esp_wifi
+    // trebich-wifi/src/bin/basic.rs
+    // came from
+    let (wifi_interface, controller) =
+        unwrap!(esp_wifi::wifi::new_with_mode(&init, wifi, WifiStaDevice));
+
+    esp_wifi::wifi::new_with_mode(&init, wifi, WifiStaDevice) 
+    pub fn new_with_mode<'d, MODE: WifiDeviceMode>(
+        inited: &EspWifiInitialization,
+        device: impl crate::hal::peripheral::Peripheral<P = crate::hal::peripherals::WIFI> + 'd,
+        _mode: MODE,
+    ) -> Result<(WifiDevice<'d, MODE>, WifiController<'d>), WifiError> {
+        // WifiController came from WifiController::new_with_config
+        new_with_config(inited, device, <MODE as Sealed>::Config::default())    // this Config is Sealed's type and
+                                                                                // not the Config above
+            // <MODE as Sealed>::Config::default()
+            // MODE is a WifiStaDevice, which is Sealed and Sealed has 'type Config: Default,       // see below
+            // that 'type Config = ClientConfiguration', and ClientConfiguration has 'default()'    // see below
+
+        // description of Configuration, ClientConfiguration, Sealed and WifiStaDevice
+            
+        // esp-wifi/src/wifi/mod.rs                         ## esp_wifi
+        pub enum Configuration
+            #[default]
+            None,
+            Client(ClientConfiguration),
+
+        // esp-wifi/src/wifi/mod.rs
+        pub struct ClientConfiguration                      ## esp_wifi
+            pub ssid: heapless::String<32>,
+            pub bssid: Option<[u8; 6]>,
+            pub auth_method: AuthMethod,
+            pub password: heapless::String<64>,
+            pub channel: Option<u8>,
+        // esp-wifi/src/wifi/mod.rs
+        impl Default for ClientConfiguration                ## esp_wifi
+            fn default() -> Self {
+                ClientConfiguration {
+                    ssid: heapless::String::new(),
+                    bssid: None,
+                    auth_method: Default::default(),        // WPA2Personal
+                    password: heapless::String::new(),
+                    channel: None,
+                }
+            }
+
+        // esp-wifi/src/wifi/mod.rs
+        pub trait Sealed: Copy + Sized                      ## esp_wifi  
+            type Config: Default;
+            fn new() -> Self;
+            fn wrap_config(config: Self::Config) -> Configuration;
+            fn data_queue_rx(
+                self,
+                cs: CriticalSection,
+            ) -> RefMut<'_, SimpleQueue<EspWifiPacketBuffer, RX_QUEUE_SIZE>>;
+            fn can_send(self) -> bool {
+                WIFI_TX_INFLIGHT.load(Ordering::SeqCst) < TX_QUEUE_SIZE
+            }
+            fn increase_in_flight_counter(self) {
+                WIFI_TX_INFLIGHT.fetch_add(1, Ordering::SeqCst);
+            }
+            fn tx_token(self) -> Option<WifiTxToken<Self>> {
+                ...
+            }
+            fn rx_token(self) -> Option<(WifiRxToken<Self>, WifiTxToken<Self>)> {
+                ...
+            }
+            fn interface(self) -> wifi_interface_t;
+            fn register_transmit_waker(self, cx: &mut core::task::Context) {
+                embassy::TRANSMIT_WAKER.register(cx.waker())
+            }
+            fn register_receive_waker(self, cx: &mut core::task::Context);
+            fn register_link_state_waker(self, cx: &mut core::task::Context);
+            fn link_state(self) -> embassy_net_driver::LinkState;
+
+        // esp-wifi/src/wifi/mod.rs
+        pub struct WifiStaDevice;                           ## esp_wifi (WifiDevice will contain it)
+
+        // esp-wifi/src/wifi/mod.rs
+        impl Sealed for WifiStaDevice                       ## esp_wifi ## WifiStaDevice: Sealed
+            type Config = ClientConfiguration;
+            fn new() -> Self {
+                Self
+            }
+            fn wrap_config(config: ClientConfiguration) -> Configuration {
+                Configuration::Client(config)
+            }
+            ...
+
+    
+        // back to new_with_config (this is not the method of WifiController)
+        pub fn new_with_config<'d, MODE: WifiDeviceMode>(
+            inited: &EspWifiInitialization,
+            device: impl Peripheral<P = crate::hal::peripherals::WIFI> + 'd,
+            config: MODE::Config,
+        ) -> Result<(WifiDevice<'d, MODE>, WifiController<'d>), WifiError> 
+            Ok((
+                WifiDevice::new(unsafe { device.clone_unchecked() }, MODE::new()),
+                                                                            // MODE: WifiDeviceMode
+                                                                            // MODE = WifiStaDevice which is WifiDeviceMode
+                                                                            // WifiStaDevice -> WifiDevice.mode
+                WifiController::new_with_config(inited, device, MODE::wrap_config(config))?,
+                                                                            // MODE: WifiDeviceMode
+                                                                            // config: MODE::Config = ClientConfiguration
+                                                                            // WifiDeviceMode is Sealed
+                                                                            // Sealed has wrap_config
+                                                                            // wrap_config with arg=ClientConfiguration
+                                                                            // gives Configuration::Client(config)
+                                                                            // where config = ClientConfiguration
+                                                                            // which has default() method
+                                                                        
+            ))
+
+        // finalize controller (WifiController)
+        // esp-wifi/src/wifi/mod.rs
+        pub struct WifiController<'d> {                     // esp_wifi
+            _device: PeripheralRef<'d, crate::hal::peripherals::WIFI>,
+            config: Configuration,
+        }
+        // esp-wifi/src/wifi/mod.rs
+        impl<'d> WifiController<'d>                         // esp_wifi
+            pub(crate) fn new_with_config(
+                inited: &EspWifiInitialization,
+                _device: PeripheralRef<'d, crate::hal::peripherals::WIFI>,
+                config: Configuration,                      // this is ClientConfiguration
+            ) -> Result<Self, WifiError>
+
+            let mut this = Self {
+                _device,
+                config: Default::default(),                 // this is where input config (which is ClientConfiguration)
+                                                            // default() method is called
+            };
+
+            let mode = WifiMode::try_from(&config)?;        // Configuration::Client(_) => Self::Sta,
+            esp_wifi_result!(unsafe { esp_wifi_set_mode(mode.into()) })?; // esp_wifi_sys call
+            this.set_configuration(&config)?; // esp_wifi_sys call
+
+        // let's explain WifiDevice
+        // esp-wifi/src/wifi/mod.rs
+        pub struct WifiDevice<'d, MODE: WifiDeviceMode>     ## esp_wifi
+            _device: PeripheralRef<'d, crate::hal::peripherals::WIFI>,
+            mode: MODE,                                     ## WifiDevice.mode <- WifiStaDevice: Sealed, WifiDeviceMode
+
+        // esp-wifi/src/wifi/mod.rs
+        impl<'d, MODE: WifiDeviceMode> WifiDevice<'d, MODE> ## esp_wifi
+            pub(crate) fn new(
+                _device: PeripheralRef<'d, crate::hal::peripherals::WIFI>,
+                mode: MODE,                                 ## WifiDevice.mode <- WifiStaDevice: Sealed, WifiDeviceMode
+            ) -> Self {
+                Self { _device, mode }
+            }
+
+        // esp-wifi/src/wifi/mod.rs
+        pub trait WifiDeviceMode: Sealed {                  ## esp_wifi
+            fn mode(self) -> WifiMode;
+
+            fn mac_address(self) -> [u8; 6];
+        }
+
+        // esp-wifi/src/wifi/mod.rs
+        impl WifiDeviceMode for WifiStaDevice               ## esp_wifi ## WifiStaDevice: Sealed, WifiDeviceMode
+            fn mode(self) -> WifiMode {
+                WifiMode::Sta
+            }
+            fn mac_address(self) -> [u8; 6] {
+                let mut mac = [0; 6];
+                get_sta_mac(&mut mac);
+                mac
+            }
+        // esp-wifi/src/wifi/mod.rs   
+        pub enum WifiMode {                                 ## esp_wifi
+            Sta,
+            //Ap,
+            //ApSta,
+        }
+
+
+// let's continue with the 3rd parameter of
+// Stack::new(wifi_interface, config, make_static!(StackResources::<3>::new()), seed)
+
+StackResources::<3>::new()
+//embassy-net/src/lib.rs
+pub struct StackResources<const SOCK: usize> {              ## embassy
+    sockets: [SocketStorage<'static>; SOCK],
+}
+impl<const SOCK: usize> StackResources<SOCK>                ## embassy
+    pub const fn new() -> Self {
+        Self {
+            sockets: [SocketStorage::EMPTY; SOCK],          ## contains smoltcp's SocketStorage
+        }
+    }
+
+// smoltcp/src/iface/socket_set.rs
+// use smoltcp::iface::SocketStorage;
+pub struct SocketStorage<'a> {                              ## smoltcp::iface::SocketStorage
+    inner: Option<Item<'a>>,
+}
+impl<'a> SocketStorage<'a> {
+    pub const EMPTY: Self = Self { inner: None };
+}
+
+
+// trebich-wifi/src/bin/basic.rs
+Stack::new(wifi_interface, config, make_static!(StackResources::<3>::new()), seed)
+//embassy-net/src/lib.rs
+// A network stack.
+///
+/// This is the main entry point for the network stack.
+pub struct Stack<D: Driver> {
+    pub(crate) socket: RefCell<SocketStack>,                ## embassy
+    inner: RefCell<Inner<D>>,
+}
+
+//embassy-net/src/lib.rs
+pub(crate) struct SocketStack                               // embassy
+    pub(crate) sockets: SocketSet<'static>,                 // smoltcp::iface::SocketSet
+    pub(crate) iface: Interface,                            // smoltcp::iface::Interface
+    pub(crate) waker: WakerRegistration,                    // embassy_sync::waitqueue::WakerRegistration
+                                                            // pub struct WakerRegistration {
+                                                            //     waker: Option<Waker>,
+                                                            // }
+    next_local_port: u16,
+
+// embassy-net-driver/src/lib.rs
+// This is essentially an interface for sending and receiving raw network frames.
+pub trait Driver                                            // embassy
+    type RxToken<'a>: RxToken                               // embassy
+    where
+        Self: 'a;
+    type TxToken<'a>: TxToken                               // embassy
+    where
+        Self: 'a;
+    // Construct a token pair consisting of one receive token and one transmit token.
+    fn receive(&mut self, cx: &mut Context) -> Option<(Self::RxToken<'_>, Self::TxToken<'_>)>;
+    // Construct a transmit token.
+    fn transmit(&mut self, cx: &mut Context) -> Option<Self::TxToken<'_>>;
+    // Get the link state.
+    fn link_state(&mut self, cx: &mut Context) -> LinkState;
+    // Get a description of device capabilities.
+    fn capabilities(&self) -> Capabilities;
+    // Get the device's hardware address.
+    fn hardware_address(&self) -> HardwareAddress;
+
+// embassy-net-driver/src/lib.rs
+// A token to receive a single network packet.
+pub trait RxToken                                           // embassy
+    /// Consumes the token to receive a single network packet.
+    /// This method receives a packet and then calls the given closure `f` with the raw
+    /// packet bytes as argument.
+    fn consume<R, F>(self, f: F) -> R
+    where
+        F: FnOnce(&mut [u8]) -> R;
+
+// embassy-net-driver/src/lib.rs
+/// A token to transmit a single network packet.
+pub trait TxToken                                           // embassy
+    /// Consumes the token to send a single network packet.
+    /// This method constructs a transmit buffer of size `len` and calls the passed
+    /// closure `f` with a mutable reference to that buffer. The closure should construct
+    /// a valid network packet (e.g. an ethernet packet) in the buffer. When the closure
+    /// returns, the transmit buffer is sent out.
+    fn consume<R, F>(self, len: usize, f: F) -> R
+    where
+        F: FnOnce(&mut [u8]) -> R;
+
+// embassy-net-driver/src/lib.rs
+/// The link state of a network device.
+pub enum LinkState {                                        // embassy
+    /// The link is down.
+    Down,
+    /// The link is up.
+    Up,
+}
+// embassy-net-driver/src/lib.rs
+/// A description of device capabilities.
+pub struct Capabilities                                     // embassy
+    pub max_transmission_unit: usize,                       // The network device is unable to send or receive frames
+                                                            // larger than the value returned by this function.
+    pub max_burst_size: Option<usize>,                      // Maximum burst size, in terms of MTU.
+    pub checksum: ChecksumCapabilities,
+
+// embassy-net-driver/src/lib.rs
+/// A description of checksum behavior for every supported protocol.
+pub struct ChecksumCapabilities                             // embassy
+    /// Checksum behavior for IPv4.
+    pub ipv4: Checksum,
+
+// embassy-net-driver/src/lib.rs
+/// A description of checksum behavior for a particular protocol.
+pub enum Checksum                                           // embassy
+    /// Verify checksum when receiving and compute checksum when sending.
+    Both,
+    /// Verify checksum when receiving.
+    Rx,
+    /// Compute checksum before sending.
+    Tx,
+    /// Ignore checksum completely.
+    None,
+
+// embassy-net-driver/src/lib.rs
+impl Default for Checksum
+    fn default() -> Checksum
+        Checksum::Both
+
+// embassy-net-driver/src/lib.rs
+pub enum HardwareAddress {                                  // embassy
+    /// Ethernet medium, with a A six-octet Ethernet address.
+    Ethernet([u8; 6]),
+
+//embassy-net/src/lib.rs
+struct Inner<D: Driver>                                     ## embassy
+    device: D,                                              // WifiDevice: Driver (see right below)
+    link_up: bool,
+    static_v4: Option<StaticConfigV4>,                      // this is the result of dhcp operation
+    config_waker: WakerRegistration,                        // embassy_sync::waitqueue::WakerRegistration
+                                                            // pub struct WakerRegistration {
+                                                            //     waker: Option<Waker>,
+                                                            // }
+
+// esp-wifi/src/wifi/mod.rs
+// this is where WifiDevice (wifi_iterface) got implementations towarding esp_wifi, the lower (physical) level
+// this is the API to esp_wifi, naturally it is implemented in esp_wifi
+// it also contains mode = WifiStaDevice: Sealed, WifiDeviceMode
+impl<MODE: WifiDeviceMode> Driver for WifiDevice<'_, MODE>  // esp_wifi
+                                                            // MODE <- mode = WifiStaDevice: Sealed, WifiDeviceMode
+                                                            // trait WifiDeviceMode has mac_address()
+    fn receive ...                                          // implementations
+    fn transmit ...
+    fn link_state ...
+    fn capabilities ...
+    fn hardware_address(&self) -> HardwareAddress {
+        HardwareAddress::Ethernet(self.mac_address())
+    }
+
+// returing to Stack::new(wifi_interface, config, make_static!(StackResources::<3>::new()), seed)
+// pub struct Stack<D: Driver> see above
+//embassy-net/src/lib.rs
+// wifi_interface=WifiDevice: Driver                        // Driver-ness implemented in esp_wifi
+impl<D: Driver> Stack<D>                                    // embassy  // Stack implemented in embassy
+    pub fn new<const SOCK: usize>(
+        mut device: D,                                      // :Driver = wifi_interface=WifiDevice containing WifiStaDevice
+        config: Config,                                     // got config (dhcpv4)
+        resources: &'static mut StackResources<SOCK>,
+        random_seed: u64,
+    ) -> Self
+        let (hardware_addr, medium) = to_smoltcp_hardware_address(device.hardware_address());
+                                                            // device=WifiDevice: Driver, Driver has hardware_address()
+                                                            // device provides esp_wifi API (trait Driver -> hardware_address())
+            // hardware_addr will smotcp::wire::HardwareAddress = Ethernet(EthernetAddress),
+            // medium will smoltcp::phy::Medium = Ethernet
+
+        let mut iface_cfg = smoltcp::iface::Config::new(hardware_addr);     // smoltcp
+
+// smoltcp/src/iface/interface/mod.rs
+pub struct Config                                           // smoltcp
+    pub random_seed: u64,
+    pub hardware_addr: HardwareAddress,
+
+// smoltcp/src/iface/interface/mod.rs
+impl Config                                                 // smoltcp
+    pub fn new(hardware_addr: HardwareAddress) -> Self
+        Config 
+            random_seed: 0,
+            hardware_addr,
+
+        // Stack::new continue
+        iface_cfg.random_seed = random_seed;                // smoltcp
+
+        // Stack::new continue
+        // Create a network interface using the previously provided configuration.
+        let iface = Interface::new(                         // smoltcp::iface::interface::Interface::new
+            iface_cfg,
+            &mut DriverAdapter {
+                inner: &mut device,
+                cx: None,
+                medium,
+            },
+            instant_to_smoltcp(Instant::now()),             // SmolInstant::from_micros(instant.as_micros() as i64)
+                                                            // convert to smoltcp type
+        );
+
+impl Interface                                              // smoltcp
+    pub fn new<D>(config: Config, device: &mut D, now: Instant) -> Self
+        // Config is Ok, since we use from smoltcp (see above)
+
+        // device: &mut D, where D is smoltcp::phy::Device trait, which has the same methods as Struct->Inner->device
+        // which is Driver trait in embassy,
+        // which is implemented (API) in esp_wifi
+        // connecting those methods with the same name together we put the device argument as &mut DriverAdapter,
+        // DriverAdapter implements smoltcp::phy::Device traits
+        // it implements smoltcp::phy::Device traits in embassy (/embassy-net/src/device.rs)
+        // so this is smoltcp's API to phy, which is WifiDevice: Driver implemented in esp_wifi
+
+// embassy-net/src/device.rs
+pub(crate) struct DriverAdapter<'d, 'c, T>                  // embassy
+where
+    T: Driver,                                              // Driver trait defined in embassy
+    // must be Some when actually using this to rx/tx
+    pub cx: Option<&'d mut Context<'c>>,                    // in our case it is None
+    pub inner: &'d mut T,                                   // Driver trait defined in embassy
+    pub medium: Medium,
+
+// embassy-net/src/device.rs
+impl<'d, 'c, T> phy::Device for DriverAdapter<'d, 'c, T>    // embassy
+where
+    T: Driver,
+    type RxToken<'a> = RxTokenAdapter<T::RxToken<'a>> where Self: 'a;
+    type TxToken<'a> = TxTokenAdapter<T::TxToken<'a>> where Self: 'a;
+
+    fn receive(&mut self, _timestamp: Instant) -> Option<(Self::RxToken<'_>, Self::TxToken<'_>)>
+        self.inner
+            .receive(unwrap!(self.cx.as_deref_mut()))
+            .map(|(rx, tx)| (RxTokenAdapter(rx), TxTokenAdapter(tx)))
+    
+    fn transmit(&mut self, _timestamp: Instant) -> Option<Self::TxToken<'_>> {
+        self.inner.transmit(unwrap!(self.cx.as_deref_mut())).map(TxTokenAdapter)
+    }
+    fn capabilities(&self) -> phy::DeviceCapabilities 
+        fn convert(c: Checksum) -> phy::Checksum
+            e.g.:
+            Checksum::Both => phy::Checksum::Both,
+            Checksum::Tx => phy::Checksum::Tx,
+            ...
+        let caps: Capabilities = self.inner.capabilities();
+        let mut smolcaps = phy::DeviceCapabilities::default();
+        smolcaps.max_transmission_unit = caps.max_transmission_unit;
+        smolcaps.max_burst_size = caps.max_burst_size;
+        smolcaps.medium = self.medium;
+        smolcaps.checksum.ipv4 = convert(caps.checksum.ipv4);
+        smolcaps
+
+// embassy-net/src/device.rs
+pub(crate) struct RxTokenAdapter<T>(T)                      // embassy
+where
+    T: RxToken;                                             // embassy trait
+
+// embassy-net/src/device.rs
+impl<T> phy::RxToken for RxTokenAdapter<T>
+    where
+    T: RxToken,                                             // embassy trait
+    fn consume<R, F>(self, f: F) -> R
+    where
+        F: FnOnce(&mut [u8]) -> R,
+        self.0.consume(|buf|
+        self.0.consume(|buf| {                              // call the embassy's RxToken's consume implemented in esp_wifi
+            f(buf)
+        })
+
+// embassy-net/src/device.rs
+pub(crate) struct TxTokenAdapter<T>(T)
+where
+    T: TxToken;
+
+// embassy-net/src/device.rs
+impl<T> phy::TxToken for TxTokenAdapter<T>
+where
+    T: TxToken,
+    fn consume<R, F>(self, len: usize, f: F) -> R
+    where
+        F: FnOnce(&mut [u8]) -> R,
+        self.0.consume(len, |buf| {                         // call the embassy's TxToken's consume implemented in esp_wifi
+            f(buf)
+        })
+
+
+        // Stack::new continue
+        let sockets = SocketSet::new(&mut resources.sockets[..]);   // resources: &'static mut StackResources<SOCK>,
+                                                                    // StackResources<SOCK>,    // embassy
+                                                                    //     sockets: [SocketStorage<'static>; SOCK], // smoltcp
+
+// smoltcp/src/iface/socket_set.rs
+pub struct SocketSet<'a> {                                  // smoltcp
+    sockets: ManagedSlice<'a, SocketStorage<'a>>,
+}
+// smoltcp/src/iface/socket_set.rs
+impl<'a> SocketSet<'a>
+    pub fn new<SocketsT>(sockets: SocketsT) -> SocketSet<'a>
+    where
+        SocketsT: Into<ManagedSlice<'a, SocketStorage<'a>>>,   // !!!
+        let sockets = sockets.into();
+        SocketSet { sockets }                               // gives empty (static) SocketStorage to smoltcp
+
+        // Stack::new continue
+        let next_local_port =
+            (random_seed % (LOCAL_PORT_MAX - LOCAL_PORT_MIN) as u64) as u16 + LOCAL_PORT_MIN;
+
+        let mut socket = SocketStack {                      // embassy (see above) goes into 'Stack'
+            sockets,                                        // smoltcp::iface::socket_set
+            iface,                                          // smoltcp::iface::interface::Interface (DriverAdapter inside)
+            waker: WakerRegistration::new(),                // (Option<Waker>)
+            next_local_port,
+        };
+
+        let mut inner = Inner {                             // embassy // see above
+            device,                                         // :Driver = wifi_interface=WifiDevice containing WifiStaDevice
+            link_up: false,
+            static_v4: None,
+            dhcp_socket: None,
+            config_waker: WakerRegistration::new(),
+        };
+        // in dhcp case, the following two lines ('socket.reset()' inside) do nothing
+        // only in 'poll' will start dhcp handshake, if wifi was conected
+        inner.set_config_v4(&mut socket, config.ipv4);
+        inner.apply_static_config(&mut socket);
+
+//embassy-net/src/lib.rs
+impl<D: Driver> Inner<D>                                    // embassy
+    pub fn set_config_v4(&mut self, _s: &mut SocketStack, config: ConfigV4)
+        // Handle static config.
+        self.static_v4 = match config.clone()                   // config comes from the top of this file
+                                                                // we need it for the next match so we need to clone
+            ConfigV4::None => None,
+            ConfigV4::Dhcp(_) => None,                          // here we are, no static
+            ConfigV4::Static(c) => Some(c),
+        match config 
+            ConfigV4::Dhcp(c)                                   // DhcpConfig
+                // Create the socket if it doesn't exist.
+                if self.dhcp_socket.is_none()                   // embassy  // we are in Stack::new()
+                    let socket = smoltcp::socket::dhcpv4::Socket::new();    // the first (0) socket
+                                    // this is where
+                                    // Socket::state: ClientState::Discovering(DiscoverState {
+                                    //     retry_at: Instant::from_millis(0),
+                                    // }),
+                                    // which start dhcp communication in the first Inner::poll
+
+                    let handle = _s.sockets.add(socket);        // _s: &mut SocketStack
+                    self.dhcp_socket = Some(handle);            // embassy
+                // Configure it
+                let socket = _s.sockets.get_mut::<dhcpv4::Socket>(unwrap!(self.dhcp_socket));
+                                        // Get a mutable socket from the set by its handle, as mutable.
+                                        // we've just created before
+                                                                // smoltcp socket handle -> socket
+                                                                // socket: smoltcp::socket::dhcpv4
+                // put soceket params from config
+                socket.set_ignore_naks(c.ignore_naks);          // smoltcp::socket::dhcpv4::Socket::set_ignore_naks
+                socket.set_max_lease_duration(                  // smoltcp::socket::dhcpv4::Socket::set_max_lease_duration
+                    c.max_lease_duration.map(crate::time::duration_to_smoltcp),
+                );
+                socket.set_ports(c.server_port, c.client_port); // smoltcp
+                socket.set_retry_config(c.retry_config);        // smoltcp
+                socket.set_outgoing_options(&[]);               // smoltcp
+                // Reset state and restart discovery phase.
+                socket.reset();                                 // smoltcp  net_trace      
+            _ => {
+                // Remove DHCP socket if any.
+                if let Some(socket) = self.dhcp_socket
+                    _s.sockets.remove(socket);
+                    self.dhcp_socket = None;
+
+// smoltcp/src/socket/dhcpv4.rs
+pub struct Socket<'a>   
+    state: ClientState,                                     /// State of the DHCP client.                  
+    config_changed: bool,           /// Set to true on config/state change, cleared back to false by the `config` function.
+    transaction_id: u32,                                    /// xid of the last sent message.
+    max_lease_duration: Option<Duration>,
+    retry_config: RetryConfig,                              /// Ignore NAKs.
+    ignore_naks: bool,
+    pub(crate) server_port: u16,                            /// Server port config
+    pub(crate) client_port: u16,                            /// Client port config
+    outgoing_options: &'a [DhcpOption<'a>],     /// A buffer contains options additional to be added to outgoing DHCP packets.
+    parameter_request_list: Option<&'a [u8]>,               /// A buffer containing all requested parameters.
+    receive_packet_buffer: Option<&'a mut [u8]>,    /// Incoming DHCP packets are copied into this buffer, overwriting the previous.
+    waker: WakerRegistration,
+
+// smoltcp/src/socket/dhcpv4.rs
+pub struct DhcpOption<'a>
+    pub kind: u8,
+    pub data: &'a [u8],
+
+// smoltcp/src/socket/dhcpv4.rs
+impl<'a> Socket<'a>
+    pub fn reset(&mut self) 
+        if let ClientState::Renewing(_) = &self.state       // this state will scan and process at dhcp socket poll
+            // smoltcp/src/socket/dhcpv4.rs
+            self.config_changed();
+                self.config_changed = true;
+                self.waker.wake();
+        self.state = ClientState::Discovering(DiscoverState {retry_at: Instant::from_millis(0) }
+                                                            // this state will start dhcp communication
+
+
+// smoltcp/src/iface/interface/mod.rs
+impl<D: Driver> Inner<D> 
+    fn apply_static_config(&mut self, s: &mut SocketStack)
+        let mut addrs = Vec::new();
+        if let Some(config) = &self.static_v4
+            unwrap!(addrs.push(IpCidr::Ipv4(config.address)).ok());
+            gateway_v4 = config.gateway.into();
+        else
+            info!("IPv4: DOWN");
+        
+        s.iface.update_ip_addrs(|a| *a = addrs);
+
+        if let Some(gateway) = gateway_v4
+            unwrap!(s.iface.routes_mut().add_default_ipv4_route(gateway));  // smoltcp/src/iface/route.rs
+                                                                            // ie. "ip route add 0.0.0.0/0 via `gateway`"
+        else
+            s.iface.routes_mut().remove_default_ipv4_route();
+        
+        self.config_waker.wake();
+
+// smoltcp/src/iface/interface/mod.rs
+pub fn update_ip_addrs<F: FnOnce(&mut Vec<IpCidr, IFACE_MAX_ADDR_COUNT>)>(&mut self, f: F) 
+    f(&mut self.inner.ip_addrs);
+    InterfaceInner::flush_neighbor_cache(&mut self.inner);
+        // smoltcp/src/iface/interface/mod.rs
+        self.neighbor_cache.flush()
+    InterfaceInner::check_ip_addrs(&self.inner.ip_addrs)    // panic if not unicast
+
+        // Stack::new continue (end)
+        Self {
+            socket: RefCell::new(socket),
+            inner: RefCell::new(inner),
+        }
+    
+
+EOF Stack::new
+
+// trebich-wifi/src/bin/basic.rs
+spawner.spawn(net_task(&stack)).ok();
+
+// trebich-wifi/src/bin/basic.rs
+#[embassy_executor::task]
+async fn net_task(stack: &'static Stack<WifiDevice<'static, WifiStaDevice>>) {
+    println!("Start net_task");
+    stack.run().await
+}
+
+// embassy-net/src/lib.rs
+impl<D: Driver> Stack<D>
+    // Run the network stack.
+    // You must call this in a background task, to process network events.
+    pub async fn run(&self) -> ! 
+        // core::future::poll_fn
+        poll_fn(|cx| {                                      // Creates a future that wraps a function returning Poll.
+                                                            // Polling the future delegates to the wrapped function.
+            self.with_mut(|s, i| i.poll(cx, s));            // Inner::poll(cx, socket: SocketStack)
+            Poll::<()>::Pending                             // Pending forever, so this is a (forever) loop
+                                                            // driving by Stack::waker.wake()
+        })
+        .await;
+        unreachable!()
+
+// embassy-net/src/lib.rs
+impl<D: Driver> Stack<D>
+    fn with_mut<R>(&self, f: impl FnOnce(&mut SocketStack, &mut Inner<D>) -> R) -> R {
+        f(
+            &mut *self.socket.borrow_mut(),                 // socket: SocketStack
+            &mut *self.inner.borrow_mut(),                  // inner: Inner
+        )
+
+// embassy-net/src/lib.rs
+impl<D: Driver> Inner<D> 
+    fn poll(&mut self, cx: &mut Context<'_>, s: &mut SocketStack)
+        s.waker.register(cx.waker());                               // this is the first/ or re-register waker of SocketStack
+        let (_hardware_addr, medium) = to_smoltcp_hardware_address(self.device.hardware_address()); // smoltcp's HW address
+        s.iface.set_hardware_addr(_hardware_addr);
+
+        let timestamp = instant_to_smoltcp(Instant::now());
+        let mut smoldev = DriverAdapter {
+            cx: Some(cx),
+            inner: &mut self.device,                                // embassy_net::Inner::device
+                                                                    // which implements smoltcp::phy::Devive trait
+
+            medium,
+        };
+
+        // smoltcp::iface::interface::Interface::poll
+        // Transmit packets queued in the given sockets, and receive packets queued in the device.
+        s.iface.poll(timestamp, &mut smoldev, &mut s.sockets);      // poll smoltcp
+                                                                    // this is where the physical communication happens
+                                                                    
+        // Update link up
+        let old_link_up = self.link_up;
+        self.link_up = self.device.link_state(cx) == LinkState::Up;
+
+// esp-wifi/src/wifi/mod.rs
+impl<MODE: WifiDeviceMode> Driver for WifiDevice<'_, MODE>
+    fn link_state(&mut self, cx: &mut core::task::Context) -> embassy_net_driver::LinkState
+        self.mode.register_link_state_waker(cx);
+        self.mode.link_state()
+
+// esp-wifi/src/wifi/mod.rs
+impl Sealed for WifiStaDevice
+    fn link_state(self) -> embassy_net_driver::LinkState
+        if matches!(get_sta_state(), WifiState::StaConnected)
+            embassy_net_driver::LinkState::Up
+        else
+            embassy_net_driver::LinkState::Down
+
+        // continue poll
+        // Print when changed
+        if old_link_up != self.link_up {
+            info!("link_up = {:?}", self.link_up);
+        }
+
+        let mut apply_config = false;
+        
+        if let Some(dhcp_handle) = self.dhcp_socket         // here is where dhcp does its job
+            let socket = s.sockets.get_mut::<dhcpv4::Socket>(dhcp_handle);
+            if self.link_up
+                if old_link_up != self.link_up              // down -> up
+                    socket.reset();
+                match socket.poll()                         // Query the socket for configuration changes.
+                    None => {}                              // did not changed
+                    Some(dhcpv4::Event::Deconfigured) =>
+                        self.static_v4 = None;
+                        apply_config = true;
+                    Some(dhcpv4::Event::Configured(config)) => 
+                        self.static_v4 = Some(StaticConfigV4 {
+                            address: config.address,
+                            gateway: config.router,
+                            dns_servers: config.dns_servers,
+                        });
+                        apply_config = true;
+            else if old_link_up                             // up -> down
+                socket.reset();
+                self.static_v4 = None;
+                apply_config = true;
+            
+            if apply_config 
+                self.apply_static_config(s);                // see above
+            
+            if let Some(poll_at) = s.iface.poll_at(timestamp, &mut s.sockets) // check for timeout value in smoltcp
+                // embassy-time/src/timer.rs
+                let t = Timer::at(instant_from_smoltcp(poll_at));   // convert timeout value from smoltcp
+                                                                    // 'Timer' is a future that completes at a specified Instant.
+                pin_mut!(t);
+                if t.poll(cx).is_ready()                            // start/restart timeout                            
+                    cx.waker().wake_by_ref();                       // Inner::poll (its me/self) will be waked
+
+
+// called by 'async fn run's 'poll_fn's 'self.with_mut(|s, i| i.poll(cx, s))'
+/// Transmit packets queued in the given sockets, and receive packets queued in the device.
+// smoltcp/src/iface/interface/mod.rs
+impl Interface
+    fn poll(&mut self, cx: &mut Context<'_>, s: &mut SocketStack)
+        loop 
+            let mut did_something = false;
+            did_something |= self.socket_ingress(device, sockets);  // process sockets' inward traffic
+            did_something |= self.socket_egress(device, sockets);   // process socket's outward traffic
+
+
+// smoltcp/src/iface/interface/mod.rs
+fn socket_ingress<D>(&mut self, device: &mut D, sockets: &mut SocketSet<'_>) -> bool
+where
+    D: Device + ?Sized,
+    while let Some((rx_token, tx_token)) = device.receive(self.inner.now)   // smoltcp::phy::Device trait's receive
+        let rx_meta = rx_token.meta();          // Packet ID associated with the frame received
+        rx_token.consume(|frame|
+            if frame.is_empty()
+                return;                         // no input packet
+            match self.inner.caps.medium
+                Medium::Ethernet =>             // we received something
+                    if let Some(packet) = self.inner.process_ethernet(          // one layer up
+                        sockets,
+                        rx_meta,
+                        frame,
+                        &mut self.fragments,
+                    ) {
+                        if let Err(err) =
+                            self.inner.dispatch(tx_token, packet, &mut self.fragmenter)
+                        {
+                            net_debug!("Failed to send response: {:?}", err);
+                        }
+                    }
+
+// smoltcp/src/iface/interface/ethernet.rs
+impl InterfaceInner
+    pub(super) fn process_ethernet<'frame>(
+        &mut self,
+        sockets: &mut SocketSet,
+        meta: crate::phy::PacketMeta,
+        frame: &'frame [u8],
+        fragments: &'frame mut FragmentsBuffer,
+    ) -> Option<EthernetPacket<'frame>>
+        let eth_frame = check!(EthernetFrame::new_checked(frame));
+        match eth_frame.ethertype() 
+            EthernetProtocol::Arp => self.process_arp(self.now, &eth_frame),
+            EthernetProtocol::Ipv4 =>
+                let ipv4_packet = check!(Ipv4Packet::new_checked(eth_frame.payload()))
+                self.process_ipv4(sockets, meta, &ipv4_packet, fragments).map(EthernetPacket::Ip)   // one layer up
+
+// smoltcp/src/iface/interface/ipv4.rs
+impl InterfaceInner
+    pub(super) fn process_ipv4<'a>(
+        &mut self,
+        sockets: &mut SocketSet,
+        meta: PacketMeta,
+        ipv4_packet: &Ipv4Packet<&'a [u8]>,
+        frag: &'a mut FragmentsBuffer,
+    ) -> Option<Packet<'a>>
+        let ipv4_repr = check!(Ipv4Repr::parse(ipv4_packet, &self.caps.checksum));
+        let ip_payload = ipv4_packet.payload();
+        let ip_repr = IpRepr::Ipv4(ipv4_repr);
+        #[cfg(feature = "socket-dhcpv4")]
+            if ipv4_repr.next_header == IpProtocol::Udp
+                && matches!(self.caps.medium, Medium::Ethernet)
+                let udp_packet = check!(UdpPacket::new_checked(ip_payload));
+                if let Some(dhcp_socket) = sockets.items_mut()
+                    .find_map(|i| Dhcpv4Socket::downcast_mut(&mut i.socket))
+                    // First check for source and dest ports, then do `UdpRepr::parse` if they match.
+                    if udp_packet.src_port() == dhcp_socket.server_port
+                        && udp_packet.dst_port() == dhcp_socket.client_port
+                        let udp_repr = check!(UdpRepr::parse(
+                            &udp_packet,
+                            &ipv4_repr.src_addr.into(),
+                            &ipv4_repr.dst_addr.into(),
+                            &self.caps.checksum
+                        ));
+                        dhcp_socket.process(self, &ipv4_repr, &udp_repr, udp_packet.payload()); // one layer up
+                        return None;
+
+// smoltcp/src/socket/dhcpv4.rs
+pub(crate) fn process(
+        &mut self,
+        cx: &mut Context,
+        ip_repr: &Ipv4Repr,
+        repr: &UdpRepr,
+        payload: &[u8],
+    )
+    let src_ip = ip_repr.src_addr;
+    let dhcp_packet = match DhcpPacket::new_checked(payload)
+        Ok(dhcp_packet) => dhcp_packet,
+        Err(e) => ...
+    let dhcp_repr = match DhcpRepr::parse(&dhcp_packet)
+        Ok(dhcp_repr) => dhcp_repr,
+        Err(e) => ...
+    let HardwareAddress::Ethernet(ethernet_addr) = cx.hardware_addr() else panic
+    if dhcp_repr.client_hardware_address != ethernet_addr
+        return
+    if dhcp_repr.transaction_id != self.transaction_id
+        return
+    let server_identifier = match dhcp_repr.server_identifier
+        Some(server_identifier) => server_identifier,
+        None => return
+    // Copy over the payload into the receive packet buffer.
+    if let Some(buffer) = self.receive_packet_buffer.as_mut()
+        if let Some(buffer) = buffer.get_mut(..payload.len())
+            buffer.copy_from_slice(payload);
+    match (&mut self.state, dhcp_repr.message_type)
+        (ClientState::Discovering(_state), DhcpMessageType::Offer) =>
+            self.state = ClientState::Requesting(RequestState {             // response building for offer
+                retry_at: cx.now(),
+                retry: 0,
+                server: ServerInfo {
+                    address: src_ip,
+                    identifier: server_identifier,
+        (ClientState::Requesting(state), DhcpMessageType::Ack) =>
+            if let Some((config, renew_at, rebind_at, expires_at)) =
+                Self::parse_ack(cx.now(), &dhcp_repr, self.max_lease_duration, state.server)
+                self.state = ClientState::Renewing(RenewState {             // response building for ack
+                    config,
+                    renew_at,
+                    rebind_at,
+                    expires_at,
+                    rebinding: false,
+                self.config_changed();                                      // change status which will be noticed
+                                                                            // in the near top level poll
+        (ClientState::Requesting(_), DhcpMessageType::Nak) =>
+            if !self.ignore_naks
+                self.reset();
+        (ClientState::Renewing(state), DhcpMessageType::Ack) =>
+            if let Some((config, renew_at, rebind_at, expires_at)) = Self::parse_ack(
+                cx.now(),
+                &dhcp_repr,
+                self.max_lease_duration,
+                state.config.server,
+            )
+                state.renew_at = renew_at;
+                state.rebind_at = rebind_at;
+                state.rebinding = false;
+                state.expires_at = expires_at;                                                                           
+                ...
+                if config_changed
+                    self.config_changed();
+        (ClientState::Renewing(_), DhcpMessageType::Nak) =>
+            if !self.ignore_naks
+                self.reset()
+EOF fn process
+EOF socket_ingress
+
+// smoltcp/src/iface/interface/mod.rs
+fn socket_egress<D>(&mut self, device: &mut D, sockets: &mut SocketSet<'_>) -> bool
+where
+    D: Device + ?Sized,
+    let _caps = device.capabilities();
+    enum EgressError {
+        Exhausted,
+        Dispatch(DispatchError),
+    }
+    let _caps = device.capabilities();
+    enum EgressError {
+        Exhausted,
+        Dispatch(DispatchError),
+    }
+    for item in sockets.items_mut()    
+        if !item.meta.egress_permitted(...
+            continue
+        let mut respond = |inner: &mut InterfaceInner, meta: PacketMeta, response: Packet| {
+            let t = device.transmit(inner.now).ok_or_else(... EgressError::Exhausted
+###                            // smoltcp::phy::Device trait's transmit
+            inner.dispatch_ip(t, meta, response, &mut self.fragmenter).map_err(... EgressError::Dispatch
+        }
+        let result = match &mut item.socket
+            Socket::Raw(socket) =>
+            ...
+            Socket::Icmp(socket) =>
+            ...
+            Socket::Udp(socket) =>
+            ...
+            Socket::Tcp(socket) =>
+            ...
+            Socket::Dhcpv4(socket) =>
+                socket.dispatch(&mut self.inner, |inner, (ip, udp, dhcp)| {
+                    respond(inner, PacketMeta::default(), Packet::new_ipv4(ip, IpPayload::Dhcpv4(udp, dhcp)))
+                })
+            Socket::Dns(socket) =>
+        match result 
+            Err(EgressError::Exhausted) => break, // Device buffer full.
+            Err(EgressError::Dispatch(_)) => ...
+            Ok(()) => {}
+EOF socket_egress
+
+// smoltcp/src/iface/interface/mod.rs
+impl InterfaceInner
+    fn dispatch_ip<Tx: TxToken>(
+        &mut self,
+        // NOTE(unused_mut): tx_token isn't always mutated, depending on
+        // the feature set that is used.
+        #[allow(unused_mut)]
+        mut tx_token: Tx,
+        meta: PacketMeta,
+        packet: Packet,
+        frag: &mut Fragmenter,
+    ) -> Result<(), DispatchError>
+    let mut ip_repr = packet.ip_repr();
+    let caps = self.caps.clone();
+    // First we calculate the total length that we will have to emit.
+    let mut total_len = ip_repr.buffer_len();
+    // Add the size of the Ethernet header
+    if matches!(self.caps.medium, Medium::Ethernet) {
+        total_len = EthernetFrame::<&[u8]>::buffer_len(total_len);
+    }
+    // we need to retrieve the destination hardware address.
+    let (dst_hardware_addr, mut tx_token) = match self.caps.medium {
+        Medium::Ethernet =>
+            match self.lookup_hardware_addr(
+                tx_token,
+                &ip_repr.src_addr(),
+                &ip_repr.dst_addr(),
+                frag,
+            )? {
+                (HardwareAddress::Ethernet(addr), tx_token) => (addr, tx_token),
+                (_, _) => unreachable!(),
+            }
+        _ => (EthernetAddress([0; 6]), tx_token),
+    }
+    // Emit function for the Ethernet header.
+    let emit_ethernet = |repr: &IpRepr, tx_buffer: &mut [u8]| {
+        let mut frame = EthernetFrame::new_unchecked(tx_buffer);
+        let src_addr = self.hardware_addr.ethernet_or_panic();
+        frame.set_src_addr(src_addr);
+        frame.set_dst_addr(dst_hardware_addr);
+        IpVersion::Ipv4 => frame.set_ethertype(EthernetProtocol::Ipv4)
+        Ok(())
+    }
+    // Emit function for the IP header and payload.
+    let emit_ip = |repr: &IpRepr, mut tx_buffer: &mut [u8]| {
+        repr.emit(&mut tx_buffer, &self.caps.checksum);
+        let payload = &mut tx_buffer[repr.header_len()..];
+        packet.emit_payload(repr, payload, &caps)
+    }
+    let total_ip_len = ip_repr.buffer_len();
+    match &mut ip_repr
+        IpRepr::Ipv4(repr) => 
+            // If we have an IPv4 packet, then we need to check if we need to fragment it.
+            if total_ip_len > self.caps.max_transmission_unit
+                ...
+                #[cfg(not(feature = "proto-ipv4-fragmentation"))]
+                net_debug!("Enable the `proto-ipv4-fragmentation` feature for fragmentation support.");
+            else
+                tx_token.set_meta(meta);
+                // No fragmentation is required.
+                tx_token.consume(total_len, |mut tx_buffer|
+                    if matches!(self.caps.medium, Medium::Ethernet) {
+                        emit_ethernet(&ip_repr, tx_buffer)?;
+                        tx_buffer = &mut tx_buffer[EthernetFrame::<&[u8]>::header_len()..];
+                    }
+                    emit_ip(&ip_repr, tx_buffer);
+                    Ok(())
+    EOF dispatch_ip (emit_payload then emit_ethernet then emit_ip)
+
+        
+// wakers, polls/poll_fns, awaits 
+
+// embassy-net/src/lib.rs
+struct Inner<D: Driver>
+    ...
+    config_waker: WakerRegistration,
+    ...
+
+// embassy-net/src/lib.rs
+pub(crate) struct SocketStack
+    ...
+    pub(crate) waker: WakerRegistration,
+    ...
+
+// embassy-net/src/lib.rs
+impl<D: Driver> Stack<D>
+    pub fn new<const SOCK: usize>
+        ...
+        let mut socket = SocketStack {
+            sockets,
+            iface,
+            waker: WakerRegistration::new(),
+            next_local_port,
+        };
+        ...
+        let mut inner = Inner {
+            ...
+            config_waker: WakerRegistration::new(),
+            ...
+        }
+
+    pub async fn wait_config_up(&self)
+        poll_fn(|cx| {
+            if self.is_config_up()
+                Poll::Ready(())
+            else
+            ...
+                self.with_mut(|_, i|
+                    i.config_waker.register(cx.waker());
+            Poll::Pending
+        }).await
+
+    pub async fn run(&self) -> ! 
+        poll_fn(|cx| 
+            self.with_mut(|s, i| i.poll(cx, s));            // poll Inner with SocketStack (we have only one: dhcp socket)
+            Poll::<()>::Pending                             // never returns
+            unreachable!()
+        ).await
+
+// embassy-net/src/lib.rs
+impl<D: Driver> Inner<D>
+    fn apply_static_config(&mut self, s: &mut SocketStack)
+        ...
+        // at the end
+        self.config_waker.wake();
+
+    fn poll(&mut self, cx: &mut Context<'_>, s: &mut SocketStack)   // polled from 'net_task(stack:'s 'stack.run().await'
+        s.waker.register(cx.waker());
+        ...
+        s.iface.poll(timestamp, &mut smoldev, &mut s.sockets);      // smoltcp interface call -> build/send/rec to phy
+        ...
+        if let Some(dhcp_handle) = self.dhcp_socket
+            let socket = s.sockets.get_mut::<dhcpv4::Socket>(dhcp_handle);
+            match socket.poll()                                     // 
+                None => {}
+                Some(dhcpv4::Event::Deconfigured) =>
+                Some(dhcpv4::Event::Configured(config)) => 
+        ...
+        if apply_config 
+            self.apply_static_config(s);                    // see above
+        ...
+        let t = Timer::at(instant_from_smoltcp(poll_at))    // future
+        pin_mut!(t);
+        if t.poll(cx).is_ready()                             // poll can be Pending -> timeout
+            cx.waker().wake_by_ref();                        // timout elapsed
+    
+
+// so dhcp is implemented in embassy-net's lib
+// dns, udp and tcp got separate module (dns.rs, udp.rs, tcp.rs)
+
+
+// wakers, polls, awaits in wifi device and driver
+// esp-wifi/src/wifi/mod.rs
+pub(crate) mod embassy
+    // We can get away with a single tx waker because the transmit queue is shared between interfaces.
+    pub(crate) static TRANSMIT_WAKER: AtomicWaker = AtomicWaker::new();
+
+    pub(crate) static STA_RECEIVE_WAKER: AtomicWaker = AtomicWaker::new();
+    pub(crate) static STA_LINK_STATE_WAKER: AtomicWaker = AtomicWaker::new();
+
+// esp-wifi/src/wifi/mod.rs
+unsafe extern "C" fn recv_cb_sta
+    ...
+    embassy::STA_RECEIVE_WAKER.wake()               // calbacks call its waker directly
+
+// esp-wifi/src/wifi/mod.rs
+unsafe extern "C" fn esp_wifi_tx_done_cb
+    embassy::TRANSMIT_WAKER.wake();                 // calbacks call its waker directly
+
+// esp-wifi/src/wifi/mod.rs
+pub trait Sealed: Copy + Sized 
+    fn register_transmit_waker(self, cx: &mut core::task::Context)
+        embassy::TRANSMIT_WAKER.register(cx.waker())
+    fn register_receive_waker(self, cx: &mut core::task::Context);
+    fn register_link_state_waker(self, cx: &mut core::task::Context);
+
+// esp-wifi/src/wifi/mod.rs
+impl Sealed for WifiStaDevice {
+    type Config = ClientConfiguration;
+    fn register_receive_waker(self, cx: &mut core::task::Context)
+        embassy::STA_RECEIVE_WAKER.register(cx.waker())
+    fn register_link_state_waker(self, cx: &mut core::task::Context)
+        embassy::STA_LINK_STATE_WAKER.register(cx.waker());
+
+// esp-wifi/src/wifi/mod.rs    
+impl<MODE: WifiDeviceMode> Driver for WifiDevice<'_, MODE>          // this is the Driver trait
+                                                                    // see the Device trait below (boundary of phy device)
+    type RxToken<'a> = WifiRxToken<MODE> where Self: 'a;
+    type TxToken<'a> = WifiTxToken<MODE> where Self: 'a;
+    fn receive
+        self.mode.register_receive_waker(cx);
+        self.mode.register_transmit_waker(cx);
+        self.mode.rx_token()                                        // return with device.mode.rx_token()
+    fn transmit(&mut self, cx: &mut core::task::Context) -> Option<Self::TxToken<'_>>
+        self.mode.register_transmit_waker(cx);
+        self.mode.tx_token()                                        // / return with device.mode.tx_token()
+    fn link_state(&mut self, cx: &mut core::task::Context) -> embassy_net_driver::LinkState
+        self.mode.register_link_state_waker(cx);
+        self.mode.link_state()
+
+// esp-wifi/src/wifi/mod.rs
+impl<'d> WifiController<'d>
+    impl WifiEvent 
+        pub(crate) fn waker(&self) -> &'static AtomicWaker 
+            match self 
+                WifiEvent::ScanDone =>
+                    static WAKER: AtomicWaker = AtomicWaker::new();
+                    &WAKER
+                WifiEvent::StaStart =>
+                    ...
+                WifiEvent::StaConnected =>
+                    ...
+                WifiEvent::StaDisconnected =>
+                    ...
+                WifiEvent::StaStop =>
+                    ...
+                WifiEvent::WifiReady =>
+                    ...
+                WifiEvent::StaAuthmodeChange =>
+                    ...
+                WifiEvent::StaWpsErSuccess =>
+                    ...
+                WifiEvent::StaWpsErFailed => 
+                    ...
+                WifiEvent::StaWpsErTimeout =>
+                    ...
+                WifiEvent::StaWpsErPin =>
+                    ...
+                WifiEvent::StaWpsErPbcOverlap =>
+                    ...
+                WifiEvent::FtmReport =>
+                    ...
+                WifiEvent::StaBssRssiLow =>
+                    ...
+                WifiEvent::ActionTxStatus =>
+                    ...
+                WifiEvent::RocDone =>
+                    ...
+                WifiEvent::StaBeaconTimeout =>
+                    ...
+
+// esp-wifi/src/wifi/mod.rs
+impl WifiEventFuture
+    type Output = ();
+    fn poll(                                    // wait for an event in WIFI_EVENTS
+        self: core::pin::Pin<&mut Self>,
+        cx: &mut core::task::Context<'_>,
+    ) -> Poll<Self::Output>
+    self.event.waker().register(cx.waker());    // get waker from WifiEvent (see above), then register that waker
+    if critical_section::with(|cs| WIFI_EVENTS.borrow_ref_mut(cs).remove(self.event))
+                                // Removes a value from this set. Returns whether the value was present in the set.
+        Poll::Ready(())
+    else
+        Poll::Pending
+
+// esp-wifi/src/wifi/mod.rs
+impl core::future::Future for MultiWifiEventFuture
+    type Output = EnumSet<WifiEvent>;
+    fn poll(                                        // wait for events in WIFI_EVENTS, returning their sets
+        self: core::pin::Pin<&mut Self>,
+        cx: &mut core::task::Context<'_>,
+    ) -> Poll<Self::Output>
+        let output = critical_section::with(|cs| {
+            let mut events = WIFI_EVENTS.borrow_ref_mut(cs);
+            let active = events.intersection(self.event);
+            events.remove_all(active);
+            active
+        }
+        if output.is_empty()
+            for event in self.event.iter() 
+                event.waker().register(cx.waker());
+            Poll::Pending
+        else
+            Poll::Ready(output)
+
+// esp-wifi/src/wifi/os_adapter.rs
+pub unsafe extern "C" fn event_post(
+    event_base: *const crate::binary::c_types::c_char,
+    event_id: i32,
+    event_data: *mut crate::binary::c_types::c_void,
+    event_data_size: usize,
+    ticks_to_wait: u32,
+) -> i32
+    let event = unwrap!(WifiEvent::from_i32(event_id));         // here we create/found the proper wifi event
+    critical_section::with(|cs| WIFI_EVENTS.borrow_ref_mut(cs).insert(event));
+    event.waker().wake();                                       // here we call the WifiEvent registered waker
+    match event
+        WifiEvent::StaConnected | WifiEvent::StaDisconnected => // in case these events we additionall call this waker
+            crate::wifi::embassy::STA_LINK_STATE_WAKER.wake()
+
+
+// receive, transmit boundary of phy device
+// trebich-wifi/src/bin/basic.rs
+#[embassy_executor::task]
+async fn net_task(stack: &'static Stack<WifiDevice<'static, WifiStaDevice>>)
+    stack.run().await   ->
+
+impl<D: Driver> Stack<D>
+// embassy-net/src/lib.rs
+impl<D: Driver> Stack<D>
+    pub async fn run(&self) -> !
+        poll_fn(|cx| {
+            self.with_mut(|s, i| i.poll(cx, s));
+            Poll::<()>::Pending
+        })
+        .await; ->
+
+// core/src/future/poll_fn.rs
+impl<T, F> Future for PollFn<F>
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<T>
+        (unsafe { &mut self.get_unchecked_mut().f })(cx)    ->
+
+self.with_mut(|s, i| i.poll(cx, s));    ->          // see in 'async fn run(&self) -> !' above
+
+impl<D: Driver> Stack<D>
+    fn with_mut<R>(&self, f: impl FnOnce(&mut SocketStack, &mut Inner<D>) -> R) -> R
+        f(
+            &mut *self.socket.borrow_mut(),
+            &mut *self.inner.borrow_mut(),          // Driver -> Inner
+        ) ->
+
+self.with_mut(|s, i| i.poll(cx, s));    ->          // see in 'async fn run(&self) -> !' above
+
+// embassy-net/src/lib.rs
+impl<D: Driver> Inner<D>
+    fn poll(&mut self, cx: &mut Context<'_>, s: &mut SocketStack)
+        ...
+        let mut smoldev = DriverAdapter {
+            cx: Some(cx),
+            inner: &mut self.device, // embassy_net::Inner::device
+            // which implements smoltcp::phy::Devive trait
+            medium,
+        };
+        s.iface.poll(timestamp, &mut smoldev, &mut s.sockets);  ->
+
+// smoltcp/src/iface/interface/mod.rs
+impl Interface
+    pub fn poll<D>(
+        &mut self,
+        timestamp: Instant,
+        device: &mut D,
+        sockets: &mut SocketSet<'_>,
+    ) -> bool
+        ...
+        loop 
+            ..
+            did_something |= self.socket_egress(device, sockets);   ->
+
+    fn socket_egress<D>(&mut self, device: &mut D, sockets: &mut SocketSet<'_>) -> bool
+        ...
+        let mut respond = |inner: &mut InterfaceInner, meta: PacketMeta, response: Packet|
+            let t = device.transmit(inner.now).ok_or_else(||
+            inner.dispatch_ip(t, meta, response, &mut self.fragmenter).map_err()
+        ...
+        let result = match &mut item.socket
+            ...
+            Socket::Dhcpv4(socket) => 
+                socket.dispatch(&mut self.inner, |inner, (ip, udp, dhcp)| {
+                    respond(                                                    // closure, see several lines above
+                        inner,
+                        PacketMeta::default(),
+                        Packet::new_ipv4(ip, IpPayload::Dhcpv4(udp, dhcp)),
+                    )
+                }) ->
+
+// smoltcp/src/socket/dhcpv4.rs
+impl<'a> Socket<'a>
+    pub(crate) fn dispatch<F, E>(&mut self, cx: &mut Context, emit: F) -> Result<(), E>
+    where
+        F: FnOnce(&mut Context, (Ipv4Repr, UdpRepr, DhcpRepr)) -> Result<(), E>,
+        let mut dhcp_repr = DhcpRepr {...
+        let udp_repr = UdpRepr {...
+        let mut ipv4_repr = Ipv4Repr {...
+        match &mut self.state
+            ClientState::Discovering(state) => 
+                ...
+                emit(cx, (ipv4_repr, udp_repr, dhcp_repr))?;    ->          // this is the respond closure
+            ClientState::Requesting(state) =>
+            ClientState::Renewing(state) =>
+
+// see above in socket_egress
+respond(
+    inner,
+    PacketMeta::default(),
+    Packet::new_ipv4(ip, IpPayload::Dhcpv4(udp, dhcp)),
+)   ->
+    let t = device.transmit(inner.now).ok_or_else(                          // get <D as Device>::TxToken
+                                                                            // see below
+    inner.dispatch_ip(t, meta, response, &mut self.fragmenter).map_err( ->
+
+// smoltcp/src/iface/interface/mod.rs
+impl InterfaceInner
+    fn dispatch_ip<Tx: TxToken>(
+        &mut self,
+        // NOTE(unused_mut): tx_token isn't always mutated, depending on
+        // the feature set that is used.
+        #[allow(unused_mut)] mut tx_token: Tx,
+        meta: PacketMeta,
+        packet: Packet,
+        frag: &mut Fragmenter,
+    ) -> Result<(), DispatchError>
+        let mut ip_repr = packet.ip_repr();
+        let caps = self.caps.clone();
+        // First we calculate the total length that we will have to emit.
+        let mut total_len = ip_repr.buffer_len();
+        // Add the size of the Ethernet header if the medium is Ethernet.
+        if matches!(self.caps.medium, Medium::Ethernet) {
+            total_len = EthernetFrame::<&[u8]>::buffer_len(total_len);
+        }
+        // If the medium is Ethernet, then we need to retrieve the destination hardware address.
+        let (dst_hardware_addr, mut tx_token) = match self.caps.medium 
+            Medium::Ethernet =>
+                Medium::Ethernet => {
+                match self.lookup_hardware_addr(
+                    tx_token,
+                    &ip_repr.src_addr(),
+                    &ip_repr.dst_addr(),
+                    frag,
+                )? {
+                    (HardwareAddress::Ethernet(addr), tx_token) => (addr, tx_token),
+                    (_, _) => unreachable!(),
+                }
+                _ => (EthernetAddress([0; 6]), tx_token),
+            }
+        // Emit function for the Ethernet header.
+        let emit_ethernet = |repr: &IpRepr, tx_buffer: &mut [u8]|
+            let mut frame = EthernetFrame::new_unchecked(tx_buffer);
+            let src_addr = self.hardware_addr.ethernet_or_panic();
+            frame.set_src_addr(src_addr);
+            frame.set_dst_addr(dst_hardware_addr);
+            match repr.version()
+                IpVersion::Ipv4 => frame.set_ethertype(EthernetProtocol::Ipv4),
+                ...
+        // Emit function for the IP header and payload.
+        let emit_ip = |repr: &IpRepr, mut tx_buffer: &mut [u8]|
+            repr.emit(&mut tx_buffer, &self.caps.checksum);
+            let payload = &mut tx_buffer[repr.header_len()..];
+            packet.emit_payload(repr, payload, &caps)
+        let total_ip_len = ip_repr.buffer_len();
+        match &mut ip_repr
+            IpRepr::Ipv4(repr) =>
+                if total_ip_len > self.caps.max_transmission_unit
+                else
+                    tx_token.set_meta(meta);
+                    tx_token.consume(total_len, |mut tx_buffer| ->
+
+                        if matches!(self.caps.medium, Medium::Ethernet) {                        #
+                            emit_ethernet(&ip_repr, tx_buffer)?;                                 #
+                            tx_buffer = &mut tx_buffer[EthernetFrame::<&[u8]>::header_len()..];  #
+                        }                                                                        #
+                        emit_ip(&ip_repr, tx_buffer);                                            #
+                        Ok(())                                                                   # this is f (closure)
+
+// embassy-net/src/device.rs
+impl<T> phy::TxToken for TxTokenAdapter<T>                      // driver transfers
+    fn consume<R, F>(self, len: usize, f: F) -> R
+    where
+        F: FnOnce(&mut [u8]) -> R,
+        self.0.consume(len, |buf|
+            let r = f(buf);                                     // tranfer call
+
+// /esp-wifi/src/wifi/mod.rs
+pub(crate) mod embassy
+    impl<MODE: WifiDeviceMode> TxToken for WifiTxToken<MODE>
+        where
+            F: FnOnce(&mut [u8]) -> R,
+            self.consume_token(len, f)
+
+// esp-wifi/src/wifi/mod.rs
+impl<MODE: Sealed> WifiTxToken<MODE>
+    pub fn consume_token<R, F>(self, len: usize, f: F) -> R
+    where
+        F: FnOnce(&mut [u8]) -> R,
+        self.mode.increase_in_flight_counter();
+        static mut BUFFER: [u8; DATA_FRAME_SIZE] = [0u8; DATA_FRAME_SIZE];
+        let buffer = unsafe { &mut BUFFER[..len] };
+        let res = f(buffer);                                    // call closure and get tx buffer
+        esp_wifi_send_data(self.mode.interface(), buffer);      // physical sending via phy
+        res
+
+// getting the token
+// embassy-net/src/device.rs
+impl<'d, 'c, T> phy::Device for DriverAdapter<'d, 'c, T>        // caled e.g. from socket_egress 
+    fn transmit(&mut self, _timestamp: Instant) -> Option<Self::TxToken<'_>> {
+        self.inner.transmit(unwrap!(self.cx.as_deref_mut())).map(TxTokenAdapter)    // embassy_net_driver::Driver's transmit
+    }
+
+/Users/piv/esp/sandbox/esp-wifi/src/wifi/mod.rs
+impl<MODE: WifiDeviceMode> Driver for WifiDevice<'_, MODE>
+    fn receive(
+        &mut self,
+        cx: &mut core::task::Context,
+    ) -> Option<(Self::RxToken<'_>, Self::TxToken<'_>)> {
+        self.mode.register_receive_waker(cx);
+        self.mode.register_transmit_waker(cx);
+        self.mode.rx_token()                                    // 
+    }
+
+// esp-wifi/src/wifi/mod.rs
+impl<MODE: WifiDeviceMode> Device for WifiDevice<'_, MODE>      // see above
+    type RxToken<'a> = WifiRxToken<MODE> where Self: 'a;
+    type TxToken<'a> = WifiTxToken<MODE> where Self: 'a;
+    fn receive(
+        &mut self,
+        _instant: smoltcp::time::Instant,
+    ) -> Option<(Self::RxToken<'_>, Self::TxToken<'_>)> {
+        self.mode.rx_token()                                    // called from/retunr to the driver
+    }
+    fn transmit(&mut self, _instant: smoltcp::time::Instant) -> Option<Self::TxToken<'_>> {
+        self.mode.tx_token()                                    // called from/retunr to the driver
+    }

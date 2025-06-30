@@ -89,7 +89,7 @@ fn panic_handler(info: &core::panic::PanicInfo) -> ! {
 }
 
 #[cfg(all(feature = "exception-handler", target_arch = "riscv32"))]
-#[export_name = "ExceptionHandler"]
+#[unsafe(export_name = "ExceptionHandler")]
 // 123
 fn exception_handler(context: &arch::TrapFrame) -> ! {
     let mepc = context.pc;

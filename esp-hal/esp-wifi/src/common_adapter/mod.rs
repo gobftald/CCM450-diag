@@ -7,7 +7,7 @@ use crate::{
         common::{sem_create, sem_delete, sem_give, sem_take, str_from_c},
         timer_compat::compat_timer_disarm,
     },
-    hal::ram,
+    hal::{self, ram},
 };
 
 // 19
@@ -95,6 +95,51 @@ pub unsafe extern "C" fn semphr_take(
 // 112
 pub unsafe extern "C" fn semphr_give(semphr: *mut crate::binary::c_types::c_void) -> i32 {
     sem_give(semphr)
+}
+
+/// **************************************************************************
+/// Name: esp_wifi_read_mac
+///
+/// Description:
+///   Read MAC address from efuse
+///
+/// Input Parameters:
+///   mac  - MAC address buffer pointer
+///   type - MAC address type
+///
+/// Returned Value:
+///   0 if success or -1 if fail
+///
+/// *************************************************************************
+// 144
+pub unsafe extern "C" fn read_mac(mac: *mut u8, type_: u32) -> crate::binary::c_types::c_int {
+    trace!("read_mac {:?} {}", mac, type_);
+
+    let base_mac = hal::efuse::Efuse::mac_address();
+
+    for (i, &byte) in base_mac.iter().enumerate() {
+        unsafe {
+            mac.add(i).write_volatile(byte);
+        }
+    }
+
+    unsafe {
+        // ESP_MAC_WIFI_SOFTAP
+        if type_ == 1 {
+            let tmp = mac.offset(0).read_volatile();
+            for i in 0..64 {
+                mac.offset(0).write_volatile(tmp | 0x02);
+                mac.offset(0)
+                    .write_volatile(mac.offset(0).read_volatile() ^ (i << 2));
+
+                if mac.offset(0).read_volatile() != tmp {
+                    break;
+                }
+            }
+        }
+    }
+
+    0
 }
 
 // other functions
