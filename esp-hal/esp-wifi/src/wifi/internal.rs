@@ -6,17 +6,18 @@ use esp_wifi_sys::include::{
 
 // 10
 use super::os_adapter::{
-    calloc_internal, free, log_timestamp, log_write, log_writev, malloc, malloc_internal,
-    mutex_delete, mutex_lock, mutex_unlock, queue_recv, queue_send, recursive_mutex_create,
-    spin_lock_create, spin_lock_delete, task_create_pinned_to_core, task_delay,
-    task_get_current_task, task_get_max_priority, task_ms_to_tick, wifi_calloc, wifi_create_queue,
-    wifi_delete_queue, wifi_int_disable, wifi_int_restore, wifi_malloc, wifi_thread_semphr_get,
-    wifi_zalloc, zalloc_internal,
+    calloc_internal, coex_register_start_cb, coex_schm_register_cb_wrapper, free, log_timestamp,
+    log_write, log_writev, malloc, malloc_internal, mutex_delete, mutex_lock, mutex_unlock,
+    queue_recv, queue_send, recursive_mutex_create, spin_lock_create, spin_lock_delete,
+    task_create_pinned_to_core, task_delay, task_get_current_task, task_get_max_priority,
+    task_ms_to_tick, wifi_calloc, wifi_create_queue, wifi_delete_queue, wifi_int_disable,
+    wifi_int_restore, wifi_malloc, wifi_thread_semphr_get, wifi_zalloc, zalloc_internal,
 };
 
 // 11
 use crate::common_adapter::{
-    ets_timer_disarm, read_mac, semphr_create, semphr_delete, semphr_give, semphr_take,
+    ets_timer_disarm, ets_timer_setfn, read_mac, semphr_create, semphr_delete, semphr_give,
+    semphr_take,
 };
 
 #[unsafe(no_mangle)]
@@ -81,7 +82,7 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _timer_arm: None,                             // 224 Some(ets_timer_arm),
     _timer_disarm: Some(ets_timer_disarm),        // 228
     _timer_done: None,                            // 232 Some(ets_timer_done),
-    _timer_setfn: None,                           // 236 Some(ets_timer_setfn),
+    _timer_setfn: Some(ets_timer_setfn),          // 236
     _timer_arm_us: None,                          // 240 Some(ets_timer_arm_us),
     _wifi_reset_mac: None,                        // 244 Some(wifi_reset_mac),
     _wifi_clock_enable: None,                     // 248 Some(wifi_clock_enable),
@@ -105,11 +106,8 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _get_time: None,                              // 320 Some(get_time),
     _random: None,                                // 324 Some(random),
 
-    // experience from an earlier implementation
-    // _slowclk_cal_get was inserted here
-    #[cfg(any(esp32c3, esp32c2, esp32c6, esp32h2, esp32s3, esp32s2))]
-    _slowclk_cal_get: None, // 328 Some(slowclk_cal_get)
-
+    //here is the _slowclk_cal_get position
+    //
     #[cfg(feature = "sys-logs")]
     _log_write: Some(log_write), // 332
     #[cfg(not(feature = "sys-logs"))]
@@ -147,31 +145,30 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _coex_schm_curr_period_get: None,            // 444 Some(coex_schm_curr_period_get),
     _coex_schm_curr_phase_get: None,             // 448 Some(coex_schm_curr_phase_get),
 
-    /*
-    //#[cfg(any(esp32c3, esp32c2, esp32c6, esp32h2, esp32s3, esp32s2))]
-    _slowclk_cal_get: None, // 448 Some(slowclk_cal_get),
-    */
-    //#[cfg(any(esp32, esp32s2))]
-    //_phy_common_clock_disable: Some(os_adapter_chip_specific::phy_common_clock_disable),
-    //#[cfg(any(esp32, esp32s2))]
-    //_phy_common_clock_enable: Some(os_adapter_chip_specific::phy_common_clock_enable),
-    _coex_register_start_cb: None, //Some(coex_register_start_cb),
+    #[cfg(any(esp32c3, esp32c2, esp32c6, esp32h2, esp32s3, esp32s2))]
+    _slowclk_cal_get: None, // 328 Some(slowclk_cal_get),
 
-    //#[cfg(esp32c6)]
-    //_regdma_link_set_write_wait_content: Some(
-    //    os_adapter_chip_specific::regdma_link_set_write_wait_content_dummy,
-    //),
-    //#[cfg(esp32c6)]
-    //_sleep_retention_find_link_by_id: Some(
-    //    os_adapter_chip_specific::sleep_retention_find_link_by_id_dummy,
-    //),
-    _coex_schm_process_restart: None, //Some(coex_schm_process_restart_wrapper),
-    _coex_schm_register_cb: None,     //Some(coex_schm_register_cb_wrapper),
+    #[cfg(any(esp32, esp32s2))]
+    _phy_common_clock_disable: Some(os_adapter_chip_specific::phy_common_clock_disable),
+    #[cfg(any(esp32, esp32s2))]
+    _phy_common_clock_enable: Some(os_adapter_chip_specific::phy_common_clock_enable),
+    _coex_register_start_cb: Some(coex_register_start_cb), // 460
 
-    _magic: ESP_WIFI_OS_ADAPTER_MAGIC as i32,
+    #[cfg(esp32c6)]
+    _regdma_link_set_write_wait_content: Some(
+        os_adapter_chip_specific::regdma_link_set_write_wait_content_dummy,
+    ),
+    #[cfg(esp32c6)]
+    _sleep_retention_find_link_by_id: Some(
+        os_adapter_chip_specific::sleep_retention_find_link_by_id_dummy,
+    ),
+    _coex_schm_process_restart: None, // 452 Some(coex_schm_process_restart_wrapper),
+    _coex_schm_register_cb: Some(coex_schm_register_cb_wrapper), // 456
 
-    _coex_schm_flexible_period_set: None, //Some(coex_schm_flexible_period_set),
-    _coex_schm_flexible_period_get: None, //Some(coex_schm_flexible_period_get),
+    _magic: ESP_WIFI_OS_ADAPTER_MAGIC as i32, // 472
+
+    _coex_schm_flexible_period_set: None, // 464 Some(coex_schm_flexible_period_set),
+    _coex_schm_flexible_period_get: None, // 468 Some(coex_schm_flexible_period_get),
 };
 
 // 214

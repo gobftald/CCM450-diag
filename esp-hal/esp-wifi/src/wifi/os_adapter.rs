@@ -669,3 +669,38 @@ pub unsafe extern "C" fn wifi_delete_queue(queue: *mut crate::binary::c_types::c
         }
     }
 }
+
+// 2020
+pub unsafe extern "C" fn coex_schm_register_cb_wrapper(
+    arg1: esp_wifi_sys::c_types::c_int,
+    cb: ::core::option::Option<
+        unsafe extern "C" fn(arg1: esp_wifi_sys::c_types::c_int) -> esp_wifi_sys::c_types::c_int,
+    >,
+) -> esp_wifi_sys::c_types::c_int {
+    trace!("coex_schm_register_cb_wrapper {} {:?}", arg1, cb);
+
+    //#[cfg(not(coex))]
+    return 0;
+
+    /*
+    #[cfg(coex)]
+    unsafe {
+        crate::binary::include::coex_schm_register_callback(
+            arg1 as u32,
+            unwrap!(cb) as *const esp_wifi_sys::c_types::c_void
+                as *mut esp_wifi_sys::c_types::c_void,
+        )
+    }
+    */
+}
+
+// 2073
+pub unsafe extern "C" fn coex_register_start_cb(
+    _cb: Option<unsafe extern "C" fn() -> esp_wifi_sys::c_types::c_int>,
+) -> esp_wifi_sys::c_types::c_int {
+    //#[cfg(coex)]
+    //return unsafe { esp_wifi_sys::include::coex_register_start_cb(_cb) };
+
+    //#[cfg(not(coex))]
+    0
+}

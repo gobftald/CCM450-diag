@@ -17,6 +17,11 @@ pub(crate) struct TimerCallback {
 
 // 16
 impl TimerCallback {
+    // 17
+    fn new(f: unsafe extern "C" fn(*mut c_types::c_void), args: *mut c_types::c_void) -> Self {
+        Self { f, args }
+    }
+
     // 21
     pub(crate) fn call(self) {
         unsafe { (self.f)(self.args) };
@@ -87,6 +92,23 @@ impl TimerQueue {
 
         None
     }
+
+    fn push(&mut self, to_add: Box<Timer>) -> Result<(), ()> {
+        if self.head.is_none() {
+            self.head = Some(to_add);
+            return Ok(());
+        }
+
+        let mut current = self.head.as_mut();
+        while let Some(timer) = current {
+            if timer.next.is_none() {
+                timer.next = Some(to_add);
+                break;
+            }
+            current = timer.next.as_mut();
+        }
+        Ok(())
+    }
 }
 
 // 145
@@ -102,6 +124,47 @@ pub fn compat_timer_disarm(ets_timer: *mut ets_timer) {
                 timer.active = false;
             } else {
                 trace!("timer_disarm {:x} not found", ets_timer as usize);
+            }
+        });
+    }
+}
+
+// 203
+pub(crate) fn compat_timer_setfn(
+    ets_timer: *mut ets_timer,
+    pfunction: unsafe extern "C" fn(*mut c_types::c_void),
+    parg: *mut c_types::c_void,
+) {
+    trace!(
+        "timer_setfn {:x} {:?} {:?}",
+        ets_timer as usize, pfunction, parg
+    );
+    unsafe {
+        let set = TIMERS.with(|timers| {
+            if let Some(timer) = timers.find(ets_timer) {
+                timer.callback = TimerCallback::new(pfunction, parg);
+                timer.active = false;
+
+                (*ets_timer).expire = 0;
+
+                true
+            } else {
+                (*ets_timer).next = core::ptr::null_mut();
+                (*ets_timer).period = 0;
+                (*ets_timer).func = None;
+                (*ets_timer).priv_ = core::ptr::null_mut();
+
+                let timer =
+                    crate::compat::malloc::calloc(1, core::mem::size_of::<Timer>()) as *mut Timer;
+                (*timer).next = None;
+                (*timer).ets_timer = ets_timer;
+                (*timer).started = 0;
+                (*timer).timeout = 0;
+                (*timer).active = false;
+                (*timer).periodic = false;
+                (*timer).callback = TimerCallback::new(pfunction, parg);
+
+                timers.push(Box::from_raw(timer)).is_ok()
             }
         });
     }
