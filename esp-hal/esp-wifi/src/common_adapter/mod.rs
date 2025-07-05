@@ -143,6 +143,7 @@ pub unsafe extern "C" fn read_mac(mac: *mut u8, type_: u32) -> crate::binary::c_
 }
 
 // other functions
+#[allow(unused_variables)]
 #[unsafe(no_mangle)]
 // 213
 pub unsafe extern "C" fn puts(s: *const c_char) {

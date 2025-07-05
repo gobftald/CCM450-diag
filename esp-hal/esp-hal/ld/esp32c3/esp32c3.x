@@ -14,6 +14,7 @@ SECTIONS {
   {
     KEEP(*(.trap));
     *(.trap.*);
+    . = ALIGN(4);
   } > RWTEXT
 }
 INSERT BEFORE .rwtext;

@@ -523,6 +523,64 @@ impl Cursor {
 
         Ok(())
     }
+
+    // Merge the current node with up to n following nodes
+    // 572
+    fn try_merge_next_n(self, max: usize) {
+        let Cursor {
+            prev: _,
+            mut hole,
+            top,
+            ..
+        } = self;
+
+        for _ in 0..max {
+            // Is there a next node?
+            let mut next = if let Some(next) = unsafe { hole.as_mut() }.next.as_ref() {
+                *next
+            } else {
+                // Since there is no NEXT node, we need to check whether the current
+                // hole SHOULD extend to the end, but doesn't. This would happen when
+                // there isn't enough remaining space to place a hole after the current
+                // node's placement.
+                check_merge_top(hole, top);
+                return;
+            };
+
+            // Can we directly merge these? e.g. are they touching?
+            //
+            // NOTE: Because we always use `HoleList::align_layout`, the size of
+            // the new hole is always "rounded up" to cover any partial gaps that
+            // would have occurred. For this reason, we DON'T need to "round up"
+            // to account for an unaligned hole spot.
+            let hole_u8 = hole.as_ptr().cast::<u8>();
+            let hole_sz = unsafe { hole.as_ref().size };
+            let next_u8 = next.as_ptr().cast::<u8>();
+            let end = hole_u8.wrapping_add(hole_sz);
+
+            let touching = end == next_u8;
+
+            if touching {
+                let next_sz;
+                let next_next;
+                unsafe {
+                    let next_mut = next.as_mut();
+                    next_sz = next_mut.size;
+                    next_next = next_mut.next.take();
+                }
+                unsafe {
+                    let hole_mut = hole.as_mut();
+                    hole_mut.next = next_next;
+                    hole_mut.size += next_sz;
+                }
+                // Okay, we just merged the next item. DON'T move the cursor, as we can
+                // just try to merge the next_next, which is now our next.
+            } else {
+                // Welp, not touching, can't merge. Move to the next node.
+                hole = next;
+            }
+        }
+    }
 }
 
 /// Frees the allocation given by `(addr, size)`. It starts at the given hole and walks the list to
@@ -573,4 +631,8 @@ fn deallocate(list: &mut HoleList, addr: *mut u8, size: usize) {
             (cursor, 2)
         }
     };
+
+    // We now need to merge up to two times to combine the current node with the next
+    // two nodes.
+    cursor.try_merge_next_n(n);
 }

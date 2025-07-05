@@ -6,7 +6,7 @@ use crate::{
     compat::{
         common::{
             ConcurrentQueue, create_queue, create_recursive_mutex, delete_queue, lock_mutex,
-            receive_queued, send_queued, str_from_c, thread_sem_get, unlock_mutex,
+            receive_queued, send_queued, thread_sem_get, unlock_mutex,
         },
         malloc::calloc,
     },
@@ -268,6 +268,7 @@ pub unsafe extern "C" fn queue_recv(
 ///   True if success or false if fail
 ///
 /// *************************************************************************
+#[allow(unused_variables)]
 // 646
 pub unsafe extern "C" fn task_create_pinned_to_core(
     task_func: *mut crate::binary::c_types::c_void,
@@ -281,7 +282,7 @@ pub unsafe extern "C" fn task_create_pinned_to_core(
     trace!(
         "task_create_pinned_to_core task_func {:?} name {} stack_depth {} param {:?} prio {}, task_handle {:?} core_id {}",
         task_func,
-        unsafe { str_from_c(name as _) },
+        unsafe { crate::compat::common::str_from_c(name as _) },
         stack_depth,
         param,
         prio,
@@ -670,6 +671,7 @@ pub unsafe extern "C" fn wifi_delete_queue(queue: *mut crate::binary::c_types::c
     }
 }
 
+#[allow(unused_variables)]
 // 2020
 pub unsafe extern "C" fn coex_schm_register_cb_wrapper(
     arg1: esp_wifi_sys::c_types::c_int,

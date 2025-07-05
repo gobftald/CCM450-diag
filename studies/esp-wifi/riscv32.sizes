@@ -1,9 +1,11 @@
 DEFMT_LOG=info cargo run --release
 
-esp_image: segment 0: paddr=00010020 vaddr=3c000020 size=00070h (   208) map    .rodata*
-esp_image: segment 1: paddr=00010224 vaddr=3fc80724 size=00024h (    56)        .data
-esp_image: segment 2: paddr=000100c4 vaddr=40380000 size=006cch (  1740) load   .trap* + .rwtext*
-esp_image: segment 4: paddr=00020020 vaddr=42010020 size=01024h (  7280) map    .text*
+
+esp_image: segment 0: paddr=00010020 vaddr=3c000020 size=07fdch ( 32732) map    .rodata*
+esp_image: segment 1: paddr=00018004 vaddr=3fc86b40 size=0132ch (  4908) load   .data
+esp_image: segment 2: paddr=00019338 vaddr=40380000 size=06b40h ( 27456) load   .trap* + .rwtext* + .rwtext.wifi
+esp_image: segment 4: paddr=00020020 vaddr=42010020 size=2f2dch (193244) map    .text*
+
 
 .trap
     40380000 _start_trap:
@@ -15,57 +17,470 @@ esp_image: segment 4: paddr=00020020 vaddr=42010020 size=01024h (  7280) map    
     403801de _start_trap_direct:                                                          168
     40380286 padding                                                                      122
     40380300 _vector_table:                                                               128
-    40380380 _start_trap_rust_hal:                                                         16       914     0x392
-    40380392 padding                                                                        2       2       0x2
+    40380380 _start_trap_rust_hal:                                                         16
+    40380392 padding                                                                        2       916     0x394
+
 
 .rwtext
+    esp_wifi::common_adapter::semphr_take                                                 272
+    esp_wifi::common_adapter::semphr_give                                                  40
     interrupt1
     ...
     interrupt15                                                                           120
 
     handle_interrupts                                                                     432
-    esp_hal::interrupt::riscv::classic::INTERRUPT_TO_PRIORITY                              16
-    esp_hal::interrupt::riscv::classic::PRIORITY_TO_INTERRUPT                              8
+     <internal>                                                                            16                       
     __EXTERNAL_INTERRUPTS                                                                 248
-                                                                                                    824     0x338
+                                                                                                    1128    0x468
+
+
+.rwtext.wifi
+    libpp.a
+        esf_buf.o
+            .wifirxiram.9   esf_buf_recycle                                               324
+            .wifiextrairam.5    esf_buf_alloc_dynamic                                     508
+        if_hwctrl.o
+            .wifislprxiram.12   ic_mac_deinit                                              16
+        lmac.o
+            .wifi0iram.41       lmacMSDUAged                                               92
+            .wifi0iram.57       lmacAdjustTimestamp                                        76
+            .wifi0iram.58       lmacTxFrame                                               484
+            .wifi0iram.62   l   macTxDone                                                 244
+            .wifi0iram.25       lmacEndFrameExchangeSequence                              788
+            .iram1.31           lmacProcessCollisions                                      12
+            .iram1.35           lmacProcessAllTxTimeout                                    12
+            .iram1.36           lmacPostTxComplete                                         12
+            .iram1.37           lmacProcessRxSucData                                       12
+            .iram1.2            pm_get_null_max_tx_time                                   146
+            .wifiextrairam.5    lmacSetTxFrame                                            508
+            .wifiextrairam.23   lmacDiscardFrameExchangeSequence                          222
+            .wifiextrairam.18   lmacProcessTxSuccess                                      264
+            .wifiextrairam.38   lmacProcessTxComplete                                     354
+        pm.o
+            .wifirxiram.48      pm_rx_data_process                                        138
+            .wifirxiram.49      pm_hmac_rx_data_process                                     2
+            .wifislprxiram.6    pm_scale_listen_interval                                  216
+            .wifislprxiram.25   pm_get_tbtt_count                                         176
+            .wifislprxiram.10   pm_parse_beacon                                           570
+            .wifislprxiram.26   pm_save_tbtt_info                                          34
+            .wifislprxiram.28   pm_beacon_monitor_tbtt_start                              190
+            .wifislprxiram.29   pm_beacon_monitor_tbtt_stop                                18
+            .wifislprxiram.30   pm_enable_beacon_monitor_timer                            116
+            .wifislprxiram.31   pm_disable_beacon_monitor_timer                            60
+            .wifislprxiram.32   pm_dream                                                  344
+            .wifislprxiram.33   pm_sleep                                                  530
+            .wifislprxiram.34   pm_check_state                                             72
+            .wifislprxiram.41   pm_beacon_monitor_timeout_process                          66
+            .wifislprxiram.40   pm_process_tim                                            424
+            .wifislprxiram.46   pm_rx_beacon_process                                      164
+            .wifislprxiram.45   pm_tbtt_process                                           290
+            .wifislprxiram.42   pm_beacon_monitor_tbtt_timeout_process                     30
+            .wifislprxiram.51   pm_on_tsf_timer                                            12
+            .wifislprxiram.53   pm_on_beacon_rx                                           264
+            .wifislpiram.5      pm_get_connectionless_status                               44
+            .wifislpiram.22     pm_enable_dream_timer                                      66
+            .wifislpiram.24     pm_update_by_connectionless_status                        344
+            .wifislpiram.36     pm_handle_tbtt_interval                                   134
+            .wifislpiram.38     pm_update_next_tbtt                                       268
+            .wifislpiram.43     pm_connectionless_wake_interval_timeout_process            66
+            .wifislpiram.44     pm_connectionless_wake_window_timeout_process             102
+            .wifiextrairam.47   pm_tx_data_process                                        504
+            .wifiextrairam.55   pm_on_data_tx                                               2
+        pm_coex.o
+            .wifislprxiram.4    pm_coex_schm_overall_period_get                            56
+            .wifislprxiram.5    pm_coex_pwr_update                                        152
+        pp.o
+            .wifi0iram.22       pp_coex_tx_request                                        340
+            .wifi0iram.64       ppMapTxQueue                                              336
+            .wifi0iram.67       ppProcTxSecFrame                                          330                                       
+            .wifi0iram.40       ppCalTxAMPDULength                                        748
+            .wifi0iram.73       ppProcessLifeTime                                         176
+            .wifirxiram.26      ppRxFragmentProc                                         1024
+            .wifislprxiram.28   ppRxPkt                                                   278
+            .wifiextrairam.18   pp_coex_tx_release                                        104
+            .wifiextrairam.20   ppProcTxDone                                              408
+            .wifiextrairam.62   ppMapWaitTxq                                              298
+            .wifiextrairam.37   ppAssembleAMPDU                                           132
+            .wifiextrairam.72   ppRegressAmpdu                                            168
+        pp_debug.o
+            .iram1.4            wifi_gpio_debug                                            16
+        pp_timer.o
+            .wifislpiram.3      pp_timer_tbtt                                              18
+            .wifislpiram.4      pp_timer_do_process                                       152
+        trc.o
+            .wifi0iram.8        rcUpdateTxDone                                            150
+            .wifi0iram.11       rcGetSched                                                228
+            .wifiextrairam.13   rcGetRate                                                 164
+            .wifiextrairam.19   trc_onPPTxDone                                            182
+        wdev.o
+            .wifislprxiram.52   wDevCheckBlockError                                       166
+            .wifislprxiram.24   wDev_record_ftm_data                                       34
+            .wifislprxiram.48   wDev_AppendRxBlocks                                       308
+            .wifislprxiram.19   wDev_IndicateFrame                                        724
+            .wifislprxiram.25   wDev_ProcessRxSucData                                     842
+            .iram1.43           wdev_record_rx_linked_list.part.10                        116
+            .iram1.43           wdev_record_rx_linked_list                                 10
+            .iram1.38           wdev_process_tbtt                                          12
+            .iram1.39           wdev_process_tsf_timer                                     12
+            .iram1.40           wdev_process_beacon_filter                                 12
+            .iram1.41           wDev_ProcessFiq                                           142
+            .iram1.44           wdev_dump_rx_linked_list                                  166
+        hal_coex.o
+            .wifirxiram.2       hal_clear_rx_beacon_pti                                    18
+            .wifiextrairam.3    hal_set_tx_pti                                            158
+        hal_mac.o
+            .wifi0iram.4        hal_mac_tx_config_timeout                                  38
+            .wifi0iram.5        hal_mac_tx_config_edca                                     82
+            .wifi0iram.6        hal_mac_txq_enable                                         26
+            .wifi0iram.9        hal_random                                                  8
+            .wifi0iram.20       hal_mac_deinit                                             64
+            .wifislprxiram.12   hal_mac_rx_read_rxdscrnext                                 10
+            .wifislprxiram.13   hal_mac_rx_set_base                                        10
+            .iram1.15           hal_mac_interrupt_get_event                                10
+            .iram1.16           hal_mac_interrupt_clr_event                                10
+            .wifiextrairam.3    mac_tx_set_pti                                            100
+            .wifiextrairam.7    hal_mac_txq_disable                                        28
+            .wifiextrairam.18   hal_get_tsf_time                                           42   
+        hal_mac_rx.o
+            .wifirxiram.3       hal_mac_rx_get_last_dscr                                   26
+            .wifirxiram.4       hal_mac_rx_is_dscr_reload                                  12
+            .wifirxiram.5       hal_mac_rx_set_dscr_reload                                 18
+            .wifislprxiram.119  sta_reset_beacon_timeout                                  110
+            .wifislprxiram.7    esf_buf_alloc                                             388
+        hal_mac_tx.o
+            .wifi0iram.3        hal_mac_tx_is_cbw40                                        30
+        hal_pwr.o
+        hal_tsf.o
+            .wifislpiram.4      hal_get_sta_tsf                                            40
+            .wifislpiram.7      hal_set_sta_light_sleep_wake_ahead_time                    20
+            .wifislpiram.8      hal_get_time_to_sta_next_tbtt                              60
+            .wifislpiram.14     tsf_hal_get_counter_value                                  60
+            .wifislpiram.16     tsf_hal_get_time                                           28
+            .wifislpiram.30     tsf_hal_get_tbtt_interval                                  78
+            .iram1.2            hal_pwr_interrupt_get_event                                10
+            .iram1.3            hal_pwr_interrupt_clr_event                                10
+
+    libphy.a
+        phy_api.o
+        phy_basic.o
+            .iram1              rom1_i2c_master_reset                                      82
+            .iram1              rom_set_chan_reg                                          176
+        phy_i2c.o
+            .iram1              bias_dreg_i2c_set.part.0                                   60
+            .iram1              bias_dreg_i2c_set                                          64
+            .iram1              rom1_get_i2c_hostid                                        56
+            .iram1              rom_set_txcap_reg                                         142
+            .iram1              phy_i2c_enter_critical                                      2
+            .iram1              phy_i2c_exit_critical                                       2
+            .iram1              rom1_chip_i2c_readReg                                     106
+            .iram1              rom1_chip_i2c_writeReg                                    114
+            .iram1              rom1_phy_i2c_init1                                        454
+            .iram1              phy_i2c_bbtop_wakeup                                       86
+        phy_init.o
+        phy_reg.o
+        phy_tx_gain.o
+            .iram1              rom1_wifi_tx_dig_gain                                     144
+
+    libnet80211.a
+        ieee80211_api.o
+        ieee80211_hostap.o
+            .wifi0iram.46       wifi_softap_cur_max_ap_bss_num                             16
+        ieee80211_ht.o
+            .wifirxiram.34      ieee80211_ampdu_reorder                                   630
+        ieee80211_ioctl.o
+        ieee80211_output.o
+            .wifi0iram.20       ieee80211_encap_esfbuf                                   1302
+            .wifi0iram.10       ieee80211_output_process                                  658
+            .wifiextrairam.5    ieee80211_alloc_tx_buf                                    128
+            .wifiextrairam.4    ieee80211_post_hmac_tx                                     78
+            .wifiextrairam.6    ieee80211_output_do                                       426
+        ieee80211_sta.o
+            .wifirxiram.45      sta_input                                                1378
+            .wifiextrairam.39   sta_rx_eapol                                              488
+        wl_chm.o
+        wl_cnx.o 
+    padding                                                                                 2       25412   0x6344
+
 
 .rwdata_dummy
-    3fc80000 . + SIZEOF(.rwtext) + SIZEOF(.trap) + padding                          (914 + 2 + 824) 1740    0x6cc
+    3fc80000 . + SIZEOF(.rwtext) + SIZEOF(.trap) + padding               (916 + 1128 + 25410)       27454   0x6b3e
+
 
 .data
+    esp_wifi: WIFI_EVENT                                                                    4                                                                         4
     esp_wifi::preempt_builtin::timer::TIMER                                                12
+    esp_wifi: g_wifi_feature_caps                                                         224
+    esp_wifi::wifi::internal::G_CONFIG                                                      8
     esp_hal_embassy::time_driver::DRIVER                                                   32
-    esp_hal_embassy::TimeBase::timers::STATIC_TIMER_CELL                                   12       56      0x38
+    esp_hal::timer..systimer..Alarm as esp_hal_embassy::TimeBase::timers::STATIC_TIMER_CELL
+                                                                                           12
+    libnet80211.a(ieee80211_api.o):(.data.WIFI_MESH_EVENT)                                  4
+    libnet80211.a(ieee80211_api.o):(.data.g_wifi_event_mask)                                4
+    libnet80211.a(ieee80211_api.o):(.data.s_wifi_init_state)                                4
+    libnet80211.a(ieee80211_action.o):(.data.ba_recv_action)                               12
+    libnet80211.a(ieee80211_action.o):(.data.ba_send_action)                               12
+    libnet80211.a(ieee80211_action.o):(.data.ht_recv_action)                                4
+    libnet80211.a(ieee80211_action.o):(.data.ht_send_action)                                4
+    libnet80211.a(ieee80211_action.o):(.data.public_recv_action)                          136
+    libnet80211.a(ieee80211_action.o):(.data.public_send_action)                          136
+    libnet80211.a(ieee80211_action.o):(.data.sa_query_recv_action)                          8
+    libnet80211.a(ieee80211_action.o):(.data.sa_query_send_action)                          8
+    libnet80211.a(ieee80211_action.o):(.data.vendor_recv_action)                            4
+    libnet80211.a(ieee80211_action.o):(.data.vendor_send_action)                            4
+    libnet80211.a(ieee80211_hostap.o):(.data.TmpSTAAPCloseAP)                               1
+    padding                                                                                 3
+    libnet80211.a(ieee80211_crypto_ccmp.o):(.data.ccmp)                                    18
+    libnet80211.a(ieee80211_ht.o):(.data.g_phy_cap_rx_stbc)                                 1
+    libnet80211.a(ieee80211_mesh_quick.o):(.data.g_mesh_self_organized)                     1
+    padding                                                                                 2
+    libnet80211.a(ieee80211_nvs.o):(.data.g_wifi_nvs)                                       4
+    libnet80211.a(ieee80211_output.o):(.data.s_raw_seq.14265)                               2
+    padding                                                                                 2
+    libnet80211.a(ieee80211_phy.o):(.data.ieee80211_11a_table)                            212
+    libnet80211.a(ieee80211_reg_db.o):(.data.country_info_24ghz)                          230
+    padding                                                                                 2
+    libnet80211.a(ieee80211_scan.o):(.data.g_scan_chan_list)                               14
+    padding                                                                                 2
+    libnet80211.a(ieee80211_sta.o):(.data.g_dynamic_cs)                                    12
+    libnet80211.a(ieee80211_sta.o):(.data.send_deauth)                                      1
+    padding                                                                                 1
+    libnet80211.a(ieee80211_supplicant.o):(.data.s_ap_igtk_active_idx)                      2
+    libnet80211.a(ieee80211_supplicant.o):(.data.s_sta_igtk_active_idx)                     2
+    padding                                                                                 2
+    libnet80211.a(ieee80211_crypto_tkip.o):(.data.tkip)                                    24
+    libnet80211.a(ieee80211_crypto_gcmp.o):(.data.gcmp)                                    24
+    libnet80211.a(ieee80211_crypto_wep.o):(.data.wep)                                      24
+    libnet80211.a(ieee80211_crypto_sms4.o):(.data.sms4)                                    24
+    libnet80211.a(ieee80211_timer.o):(.data.g_timer_info)                                 200
+    libnet80211.a(wl_cnx.o):(.data.join_deny_flag)                                          1
+    padding                                                                                 3
+
+    libphy.a(phy_init.o):(.data.phy_param)                                                832
+    libpp.a(esf_buf.o):(.data.g_eb_list_desc)                                             220
+    libpp.a(lmac.o):(.data.g_txop_queue_status)                                             3
+    padding                                                                                 2
+    libpp.a(lmac.o):(.data.lmacConfMib)                                                    48
+    libpp.a(pm.o):(.data.g_pm_cfg)                                                         68
+    libpp.a(pp.o):(.data.TxRxCxt)                                                         960
+    libpp.a(pp_timer.o):(.data.g_pp_timer_info)                                            96
+    libpp.a(trc.o):(.data.BasicOFDMSched)                                                  12
+    libpp.a(trc.o):(.data.rc11BSchedTbl)                                                   72
+    libpp.a(trc.o):(.data.rc11GSchedTbl)                                                  156
+    libpp.a(trc.o):(.data.rc11NSchedTbl)                                                  168
+    libpp.a(trc.o):(.data.rcLoRaSchedTbl)                                                  24
+    libpp.a(trc.o):(.data.rcP2P11GSchedTbl)                                                96
+    libpp.a(trc.o):(.data.rcP2P11NSchedTbl)                                               120
+    libpp.a(trc.o):(.data.trc_ctl)                                                         28
+    libpp.a(wdev.o):(.data.BcnInterval)                                                     4
+    libpp.a(wdev.o):(.data.wDevCtrl)                                                       56       4416    0x1140
+
+
+.data.wifi
+    libnet80211.a(ieee80211_mesh_quick.o):(.dram1.2) g_mesh_is_started                      1
+    padding                                                                                 3
+    libnet80211.a(ieee80211_mesh_quick.o):(.dram1.3) g_mesh_init_ps_type                    4
+    libnet80211.a(ieee80211_mesh_quick.o):(.dram1.4) g_mesh_is_root                         1
+    libnet80211.a(wl_cnx.o):(.dram1.2) g_sta_connected_flag                                 1
+    padding                                                                                 2
+    libpp.a(esf_buf.o):(.dram1.3) eb_txdesc_space                                         144
+    libpp.a(pp.o):(.dram1.3) pp_sig_cnt                                                    33
+    padding                                                                                 1
+    libpp.a(pp.o):(.dram1.4) bars                                                         160
+    libpp.a(pp_debug.o):(.dram1.3)                                                          4
+    libpp.a(wdev.o):(.dram1.3)                                                              4
+    libpp.a(wdev.o):(.dram1.42) s_record_list                                             132
+    padding                                                                                 2       492     0x1ec
+
 
 .bss
     esp_embassy::__embassy_main::POOL                                                      40
     esp_wifi::____embassy_main_task::closure::HEAP                                      73728
     esp_wifi::____embassy_main_task::closure::STATIC_CELL                                   1
-    padding                                                                                 7
     esp_wifi::run::POOL                                                                    56
+    padding                                                                                 7
     __rust_no_alloc_shim_is_unstable                                                        1
-    padding                                                                                 3
     esp_wifi::common_adapter::chip_specific::SOC_PHY_DIG_REGS_MEM                          84
+    padding                                                                                 3
+    esp_wifi::compat::timer_compat::TIMERS                                                  8
+    esp_wifi::preempt_builtin::SCHEDULER_STATE                                              8
+    esp_wifi::wifi::os_adapter::WIFI_LOCK                                                   1
+    padding                                                                                 3
+    esp_wifi::wifi::os_adapter::QUEUE_HANDLE                                                4
     esp_wifi::common_adapter::chip_specific::G_PHY_DIGITAL_REGS_MEM                         4
     esp_alloc::HEAP                                                                        32
     esp_hal_embassy::SIGNAL_WORK_THREAD_MODE                                                1
     padding                                                                                 3
+    esp_hal::clock::ACTIVE_CLOCKS                                                          16
     _ESP_HAL_DEVICE_PERIPHERALS                                                             1
+    libnet80211.a(ieee80211_api.o):(.bss.s_net80211_data_init)                              1
+    padding                                                                                 2
+    libnet80211.a(ieee80211_api.o):(.bss.s_wifi_api_lock)                                   4
+    libnet80211.a(ieee80211_api.o):(.bss.s_wifi_stop_in_progress)                           1
     padding                                                                                 3
-    esp_hal::clock::ACTIVE_CLOCKS                                                          16       74980   0x120fc
+    
+    libcore.a(misc_nvs.o):(.bss.g_log_level)                                                4
+    libcore.a(misc_nvs.o):(.bss.g_misc_nvs)                                                 4
+    libcore.a(misc_nvs.o):(.bss.g_misc_nvs_init)                                            1
+    padding                                                                                 3
+    
+    libnet80211.a(ieee80211.o):(.bss.g_ic)                                                668
+    libnet80211.a(ieee80211_action_vendor.o):(.bss.avs_cb)                                  4
+    libnet80211.a(ieee80211_action_vendor.o):(.bss.avs_rx_content)                          4
+    libnet80211.a(ieee80211_action_vendor.o):(.bss.get_key_cb)                              4
+    libnet80211.a(ieee80211_crypto.o):(.bss.wpa_crypto_funcs)                             116
+    libnet80211.a(ieee80211_debug.o):(.bss.g_hmac_cnt)                                     64
+    libnet80211.a(ieee80211_ftm.o):(.bss.ftm_req_expiry_timer)                             20
+    libnet80211.a(ieee80211_ftm.o):(.bss.ftm_resp_ctx)                                     12
+    libnet80211.a(ieee80211_ftm.o):(.bss.ftmr_timer)                                       20
+    libnet80211.a(ieee80211_ftm.o):(.bss.g_ftm_report_data)                                 4
+    libnet80211.a(ieee80211_ftm.o):(.bss.g_ftm_report_num_entries)                          1
+    libnet80211.a(ieee80211_ftm.o):(.bss.g_ftm_using_get_report_api)                        1
+    padding                                                                                 2
+    libnet80211.a(ieee80211_ftm.o):(.bss.g_t1_offset_psec)                                  4
+    libnet80211.a(ieee80211_ftm.o):(.bss.s_ftm_initiator)                                   4
+    libnet80211.a(ieee80211_hostap.o):(.bss.BcnIntvl)                                       4
+    libnet80211.a(ieee80211_hostap.o):(.bss.ap_rxcb)                                        4
+    libnet80211.a(ieee80211_hostap.o):(.bss.beacon_send_start_flag)                         1
+    padding                                                                                 3
+    libnet80211.a(ieee80211_hostap.o):(.bss.beacon_timer)                                  20
+    libnet80211.a(ieee80211_hostap.o):(.bss.g_beacon_dtim_send_mc)                          1
+    padding                                                                                 3
+    libnet80211.a(ieee80211_hostap.o):(.bss.g_beacon_eb)                                    8
+    libnet80211.a(ieee80211_hostap.o):(.bss.g_beacon_eb_allocated)                          1
+    libnet80211.a(ieee80211_hostap.o):(.bss.g_beacon_idx)                                   1
+    libnet80211.a(ieee80211_hostap.o):(.bss.tim_offset)                                     1
+    padding                                                                                 1
+    libnet80211.a(ieee80211_ht.o):(.bss.tokens.12260)                                       4
+    libnet80211.a(ieee80211_ioctl.o):(.bss.g_mac_sleep_en)                                  1
+    padding                                                                                 3
+    libnet80211.a(ieee80211_ioctl.o):(.bss.g_wifi_menuconfig)                             104
+    libnet80211.a(ieee80211_ioctl.o):(.bss.s_wifi_task_hdl)                                 4
+    libnet80211.a(ieee80211_ioctl.o):(.bss.s_wpa2_start)                                    1
+    libnet80211.a(ieee80211_ioctl.o):(.bss.s_wps_start)                                     1
+    padding                                                                                 2
+    libmesh.a(mesh_parent.o):(.bss.s_sta_cnx_times)                                         4
+    libnet80211.a(ieee80211_mesh_quick.o):(.bss.esp_mesh_quick_funcs)                     176
+    libnet80211.a(ieee80211_mesh_quick.o):(.bss.g_mesh_topology)                            4
+    libnet80211.a(ieee80211_nvs.o):(.bss.g_wifi_nvs_cfg)                                    4
+    libnet80211.a(ieee80211_nvs.o):(.bss.s_wifi_nvs)                                     1284
+    libnet80211.a(ieee80211_output.o):(.bss.len_dh_ie)                                      1
+    padding                                                                                 3
+    libnet80211.a(ieee80211_output.o):(.bss.s_netstack_ref)                                 4
+    libnet80211.a(ieee80211_output.o):(.bss.s_tx_cacheq)                                    8
+    libnet80211.a(ieee80211_proto.o):(.bss.g_wifi_improve_contention_ability)               1
+    padding                                                                                 3
+    libnet80211.a(ieee80211_scan.o):(.bss.app_scan_params)                                 16
+    libnet80211.a(ieee80211_scan.o):(.bss.connect_scan_flag)                                1
+    padding                                                                                 3
+    libnet80211.a(ieee80211_scan.o):(.bss.gScanStruct)                                    284
+    libnet80211.a(ieee80211_scan.o):(.bss.s_ch.12738)                                       2
+    padding                                                                                 2
+    libnet80211.a(ieee80211_scan.o):(.bss.s_owe_scan_flag)                                  4
+    libnet80211.a(ieee80211_scan.o):(.bss.scannum)                                          2
+    libnet80211.a(ieee80211_sta.o):(.bss.in_rssi_adjust)                                    1
+    libnet80211.a(ieee80211_sta.o):(.bss.rssi_index)                                        1
+    libnet80211.a(ieee80211_sta.o):(.bss.rssi_saved)                                        8
+    libnet80211.a(ieee80211_sta.o):(.bss.sta_csa_timer)                                    20
+    libnet80211.a(ieee80211_supplicant.o):(.bss.s_ap_igtk)                                 80
+    libnet80211.a(ieee80211_supplicant.o):(.bss.s_sta_igtk)                                80
+    libnet80211.a(wl_chm.o):(.bss.gChmCxt)                                                552
+    libnet80211.a(wl_cnx.o):(.bss.ap_no_lr)                                                 1
+    padding                                                                                 3
+    libnet80211.a(wl_cnx.o):(.bss.cnx_csa_timer)                                           20
+    libnet80211.a(wl_cnx.o):(.bss.g_authmode_incompatible)                                  1
+    libnet80211.a(wl_cnx.o):(.bss.g_authmode_threshold_failure)                             1
+    padding                                                                                 2
+    libnet80211.a(wl_cnx.o):(.bss.g_cnxMgr)                                              3832
+    libnet80211.a(wl_cnx.o):(.bss.g_cnx_probe_rc_list_cb)                                   4
+    libnet80211.a(wl_cnx.o):(.bss.g_in_blacklist_flag)                                      1
+    ibnet80211.a(wl_cnx.o):(.bss.g_rssi_threshold_failure)                                  1
+    libnet80211.a(wl_cnx.o):(.bss.is_connected_sync)                                        1
+    libnet80211.a(wl_cnx.o):(.bss.reconnect_flag)                                           1
+    libnet80211.a(wl_cnx.o):(.bss.s_csa_timer_bss)                                          4
+    libnet80211.a(wl_cnx.o):(.bss.s_sta_last_start_txseq)                                   2
+    padding                                                                                 2
+    libnet80211.a(wl_cnx.o):(.bss.sta_con_timer)                                           20
+    libnet80211.a(wl_offchan.o):(.bss.ctx)                                                  8
+
+    libphy.a(phy_init.o):(.bss.chip7_phy_init_ctrl)                                        42
+    padding                                                                                 2
+    libphy.a(phy_init.o):(.bss.g_phyFuns)                                                   4
+
+    libpp.a(esf_buf.o):(.bss.eb_space)                                                    192
+    libpp.a(if_hwctrl.o):(.bss.if_ctrl)                                                    40
+    libpp.a(if_hwctrl.o):(.bss.s_is_6m)                                                     1
+    padding                                                                                 3
+    libpp.a(pm.o):(.bss.beacon_monitor_data.11921)                                         20
+    padding                                                                                 4
+    libpp.a(pm.o):(.bss.beacon_monitor_tbtt_time.11901)                                     8
+    libpp.a(pm.o):(.bss.g_pm)                                                             464
+    libpp.a(pm.o):(.bss.g_pm_tx_null_func)                                                  4
+    padding                                                                                 4
+    libpp.a(pp.o):(.bss.s_fragment)                                                        16
+    libpp.a(pp_debug.o):(.bss.g_lmac_cnt)                                                 192
+    libpp.a(pp_debug.o):(.bss.g_pm_cnt)                                                    72
+    libpp.a(pp_timer.o):(.bss.s_timer_post)                                                 4
+    libpp.a(trc.o):(.bss.s_fix_rate)                                                        8
+    libpp.a(trc.o):(.bss.s_fix_rate_mask)                                                   4
+    libpp.a(wdev.o):(.bss.BcnSendTick)                                                      4
+    libpp.a(wdev.o):(.bss.g_wdev_csi_rx)                                                    4
+    libpp.a(wdev.o):(.bss.g_wdev_csi_rx_ctx)                                                4
+    libpp.a(wdev.o):(.bss.g_wdev_record_t1t4_cb)                                            4
+    libpp.a(wdev.o):(.bss.g_wdev_record_t2t3_cb)                                            4
+    libpp.a(wdev.o):(.bss.g_wdev_set_t1t4_cb)                                               4
+    libpp.a(wdev.o):(.bss.wDevMacSleep)                                                   116
+    padding                                                                                 4
+    libpp.a(hal_tsf.o):(.bss.s_tbttstart)                                                   8       82808   0x14378
+
 
 .rodata
-    esp_wifi                                                                                1
-    esp_wifi                                                                                1
-    esp_alloc                                                                              52
-    padding                                                                                 2
-    esp_alloc                                                                              16
-    esp_alloc                                                                              16
+    ...                                                                                   128
+    g_wifi_osi_funcs                                                                      476
+    <internal>:(.rodata.str1.1)                                                            11
+    ...                                                                                   113
     <internal>:(.rodata.cst32)                                                             32
-    switch.table esp_hal::timer::PeriodicTimer::start                                      12
-    esp_hal                                                                                60
-    embassy_executor::raw::waker::VTABLE                                                   16
-                                                                                                    208     0xd0
+    ...                                                                                    60
+    .rodata embassy_executor::raw::waker::VTABLE                                           16
+    <internal>:(.rodata.esp_wifi_init_internal.str1.4)                                   2035
+    padding                                                                                 1 
+    libnet80211.a(ieee80211.o):(.rodata.ieee80211_ethbroadcast)                             6 
+    ...                                                                                   166
+    libnet80211.a(ieee80211_nvs.o):(.rodata.wifi_nvs_set)                                  32
+    libnet80211.a(ieee80211_nvs.o):(.rodata.wifi_nvs_compare_cfg_diff)                     32
+    libnet80211.a(ieee80211_nvs.o):(.rodata.wifi_nvs_load)                                 32
+    libnet80211.a(ieee80211_output.o):(.rodata.info.14002)                                  9
+    padding                                                                                 3
+    libnet80211.a(ieee80211_output.o):(.rodata.param.14008)                                 9
+    padding                                                                                 3
+    libnet80211.a(ieee80211_output.o):(.rodata.s_ac_param.14007)                           28
+    libnet80211.a(ieee80211_phy.o):(.rodata.ieee80211_11b_table)                          212
+    libnet80211.a(ieee80211_phy.o):(.rodata.ieee80211_11g_table)                          212
+    libnet80211.a(ieee80211_reg_db.o):(.rodata.ieee80211_is_40mhz_valid_bw)                28
+    libnet80211.a(ieee80211_sta.o):(.rodata.ieee80211_sta_new_state)                       24
+    libnet80211.a(ieee80211_sta.o):(.rodata.state_desc.13045)                              36
+    libnet80211.a(ieee80211_supplicant.o):(.rodata.wifi_set_rx_policy)                     44
+    ...                                                                                  1172
+    libpp.a(trc.o):(.rodata.rcUpdatePhyMode)                                               28
+    ...                                                                                   192
+    libwpa_supplicant.a(crypto_ops.c.obj):(.rodata.g_wifi_default_wpa_crypto_funcs)       116
+    libwpa_supplicant.a(aes-internal.c.obj):(.rodata.rcons)                                10
+    padding                                                                                 2
+    libwpa_supplicant.a(aes-internal.c.obj):(.rodata.Td4s)                                256
+    libwpa_supplicant.a(aes-internal.c.obj):(.rodata.Td0)                                1024
+    libwpa_supplicant.a(aes-internal.c.obj):(.rodata.Te0)                                1024
+    ...                                                                                     4
+    libwpa_supplicant.a(sha256-internal.c.obj):(.rodata.K)                                256
+    libprintf.a(printf.c.obj):(.rodata.pow10.0)                                            80
+    libwpa_supplicant.a(sha256-prf.c.obj):(.srodata.memset_func)                            4
+    libwpa_supplicant.a(sha1-prf.c.obj):(.srodata.memset_func)                              4
+    libwpa_supplicant.a(sha1-internal.c.obj):(.srodata.memset_func)                         4
+    libwpa_supplicant.a(sha1.c.obj):(.srodata.memset_func)                                  4
+    <internal>:(.srodata.cst8)                                                            152       8080    0x1f90
+
+
+.rodata.wifi
+    wlog strings from static libraries                                                              24652   0x604c
+
 
 .rotext_dummy
     42000020 . + SIZEOF(.rodata)
@@ -95,21 +510,21 @@ esp_image: segment 4: paddr=00020020 vaddr=42010020 size=01024h (  7280) map    
 
 .esp-hal
     _setup_interrupts                                                                     718
+    esp_hal::interrupt::riscv::vectored::enable                                            52
     hal_main                                                                                8
-    esp_hal::init                                                                         622
+    esp_hal::init                                                                         342
     EspDefaultHandler                                                                       2
     _critical_section_1_0_acquire                                                          10
-    _critical_section_1_0_release                                                          12       1372    0x55c
+    _critical_section_1_0_release                                                          12
 
-.esphal-clock
-    #esp_hal::clock::Clocks::init (probably inline)
-    esp_hal::clock::Clocks::get                                                            18       18      0x12
-    padding                                                                                 2       2
+    esp_hal::clock::Clocks::get                                                            22
+    esp_hal::clock::clocks_ll::esp32c3_rtc_bbpll_configure                                390
+    esp_hal::clock::clocks_ll::init_clocks                                                 62
 
-.esphal-timer
+    esp_hal::timer::systimer::Alarm  in impl esp_hal_embassy::TimeBase::timers             52
     esp_hal::timer::systimer::SystemTimer::new                                             44
     esp_hal::timer::systimer::SystemTimer1::unit_value                                     58
-    esp_hal::timer::OneShotTimer::schedule                                                504
+    esp_hal::timer::OneShotTimer::schedule                                                508
     esp_hal::timer::OneShotTimer::stop                                                     50
     esp_hal::timer::PeriodicTimer::set_interrupt_handler
     esp_hal::timer::OneShotTimer::set_interrupt_handler                                   116
@@ -117,10 +532,24 @@ esp_image: segment 4: paddr=00020020 vaddr=42010020 size=01024h (  7280) map    
     esp_hal::timer::OneShotTimer::enable_interrupt                                         58
     esp_hal::timer::PeriodicTime::clear_interrupt
     esp_hal::timer::OneShotTimer::clear_interrupt                                          64
-    esp_hal::timer::PeriodicTimer::start                                                  506
-    esp_hal::timer::timg::TimerGroupInstance::configure_src_clk                            14
-    esp_hal::timer::timg::TimerGroupInstance::enable_peripheral                            44
-    esp_hal::timer::timg::TimerGroupInstance::configure_wdt_src_clk                        18       1476    0x5c4
+    esp_hal::timer::PeriodicTimer::start                                                  510
+
+    esp_hal::soc::implementation::peripherals::TIMG0 as
+        esp_hal::timer::timg::TimerGroupInstance::configure_src_clk                        14
+    esp_hal::soc::implementation::peripherals::TIMG0 as
+        esp_hal::timer::timg::TimerGroupInstance::enable_peripheral                        44
+    esp_hal::soc::implementation::peripherals::TIMG0 as
+        esp_hal::timer::timg::TimerGroupInstance::configure_wdt_src_clk                    18
+    esp_hal::soc impl esp_hal::soc::implementation::efuse::Efuse::mac_address              54
+
+    esp_hal::sync::single_core::InterruptLock as
+        esp_hal::sync::single_core::RawLock::enter                                         10
+    esp_hal::sync::single_core::InterruptLock as
+        esp_hal::sync::single_core::RawLock::exit                                          12
+    esp_hal::sync::RawMutex::acquire                                                       26
+    esp_hal::sync::RawMutex::release                                                       18       3274    0xcca
+    padding                                                                                 2       2
+
 
  .esp-embassy   
     esp_hal_embassy::Executor::run                                                         84
@@ -128,12 +557,11 @@ esp_image: segment 4: paddr=00020020 vaddr=42010020 size=01024h (  7280) map    
     esp_hal_embassy::time_driver::EmbassyTimer::init                                       96
     esp_hal_embassy::time_driver::DRIVER::handler                                          54
     esp_hal_embassy::timer_queue::TimerQueue::dispatch                                    480
-    esp_hal::timer::systimer::Alarm  in impl esp_hal_embassy::TimeBase::timers             52       808     0x328
 
-.embassy-exec
     embassy_executor::raw::poll_exited                                                      2
-    embassy_executor::raw::TaskStorage::poll                                              146
-    embassy_executor::raw::TaskStorage::poll                                              242
+    // these are the two tasks (put into .main)
+    //embassy_executor::raw::TaskStorage::poll
+    //embassy_executor::raw::TaskStorage::poll
     embassy_executor::raw::util1::UninitCell::write_in_place                               10
     embassy_executor::raw::util1::UninitCell::write_in_place                               16
     embassy_executor::raw::waker::clone                                                    16
@@ -144,47 +572,1281 @@ esp_image: segment 4: paddr=00020020 vaddr=42010020 size=01024h (  7280) map    
     embassy_executor::raw::wake_task                                                       84
     embassy_executor::spawner::Spawner::spawn                                              70
     embassy_executor::spawner::Spawner::must_spawn                                         82
-    __pender                                                                               12       846     0x34e
-    padding                                                                                 2       2
-.embassy-time
+    __pender                                                                               12
+
     _embassy_time_now                                                                      40
     _embassy_time_schedule_wake                                                           102
     embassy_time::timer::Timer::after                                                      76
-    embassy_time::timer::Timer as core::future::future::Future::poll                       96       314     0x13a
-    padding                                                                                 2       2
+    embassy_time::timer::Timer as core::future::future::Future::poll                       96       1528    0x5f8
 
 .esp-alloc
     esp_alloc::EspHeap::init                                                              100
+    esp_alloc::EspHeap as core::alloc::global::GlobalAlloc::alloc                          74
+    esp_alloc::EspHeap as core::alloc::global::GlobalAlloc::dealloc                        90
+
     linked_list_allocator::hole::HoleList::allocate_first_fit                             248
+    linked_list_allocator::hole::HoleList::deallocate                                     212
     linked_list_allocator::Heap::init                                                      52
-    linked_list_allocator::Heap::allocate_first_fit                                        48       448     0x1c0
+    linked_list_allocator::Heap::allocate_first_fit                                        48
+    linked_list_allocator::Heap::deallocate                                                32
+    
+    allocator_api::raw_vec::capacity_overflow                                               2       858     0x35a
+    padding                                                                                 2       2
 
 .esp-wifi
-    esp_wifi::preempt_builtin::timer::arch_specific::setup_timer                           98
-    esp_wifi::preempt_builtin::timer::timer_tick_handler                                   48
+    esp_wifi::init_clocks                                                                   8
+    
+    esp_wifi::common_adapter::semphr_create                                                50
+    free
+    esp_wifi::common_adapter::semphr_delete
+    esp_wifi::wifi::os_adapter:spin_lock_delete
+    esp_wifi::wifi::os_adapter::free
+    esp_wifi::wifi::os_adapter::mutex_delete                                               30
+    esp_wifi::common_adapter::read_mac                                                    138
+    esp_wifi::common_adapter::chip_specific::enable_wifi_power_domain                      64    
+    puts                                                                                    2
+    ets_timer_disarm                                                                      104
+    ets_timer_setfn                                                                       502
+
+    strnlen                                                                                20
+
     esp_wifi_preempt_enable
-    esp_wifi::preempt::enable                                                              80
-    esp_wifi1::common_adapter::chip_specific::enable_wifi_power_domain                     64       290     0x122
+    esp_wifi::preempt::enable                                                             120
+    esp_wifi_preempt_yield_task
+    esp_wifi::preempt::yield_task                                                          14
+    esp_wifi::preempt_builtin::task_switch                                                392
+    esp_wifi::preempt_builtin::timer::timer_tick_handler                                   56
+    esp_wifi::preempt_builtin::timer::arch_specific::setup_timer                          104
+    FROM_CPU_INTR2                                                                         18
+    esp_wifi::preempt_builtin::BuiltinScheduler as
+        esp_wifi::preempt::Scheduler::task_create                                         274
+
+    esp_wifi::tasks::init_tasks                                                           174
+    esp_wifi::tasks::timer_task                                                           288
+
+    esp_wifi::wifi::new                                                                   158
+
+    esp_wifi::wifi::os_adapter::spin_lock_create                                           46
+    esp_wifi::wifi::os_adapter::wifi_int_disable                                           16
+    esp_wifi::wifi::os_adapter::wifi_int_restore                                           16    
+    esp_wifi_preempt_current_task_thread_semaphore
+    esp_wifi::wifi::os_adapter::wifi_thread_semphr_get                                     14
+    esp_wifi::wifi::os_adapter::recursive_mutex_create                                     60
+    esp_wifi::wifi::os_adapter::mutex_lock                                                120
+    esp_wifi::wifi::os_adapter::mutex_unlock                                               66
+    esp_wifi::wifi::os_adapter::queue_send                                                206
+    esp_wifi::wifi::os_adapter::queue_recv                                                492
+    esp_wifi::wifi::os_adapter::task_create_pinned_to_core                                 38
+    esp_wifi::wifi::os_adapter::task_delay                                                214
+    esp_wifi::wifi::os_adapter::task_ms_to_tick                                            10
+    esp_wifi_preempt_current_task
+    esp_wifi::wifi::os_adapter::task_get_current_task                                      10
+    esp_wifi::wifi::os_adapter::task_get_max_priority                                       6
+    esp_wifi::wifi::os_adapter::log_timestamp                                              46
+    esp_wifi_allocate_from_internal_ram
+    malloc
+    esp_wifi::wifi::os_adapter::wifi_malloc
+    esp_wifi::wifi::os_adapter::malloc
+    esp_wifi::wifi::os_adapter::malloc_internal                                            44
+    calloc
+    esp_wifi::wifi::os_adapter::wifi_calloc                                                74
+    esp_wifi::wifi::os_adapter::calloc_internal                                      
+    esp_wifi::wifi::os_adapter::wifi_zalloc
+    esp_wifi::wifi::os_adapter::zalloc_internal                                            72
+    esp_wifi::wifi::os_adapter::wifi_create_queue                                         160
+    esp_wifi::wifi::os_adapter::wifi_delete_queue                                          48
+    esp_wifi::wifi::os_adapter::coex_schm_register_cb_wrapper                               4
+    esp_wifi::wifi::os_adapter::coex_register_start_cb                                      4
+
+    core::ptr::drop_in_place esp_wifi::compat::timer_compat::Timer                         50
+
+    net80211_printf
+    phy_printf
+    pp_printf                                                                               2       4334    0x10ee
+    padding                                                                                 2       2
+
+
+.libcore
+    misc_nvs_load                                                                         160
+    misc_nvs_deinit                                                                        92
+    misc_nvs_init                                                                          48
+    mesh_sta_auth_expire_time                                                              64       364     0x16c
+
+
+.libprintf
+    _out_buffer                                                                            12
+    _out_null                                                                               2
+    _out_rev                                                                              180
+    _ntoa_format                                                                          332
+    _ntoa_long                                                                            132
+    _ntoa_long_long                                                                       232
+    _etoa                                                                                1020
+    _ftoa                                                                                 942
+    _vsnprintf                                                                           1508
+    sprintf                                                                                42       4402    0x1132
+    padding                                                                                 2       2
+
+.libpp
+    // esf_buf.o 
+    esf_buf_alloc_dynamic_default_handler                                                  34
+    esf_buf_alloc_default_handler                                                          34
+    esf_buf_recycle_default_handler                                                        34
+    esf_buf_setup_static                                                                  110
+    esf_buf_free_static                                                                   174
+    esf_buf_setdown                                                                        32
+    esf_buf_setup                                                                         496
+    
+    //if_hwctrl.o
+    ic_get_addr                                                                            18
+    ic_get_ptk_alg                                                                         22
+    ic_disable_crypto                                                                      28
+    ic_set_key                                                                             64
+    ic_get_key                                                                             90
+    ic_obtain_key                                                                         128
+    ic_tx_pkt                                                                              10
+    ic_register_tx_cb                                                                       4
+    ic_register_rx_cb                                                                       4
+    ic_register_timer_post_cb                                                               4
+    ic_register_config_cb                                                                  22
+    ic_is_mgmt_hwdecr_enabled                                                               4
+    ic_register_pm_tx_null_cb                                                              22
+    ic_register_net80211_tx_cb                                                              8
+    ic_register_timer_cb                                                                    8
+    ic_register_ftm_callbacks                                                               4
+    ic_enable_sniffer                                                                       6
+    ic_disable_sniffer                                                                      6
+    ic_set_vif                                                                            464
+    ic_get_next_tbtt                                                                        4
+    ic_del_rx_ba                                                                            4
+    ic_add_rx_ba                                                                           10
+    ic_reset_tbtt                                                                           4
+    ic_del_key_all                                                                          4
+    ic_del_key                                                                              4
+    ic_set_ac_param                                                                         2
+    ic_ampdu_op                                                                            42
+    ic_set_trc                                                                            228
+    ic_deinit                                                                              28
+    ic_init                                                                               120
+    ic_set_beacon_int                                                                       4
+    ic_set_mac                                                                              4
+    ic_set_bssid                                                                            4
+    ic_set_current_channel                                                                  8
+    ic_get_random                                                                           8
+    ic_get_pp_hdl                                                                           4
+    ic_set_rx_policy_ubssid_check                                                          26
+    ic_set_rx_policy                                                                       16
+    ic_set_sta_auth_flag                                                                    4
+    ic_set_interface                                                                        4
+    ic_trc_set_per_pkt_rate                                                                 4
+    ic_trc_update_ifx_phy_mode                                                              4
+    ic_create_wifi_task                                                                     4
+    ic_delete_wifi_task                                                                     4
+    ic_update_sta_tsf                                                                      22
+    ic_rx_enable_bssid_check                                                                4
+    ic_get_default_sched                                                                    4
+    lmacGetTxFrame                                                                         32
+
+    //lmac.o
+    lmacSetAcParam                                                                         68
+    lmacInitAc                                                                             72
+    lmacInit                                                                              156
+    lmacEndRetryAMPDUFail                                                                 136   
+    lmacDebugTxDrop
+    dbg_cnt_lmac_drop                                                                     150
+    lmac_record_txtime                                                                    304
+    lmac_update_tx_statistic                                                                2
+    lmacDiscardMSDU                                                                       186
+    lmacRetryTxFrame                                                                      230
+    lmacProcessTxopQComplete                                                              380
+    lmacProcessShortRetryFail                                                             638
+    lmacProcessCtsTimeout                                                                 112
+    lmacProcessLongRetryFail                                                              478
+    lmacProcessCollision                                                                  226
+    lmacProcessCollisions_task                                                             84
+    lmacProcessAckTimeout                                                                 298
+    lmacProcessTxRtsError                                                                 222
+    lmacProcessTxseckiderr                                                                 42
+    lmacProcessTxError                                                                    158
+    lmacDisableTransmit                                                                   148
+    lmacProcessTxTimeout                                                                   68
+
+    // pm.o
+    hal_pm_unblock_txq                                                                     22
+    hal_clear_sta_tsf_active_state                                                         14
+    pm_incr_active_cnt                                                                     22
+    pm_incr_coex_active_cnt                                                                22
+    pm_disable_active_timer                                                                44
+    pm_update_at_next_beacon                                                               26
+    pm_beacon_monitor_tbtt_timeout                                                          8
+    pm_beacon_monitor_timeout                                                               8
+    pm_connectionless_wake_window_timeout                                                   8
+    pm_connectionless_wake_interval_timeout                                                 8
+    pm_disconnected_sleep_delay_timeout                                                     8
+    pm_coex_slice_wifi_timeout                                                              8
+    pm_sleep_delay_timeout                                                                  8
+    pm_active_timeout                                                                       8
+    pm_dream_timeout                                                                        8
+    pm_is_sleeping                                                                         32
+    pm_is_open                                                                             10
+    pm_disable_disconnected_sleep_delay_timer                                              30
+    pm_enable_disconnected_sleep_delay_timer                                               94
+    pm_noise_check                                                                        120
+    pm_pend_noise_check                                                                     2
+    pm_noise_check_process                                                                  2
+    pm_register_pm_tx_null_cb                                                              12
+    pm_send_nullfunc                                                                       88
+    pm_disconnected_wake                                                                   62
+    pm_disconnected_sleep                                                                 156
+    pm_wake_up                                                                             74
+    pm_send_probe_start                                                                    72
+    pm_off_channel                                                                        192
+    pm_wake_done                                                                           82
+    pm_coex_separate_connectionless_window                                                670
+    pm_go_to_sleep                                                                        118
+    pm_set_next_tbtt                                                                       92
+    pm_mesh_set_next_tbtt                                                                  82
+    pm_beacon_timestamp_statistic                                                          62
+    pm_beacon_misc_process                                                                  2
+    pm_coex_schm_process                                                                  442
+    pm_coex_schm_process_restart                                                           14
+    pm_coex_slice_timeout_process                                                         228
+    pm_dream_timeout_process                                                               16
+    pm_sleep_delay_timeout_process                                                         32
+    pm_disconnected_sleep_delay_timeout_process                                            28
+    pm_tx_data_done_process                                                               148
+    pm_tx_null_data_done_process                                                          466
+    pm_go_to_wake                                                                         246
+    pm_send_probe_stop                                                                     88
+    pm_on_channel                                                                         170
+    pm_update_params                                                                      304
+    pm_coex_tbtt_process                                                                  246
+    pm_active_timeout_process                                                             112
+    pm_send_sleep_null_cb                                                                  10
+    pm_send_wake_null_cb                                                                   10
+    pm_on_coex_schm_process_restart                                                         4
+    pm_on_coex_schm_status_config                                                         140
+    pm_on_coex_start                                                                       74   
+    pm_on_probe_resp_rx                                                                   142
+    pm_on_data_tx_done                                                                      4
+    linkage name                                                                          576
+    pm_stop                                                                               514
+    pm_attach                                                                             378
+    pm_deattach                                                                           162
+    pm_force_scan_unlock                                                                    2
+    pm_enable_sta_disconnected_power_management                                            44
+
+    // pm_coex.o
+    pm_coex_reconnect_policy                                                               14
+    pm_coex_set_reconnect_policy                                                           56
+
+    // pp.o
+    pp_delete_task_manually                                                                72
+    getle32                                                                                30
+    putle32                                                                                28
+    xswap                                                                                  30
+    pp_register_net80211_tx_cb                                                             12
+    pp_register_config_cb                                                                  12
+    pp_register_timer_cb                                                                   12
+    pp_default_event_handler                                                               40
+    ppRegisterRxCallback                                                                   32
+    ppRegisterTxCallback                                                                   78
+    ppCheckTxQIdle                                                                         54
+    ppCheckIsConnTraffic                                                                   68
+    ppCheckTxConnTrafficIdle                                                              204
+    ppSetInterface                                                                          2
+    pp_gettid                                                                              46
+    ppAssembleMicHdr                                                                      160
+    ppCalTkipMic                                                                          286
+    ppTxFragmentProc                                                                     1876
+    ppClearRxFragment                                                                      60
+    ppFillAMPDUBar                                                                        268
+    ppReSendBar                                                                           214
+    pp_create_task                                                                        456
+    pp_deattach                                                                            76
+    ppInitTxq                                                                             100
+    pp_delete_task                                                                        140
+    ppCheckTxIdle                                                                         184
+    ppCalTxopDur                                                                          340
+    ppPrepareBarFrame                                                                     212
+    pp_attach                                                                             230
+    ppGetTaskHdl                                                                           10
+
+    // pp_debug.o
+    dbg_lmac_ps_statis_reset                                                               18
+    dbg_lmac_init                                                                           2
+
+    // pp_timer.o
+    pp_timer_beacon_monitor_tbtt                                                           22
+    pp_timer_beacon_monitor                                                                22
+    pp_timer_connectionless_wake_window                                                    22
+    pp_timer_connectionless_wake_interval                                                  22
+    pp_timer_disconnected_sleep_delay                                                      18
+    pp_timer_sleep_delay                                                                   18
+    pp_timer_coex_slice                                                                    18
+    pp_timer_active                                                                        18
+    pp_timer_dream                                                                         18
+    pp_timer_noise_check                                                                   18
+    pp_timer_register_post_cb                                                              12
+    pp_timer_process                                                                       24
+
+    // rate_control.o
+    RC_GetDuration                                                                        122
+    RC_SetBasicRate                                                                         4
+    RC_GetCtsTime                                                                          96
+
+    // trc.o
+    rc11NRate2SchedIdx                                                                     82
+    rc11GRate2SchedIdx                                                                     30
+    rc11BRate2SchedIdx                                                                     30
+    rcLoRaRate2SchedIdx                                                                    30
+    rcBuildIndex                                                                           20
+    rcUpdateAMPDUParam                                                                    174
+    rcGet11NHighestRateIdx                                                                130
+    rcGet11GHighestRateIdx                                                                120
+    rcGet11BHighestRateIdx                                                                 72
+    rcGetDefaultHigestRateIdx                                                              16
+    rcGetHighestRateIdx                                                                    34
+    rcUpdatePhyMode                                                                       776
+    rcTxUpdatePer                                                                         122
+    trc_set_per_pkt_rate                                                                   24
+    rc_get_default_sched                                                                   10
+    rcUpdateRate                                                                          578
+    rcReachRetryLimit                                                                     224
+    rcAttach                                                                              112
+    rc_disable_trc                                                                        138
+    rc_disable_trc_by_interface                                                            26
+    trc_init                                                                              174
+    trc_update_ifx_phy_mode                                                               142
+    trc_deinit                                                                             64
+    rc_set_per_conn_fix_rate                                                              108
+    rc_enable_trc                                                                         260
+
+    // 
+    wdev_csi_hw_bug_check                                                                   4
+    wDev_ftm_set_t1t4                                                                      16
+    wdev_csi_rx_process                                                                   334
+    wDev_SnifferRxData                                                                    620
+    wDev_IndicateCtrlFrame                                                                258
+    wDev_SnifferRxAmpdu                                                                   176
+    wDev_SetCurChannel                                                                     26
+    wDev_SetAuthed                                                                          2
+    wDev_Set_Beacon_Int                                                                    10
+    wDev_Reset_TBTT                                                                         6
+    wDev_reset_bcnSendTick                                                                 10
+    wDev_Get_Next_TBTT                                                                     80
+    wdev_set_promis_misc_pkt                                                               46
+    wdev_set_promis_ctrl_pkt                                                               56
+    wdev_set_promis                                                                       104
+    wDev_ftm_record_t1t4                                                                   16
+    wDev_ftm_record_t2t3                                                                   16
+    wdev_ftm_set_callbacks                                                                 28
+    wDev_record_ftm_data_local                                                            186
+    wDev_Rxbuf_Deinit                                                                     130
+    wDev_Rxbuf_Init                                                                       540
+    wDev_disable_low_rate                                                                   4
+    wDev_enable_low_rate                                                                    4
+    wDev_Insert_KeyEntry                                                                  122
+    wDev_remove_KeyEntry                                                                   40
+    wDev_remove_KeyEntry_all_cnx                                                           74
+    wDev_Crypto_Disable                                                                    32
+    wdev_is_mgmt_hwdecr_enabled                                                             4
+    wdev_data_init                                                                        324
+    wdev_funcs_init                                                                      2396
+    wdev_funcs_deinit                                                                      44
+
+    // hal_ampdu.o
+    hal_agreement_add_rx_ba                                                               280
+    hal_agreement_del_rx_ba                                                               110
+    hal_ba_session_restore_by_hw_index                                                    110
+
+    // hal_coex.o
+    hal_set_rx_beacon_pti                                                                  42
+    hal_set_rx_beacon_time                                                                 44
+
+    // hal_crypto.o 
+    hal_crypto_clr_key_entry                                                              134
+    hal_crypto_set_key_entry                                                              422
+    hal_crypto_is_key_valid                                                                16
+    hal_crypto_get_key_entry                                                              178
+    hal_crypto_mgmt_rx_enabled                                                             32
+    hal_crypto_enable                                                                     134
+    hal_crypto_disable                                                                     54
+
+    // hal_mac.o 
+    mac_tx_set_plcp0                                                                      188
+    mac_tx_set_duration                                                                    58
+    hal_mac_tx_set_ppdu                                                                    54
+    hal_mac_set_txq_invalid                                                                28
+    hal_mac_is_txq_valid                                                                   22
+    hal_mac_tx_set_cca                                                                     28
+    hal_mac_disable_low_rate                                                               50
+    hal_mac_enable_low_rate                                                                42
+    hal_mac_set_rxq_policy                                                                 28
+    hal_mac_set_addr                                                                       76
+    hal_mac_set_bssid                                                                     124
+    hal_mac_rx_set_policy                                                                 170
+    hal_mac_tsf_reset                                                                     140
+    hal_disable_sta_beacon_filter                                                          34
+    hal_rx_enable_bssid_check                                                              22
+    hal_mac_ftm_get_t3                                                                     56
+
+    // hal_mac_tx.o
+    mac_tx_set_plcp1                                                                      246
+    mac_tx_set_plcp2                                                                       56
+    mac_tx_set_htsig                                                                      584
+    hal_mac_fill_hwtxop                                                                    70
+    mac_tx_set_txop_q                                                                     282
+    hal_mac_get_txq_state                                                                  60
+    hal_mac_clr_txq_state                                                                  90
+    hal_mac_get_txq_pmd                                                                    70
+
+    // hal_sniffer.o
+    hal_sniffer_enable                                                                     94
+    hal_sniffer_disable                                                                   104
+    hal_sniffer_rx_set_promis                                                             140
+    hal_sniffer_set_promis_misc_pkt                                                       136
+
+    // hal_tsf.o
+    hal_disable_softap_tsf                                                                 18
+    hal_timer_update_by_rtc                                                                56
+    hal_set_sta_tsf                                                                        18
+    hal_enable_sta_tbtt                                                                    40
+    hal_disable_sta_tbtt                                                                   28   
+    hal_set_sta_tbtt                                                                       98
+    hal_set_sta_tbtt_interval                                                              22
+    hal_set_sta_tbtt_ahead_time                                                            18
+    hal_set_sta_tsf_wakeup                                                                 36
+    hal_tsf_get_tbttstart                                                                  14       33510   0x82e6
+    padding                                                                                 2       2
+    
+    
+.libphy
+    // phy_api.o
+    phy_change_channel                                                                     18
+    noise_check_loop                                                                        2
+
+    // phy_basic.o
+    chan14_mic_cfg                                                                         64
+
+    // phy_feature.o
+    phy_set_most_tpw                                                                       22
+    phy_11p_set                                                                           470
+    phy_enable_low_rate                                                                    44
+    phy_disable_low_rate                                                                   44
+    set_rx_sense                                                                          552
+
+    // phy_hw_freq.o
+    set_chan_freq_sw_start                                                                182
+
+    // phy_i2c.o
+    rom_i2c_sar2_init_code                                                                 70
+    phy_i2c_init2                                                                         850
+
+    // phy_init.o
+    get_txcap_data                                                                         74
+
+    // phy_reg.o
+    read_hw_noisefloor                                                                     26
+    force_txrx_off                                                                        114
+
+    // phy_rfpll.o
+    restart_cal                                                                           112
+    write_rfpll_sdm                                                                       128
+    wait_rfpll_cal_end                                                                    104
+    rfpll_set_freq                                                                        108
+    correct_rfpll_offset                                                                  124
+    rom2_write_pll_cap                                                                     70
+    rom2_read_pll_cap                                                                      72
+    rfpll_cap_init_cal                                                                    206
+    set_rfpll_freq                                                                         90
+    set_rf_freq_offset                                                                     14
+    set_channel_rfpll_freq                                                                 80
+    chip_v7_set_chan_misc                                                                  98
+    chip_v7_set_chan                                                                      220
+    set_chanfreq                                                                           30
+    
+    // phy_rx_gain.o
+    wr_rx_gain_mem                                                                        642
+
+    // phy_tx_gain.o
+    rom_set_tx_gain_mem                                                                   262
+    rom1_get_chan_target_power                                                            174
+    rom2_get_tx_gain_value1                                                                72
+    rom1_wifi_get_tx_gain                                                                 276
+    ram1_wifi_set_tx_gain                                                                 244       5658    0x161a
+    padding                                                                                 2       2
+
+.libnet80211
+    // ieee80211_action.o
+    send_inval                                                                              4
+    recv_inval                                                                              4
+    ieee80211_send_action_register                                                        128
+    ieee80211_send_action                                                                 150
+    ieee80211_recv_action_register                                                        128
+    ieee80211_recv_action                                                                 204
+
+    // ieee80211_action_vendor.o
+    get_iav_key                                                                            20
+    ieee80211_recv_action_vendor_spec                                                     262
+    ieee80211_action_vendor_spec_attach                                                    46
+
+    // ieee80211_api.o
+    wifi_ant_update_empty_func                                                              4
+    wifi_get_init_state                                                                    10
+    wifi_is_stop_in_progress                                                               10
+    wifi_api_lock                                                                          88
+    wifi_api_unlock                                                                        40
+    wifi_init_completed                                                                    42
+    wifi_softap_get_config                                                                382
+    esp_wifi_get_mode                                                                      52
+    wifi_deinit_in_caller_task                                                             54
+    wifi_init_in_caller_task                                                              140
+    wifi_osi_funcs_register                                                               100
+    net80211_data_ptr_init                                                                214
+    net80211_softap_funcs_init                                                            118
+    net80211_funcs_init                                                                   574
+    net80211_funcs_deinit                                                                  44
+    esp_wifi_init_internal                                                                272
+    wifi_event_post                                                                        82
+    wifi_mesh_event_post                                                                   82
+    esp_wifi_vnd_lora_enable                                                              196
+    esp_wifi_vnd_lora_disable                                                              94
+    esp_wifi_get_event_mask                                                                46
+    esp_wifi_ipc_internal                                                                 320
+    esp_wifi_internal_on_coex_start                                                        64
+    esp_wifi_internal_on_coex_schm_phase                                                   64
+    esp_mesh_get_running_active_duty_cycle                                                 76
+
+    // ieee80211.o
+    ieee80211_freedom_inside_cb                                                            42
+    ieee80211_send_sa_query                                                               200
+    ieee80211_send_sa_query_resp                                                           24
+    ieee80211_send_sa_query_req                                                            24
+    ieee80211_recv_sa_query_resp                                                          232
+    ieee80211_recv_sa_query_req                                                            28
+    ieee80211_rate_ref_init                                                                24
+    ieee80211_freedom_init                                                                 34
+    ieee80211_user_ie_init                                                                 68
+    ieee80211_ifattach                                                                    224
+    ieee80211_ifdetach                                                                     24
+    wifi_destroy_softap                                                                   138
+    ieee80211_find_elem_match                                                             124
+    ieee80211_find_ie                                                                       8
+    ieee80211_setup_pmf                                                                    72
+    wifi_create_softap                                                                    230
+
+    // ieee80211_crypto.o
+    ieee80211_crypto_attach                                                                 2
+    ieee80211_crypto_decap                                                                180
+    ieee80211_crypto_aes_128_cmac_encrypt                                                 288
+    ieee80211_crypto_aes_128_cmac_decrypt                                                 372
+    ieee80211_crypto_gmac_decrypt                                                         458
+    ieee80211_get_cipher_mic_len                                                           42
+
+    // ieee80211_crypto_ccmp.o
+    ccmp_encap                                                                            116
+    ccmp_decap                                                                            196
+    ieee80211_decrypt_espnow_pkt                                                           70
+    ieee80211_ccmp_decrypt                                                                410
+
+    // ieee80211_crypto_gcmp.o
+    gcmp_encap                                                                            116
+    gcmp_decap                                                                            196
+
+    // ieee80211_crypto_sms4.o
+    sms4_decap                                                                            178
+    sms4_encap                                                                            178
+
+    // ieee80211_crypto_tkip.o
+    tkip_decap                                                                            212
+    tkip_encap                                                                            146
+
+    // ieee80211_crypto_wep.o
+    wep_encap                                                                              90
+    wep_decap                                                                              40
+
+    // ieee80211_debug.o
+    wifi_log                                                                              204
+
+    // ieee80211_ets.o
+    ieee80211_getmgtframe                                                                  92
+    ieee80211_getbcnframe                                                                 156
+
+    // ieee80211_ftm.o
+    ftm_get_phy_comp                                                                       98
+    ieee80211_ftm_measurement_txcb                                                          2
+    ftm_session_timeout                                                                    10
+    ftm_send_msmt_pkt                                                                      10
+    ftm_request_timeout                                                                    10
+    ftm_send_request                                                                       10
+    ftm_record_t2t3_cb                                                                    182
+    ftm_offchan_end                                                                        98
+    public_send_action_ftm_req                                                            622
+    ftm_is_responder_supported                                                             32
+    ftm_get_resp_session_for_peer                                                          66
+    ftm_get_resp_session_by_cookie                                                         34
+    ftm_add_resp_session                                                                  118
+    ftm_free_resp_session                                                                 156
+    ftm_record_t1t4_cb                                                                    230
+    ftm_set_t1t4_cb                                                                       202
+    ftm_responder_cleanup                                                                 130
+    ftm_resp_get_burst_slot                                                                72
+    ftm_resp_get_burst_inst_delay                                                         150
+    public_send_action_ftm_resp                                                          1022
+    ieee80211_ftm_sess_timeout_process                                                     22
+    ieee80211_tx_ftm_msmt_process                                                         166
+    ftm_resp_allocate_para                                                                434
+    ftm_create_responder_session                                                          158
+    ftm_send_initial_resp                                                                 300
+    public_recv_action_ftm_req                                                            402
+    ftm_is_initiator_supported                                                             14
+    ftm_initiator_post_event                                                              130
+    ftm_parse_data                                                                        738
+    ftm_initiator_session_end                                                             118
+    ftm_initiator_session_abort                                                           186
+    ieee80211_ftm_request_txcb                                                             52
+    ieee80211_send_ftmr_process                                                           206
+    ftm_initiator_process_resp                                                            730
+    public_recv_action_ftm_resp                                                           654
+    ftm_initiator_negotiate_session                                                       148
+    ftm_offchan_tx_req                                                                     74
+    ftm_initiator_start_session                                                           216
+    ieee80211_ftm_req_timeout_process                                                      90
+    ieee80211_ftm_attach                                                                  148
+    ieee80211_ftm_detach                                                                    4
+
+    // ieee80211_hostap.o
+    is_non_esp_oui                                                                         50
+    is_esp_manufacturer_oui                                                                58
+    ieee80211_is_action_category_robust                                                    60
+    ieee80211_is_action_category_robust                                                    60
+    ieee80211_hostapd_beacon_txcb                                                         228
+    ieee80211_hostap_send_beacon                                                           10
+    hostap_handle_timer                                                                    10
+    ap_try_sa_query                                                                        10
+    ap_sa_query_timeout                                                                    10
+    ieee80211_hostapd_ps_txcb                                                              68
+    ieee80211_free_beacon_eb                                                              126
+    ieee80211_hostap_send_beacon_process                                                  890
+    hostap_delete_ptk                                                                      62
+    ieee80211_hostap_attach                                                               524
+    hostap_deliver_data                                                                   182
+    hostap_handle_timer_process                                                           394
+    ap_rx_cb                                                                               30
+    hostap_auth_open                                                                      382
+    hostap_recv_ctl                                                                       392
+    wifi_softap_start                                                                     818
+    wifi_softap_stop                                                                      412
+    ap_sa_query_timeout_process                                                           176
+    ap_try_sa_query_process                                                               390
+    hostap_recv_mgmt                                                                     3824
+    hostap_input                                                                         1624
+    add_mic_ie_bip                                                                         92
+
+    // ieee80211_ht.o
+    addba_stop_timeout                                                                     48
+    ieee80211_ampdu_timeout                                                                10
+    addba_timeout                                                                          10
+    ieee80211_ampdu_stop_age_timer                                                         56
+    ieee80211_add_htcap_body                                                              530
+    ht_recv_action_ba_addba_response                                                      420
+    ampdu_tx_stop                                                                         142
+    addba_response_txcb                                                                   428
+    ieee80211_ht_attach                                                                   576
+    ampdu_free_rx_ba_index                                                                 44
+    ht_recv_action_ba_delba                                                               164
+    ampdu_alloc_rx_ba_index                                                               110
+    ampdu_rx_stop.isra.7                                                                  216
+    ampdu_rx_start.isra.10                                                                314
+    ht_recv_action_ba_addba_request                                                       382
+    ieee80211_ht_deattach                                                                 130
+    ieee80211_ampdu_enable                                                                 12
+    addba_timeout_process                                                                  24
+    ieee80211_ampdu_request                                                               410
+    ieee80211_ampdu_age_bss                                                               260
+    ieee80211_ampdu_age_all                                                               164
+    ampdu_process_multicast_address_qos_frame                                             140
+    ieee80211_recv_bar                                                                    126
+    ieee80211_ht_node_cleanup                                                              74
+    ieee80211_ht_node_init                                                                138
+    ieee80211_parse_htcap                                                                 284
+    ieee80211_has_ht40_bss                                                                182
+    ieee80211_update_channel                                                              866
+    ieee80211_ht_updatehtcap                                                               56
+    ieee80211_ht_updateparams                                                             412
+    ieee80211_setup_htrates                                                               252
+    ieee80211_setup_basic_htrates                                                         160
+    ieee80211_add_htcap                                                                    62
+    ieee80211_add_htcap_vendor                                                             48
+    ieee80211_add_htinfo_body                                                             330
+    ieee80211_add_htinfo                                                                   60
+    ieee80211_add_htinfo_vendor                                                            88
+    ht_action_output                                                                       46
+    ht_send_action_ba_delba                                                               232
+    ht_send_action_ba_addba                                                               336
+    ieee80211_decap1                                                                      120
+    ieee80211_decap_amsdu                                                                 310
+
+    // ieee80211_ie_vendor.o
+    ieee80211_add_ie_vendor_esp_head                                                       68
+    ieee80211_add_ie_vendor_esp_manufacturer                                               84
+
+    // ieee80211_input.o
+    wpa_cipher                                                                            100
+    rsn_cipher                                                                            276
+    ieee80211_decap                                                                       430
+    ieee80211_is_support_rate                                                              72
+    ieee80211_setup_rates                                                                 234
+    ieee80211_set_max_rate                                                                308
+    ieee80211_is_lr_only                                                                   16
+    ieee80211_setup_phy_mode                                                              182
+    ieee80211_setup_lr_rates                                                              102
+    ieee80211_alloc_challenge                                                              72
+    ieee80211_parse_beacon                                                               1404
+    ieee80211_parse_wpa                                                                   280
+    ieee80211_rsn_cipher_priority                                                          52
+    ieee80211_better_rsn_pairwise_cipher                                                   40
+    ieee80211_amsdu_negotiate                                                             144
+    ieee80211_parse_rsn                                                                  1982
+    ieee80211_is_ht_cipher                                                                 30
+    ieee80211_parse_wapi                                                                  158
+    ieee80211_parse_action                                                                174
+    ieee80211_setup_rateset                                                                 4
+
+    // ieee80211_ioctl.o
+    wifi_pmk_is_valid                                                                      46
+    ieee80211_ioctl_process                                                               274
+    current_task_is_wifi_task                                                              40
+    wifi_station_get_reconnect_policy                                                       4
+    ieee80211_set_phy_bw                                                                  416
+    wifi_station_save_ap_channel                                                          118
+    ieee80211_sta_disconnect                                                              144
+    _do_wifi_disconnect                                                                   142
+    wifi_softap_max_support_num                                                            26
+    wifi_softap_set_config                                                               1842
+    wifi_menuconfig_init                                                                  516
+    wpa_crypto_funcs_init                                                                  64
+    wifi_crypto_init                                                                        4
+    wifi_hmac_init                                                                         60
+    wifi_lmac_init                                                                        272
+    wifi_deinit                                                                            32
+    wifi_init_process                                                                     210
+    wifi_disconnect_process                                                               104
+    wifi_wps_is_started                                                                    10
+    wifi_wpa2_is_started                                                                   10
+    wifi_ipc_process                                                                      116
+    wifi_on_coex_start_process                                                             44
+    wifi_on_coex_schm_phase_process                                                        16
+    wifi_mesh_ps_duty_cycle_get_process                                                    40
+    ieee80211_ioctl_init                                                                   48
+    ieee80211_ioctl_deinit                                                                 12
+    ieee80211_ioctl                                                                       434
+    config_get_wifi_task_stack_size                                                        42
+
+    // ieee80211_mesh_quick.o
+    is_esp_mesh_assoc                                                                     150
+
+    // ieee80211_nvs.o
+    wifi_nvs_cfg_item_init                                                                164
+    wifi_nvs_cfg_init                                                                    2122
+    wifi_nvs_get                                                                           10
+    wifi_nvs_commit                                                                        58
+    wifi_nvs_set                                                                          404
+    ieee80211_adjust_2nd_chan                                                             102
+    wifi_nvs_compare_cfg_diff                                                             410
+    wifi_set_default_ssid                                                                  86
+    wifi_nvs_validate_ap_ssid                                                              38
+    wifi_nvs_validate_ap_password                                                          68
+    wifi_nvs_validate_sta_password                                                         76
+    wifi_nvs_validate_country                                                              78
+    wifi_nvs_validate_ap_chan                                                              80
+    wifi_nvs_validate_ap_num                                                               26
+    wifi_nvs_validate_sta_listen_interval                                                  24
+    wifi_nvs_load                                                                         596
+    wifi_nvs_get_sta_listen_interval                                                       14
+    wifi_nvs_reset_current_ap_info                                                        124
+    wifi_nvs_deinit                                                                        98
+    wifi_nvs_init                                                                         126
+
+    // ieee80211_output.o
+    add_appie                                                                              34
+    ieee80211_vnd_ie_size.part.4                                                           58
+    ieee80211_empty_txq                                                                   152
+    is_wapi_alloc_tx_buf                                                                   50
+    ieee80211_wapi_alloc_tx_buf                                                            76
+    ieee80211_amsdu_adjust_head                                                           222
+    ieee80211_amsdu_length_check                                                           42
+    ieee80211_output_init                                                                  54
+    ieee80211_send_setup                                                                  316
+    ieee80211_tx_mgt_cb                                                                   374
+    ieee80211_classify                                                                    366
+    ieee80211_add_rates                                                                    56
+    ieee80211_add_dsparams                                                                 44
+    ieee80211_add_xrates                                                                   94
+    ieee80211_add_probe_resp_app_ies                                                       50
+    ieee80211_add_beacon_app_ies                                                           50
+    ieee80211_add_assoc_resp_ies                                                           46
+    ieee80211_add_assoc_req_ies                                                            46
+    ieee80211_add_probe_req_ies                                                            46
+    ieee80211_add_wme_param                                                               126
+    ieee80211_add_csa                                                                      48
+    ieee80211_add_extcap                                                                  210
+    ieee80211_vnd_ie_set                                                                  122
+    ieee80211_vnd_lora_ie_size                                                             28
+    ieee80211_vnd_lora_ie_set                                                              66
+    ieee80211_setup_robust_mgmtframe                                                      170
+    ieee80211_mgmt_output                                                                 546
+    ieee80211_getcapinfo                                                                  134
+    ieee80211_assoc_req_construct                                                        1184
+    ieee80211_assoc_resp_construct                                                        860
+    ieee80211_auth_construct                                                              778
+    ieee80211_get_robustmgtframe                                                           54
+    ieee80211_deauth_construct                                                             96
+    ieee80211_disassoc_construct                                                           98
+    ieee80211_output                                                                       12
+    ieee80211_amsdu_send_check                                                            226
+    ieee80211_amsdu_encap_check                                                           128
+    ieee80211_encap_amsdu                                                                 500
+    ieee80211_alloc_proberesp                                                             716
+    ieee80211_alloc_deauth                                                                 80
+    ieee80211_output_raw_process                                                          432
+    ieee80211_beacon_construct                                                            640
+    ieee80211_send_nulldata                                                               312
+    ieee80211_send_probereq                                                               606
+    ieee80211_send_mgmt                                                                   286
+    ieee80211_send_proberesp                                                              246
+    ieee80211_send_deauth_no_bss                                                          264
+    ieee80211_beacon_alloc                                                                542
+    ieee80211_encap_null_data                                                             266
+    ieee80211_pm_tx_null_process                                                           42
+
+    // ieee80211_phy.o
+    ieee80211_phy_deinit                                                                   16
+    ieee80211_phy_type_get                                                                 90
+    ieee80211_phy_mode_show                                                               134
+    ieee80211_setup_ratetable                                                             316
+    ieee80211_phy_init                                                                    174
+
+    // ieee80211_power.o
+    ieee80211_psq_init                                                                     24
+    ieee80211_gpsq_init                                                                    60
+    ieee80211_psq_find_max_bss                                                             58
+    ieee80211_set_tim                                                                     126
+    ieee80211_psq_take_head                                                                62
+    ieee80211_psq_drop_one_pkt                                                            100
+    ieee80211_psq_send_one_pkt                                                            124
+    ieee80211_psq_is_buff_pkt                                                              68
+    ieee80211_pwrsave                                                                     142
+    pwrsave_flushq                                                                        282
+    ieee80211_node_pwrsave                                                                104
+    ieee80211_pwrsave_node_cleanup                                                         82
+    ieee80211_pwrsave_txcb                                                                 80
+    ieee80211_is_bufferable_mmpdu                                                          80
+
+    // ieee80211_proto.o
+    ieee80211_proto_attach                                                                 30
+    ieee80211_set_shortslottime                                                            18
+    ieee80211_wme_updateparams                                                             98
+    ieee80211_mlme_connect_bss                                                            266
+
+    // ieee80211_reg_db.o
+    get_country_chan_info                                                                  58
+    ieee80211_is_40mhz_valid_bw                                                            84
+
+    // ieee80211_regdomain.o
+    ieee80211_regdomain_get_country                                                        56
+    ieee80211_update_phy_country                                                           46
+    ieee80211_regdomain_update                                                            346
+    ieee80211_regdomain_update_in_scan                                                      6
+    ieee80211_regdomain_update_in_connect                                                   6
+    ieee80211_add_countryie                                                               104
+    ieee80211_regdomain_max_chan                                                           46
+    ieee80211_regdomain_ap_max_chan                                                        28
+    ieee80211_regdomain_min_chan                                                           34
+    ieee80211_regdomain_ap_min_chan                                                        16
+    ieee80211_regdomain_chan_in_range                                                      36
+    ieee80211_regdomain_is_active_scan                                                     24
+
+    // ieee80211_rfid.o
+    ieee80211_rfid_locp_recv_reset                                                         10
+    ieee80211_rfid_locp_recv                                                               24
+
+    // ieee80211_scan.o
+    scan_enter_oper_channel                                                                10
+    scan_inter_channel_timeout                                                             10
+    scan_op_start                                                                         494
+    fn sta_update_owe_bssid.isra.0                                                        118
+    scan_set_global_scan_times.constprop.13                                                38
+    ieee80211_scan_deattach                                                                56
+    scan_reset_default_app_params                                                          74
+    ieee80211_scan_attach                                                                 204
+    scan_flush_all_tx_buf                                                                 142
+    scan_cancel                                                                           154
+    scan_remove_bssid                                                                      14
+    scan_hidden_ssid                                                                       14
+    scan_set_act_duration                                                                  14
+    scan_set_pas_duration                                                                  12
+    scan_add_probe_ssid                                                                   132
+    scan_remove_probe_ssid                                                                 38
+    scan_prefer_chan                                                                      490
+    scan_update_scan_history                                                              376
+    scan_build_chan_list                                                                  150
+    scan_set_desChan                                                                       16
+    scan_get_type                                                                          12
+    scan_check_hidden                                                                      28
+    scan_add_ssid_do.isra.6                                                              1158
+    scan_add_ssid.isra.7                                                                  452
+    scan_reset_cipher_and_akm                                                              38
+    scan_profile_check                                                                   1312
+    free_bss_info                                                                          82
+    clear_bss_queue                                                                       122
+    scan_done                                                                             594
+    scan_next_channel                                                                     500
+    scan_enter_oper_channel_process                                                        36
+    scan_inter_channel_timeout_process                                                    148
+    scan_op_end                                                                           454
+    scan_start                                                                            394
+    check_bss_queue                                                                       110
+    scan_parse_ht2040_coex                                                                134
+    scan_fill_wps_scan_ie                                                                  40
+    scan_get_owe_channel_info                                                             142
+    scan_validate_owe_scenarios                                                           162
+    scan_parse_beacon                                                                    2906
+
+    // ieee80211_sta.o
+    sta_assoc_comeback                                                                     10
+    sta_try_sa_query                                                                       10
+    sta_sa_query_timeout                                                                   10
+    ieee80211_wme_standard_ac_to_esp_ac                                                    66
+    ieee80211_parse_wmeparams                                                             168
+    sta_rx_csa                                                                            614
+    reset_cs_thres                                                                         40
+    ieee80211_parse_obss_scan_param                                                        16
+    sta_recv_ctl                                                                           14
+    sta_bip_check                                                                         130
+    sta_is_wpa3_enabled                                                                    30
+    sta_is_11r_enabled                                                                     14
+    sta_is_wifi_ent_enabled                                                                14
+    sta_get_owe_data                                                                       14
+    sta_update_power_off_reset_flag                                                       108
+    ieee80211_sta_new_state                                                              2688
+    sta_auth_ft                                                                           230
+    sta_auth_open                                                                         370
+    sta_auth_shared                                                                       346
+    sta_auth_sae                                                                          468
+    sta_retry_assoc                                                                       208
+    sta_recv_assoc                                                                       1724
+    sta_sa_query_process_timeout                                                          152
+    sta_try_sa_query_process                                                              390
+    sta_recv_mgmt                                                                        2806
+
+    // ieee80211_supplicant.o
+    wifi_sta_get_prof_password                                                             14
+    ieee80211_set_key                                                                      98
+    ieee80211_set_sta_gtk_index                                                            24
+    ieee80211_get_spp                                                                      58
+    ieee80211_sta_is_connected                                                             16
+    wifi_set_rx_policy                                                                    344
+    wifi_init_key                                                                          42
+    ppInstallKey                                                                          338
+    ieee80211w_get_active_igtk_key_id                                                      34
+    ieee80211w_get_igtk_from_keyidx                                                        78
+
+    // ieee80211_timer.o
+    ieee80211_ampdu_age_handle                                                             18
+    ieee80211_addba                                                                        18
+    ieee80211_ftm_sess_timeout                                                             18
+    ieee80211_ftm_req_timeout                                                              18
+    ieee80211_tx_ftm_msmt                                                                  18
+    ieee80211_send_ftmr                                                                    18
+    ieee80211_ap_try_sa_query                                                              58
+    ieee80211_ap_sa_query_timeout                                                          58
+    ieee80211_sta_retry_assoc                                                              56
+    ieee80211_sta_sa_query_timeout                                                         56
+    ieee80211_sta_try_sa_query                                                             56
+    ieee80211_assoc                                                                        56
+    ieee80211_auth                                                                         56
+    ieee80211_chm_dwell                                                                    56
+    ieee80211_handshake                                                                    56
+    ieee80211_beacon                                                                       80
+    ieee80211_probe_send                                                                   80
+    ieee80211_csa                                                                          66
+    ieee80211_scan_enter_op_chan                                                           58
+    ieee80211_scan_inter_chan                                                              58
+    ieee80211_timer_connect                                                                56
+    ieee80211_hostap_handle                                                                58
+    ieee80211_send_beacon                                                                  58
+    ieee80211_register_ftm_timer                                                           94
+    ieee80211_register_hostap_timer                                                        58
+    ieee80211_timer_do_process                                                            164
+    ieee80211_timer_process                                                               214
+
+    // wl_chm.o
+    chm_phy_change_channel.constprop.2                                                     52
+    chm_release_lock                                                                       22
+    chm_end_op                                                                             88
+    chm_end_op_timeout_process                                                             44
+    chm_cancel_op                                                                         104
+    chm_acquire_lock                                                                       76
+    chm_get_current_channel                                                                14
+    chm_get_home_channel                                                                   14
+    chm_set_home_channel                                                                  192
+    chm_get_chan_info                                                                      38
+    chm_set_current_channel                                                               308
+    chm_change_channel                                                                    296
+    chm_start_op                                                                           74
+    chm_return_home_channel                                                               100
+
+    // wl_cnx.o
+    cnx_sta_connect_led_timer_cb                                                           24
+    cnx_cal_rc_util                                                                        78
+    cnx_get_next_rc                                                                        84
+    cnx_traverse_rc_lis_done                                                               58
+    cnx_connect_timeout                                                                     8
+    cnx_handshake_timeout                                                                   8
+    cnx_csa_fn                                                                             20
+    mgd_probe_send_timeout                                                                  8
+    cnx_beacon_timeout                                                                      8
+    cnx_connect_op                                                                        486
+    cnx_connect_to_bss                                                                    842
+    cnx_probe_rc                                                                          112
+    cnx_sta_pm.part.12                                                                     34
+    ieee80211_cnx_attach                                                                   82
+    _cnx_start_connect_without_scan                                                       100
+    cnx_can_do_obss_scan                                                                  112
+    cnx_obss_scan                                                                         150
+    cnx_obss_scan_timeout                                                                 100
+    cnx_auth_timeout                                                                       10
+    cnx_assoc_timeout                                                                      10
+    wl_is_ap_no_lr                                                                         10
+    wl_clear_ap_no_lr                                                                      10
+    cnx_csa_fn_process                                                                    216
+    cnx_validate_owe_bss                                                                  240
+    cnx_bss_init                                                                          190
+    cnx_check_bssid_in_blacklist                                                           56
+    cnx_remove_from_blacklist                                                             164
+    cnx_add_to_blacklist                                                                  234
+    cnx_clear_blacklist                                                                   114
+    cnx_choose_rc                                                                         470
+    cnx_rc_search                                                                          94
+    cnx_add_rc                                                                            170
+    cnx_remove_all_rc                                                                     134
+    cnx_do_handoff                                                                        874
+    cnx_connect_next_ap                                                                    68
+    cnx_start_handoff_cb                                                                  108
+    cnx_remove_rc                                                                         244
+    cnx_sta_connect_cmd                                                                   654
+    cnx_connect_timeout_process                                                           160
+    cnx_auth_timeout_process                                                               76
+    cnx_assoc_timeout_process                                                              60
+    cnx_handshake_timeout_process                                                         104
+    cnx_bss_alloc                                                                         714
+    cnx_remove_rc_except                                                                  178
+    cnx_rc_update_rssi                                                                     96
+    cnx_rc_update_state_metric                                                             78
+    cnx_probe_rc_tx_cb                                                                     96
+    cnx_rc_update_age                                                                      22
+    cnx_update_bss                                                                         46
+    cnx_update_bss_more                                                                   900
+    send_ap_probe                                                                         194
+    cnx_beacon_timeout_process                                                            178
+    mgd_probe_send_timeout_process                                                        342
+    cnx_node_alloc                                                                        240
+    cnx_node_remove                                                                       256
+    cnx_is_any_node_connecting                                                             58
+    cnx_sta_pm                                                                             12
+    ic_set_sta                                                                            220
+    cnx_sta_leave                                                                         746
+    cnx_sta_associated                                                                    442
+    cnx_node_leave                                                                        504
+    cnx_node_join                                                                         750
+    cnx_start_obss_scan                                                                   208
+    cnx_obss_scan_done_cb                                                                 334
+    cnx_auth_done                                                                         750
+
+    // wl_offchan.o
+    offchan_in_progress                                                                    10
+    offchan_recv_action                                                                    18
+    offchan_send_action_tx_status                                                          46       109224  0x1aaa8
+
+
+.libwpa-suppl
+    // ccmp.c.obj
+    ccmp_aad_nonce                                                                        340
+    ccmp_decrypt                                                                          160
+    ccmp_encrypt                                                                          260
+
+    // aes-gcm.c.obj
+    WPA_GET_BE32                                                                           30
+    WPA_PUT_BE32                                                                           30
+    WPA_PUT_BE64                                                                           46
+    xor_block                                                                              34
+    shift_right_block                                                                      96
+    gf_mult                                                                               134
+    aes_gcm_init_hash_subkey                                                               50
+    ghash                                                                                 146
+    aes_gcm_ghash                                                                         106
+    aes_gctr.part.0                                                                       164
+    aes_gcm_prepare_j0                                                                    114
+    aes_gcm_gctr.part.0                                                                    60
+    aes_gcm_ae                                                                            120
+    aes_gmac                                                                               24
+
+    // crypto_ops.c.obj
+    esp_supp_crc32                                                                          8
+    esp_aes_gmac                                                                            2
+    esp_aes_decrypt                                                                         4
+    esp_aes_encrypt                                                                         4
+    esp_aes_unwrap                                                                         12
+    esp_aes_wrap                                                                           12
+
+    // sha256-prf.c.obj
+    sha256_prf_bits                                                                       246
+    sha256_prf                                                                              4
+
+    // sha1-prf.c.obj
+    sha1_prf                                                                              184
+
+    // common.c.obj
+    hex2num                                                                                56
+    hex2byte                                                                               56
+    hexstr2bin                                                                             58
+    __hide_aliasing_typecast                                                                2
+
+    // rc4.c.obj
+    rc4_skip                                                                              228
+
+    // aes-cbc.c.obj
+    aes_128_cbc_encrypt                                                                   136
+    aes_128_cbc_decrypt                                                                   138
+
+    // aes-ccm.c.obj
+    xor_aes_block                                                                          34
+    aes_ccm_auth                                                                          128
+    aes_ccm_encr.constprop.0                                                              184
+    aes_ccm_auth_start.constprop.0                                                        194
+    aes_ccm_ae                                                                            180
+    aes_ccm_ad                                                                            204
+
+    // aes-internal-dec.c.obj
+    aes_decrypt_init                                                                      314
+    aes_decrypt                                                                          1308
+    aes_decrypt_deinit                                                                      4
+
+    // aes-internal-enc.c.obj
+    aes_encrypt_init                                                                       66
+    aes_encrypt                                                                          1284
+    aes_encrypt_deinit                                                                      4
+
+    // aes-internal.c.obj
+    rijndaelKeySetupEnc                                                                   816
+
+    // aes-omac1.c.obj
+    gf_mulx                                                                                64
+    omac1_aes_vector                                                                      396
+    omac1_aes_128_vector                                                                   12
+    omac1_aes_128                                                                          24
+
+    // aes-unwrap.c.obj
+    aes_unwrap                                                                            254
+
+    // aes-wrap.c.obj
+    aes_wrap                                                                              234
+
+    // md5-internal.c.obj
+    MD5Transform                                                                         2288
+    MD5Init                                                                                50
+    MD5Update                                                                             196
+    MD5Final                                                                              150
+    md5_vector                                                                             78
+
+    // md5.c.obj
+    hmac_md5_vector                                                                       242    
+    hmac_md5                                                                               24
+
+    // sha1-internal.c.obj
+    SHA1Transform                                                                        5658
+    SHA1Init                                                                               60
+    SHA1Update                                                                            152
+    SHA1Final                                                                             216
+    sha1_vector                                                                            78
+
+    // sha1-pbkdf2.c.obj
+    pbkdf2_sha1                                                                           248
+
+    // sha1.c.obj
+    hmac_sha1_vector                                                                      270
+    hmac_sha1                                                                              24
+
+    // sha256-internal.c.obj
+    sha256_compress                                                                       422
+    sha256_init                                                                            96
+    sha256_process                                                                        192
+    sha256_done                                                                           266
+    sha256_vector                                                                          90
+
+    // sha256.c.obj
+    hmac_sha256_vector                                                                    238       19806   0x4d5e
     padding                                                                                 2       2
 
 .core
     alloc::alloc::handle_alloc_error                                                        2
     ___rustc12___rust_alloc                                                               104
+    ___rustc14___rust_dealloc                                                             126
+    ___rustc19___rust_alloc_zeroed                                                        122
     core::alloc::layout::Layout::is_size_align_valid                                       28
 
-    core::cell::once::OnceCell::try_init                                                  112
+    core::cell::once::OnceCell::try_init                                                  136
     core::cell::panic_already_borrowed
     core::cell::panic_already_mutably_borrowed                                              2
+    
+    core::slice::index::slice_start_index_len_fail::do_panic::runtime
+    core::slice::index::slice_end_index_len_fail::do_panic::runtime
+    core::slice::index::slice_index_order_fail::do_panic::runtime                           2
 
+    memset                                                                                108
+    memcpy                                                                                190
+    memcmp                                                                                 32
+    memmove                                                                                 8
+    strlen                                                                                 24
+
+    compiler_builtins::float::div8__divs                                                  696                                     
+    compiler_builtins::float::div8__divd                                                 1458
+    compiler_builtins::float::mul8__muls                                                 1266
+    compiler_builtins::float::add8__adds                                                 1570
+    compiler_builtins::mem::memmove                                                       410
     compiler_builtins::int::specialized_div_rem::_div_rem                                 976
+
+    __ledf2
+    __eqdf2                                                                               142
+    __adddf3                                                                                8
+    __bswapsi2                                                                             30
+    __ctzsi2                                                                               90
+    __divdf3                                                                                8
+    __divdi3                                                                              126
+    __divsf3                                                                                8
+    __extendsfdf2                                                                         262
+    __fixdfsi                                                                             100
+    __fixunsdfsi                                                                           74
+    __floatsidf                                                                           190
+    __floatundisf                                                                         290
+    __floatunsidf                                                                         158
+    __gedf2                                                                               138
+    __gtdf2                                                                               138
+    __ltdf2                                                                               142
+    __moddi3                                                                              124
+    __muldf3                                                                                8
+    __nedf2                                                                               142
+    __subdf3                                                                               14
     __udivdi3                                                                              32
-    memset                                                                                108       1364    0x554
+    __umoddi3                                                                              32       9516    0x252c
 
 .text
-    main                                                                                   16       16
+    embassy_executor::raw::TaskStorage::poll                                              274
+    embassy_executor::raw::TaskStorage::poll                                              146
+    main                                                                                   16       436     0x1b4
 
-                                                                                                    7280    0x1c70
+                                                                                                    193244  0x2f2dc
 
-                                                                                                    9228 image
-                                                                                                    7480 flash
-                                                                                                    1796 RAM
+                                                                                                    225976 flash
+                                                                                                    32364 RAM

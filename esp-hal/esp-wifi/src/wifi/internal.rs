@@ -7,12 +7,14 @@ use esp_wifi_sys::include::{
 // 10
 use super::os_adapter::{
     calloc_internal, coex_register_start_cb, coex_schm_register_cb_wrapper, free, log_timestamp,
-    log_write, log_writev, malloc, malloc_internal, mutex_delete, mutex_lock, mutex_unlock,
-    queue_recv, queue_send, recursive_mutex_create, spin_lock_create, spin_lock_delete,
-    task_create_pinned_to_core, task_delay, task_get_current_task, task_get_max_priority,
-    task_ms_to_tick, wifi_calloc, wifi_create_queue, wifi_delete_queue, wifi_int_disable,
-    wifi_int_restore, wifi_malloc, wifi_thread_semphr_get, wifi_zalloc, zalloc_internal,
+    malloc, malloc_internal, mutex_delete, mutex_lock, mutex_unlock, queue_recv, queue_send,
+    recursive_mutex_create, spin_lock_create, spin_lock_delete, task_create_pinned_to_core,
+    task_delay, task_get_current_task, task_get_max_priority, task_ms_to_tick, wifi_calloc,
+    wifi_create_queue, wifi_delete_queue, wifi_int_disable, wifi_int_restore, wifi_malloc,
+    wifi_thread_semphr_get, wifi_zalloc, zalloc_internal,
 };
+#[cfg(feature = "sys-logs")]
+use super::os_adapter::{log_write, log_writev};
 
 // 11
 use crate::common_adapter::{

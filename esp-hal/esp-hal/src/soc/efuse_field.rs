@@ -3,12 +3,12 @@ use core::{cmp, mem, slice};
 
 // 3
 use bytemuck::AnyBitPattern;
-use console::panic;
 
 // 5
 use crate::soc::efuse::{Efuse, EfuseBlock};
 
 /// The bit field for get access to efuse data
+#[allow(unused)]
 #[derive(Debug, Clone, Copy)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 // 10

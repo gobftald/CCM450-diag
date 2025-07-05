@@ -85,6 +85,8 @@ riscv32-esp-elf-gdb esp-minimal
 ddbug -c function -p all -f function-inline=no esp-minimal|less
 cat /dev/cu.usbmodem101 |defmt-print -e target/riscv32imc-unknown-none-elf/release/esp-minimal
 
+espflash save-image --chip esp32c3 esp-wifi esp-wifi.img
+esptool.py image_info --version 2 esp-wifi.img
 
 fighthing for null printing/formatting overhead in a finally headless embedded code:
 1 defmt put the majority of the weight/length of the printing/debugging text to the host side

@@ -42,14 +42,6 @@ pub(crate) struct Timer {
     next: Option<Box<Timer>>,
 }
 
-// 45
-impl Timer {
-    // 46
-    pub(crate) fn id(&self) -> usize {
-        self.ets_timer as usize
-    }
-}
-
 // 51
 pub(crate) struct TimerQueue {
     head: Option<Box<Timer>>,
@@ -167,5 +159,9 @@ pub(crate) fn compat_timer_setfn(
                 timers.push(Box::from_raw(timer)).is_ok()
             }
         });
+
+        if !set {
+            warn!("Failed to set timer function {:x}", ets_timer as usize);
+        }
     }
 }

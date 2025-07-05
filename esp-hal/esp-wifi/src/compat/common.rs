@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 // 10
 use allocator_api2::boxed::Box;
 
