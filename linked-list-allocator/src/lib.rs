@@ -1,6 +1,6 @@
 #![no_std]
 
-#[macro_use(panic, assert, assert_eq)]
+#[macro_use(panic, assert, assert_eq, debug_assert, debug_assert_eq)]
 extern crate console;
 
 // 13

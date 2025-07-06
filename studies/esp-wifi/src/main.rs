@@ -13,7 +13,10 @@ mod panic;
 #[macro_use(core_println, debug, unwrap)] // core_println for panic_handler in mod panic
 extern crate console;
 
+use core::net::Ipv4Addr;
+
 use embassy_executor::Spawner;
+use embassy_net::{Ipv4Cidr, StaticConfigV4};
 use embassy_time::{Duration, Timer};
 
 use core::cell::OnceCell;
@@ -24,6 +27,8 @@ macro_rules! mk_static {
         unsafe { STATIC_CELL.get_mut_or_init(|| $val) }
     }};
 }
+
+//const GW_IP_ADDR_ENV: Option<&'static str> = option_env!("GATEWAY_IP");
 
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
@@ -50,8 +55,17 @@ async fn main(spawner: Spawner) {
     }
     */
 
+    let wifi_ap_device = interfaces.ap;
+    let wifi_sta_device = interfaces.sta;
+
     let systimer = esp_hal::timer::systimer::SystemTimer::new(peripherals.SYSTIMER);
     esp_hal_embassy::init(systimer.alarm0);
+
+    let ap_config = embassy_net::Config::ipv4_static(StaticConfigV4 {
+        address: Ipv4Cidr::new(Ipv4Addr::new(192, 168, 3, 1), 24),
+        gateway: Some(Ipv4Addr::new(192, 168, 3, 1)),
+        dns_servers: Default::default(),
+    });
 
     spawner.spawn(run()).ok();
 }

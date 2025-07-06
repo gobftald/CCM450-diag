@@ -81,6 +81,11 @@ INCLUDE "debug_libnet80211.x"
 
 INCLUDE "debug_libwpa-suppl.x"
 
+.smoltcp : ALIGN(4)
+    {
+        *(.text.*smoltcp*)
+    } > ROTEXT
+
 .core : ALIGN(4)
     {
         *(.text.*alloc*alloc*)

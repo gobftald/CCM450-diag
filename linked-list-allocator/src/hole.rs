@@ -256,13 +256,7 @@ fn check_merge_top(mut node: NonNull<Hole>, top: *mut u8) {
 // If so: create and return the new hole. If not: return the existing hole
 // 246
 fn check_merge_bottom(node: NonNull<Hole>, bottom: *mut u8) -> NonNull<Hole> {
-    #[cfg(not(feature = "defmt"))]
     debug_assert_eq!(bottom as usize % align_of::<Hole>(), 0);
-
-    #[cfg(all(debug_assertions, feature = "defmt"))]
-    if bottom as usize % align_of::<Hole>() != 0 {
-        panic!("Hole address not aligned!");
-    }
 
     if bottom.wrapping_add(core::mem::size_of::<Hole>()) > node.as_ptr().cast::<u8>() {
         let offset = (node.as_ptr() as usize) - (bottom as usize);
@@ -414,17 +408,11 @@ impl HoleList {
 // 481
 unsafe fn make_hole(addr: *mut u8, size: usize) -> NonNull<Hole> {
     let hole_addr = addr.cast::<Hole>();
-    #[cfg(not(feature = "defmt"))]
     debug_assert_eq!(
         addr as usize % align_of::<Hole>(),
         0,
         "Hole address not aligned!",
     );
-
-    #[cfg(all(debug_assertions, feature = "defmt"))]
-    if addr as usize % align_of::<Hole>() != 0 {
-        panic!("Hole address not aligned!");
-    }
 
     hole_addr.write(Hole { size, next: None });
     NonNull::new_unchecked(hole_addr)
@@ -445,13 +433,7 @@ impl Cursor {
                 node_u8.wrapping_add(node_size) <= hole_u8,
                 "Freed node aliases existing hole! Bad free?",
             );
-            #[cfg(not(feature = "defmt"))]
             debug_assert_eq!(self.previous().size, 0);
-
-            #[cfg(all(debug_assertions, feature = "defmt"))]
-            if self.previous().size != 0 {
-                panic!("previous is not the stub pointer");
-            }
 
             let Cursor {
                 mut prev,
@@ -495,13 +477,7 @@ impl Cursor {
         // At this point, we either have no "next" pointer, or the hole is
         // between current and "next". The following assert can only trigger
         // if we've gotten our list out of order.
-        #[cfg(not(feature = "defmt"))]
         debug_assert!(self.hole < node, "Hole list out of order?");
-
-        #[cfg(all(debug_assertions, feature = "defmt"))]
-        if self.hole < node {
-            panic!("Hole list out of order?");
-        }
 
         let hole_u8 = self.hole.as_ptr().cast::<u8>();
         let hole_size = self.current().size;

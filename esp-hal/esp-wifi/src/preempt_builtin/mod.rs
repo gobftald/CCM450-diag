@@ -160,16 +160,10 @@ impl Scheduler for BuiltinScheduler {
         //let current_task = state.current_task;
         let current_task = unsafe { SCHEDULER_STATE.current_task };
 
-        #[cfg(not(feature = "defmt"))]
         debug_assert!(
             !current_task.is_null(),
             "Tried to allocate a task before allocating the main task"
         );
-
-        #[cfg(all(debug_assertions, feature = "defmt"))]
-        if current_task.is_null() {
-            panic!("")
-        }
 
         // Insert the new task at the next position.
         unsafe {
@@ -218,17 +212,11 @@ fn allocate_main_task() {
     }
 
     //SCHEDULER_STATE.with(|state| {
-    #[cfg(not(feature = "defmt"))]
     debug_assert!(
         unsafe { SCHEDULER_STATE.current_task.is_null() },
         "Tried to allocate main task multiple times",
     );
     //});
-
-    #[cfg(all(debug_assertions, feature = "defmt"))]
-    if !unsafe { SCHEDULER_STATE.current_task.is_null() } {
-        panic!("Tried to allocate main task multiple times");
-    }
 
     unsafe {
         SCHEDULER_STATE.current_task = context_ptr;

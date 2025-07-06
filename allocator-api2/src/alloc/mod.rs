@@ -1,6 +1,6 @@
 //! Memory allocation APIs
 
-use core::ptr::NonNull;
+use core::ptr::{self, NonNull};
 
 #[cfg(feature = "alloc")]
 // 9
@@ -74,4 +74,45 @@ pub unsafe trait Allocator {
     // 156
     //unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout);
     unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout);
+
+    /// Attempts to extend the memory block.
+    ///
+    /// Returns a new [`NonNull<[u8]>`][NonNull] containing a pointer and the actual size of the allocated
+    /// memory. The pointer is suitable for holding data described by `new_layout`. To accomplish
+    /// this, the allocator may extend the allocation referenced by `ptr` to fit the new layout.
+    ///
+    /// If this returns `Ok`, then ownership of the memory block referenced by `ptr` has been
+    /// transferred to this allocator. Any access to the old `ptr` is Undefined Behavior, even if the
+    /// allocation was grown in-place. The newly returned pointer is the only valid pointer
+    /// for accessing this memory now.
+    ///
+    /// If this method returns `Err`, then ownership of the memory block has not been transferred to
+    /// this allocator, and the contents of the memory block are unaltered.
+    ///
+    #[inline(always)]
+    unsafe fn grow(
+        &self,
+        ptr: NonNull<u8>,
+        old_layout: Layout,
+        new_layout: Layout,
+    ) -> Result<NonNull<[u8]>, AllocError> {
+        debug_assert!(
+            new_layout.size() >= old_layout.size(),
+            "`new_layout.size()` must be greater than or equal to `old_layout.size()`"
+        );
+
+        let new_ptr = self.allocate(new_layout)?;
+
+        // SAFETY: because `new_layout.size()` must be greater than or equal to
+        // `old_layout.size()`, both the old and new memory allocation are valid for reads and
+        // writes for `old_layout.size()` bytes. Also, because the old allocation wasn't yet
+        // deallocated, it cannot overlap `new_ptr`. Thus, the call to `copy_nonoverlapping` is
+        // safe. The safety contract for `dealloc` must be upheld by the caller.
+        unsafe {
+            ptr::copy_nonoverlapping(ptr.as_ptr(), new_ptr.as_ptr().cast(), old_layout.size());
+            self.deallocate(ptr, old_layout);
+        }
+
+        Ok(new_ptr)
+    }
 }

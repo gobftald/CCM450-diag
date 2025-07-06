@@ -1,7 +1,7 @@
 #![no_std]
 
 #[allow(unused_imports)]
-#[macro_use(panic)]
+#[macro_use(panic, unreachable, debug_assert, debug_assert_eq)]
 extern crate console;
 
 // 9
@@ -19,8 +19,37 @@ pub mod boxed;
 mod raw_vec;
 
 #[cfg(feature = "alloc")]
+// 22
+pub mod vec;
+
+#[cfg(feature = "alloc")]
 // 33
 mod unique;
+
+#[cfg(feature = "alloc")]
+#[track_caller]
+#[inline(always)]
+#[cfg(debug_assertions)]
+// 79
+unsafe fn assume(v: bool) {
+    if !v {
+        //core::unreachable!()
+        unreachable!()
+    }
+}
+
+#[cfg(feature = "alloc")]
+#[track_caller]
+#[inline(always)]
+#[cfg(not(debug_assertions))]
+// 89
+unsafe fn assume(v: bool) {
+    if !v {
+        unsafe {
+            core::hint::unreachable_unchecked();
+        }
+    }
+}
 
 // 108
 #[cfg(feature = "alloc")]

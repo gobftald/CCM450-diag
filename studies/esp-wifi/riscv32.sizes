@@ -1,10 +1,10 @@
 DEFMT_LOG=info cargo run --release
 
 
-esp_image: segment 0: paddr=00010020 vaddr=3c000020 size=07fdch ( 32732) map    .rodata*
+esp_image: segment 0: paddr=00010020 vaddr=3c000020 size=07fdch ( 32732) map    .rodata
 esp_image: segment 1: paddr=00018004 vaddr=3fc86b40 size=0132ch (  4908) load   .data
 esp_image: segment 2: paddr=00019338 vaddr=40380000 size=06b40h ( 27456) load   .trap* + .rwtext* + .rwtext.wifi
-esp_image: segment 4: paddr=00020020 vaddr=42010020 size=2f2dch (193244) map    .text*
+esp_image: segment 4: paddr=00020020 vaddr=42010020 size=2f2dch (193396) map    .text*
 
 
 .trap
@@ -203,7 +203,7 @@ esp_image: segment 4: paddr=00020020 vaddr=42010020 size=2f2dch (193244) map    
 
 
 .rwdata_dummy
-    3fc80000 . + SIZEOF(.rwtext) + SIZEOF(.trap) + padding               (916 + 1128 + 25410)       27454   0x6b3e
+    3fc80000 . + SIZEOF(.rwtext) + SIZEOF(.trap) + padding               (916 + 1128 + 25412)       27456   0x6b40
 
 
 .data
@@ -585,12 +585,12 @@ esp_image: segment 4: paddr=00020020 vaddr=42010020 size=2f2dch (193244) map    
     esp_alloc::EspHeap as core::alloc::global::GlobalAlloc::dealloc                        90
 
     linked_list_allocator::hole::HoleList::allocate_first_fit                             248
-    linked_list_allocator::hole::HoleList::deallocate                                     212
+    linked_list_allocator::hole::HoleList::deallocate                                     292
     linked_list_allocator::Heap::init                                                      52
     linked_list_allocator::Heap::allocate_first_fit                                        48
     linked_list_allocator::Heap::deallocate                                                32
     
-    allocator_api::raw_vec::capacity_overflow                                               2       858     0x35a
+    allocator_api::raw_vec::capacity_overflow                                               2       938     0x3aa
     padding                                                                                 2       2
 
 .esp-wifi
@@ -1789,6 +1789,10 @@ esp_image: segment 4: paddr=00020020 vaddr=42010020 size=2f2dch (193244) map    
     hmac_sha256_vector                                                                    238       19806   0x4d5e
     padding                                                                                 2       2
 
+
+.smoltcp
+    smoltcp::wire::ipv4::Cidr::new                                                         44       44      0x2c
+
 .core
     alloc::alloc::handle_alloc_error                                                        2
     ___rustc12___rust_alloc                                                               104
@@ -1842,11 +1846,7 @@ esp_image: segment 4: paddr=00020020 vaddr=42010020 size=2f2dch (193244) map    
     __umoddi3                                                                              32       9516    0x252c
 
 .text
-    embassy_executor::raw::TaskStorage::poll                                              274
+    embassy_executor::raw::TaskStorage::poll                                              296+22
     embassy_executor::raw::TaskStorage::poll                                              146
-    main                                                                                   16       436     0x1b4
-
-                                                                                                    193244  0x2f2dc
-
-                                                                                                    225976 flash
-                                                                                                    32364 RAM
+    main                                                                                   16       458     0x1ca
+                                                                                            

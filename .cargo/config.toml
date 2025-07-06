@@ -26,8 +26,12 @@ panic = 'abort'
 [profile.release]
 panic = 'abort'
 
+[env]
+#GATEWAY_IP = "192.168.3.1"
+
 [unstable]
 # this will codegen every panic as an abort instruction without any panic message formatting.
 build-std-features = ["panic_immediate_abort"]
 #build core from source with "panic_immediate_abort" feature
 build-std = ["core", "alloc"]
+

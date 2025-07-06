@@ -1,0 +1,9 @@
+{
+    "rust-analyzer.cargo.features": [
+        "proto-ipv4",
+        "socket",
+        "async",
+        "socket-dhcpv4",
+        "proto-dhcpv4"
+    ]
+}

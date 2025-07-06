@@ -49,6 +49,48 @@ macro_rules! assert_ne {                            // behaves as panic, see com
 
 #[collapse_debuginfo(yes)]
 #[macro_export]
+// 5
+macro_rules! debug_assert {                               // behaves as panic, see comments there
+    ($($x:tt)*) => {
+        {
+            #[cfg(not(feature = "defmt"))]
+            ::core::debug_assert!($($x)*);
+            #[cfg(feature = "defmt")]
+            ::defmt::debug_assert!($($x)*);
+        }
+    };
+}
+
+#[collapse_debuginfo(yes)]
+#[macro_export]
+// 17
+macro_rules! debug_assert_eq {                            // behaves as panic, see comments there
+    ($($x:tt)*) => {
+        {
+            #[cfg(not(feature = "defmt"))]
+            ::core::debug_assert_eq!($($x)*);
+            #[cfg(feature = "defmt")]
+            ::defmt::debug_assert_eq!($($x)*);
+        }
+    };
+}
+
+#[collapse_debuginfo(yes)]
+#[macro_export]
+// 29
+macro_rules! debug_assert_ne {                            // behaves as panic, see comments there
+    ($($x:tt)*) => {
+        {
+            #[cfg(not(feature = "defmt"))]
+            ::core::debug_assert_ne!($($x)*);
+            #[cfg(feature = "defmt")]
+            ::defmt::debug_assert_ne!($($x)*);
+        }
+    };
+}
+
+#[collapse_debuginfo(yes)]
+#[macro_export]
 // 77
 macro_rules! todo {                                 // behaves as panic, see comments there
     ($($x:tt)*) => {
