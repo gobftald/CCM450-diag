@@ -63,13 +63,41 @@ pub struct Config {
     pub ipv6: ConfigV6,
 }
 
+#[cfg(feature = "dhcpv4")]
+impl Default for DhcpConfig {
+    fn default() -> Self {
+        Self {
+            max_lease_duration: Default::default(),
+            retry_config: Default::default(),
+            ignore_naks: Default::default(),
+            server_port: smoltcp::wire::DHCP_SERVER_PORT,
+            client_port: smoltcp::wire::DHCP_CLIENT_PORT,
+            #[cfg(feature = "dhcpv4-hostname")]
+            hostname: None,
+        }
+    }
+}
+
 // 182
 impl Config {
     /// IPv4 configuration with static addressing.
     #[cfg(feature = "proto-ipv4")]
+    // 185
     pub const fn ipv4_static(config: StaticConfigV4) -> Self {
         Self {
             ipv4: ConfigV4::Static(config),
+            #[cfg(feature = "proto-ipv6")]
+            ipv6: ConfigV6::None,
+        }
+    }
+
+    /// IPv4 configuration with dynamic addressing.
+    ///
+    #[cfg(feature = "dhcpv4")]
+    // 211
+    pub const fn dhcpv4(config: DhcpConfig) -> Self {
+        Self {
+            ipv4: ConfigV4::Dhcp(config),
             #[cfg(feature = "proto-ipv6")]
             ipv6: ConfigV6::None,
         }

@@ -17,3 +17,16 @@ pub struct RetryConfig {
     /// Set this to [`Duration::MAX`] if you don't want to impose an upper bound.
     pub max_renew_timeout: Duration,
 }
+
+// 131
+impl Default for RetryConfig {
+    fn default() -> Self {
+        Self {
+            discover_timeout: Duration::from_secs(10),
+            initial_request_timeout: Duration::from_secs(5),
+            request_retries: 5,
+            min_renew_timeout: Duration::from_secs(60),
+            max_renew_timeout: Duration::MAX,
+        }
+    }
+}

@@ -66,6 +66,7 @@ async fn main(spawner: Spawner) {
         gateway: Some(Ipv4Addr::new(192, 168, 3, 1)),
         dns_servers: Default::default(),
     });
+    let sta_config = embassy_net::Config::dhcpv4(Default::default());
 
     spawner.spawn(run()).ok();
 }
