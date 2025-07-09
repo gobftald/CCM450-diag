@@ -4,6 +4,8 @@
         "socket",
         "async",
         "socket-dhcpv4",
-        "proto-dhcpv4"
+        "proto-dhcpv4",
+        "alloc",
+        "defmt"
     ]
 }

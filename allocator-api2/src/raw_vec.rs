@@ -92,7 +92,8 @@ enum AllocInit {
 /// `Box<[T]>`, since `capacity()` won't yield the length.
 ///
 // 116
-pub(crate) struct RawVec<T, A: Allocator = Global> {
+//pub(crate) struct RawVec<T, A: Allocator = Global> {
+pub struct RawVec<T, A: Allocator = Global> {
     ptr: NonNull<T>,
     cap: usize,
     alloc: A,

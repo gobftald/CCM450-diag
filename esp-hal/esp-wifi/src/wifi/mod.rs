@@ -10,8 +10,14 @@ use core::{marker::PhantomData, ptr::addr_of};
 // 54
 use num_derive::FromPrimitive;
 
+// 61
+use smoltcp::phy::{Device, DeviceCapabilities};
+
 // 64
-use crate::{EspWifiController, esp_wifi_result};
+use crate::{EspWifiController, common_adapter::read_mac, esp_wifi_result};
+
+// 73
+const MTU: usize = crate::CONFIG.mtu;
 
 // 86
 use crate::binary::include::{esp_wifi_init_internal, g_wifi_default_wpa_crypto_funcs};
@@ -34,6 +40,7 @@ pub enum WifiError {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, FromPrimitive)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[allow(clippy::enum_variant_names)] // FIXME remove prefix
+// 1249
 pub enum InternalWifiError {
     /// Out of memory
     EspErrNoMem = 0x101,
@@ -102,6 +109,22 @@ pub enum InternalWifiError {
     EspErrWifiTxDisallow = 0x3016,
 }
 
+/// Get the STA MAC address
+// 1318
+pub fn sta_mac(mac: &mut [u8; 6]) {
+    unsafe {
+        read_mac(mac as *mut u8, 0);
+    }
+}
+
+/// Get the AP MAC address
+// 1325
+pub fn ap_mac(mac: &mut [u8; 6]) {
+    unsafe {
+        read_mac(mac as *mut u8, 1);
+    }
+}
+
 // 1331
 pub(crate) fn wifi_init() -> Result<(), WifiError> {
     unsafe {
@@ -123,11 +146,54 @@ pub enum WifiDeviceMode {
     Ap,
 }
 
+// 1701
+impl WifiDeviceMode {
+    fn mac_address(&self) -> [u8; 6] {
+        match self {
+            WifiDeviceMode::Sta => {
+                let mut mac = [0; 6];
+                sta_mac(&mut mac);
+                mac
+            }
+            WifiDeviceMode::Ap => {
+                let mut mac = [0; 6];
+                ap_mac(&mut mac);
+                mac
+            }
+        }
+    }
+}
+
 /// A wifi device implementing smoltcp's Device trait.
 // 1805
 pub struct WifiDevice<'d> {
     _phantom: PhantomData<&'d ()>,
     mode: WifiDeviceMode,
+}
+
+// 1810
+impl WifiDevice<'_> {
+    /// Retrieves the MAC address of the Wi-Fi device.
+    // 1812
+    pub fn mac_address(&self) -> [u8; 6] {
+        self.mode.mac_address()
+    }
+}
+
+#[cfg(feature = "smoltcp")]
+// 2117
+impl Device for WifiDevice<'_> {
+    // 2138
+    fn capabilities(&self) -> smoltcp::phy::DeviceCapabilities {
+        let mut caps = DeviceCapabilities::default();
+        caps.max_transmission_unit = MTU;
+        caps.max_burst_size = if crate::CONFIG.max_burst_size == 0 {
+            None
+        } else {
+            Some(crate::CONFIG.max_burst_size)
+        };
+        caps
+    }
 }
 
 #[macro_export]
@@ -145,6 +211,33 @@ macro_rules! esp_wifi_result {
             Ok::<(), WifiError>(())
         }
     }};
+}
+
+// 2494
+pub(crate) mod embassy {
+    use embassy_net_driver::{Capabilities, Driver, HardwareAddress};
+
+    use super::*;
+
+    // 2528
+    impl Driver for WifiDevice<'_> {
+        // 2560
+        fn capabilities(&self) -> Capabilities {
+            let mut caps = Capabilities::default();
+            caps.max_transmission_unit = MTU;
+            caps.max_burst_size = if crate::CONFIG.max_burst_size == 0 {
+                None
+            } else {
+                Some(crate::CONFIG.max_burst_size)
+            };
+            caps
+        }
+
+        // 2571
+        fn hardware_address(&self) -> HardwareAddress {
+            HardwareAddress::Ethernet(self.mac_address())
+        }
+    }
 }
 
 #[non_exhaustive]

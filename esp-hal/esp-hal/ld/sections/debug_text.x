@@ -37,13 +37,8 @@
 
     } > ROTEXT
 
-.esp-embassy : ALIGN(4)
+.embassy : ALIGN(4)
     {
-        *(.text.*esp_hal_embassy8Executor*)
-        *(.text.*esp_hal_embassy11time_driver*)
-        *(.text.*esp_hal_embassy11timer_queue*)
-        *(.text.*esp_hal_embassy*timers*)
-
         *(.text.*embassy_executor*raw*poll_exited*)
         /* here are the two main tasks, (put into .main) */
         /* *(.text.*embassy_executor*raw*TaskStorage*) */
@@ -57,7 +52,17 @@
 
         *(.text.*embassy_time*)
         *(.text.*_embassy_time*)
+        *(.text.*embassy_net*Inner*)
+        *(.text.*embassy_sync*)
 
+    } > ROTEXT
+
+.esp-embassy : ALIGN(4)
+    {
+        *(.text.*esp_hal_embassy8Executor*)
+        *(.text.*esp_hal_embassy11time_driver*)
+        *(.text.*esp_hal_embassy11timer_queue*)
+        *(.text.*esp_hal_embassy*timers*)
     } > ROTEXT
 
 .esp-alloc : ALIGN(4)

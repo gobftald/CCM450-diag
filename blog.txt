@@ -64,9 +64,6 @@ cargo new --lib riscv-rt                // in ccm-diag/riscv
 ...
 cargo new --lib macros                  // in ccm-diag/riscv/riscv-rt
 ...
-
-openocd -c 'set ESP_RTOS none' -f board/esp32c3-builtin.cfg
-riscv32-esp-elf-gdb esp-minimal
     
     target extended-remote :3333        // connect to openocd
     mon reset halt                      // monitor (command to openocd) reset then halt cpu
@@ -82,7 +79,11 @@ riscv32-esp-elf-gdb esp-minimal
     Ctrl-x 1        // use a TUI layout with only one window
     Ctrl-x 2        // use a TUI layout with at least two windows
 
+riscv32-esp-elf-objdump -xD esp-wifi|less
 ddbug -c function -p all -f function-inline=no esp-minimal|less
+
+openocd -c 'set ESP_RTOS none' -f board/esp32c3-builtin.cfg
+riscv32-esp-elf-gdb esp-minimal
 cat /dev/cu.usbmodem101 |defmt-print -e target/riscv32imc-unknown-none-elf/release/esp-minimal
 
 espflash save-image --chip esp32c3 esp-wifi esp-wifi.img

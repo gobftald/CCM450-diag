@@ -90,6 +90,7 @@ pub unsafe trait Allocator {
     /// this allocator, and the contents of the memory block are unaltered.
     ///
     #[inline(always)]
+    // 197
     unsafe fn grow(
         &self,
         ptr: NonNull<u8>,

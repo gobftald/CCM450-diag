@@ -49,6 +49,9 @@
         *(.text.*esp_wifi*wifi*os_adapter*coex_schm_register_cb_wrapper*)
         *(.text.*esp_wifi*wifi*os_adapter*coex_register_start_cb*)
 
+        *(.text.*esp_wifi*wifi*WifiDevice*mac_address*)
+        *(.text.*esp_wifi*wifi*embassy*impl*embassy_net_driver*)
+
         *(.text.*drop_in_place*esp_wifi*compat*timer_compat*Timer*)
 
         /* esp-wifi-sys */

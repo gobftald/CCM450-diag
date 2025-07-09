@@ -1,0 +1,34 @@
+[package]
+name = "smoltcp"
+version = "0.12.0"
+edition = "2021"
+rust-version = "1.81"
+
+[dependencies]
+console = { path = "../../console", features = ["usb_uart"]}
+defmt = { version = "0.3.10", optional = true, features = ["ip_in_core"] }
+allocator-api2 = { path = "../../allocator-api2", features = ["alloc"] }
+managed = { path = "../managed", default-features = false }
+
+[features]
+alloc = ["managed/alloc", "defmt?/alloc"]
+"medium-ethernet" = ["socket"]
+
+"proto-ipv4" = []
+"proto-dhcpv4" = ["proto-ipv4"]
+"proto-ipv6" = []
+
+"multicast" = []
+
+"socket" = []
+"socket-dhcpv4" = ["socket", "medium-ethernet", "proto-dhcpv4"]
+
+"async" = []
+
+default = [ "medium-ethernet", "proto-ipv4", "proto-dhcpv4", "socket-dhcpv4", "async" ]
+
+# Private features
+# Features starting with "_" are considered private. They should not be enabled by
+# other crates, and they are not considered semver-stable.
+
+"_proto-fragmentation" = []

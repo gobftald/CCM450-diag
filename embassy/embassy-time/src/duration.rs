@@ -1,5 +1,5 @@
 // 4
-use super::{GCD_1K, TICK_HZ};
+use super::{GCD_1K, GCD_1M, TICK_HZ};
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -11,6 +11,12 @@ pub struct Duration {
 
 // 14
 impl Duration {
+    /// Convert the `Duration` to microseconds, rounding down.
+    // 36
+    pub const fn as_micros(&self) -> u64 {
+        self.ticks * (1_000_000 / GCD_1M) / (TICK_HZ / GCD_1M)
+    }
+
     /// Creates a duration from the specified number of milliseconds, rounding up.
     // 51
     pub const fn from_millis(millis: u64) -> Duration {

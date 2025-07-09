@@ -47,6 +47,7 @@ defmt = [
     "embassy-time/defmt",
     "embassy-time/defmt-timestamp-uptime",
     "esp-wifi/defmt",
+    "embassy-net/defmt",
 ]
 
 backtrace = ["dep:esp-backtrace"]       # needs "-C", "force-frame-pointers" rustflag in config.toml

@@ -16,7 +16,7 @@ extern crate console;
 use core::net::Ipv4Addr;
 
 use embassy_executor::Spawner;
-use embassy_net::{Ipv4Cidr, StaticConfigV4};
+use embassy_net::{Ipv4Cidr, StackResources, StaticConfigV4};
 use embassy_time::{Duration, Timer};
 
 use core::cell::OnceCell;
@@ -49,12 +49,6 @@ async fn main(spawner: Spawner) {
     let (mut controller, interfaces) =
         esp_wifi::wifi::new(&esp_wifi_ctrl, peripherals.WIFI).unwrap();
 
-    /*
-    unsafe {
-        debug!("{}", esp_alloc::HEAP.stats());
-    }
-    */
-
     let wifi_ap_device = interfaces.ap;
     let wifi_sta_device = interfaces.sta;
 
@@ -67,6 +61,28 @@ async fn main(spawner: Spawner) {
         dns_servers: Default::default(),
     });
     let sta_config = embassy_net::Config::dhcpv4(Default::default());
+
+    let seed = (rng.random() as u64) << 32 | rng.random() as u64;
+
+    // Init network stacks
+    let (ap_stack, ap_runner) = embassy_net::new(
+        wifi_ap_device,
+        ap_config,
+        mk_static!(StackResources<3>, StackResources::<3>::new()),
+        seed,
+    );
+    let (sta_stack, sta_runner) = embassy_net::new(
+        wifi_sta_device,
+        sta_config,
+        mk_static!(StackResources<4>, StackResources::<4>::new()),
+        seed,
+    );
+
+    /*
+    unsafe {
+        debug!("{}", esp_alloc::HEAP.stats());
+    }
+    */
 
     spawner.spawn(run()).ok();
 }

@@ -16,7 +16,8 @@ pub mod boxed;
 
 #[cfg(feature = "alloc")]
 // 20
-mod raw_vec;
+//mod raw_vec;
+pub mod raw_vec;
 
 #[cfg(feature = "alloc")]
 // 22
@@ -58,3 +59,5 @@ fn invalid_mut<T>(addr: usize) -> *mut T {
     //#[allow(clippy::useless_transmute, clippy::transmutes_expressible_as_ptr_casts)]
     unsafe { core::mem::transmute(addr) }
 }
+
+pub mod linear_map;

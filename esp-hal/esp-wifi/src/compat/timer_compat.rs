@@ -42,6 +42,12 @@ pub(crate) struct Timer {
     next: Option<Box<Timer>>,
 }
 
+impl Timer {
+    pub(crate) fn id(&self) -> usize {
+        self.ets_timer as usize
+    }
+}
+
 // 51
 pub(crate) struct TimerQueue {
     head: Option<Box<Timer>>,

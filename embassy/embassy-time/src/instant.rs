@@ -2,7 +2,7 @@
 use core::ops::Add;
 
 // 4
-use super::Duration;
+use super::{Duration, GCD_1K, GCD_1M, TICK_HZ};
 
 // 9
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -27,6 +27,12 @@ impl Instant {
     // 85
     pub const fn as_ticks(&self) -> u64 {
         self.ticks
+    }
+
+    /// Microseconds since system boot.
+    // 100
+    pub const fn as_micros(&self) -> u64 {
+        self.ticks * (1_000_000 / GCD_1M) / (TICK_HZ / GCD_1M)
     }
 
     /// Adds one Duration to self, returning a new `Instant` or None in the event of an overflow.

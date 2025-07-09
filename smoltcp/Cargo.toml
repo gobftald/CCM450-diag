@@ -1,19 +1,4 @@
-[package]
-name = "smoltcp"
-version = "0.12.0"
-edition = "2021"
-rust-version = "1.81"
+[workspace]
+resolver = "2"
 
-[dependencies]
-defmt = { version = "0.3.10", optional = true }
-
-[features]
-"proto-ipv4" = []
-"proto-dhcpv4" = ["proto-ipv4"]
-
-"socket" = []
-"socket-dhcpv4" = ["socket", "proto-dhcpv4"]
-
-"async" = []
-
-default = [ "proto-ipv4", "async" ]
+members = [ "managed","smoltcp"]

@@ -50,6 +50,13 @@ impl<T> Vec<T> {
             len: 0,
         }
     }
+
+    #[inline(always)]
+    #[must_use]
+    // 457
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self::with_capacity_in(capacity, Global)
+    }
 }
 
 // 567
@@ -80,6 +87,22 @@ impl<T, A: Allocator> Vec<T, A> {
     // 882
     pub fn reserve(&mut self, additional: usize) {
         self.buf.reserve(self.len, additional);
+    }
+
+    /// Extracts a slice containing the entire vector.
+    ///
+    #[inline(always)]
+    // 1180
+    pub fn as_slice(&self) -> &[T] {
+        self
+    }
+
+    /// Extracts a mutable slice of the entire vector.
+    ///
+    #[inline(always)]
+    // 1199
+    pub fn as_mut_slice(&mut self) -> &mut [T] {
+        self
     }
 
     #[inline(always)]
@@ -126,6 +149,80 @@ impl<T, A: Allocator> Vec<T, A> {
         debug_assert!(new_len <= self.capacity());
 
         self.len = new_len;
+    }
+
+    /// Removes an element from the vector and returns it.
+    ///
+    /// The removed element is replaced by the last element of the vector.
+    ///
+    /// This does not preserve ordering, but is *O*(1).
+    /// If you need to preserve the element order, use [`remove`] instead.
+    ///
+    #[inline(always)]
+    // 1402
+    pub fn swap_remove(&mut self, index: usize) -> T {
+        #[cold]
+        #[inline(never)]
+        fn assert_failed(index: usize, len: usize) -> ! {
+            panic!(
+                "swap_remove index (is {}) should be < len (is {})",
+                index, len
+            );
+        }
+
+        let len = self.len();
+        if index >= len {
+            assert_failed(index, len);
+        }
+        unsafe {
+            // We replace self[index] with the last element. Note that if the
+            // bounds check above succeeds there must be a last element (which
+            // can be self[index] itself).
+            let value = ptr::read(self.as_ptr().add(index));
+            let base_ptr = self.as_mut_ptr();
+            ptr::copy(base_ptr.add(len - 1), base_ptr.add(index), 1);
+            self.set_len(len - 1);
+            value
+        }
+    }
+
+    /// Appends an element if there is sufficient spare capacity, otherwise an error is returned
+    /// with the element.
+    ///
+    /// Unlike [`push`] this method will not reallocate when there's insufficient capacity.
+    /// The caller should use [`reserve`] or [`try_reserve`] to ensure that there is enough capacity.
+    ///
+    #[inline(always)]
+    // 1912
+    pub fn push_within_capacity(&mut self, value: T) -> Result<(), T> {
+        if self.len == self.buf.capacity() {
+            return Err(value);
+        }
+        unsafe {
+            let end = self.as_mut_ptr().add(self.len);
+            ptr::write(end, value);
+            self.len += 1;
+        }
+        Ok(())
+    }
+
+    /// Clears the vector, removing all values.
+    ///
+    #[inline(always)]
+    // 2086
+    pub fn clear(&mut self) {
+        let elems: *mut [T] = self.as_mut_slice();
+
+        // SAFETY:
+        // - `elems` comes directly from `as_mut_slice` and is therefore valid.
+        // - Setting `self.len` before calling `drop_in_place` means that,
+        //   if an element's `Drop` impl panics, the vector's `Drop` impl will
+        //   do nothing (leaking the rest of the elements) instead of dropping
+        //   some twice.
+        unsafe {
+            self.len = 0;
+            ptr::drop_in_place(elems);
+        }
     }
 }
 
@@ -232,5 +329,15 @@ impl<T> Default for Vec<T> {
     #[inline(always)]
     fn default() -> Vec<T> {
         Vec::new()
+    }
+}
+
+#[cfg(feature = "defmt")]
+impl<T, A: Allocator> defmt::Format for Vec<T, A>
+where
+    T: defmt::Format,
+{
+    fn format(&self, fmt: defmt::Formatter<'_>) {
+        defmt::write!(fmt, "{=[?]}", self.as_slice())
     }
 }
