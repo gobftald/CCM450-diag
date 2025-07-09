@@ -86,10 +86,11 @@ async fn main(spawner: embassy_executor::Spawner) {
             ..Default::default()
         },
         esp_wifi::wifi::AccessPointConfiguration {
-            ssid: "esp-wifi".into(),
+            ssid: "CCM-GP450".into(),
             ..Default::default()
         },
     );
+    unwrap!(controller.set_configuration(&client_config));
 
     /*
     unsafe {

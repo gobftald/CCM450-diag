@@ -18,20 +18,24 @@ use num_derive::FromPrimitive;
 use smoltcp::phy::{Device, DeviceCapabilities};
 
 // 64
-use crate::{EspWifiController, common_adapter::read_mac, esp_wifi_result};
+use crate::{common_adapter::read_mac, esp_wifi_result, EspWifiController};
 
 // 73
 const MTU: usize = crate::CONFIG.mtu;
 
 // 86
-use crate::binary::include::{esp_wifi_init_internal, g_wifi_default_wpa_crypto_funcs};
+use crate::binary::include::{
+    esp_wifi_init_internal, esp_wifi_set_mode, g_wifi_default_wpa_crypto_funcs,
+    wifi_mode_t_WIFI_MODE_AP, wifi_mode_t_WIFI_MODE_APSTA, wifi_mode_t_WIFI_MODE_NULL,
+    wifi_mode_t_WIFI_MODE_STA,
+};
 
 /// Supported Wi-Fi authentication methods.
 #[derive(EnumSetType, Debug, PartialOrd)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(Default)]
 #[allow(clippy::upper_case_acronyms)] // FIXME
-// 146
+                                      // 146
 pub enum AuthMethod {
     /// No authentication (open network).
     None,
@@ -117,11 +121,26 @@ pub struct AccessPointConfiguration {
     pub max_connections: u16,
 }
 
+// 275
+impl AccessPointConfiguration {
+    fn validate(&self) -> Result<(), WifiError> {
+        if self.ssid.len() > 32 {
+            return Err(WifiError::InvalidArguments);
+        }
+
+        if self.password.len() > 64 {
+            return Err(WifiError::InvalidArguments);
+        }
+
+        Ok(())
+    }
+}
+
 // 289
 impl Default for AccessPointConfiguration {
     fn default() -> Self {
         Self {
-            ssid: String::from("CCM-GP450"),
+            ssid: String::new(),
             ssid_hidden: false,
             channel: 1,
             secondary_channel: None,
@@ -153,7 +172,6 @@ impl core::fmt::Debug for AccessPointConfiguration {
 impl defmt::Format for AccessPointConfiguration {
     fn format(&self, fmt: defmt::Formatter<'_>) {
         #[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Default)]
-        #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
         pub struct ProtocolSet(EnumSet<Protocol>);
 
         #[cfg(feature = "defmt")]
@@ -214,6 +232,21 @@ pub struct ClientConfiguration {
     pub channel: Option<u8>,
 }
 
+// 384
+impl ClientConfiguration {
+    fn validate(&self) -> Result<(), WifiError> {
+        if self.ssid.len() > 32 {
+            return Err(WifiError::InvalidArguments);
+        }
+
+        if self.password.len() > 64 {
+            return Err(WifiError::InvalidArguments);
+        }
+
+        Ok(())
+    }
+}
+
 // 398
 impl core::fmt::Debug for ClientConfiguration {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -272,6 +305,28 @@ pub enum Configuration {
     */
 }
 
+// 686
+impl Configuration {
+    // 687
+    fn validate(&self) -> Result<(), WifiError> {
+        match self {
+            Configuration::None => Ok(()),
+            Configuration::Client(client_configuration) => client_configuration.validate(),
+            Configuration::AccessPoint(access_point_configuration) => {
+                access_point_configuration.validate()
+            }
+            Configuration::Mixed(client_configuration, access_point_configuration) => {
+                client_configuration.validate()?;
+                access_point_configuration.validate()
+            } /*
+              Configuration::EapClient(eap_client_configuration) => {
+                  eap_client_configuration.validate()
+              }
+              */
+        }
+    }
+}
+
 /// Common errors.
 #[derive(Debug, Clone, Copy)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -283,6 +338,9 @@ pub enum WifiError {
 
     /// Unsupported operation or mode.
     Unsupported,
+
+    /// Passed arguments are invalid.
+    InvalidArguments,
 }
 
 /// Error originating from the underlying drivers
@@ -290,7 +348,7 @@ pub enum WifiError {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, FromPrimitive)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[allow(clippy::enum_variant_names)] // FIXME remove prefix
-// 1249
+                                     // 1249
 pub enum InternalWifiError {
     /// Out of memory
     EspErrNoMem = 0x101,
@@ -544,4 +602,33 @@ pub fn new<'d>(
 // 2664
 pub struct WifiController<'d> {
     _phantom: PhantomData<&'d ()>,
+}
+
+// 2677
+impl WifiController<'_> {
+    /// Set the configuration.
+    ///
+    /// This will set the mode accordingly.
+    /// You need to use Wifi::connect() for connecting to an AP.
+    ///
+    /// Passing [Configuration::None] will disable both, AP and STA mode.
+    ///
+    /// If you don't intent to use WiFi anymore at all consider tearing down
+    /// WiFi completely.
+    // 2854
+    pub fn set_configuration(&mut self, conf: &Configuration) -> Result<(), WifiError> {
+        conf.validate()?;
+
+        let mode = match conf {
+            Configuration::None => wifi_mode_t_WIFI_MODE_NULL,
+            Configuration::Client(_) => wifi_mode_t_WIFI_MODE_STA,
+            Configuration::AccessPoint(_) => wifi_mode_t_WIFI_MODE_AP,
+            Configuration::Mixed(_, _) => wifi_mode_t_WIFI_MODE_APSTA,
+            //Configuration::EapClient(_) => wifi_mode_t_WIFI_MODE_STA,
+        };
+
+        esp_wifi_result!(unsafe { esp_wifi_set_mode(mode) })?;
+
+        Ok(())
+    }
 }

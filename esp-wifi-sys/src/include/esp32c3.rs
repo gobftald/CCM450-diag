@@ -96,6 +96,20 @@ pub type esp_err_t = crate::c_types::c_int;
 // 3724
 pub type esp_event_base_t = *const crate::c_types::c_char;
 
+// 3745
+/// < null mode
+pub const wifi_mode_t_WIFI_MODE_NULL: wifi_mode_t = 0;
+/// < WiFi station mode
+pub const wifi_mode_t_WIFI_MODE_STA: wifi_mode_t = 1;
+/// < WiFi soft-AP mode
+pub const wifi_mode_t_WIFI_MODE_AP: wifi_mode_t = 2;
+/// "< WiFi station + soft-AP mode
+pub const wifi_mode_t_WIFI_MODE_APSTA: wifi_mode_t = 3;
+// < WiFi NAN mode
+pub const wifi_mode_t_WIFI_MODE_NAN: wifi_mode_t = 4;
+pub const wifi_mode_t_WIFI_MODE_MAX: wifi_mode_t = 5;
+pub type wifi_mode_t = crate::c_types::c_uint;
+
 /// @brief The AES 128 encrypt callback function used by esp_wifi.
 /// @param key  Encryption key.
 /// @param iv  Encryption IV for CBC mode (16 bytes).
@@ -696,6 +710,22 @@ unsafe extern "C" {
 // 6660
 unsafe extern "C" {
     pub static mut g_wifi_osi_funcs: wifi_osi_funcs_t;
+}
+
+unsafe extern "C" {
+    /// @brief     Set the WiFi operating mode
+    ///
+    ///            Set the WiFi operating mode as station, soft-AP, station+soft-AP or NAN.
+    ///            The default mode is station mode.
+    ///
+    /// @param     mode  WiFi operating mode
+    ///
+    /// @return
+    ///     - ESP_OK: succeed
+    ///     - ESP_ERR_WIFI_NOT_INIT: WiFi is not initialized by esp_wifi_init
+    ///     - ESP_ERR_INVALID_ARG: invalid argument
+    ///     - others: refer to error code in esp_err.h
+    pub fn esp_wifi_set_mode(mode: wifi_mode_t) -> esp_err_t;
 }
 
 // 7159
