@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 defmt = { version = "0.3.10", optional = true }
+critical-section = { version = "1.2.0", optional = true }
 
 [features]
 usb_uart = []                       # if usb_uart is off we cannot use any printing mechanism
@@ -16,4 +17,7 @@ defmt = [
                                     # needs "-C", "link-arg=-Tdefmt.x" rustflag in config.toml
     "usb_uart",                     # needs usb_console
     "dep:defmt",
+    "critical-section"
 ]
+
+critical-section = ["dep:critical-section"]

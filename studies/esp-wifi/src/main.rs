@@ -98,6 +98,7 @@ async fn main(spawner: embassy_executor::Spawner) {
     }
     */
 
+    spawner.spawn(connection(controller)).ok();
     spawner.spawn(run()).ok();
 }
 
@@ -109,4 +110,9 @@ async fn run() {
         core_println!("0");
         embassy_time::Timer::after(embassy_time::Duration::from_millis(1_000)).await;
     }
+}
+
+#[embassy_executor::task]
+async fn connection(mut controller: esp_wifi::wifi::WifiController<'static>) {
+    debug!("start connection task");
 }

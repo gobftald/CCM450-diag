@@ -1871,5 +1871,5 @@ esp_image: segment 4: paddr=00020020 vaddr=42010020 size=2f2dch (193396) map    
     embassy_executor::raw::TaskStorage::poll                                              954
     main                                                                                   16       1116    0x45c
 
-update
+not updated
                                                                                             

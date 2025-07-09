@@ -1,0 +1,7 @@
+{
+    "rust-analyzer.cargo.features": [
+        "critical-section",
+        "defmt",
+        "usb_uart"
+    ]
+}
