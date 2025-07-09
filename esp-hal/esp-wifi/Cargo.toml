@@ -15,6 +15,7 @@ esp-wifi-sys = { path = "../../esp-wifi-sys" }
 num-derive = { version = "0.4.2" }
 num-traits = { version = "0.2.19", default-features = false }
 critical-section = { version = "1.2.0" }
+enumset = { version = "1.1.6", default-features = false, optional = true }
 smoltcp = { path = "../../smoltcp/smoltcp", default-features = false, features = [
   "medium-ethernet",
   #"socket-raw",
@@ -52,7 +53,7 @@ builtin-scheduler = []
 #! ### Wireless Feature Flags
 
 ## Enable WiFi support
-wifi = ["dep:embassy-net-driver", "dep:smoltcp"]
+wifi = ["dep:embassy-net-driver", "dep:enumset", "smoltcp"]
 
 ## Provide implementations of smoltcp traits
 smoltcp = ["dep:smoltcp"]
@@ -60,4 +61,4 @@ smoltcp = ["dep:smoltcp"]
 ## Enable WiFi channel state information. See [ESP-IDF Programming Guide](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/network/esp_wifi.html#_CPPv4N18wifi_init_config_t10csi_enableE)",
 csi = []
 
-defmt = ["dep:defmt", "smoltcp?/defmt", "esp-alloc/defmt", "esp-wifi-sys/defmt"]
+defmt = ["dep:defmt", "smoltcp?/defmt", "esp-alloc/defmt", "esp-wifi-sys/defmt", "enumset/defmt"]

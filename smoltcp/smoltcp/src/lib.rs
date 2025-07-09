@@ -1,5 +1,6 @@
 #![no_std]
 
+#[allow(unused_imports)]
 #[macro_use(assert_eq, unwrap, panic, trace, debug)]
 extern crate console;
 

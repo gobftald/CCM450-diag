@@ -14,12 +14,13 @@ mod panic;
 extern crate console;
 
 use core::net::Ipv4Addr;
-
-use embassy_executor::Spawner;
-use embassy_net::{Ipv4Cidr, StackResources, StaticConfigV4};
-use embassy_time::{Duration, Timer};
+use embassy_net::StackResources;
 
 use core::cell::OnceCell;
+
+const SSID: &str = env!("SSID");
+const PASSWORD: &str = env!("PASSWORD");
+
 // 89
 macro_rules! mk_static {
     ($t:ty,$val:expr) => {{
@@ -31,7 +32,7 @@ macro_rules! mk_static {
 //const GW_IP_ADDR_ENV: Option<&'static str> = option_env!("GATEWAY_IP");
 
 #[esp_hal_embassy::main]
-async fn main(spawner: Spawner) {
+async fn main(spawner: embassy_executor::Spawner) {
     //let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let config = esp_hal::Config::new_and_default(esp_hal::clock::CpuClock::max());
     let peripherals = esp_hal::init(config);
@@ -55,8 +56,8 @@ async fn main(spawner: Spawner) {
     let systimer = esp_hal::timer::systimer::SystemTimer::new(peripherals.SYSTIMER);
     esp_hal_embassy::init(systimer.alarm0);
 
-    let ap_config = embassy_net::Config::ipv4_static(StaticConfigV4 {
-        address: Ipv4Cidr::new(Ipv4Addr::new(192, 168, 3, 1), 24),
+    let ap_config = embassy_net::Config::ipv4_static(embassy_net::StaticConfigV4 {
+        address: embassy_net::Ipv4Cidr::new(Ipv4Addr::new(192, 168, 3, 1), 24),
         gateway: Some(Ipv4Addr::new(192, 168, 3, 1)),
         dns_servers: Default::default(),
     });
@@ -78,6 +79,18 @@ async fn main(spawner: Spawner) {
         seed,
     );
 
+    let client_config = esp_wifi::wifi::Configuration::Mixed(
+        esp_wifi::wifi::ClientConfiguration {
+            ssid: SSID.into(),
+            password: PASSWORD.into(),
+            ..Default::default()
+        },
+        esp_wifi::wifi::AccessPointConfiguration {
+            ssid: "esp-wifi".into(),
+            ..Default::default()
+        },
+    );
+
     /*
     unsafe {
         debug!("{}", esp_alloc::HEAP.stats());
@@ -93,6 +106,6 @@ async fn run() {
         //info!("Hello world from embassy using esp-hal-async!");
         use core::fmt::Write;
         core_println!("0");
-        Timer::after(Duration::from_millis(1_000)).await;
+        embassy_time::Timer::after(embassy_time::Duration::from_millis(1_000)).await;
     }
 }

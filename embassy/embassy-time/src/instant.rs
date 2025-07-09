@@ -2,7 +2,7 @@
 use core::ops::Add;
 
 // 4
-use super::{Duration, GCD_1K, GCD_1M, TICK_HZ};
+use super::{Duration, GCD_1M, TICK_HZ};
 
 // 9
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]

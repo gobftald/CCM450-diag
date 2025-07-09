@@ -4,8 +4,12 @@
 mod internal;
 pub(crate) mod os_adapter;
 
-// 8
+// 7
+use alloc::string::String;
 use core::{marker::PhantomData, ptr::addr_of};
+
+// 17
+use enumset::{EnumSet, EnumSetType};
 
 // 54
 use num_derive::FromPrimitive;
@@ -21,6 +25,252 @@ const MTU: usize = crate::CONFIG.mtu;
 
 // 86
 use crate::binary::include::{esp_wifi_init_internal, g_wifi_default_wpa_crypto_funcs};
+
+/// Supported Wi-Fi authentication methods.
+#[derive(EnumSetType, Debug, PartialOrd)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Default)]
+#[allow(clippy::upper_case_acronyms)] // FIXME
+// 146
+pub enum AuthMethod {
+    /// No authentication (open network).
+    None,
+
+    /// Wired Equivalent Privacy (WEP) authentication.
+    WEP,
+
+    /// Wi-Fi Protected Access (WPA) authentication.
+    WPA,
+
+    /// Wi-Fi Protected Access 2 (WPA2) Personal authentication (default).
+    #[default]
+    WPA2Personal,
+
+    /// WPA/WPA2 Personal authentication (supports both).
+    WPAWPA2Personal,
+
+    /// WPA2 Enterprise authentication.
+    WPA2Enterprise,
+
+    /// WPA3 Personal authentication.
+    WPA3Personal,
+
+    /// WPA2/WPA3 Personal authentication (supports both).
+    WPA2WPA3Personal,
+
+    /// WLAN Authentication and Privacy Infrastructure (WAPI).
+    WAPIPersonal,
+}
+
+/// Supported Wi-Fi protocols.
+#[derive(EnumSetType, Debug, PartialOrd)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Default)]
+// 181
+pub enum Protocol {
+    /// 802.11b protocol.
+    P802D11B,
+
+    /// 802.11b/g protocol.
+    P802D11BG,
+
+    /// 802.11b/g/n protocol (default).
+    #[default]
+    P802D11BGN,
+
+    /// 802.11b/g/n long-range (LR) protocol.
+    P802D11BGNLR,
+
+    /// 802.11 long-range (LR) protocol.
+    P802D11LR,
+
+    /// 802.11b/g/n/ax protocol.
+    P802D11BGNAX,
+}
+
+/// Configuration for a Wi-Fi access point.
+#[derive(Clone, PartialEq, Eq)]
+// 249
+pub struct AccessPointConfiguration {
+    /// The SSID of the access point.
+    pub ssid: String,
+
+    /// Whether the SSID is hidden or visible.
+    pub ssid_hidden: bool,
+
+    /// The channel the access point will operate on.
+    pub channel: u8,
+
+    /// The secondary channel configuration.
+    pub secondary_channel: Option<u8>,
+
+    /// The set of protocols supported by the access point.
+    pub protocols: EnumSet<Protocol>,
+
+    /// The authentication method to be used by the access point.
+    pub auth_method: AuthMethod,
+
+    /// The password for securing the access point (if applicable).
+    pub password: String,
+
+    /// The maximum number of connections allowed on the access point.
+    pub max_connections: u16,
+}
+
+// 289
+impl Default for AccessPointConfiguration {
+    fn default() -> Self {
+        Self {
+            ssid: String::from("CCM-GP450"),
+            ssid_hidden: false,
+            channel: 1,
+            secondary_channel: None,
+            protocols: (Protocol::P802D11B | Protocol::P802D11BG | Protocol::P802D11BGN),
+            auth_method: AuthMethod::None,
+            password: String::new(),
+            max_connections: 255,
+        }
+    }
+}
+
+// 304
+impl core::fmt::Debug for AccessPointConfiguration {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("AccessPointConfiguration")
+            .field("ssid", &self.ssid)
+            .field("ssid_hidden", &self.ssid_hidden)
+            .field("channel", &self.channel)
+            .field("secondary_channel", &self.secondary_channel)
+            .field("protocols", &self.protocols)
+            .field("auth_method", &self.auth_method)
+            .field("password", &"**REDACTED**")
+            .field("max_connections", &self.max_connections)
+            .finish()
+    }
+}
+#[cfg(feature = "defmt")]
+// 320
+impl defmt::Format for AccessPointConfiguration {
+    fn format(&self, fmt: defmt::Formatter<'_>) {
+        #[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Default)]
+        #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
+        pub struct ProtocolSet(EnumSet<Protocol>);
+
+        #[cfg(feature = "defmt")]
+        impl defmt::Format for ProtocolSet {
+            fn format(&self, fmt: defmt::Formatter<'_>) {
+                for (i, p) in self.0.into_iter().enumerate() {
+                    if i > 0 {
+                        defmt::write!(fmt, " ");
+                    }
+                    defmt::write!(fmt, "{}", p);
+                }
+            }
+        }
+
+        let protocol_set = ProtocolSet(self.protocols);
+
+        defmt::write!(
+            fmt,
+            "AccessPointConfiguration {{\
+            ssid: {}, \
+            ssid_hidden: {}, \
+            channel: {}, \
+            secondary_channel: {}, \
+            protocols: {}, \
+            auth_method: {}, \
+            password: **REDACTED**, \
+            max_connections: {}, \
+            }}",
+            self.ssid.as_str(),
+            self.ssid_hidden,
+            self.channel,
+            self.secondary_channel,
+            protocol_set,
+            self.auth_method,
+            self.max_connections
+        );
+    }
+}
+
+/// Client configuration for a Wi-Fi connection.
+#[derive(Clone, PartialEq, Eq, Default)]
+// 366
+pub struct ClientConfiguration {
+    /// The SSID of the Wi-Fi network.
+    pub ssid: String,
+
+    /// The BSSID (MAC address) of the client.
+    pub bssid: Option<[u8; 6]>,
+
+    // pub protocol: Protocol,
+    /// The authentication method for the Wi-Fi connection.
+    pub auth_method: AuthMethod,
+
+    /// The password for the Wi-Fi connection.
+    pub password: String,
+
+    /// The Wi-Fi channel to connect to.
+    pub channel: Option<u8>,
+}
+
+// 398
+impl core::fmt::Debug for ClientConfiguration {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("ClientConfiguration")
+            .field("ssid", &self.ssid)
+            .field("bssid", &self.bssid)
+            .field("auth_method", &self.auth_method)
+            .field("password", &"**REDACTED**")
+            .field("channel", &self.channel)
+            .finish()
+    }
+}
+
+#[cfg(feature = "defmt")]
+// 411
+impl defmt::Format for ClientConfiguration {
+    fn format(&self, fmt: defmt::Formatter<'_>) {
+        defmt::write!(
+            fmt,
+            "ClientConfiguration {{\
+            ssid: {}, \
+            bssid: {:?}, \
+            auth_method: {:?}, \
+            password: **REDACTED**, \
+            channel: {:?}, \
+            }}",
+            self.ssid.as_str(),
+            self.bssid,
+            self.auth_method,
+            self.channel
+        )
+    }
+}
+
+/// Configuration of Wi-Fi operation mode.
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+// 667
+pub enum Configuration {
+    /// No configuration (default).
+    #[default]
+    None,
+
+    /// Client-only configuration.
+    Client(ClientConfiguration),
+
+    /// Access point-only configuration.
+    AccessPoint(AccessPointConfiguration),
+
+    /// Simultaneous client and access point configuration.
+    Mixed(ClientConfiguration, AccessPointConfiguration),
+    /*
+    /// EAP client configuration for enterprise Wi-Fi.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    EapClient(EapClientConfiguration),
+    */
+}
 
 /// Common errors.
 #[derive(Debug, Clone, Copy)]
