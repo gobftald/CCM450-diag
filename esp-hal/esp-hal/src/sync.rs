@@ -221,6 +221,8 @@ pub struct Locked<T> {
     data: UnsafeCell<T>,
 }
 
+unsafe impl<T> Sync for Locked<T> {}
+
 // 458
 impl<T> Locked<T> {
     /// Create a new instance

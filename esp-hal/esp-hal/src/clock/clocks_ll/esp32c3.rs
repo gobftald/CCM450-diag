@@ -173,6 +173,12 @@ pub(crate) fn esp32c3_rtc_apb_freq_update(apb_freq: ApbClock) {
 // 171
 const SYSTEM_WIFI_CLK_EN: u32 = 0x00FB9FCF;
 
+// 185
+pub(super) fn enable_wifi(_: bool) {
+    // `periph_ll_wifi_module_enable_clk_clear_rst`, no-op
+    // `periph_ll_wifi_module__clk_clear_rst`, no-op
+}
+
 // 204
 pub(super) fn init_clocks() {
     // undo the power down in base_settings (esp32c3_sleep)

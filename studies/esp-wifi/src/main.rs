@@ -120,4 +120,8 @@ async fn run() {
 async fn connection(mut controller: esp_wifi::wifi::WifiController<'static>) {
     debug!("start connection task");
     debug!("Device capabilities: {:?}", controller.capabilities());
+
+    debug!("Starting wifi");
+    controller.start_async().await.unwrap();
+    debug!("Wifi started!");
 }

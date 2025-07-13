@@ -10,6 +10,9 @@ static mut SOC_PHY_DIG_REGS_MEM: [u8; SOC_PHY_DIG_REGS_MEM_SIZE] = [0u8; SOC_PHY
 // 12
 static mut G_PHY_DIGITAL_REGS_MEM: *mut u32 = core::ptr::null_mut();
 
+// 14
+static PHY_ACCESS_REF: AtomicU32 = AtomicU32::new(0);
+
 // 16
 pub(crate) fn enable_wifi_power_domain() {
     const SYSTEM_WIFIBB_RST: u32 = 1 << 0;
@@ -52,4 +55,9 @@ pub(crate) fn phy_mem_init() {
     unsafe {
         G_PHY_DIGITAL_REGS_MEM = core::ptr::addr_of_mut!(SOC_PHY_DIG_REGS_MEM).cast();
     }
+}
+
+// 71
+pub(crate) unsafe fn phy_enable() {
+    //let count = PHY_ACCESS_REF.fetch_add(1, Ordering::SeqCst);
 }

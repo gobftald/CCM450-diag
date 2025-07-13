@@ -7,11 +7,12 @@ use esp_wifi_sys::include::{
 // 10
 use super::os_adapter::{
     calloc_internal, coex_register_start_cb, coex_schm_register_cb_wrapper, free, log_timestamp,
-    malloc, malloc_internal, mutex_delete, mutex_lock, mutex_unlock, queue_recv, queue_send,
-    recursive_mutex_create, spin_lock_create, spin_lock_delete, task_create_pinned_to_core,
-    task_delay, task_get_current_task, task_get_max_priority, task_ms_to_tick, wifi_calloc,
-    wifi_create_queue, wifi_delete_queue, wifi_int_disable, wifi_int_restore, wifi_malloc,
-    wifi_thread_semphr_get, wifi_zalloc, zalloc_internal,
+    malloc, malloc_internal, mutex_delete, mutex_lock, mutex_unlock, phy_enable, queue_recv,
+    queue_send, recursive_mutex_create, spin_lock_create, spin_lock_delete,
+    task_create_pinned_to_core, task_delay, task_get_current_task, task_get_max_priority,
+    task_ms_to_tick, wifi_apb80m_request, wifi_calloc, wifi_clock_enable, wifi_create_queue,
+    wifi_delete_queue, wifi_int_disable, wifi_int_restore, wifi_malloc, wifi_thread_semphr_get,
+    wifi_zalloc, zalloc_internal,
 };
 #[cfg(feature = "sys-logs")]
 use super::os_adapter::{log_write, log_writev};
@@ -75,10 +76,10 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _rand: None,                                  // 188 Some(rand),
     _dport_access_stall_other_cpu_start_wrap: None, // 192 Some(dport_access_stall_other_cpu_start_wrap),
     _dport_access_stall_other_cpu_end_wrap: None, // 196 Some(dport_access_stall_other_cpu_end_wrap),
-    _wifi_apb80m_request: None,                   // 200 Some(wifi_apb80m_request),
+    _wifi_apb80m_request: Some(wifi_apb80m_request), // 200
     _wifi_apb80m_release: None,                   // 204 Some(wifi_apb80m_release),
     _phy_disable: None,                           // 208 Some(phy_disable),
-    _phy_enable: None,                            // 212 Some(phy_enable),
+    _phy_enable: Some(phy_enable),                // 212
     _phy_update_country_info: None,               // 216 Some(phy_update_country_info),
     _read_mac: Some(read_mac),                    // 220
     _timer_arm: None,                             // 224 Some(ets_timer_arm),
@@ -87,7 +88,7 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _timer_setfn: Some(ets_timer_setfn),          // 236
     _timer_arm_us: None,                          // 240 Some(ets_timer_arm_us),
     _wifi_reset_mac: None,                        // 244 Some(wifi_reset_mac),
-    _wifi_clock_enable: None,                     // 248 Some(wifi_clock_enable),
+    _wifi_clock_enable: Some(wifi_clock_enable),  // 248
     _wifi_clock_disable: None,                    // 252 Some(wifi_clock_disable),
     _wifi_rtc_enable_iso: None,                   // 256 Some(wifi_rtc_enable_iso),
     _wifi_rtc_disable_iso: None,                  // 260 Some(wifi_rtc_disable_iso),

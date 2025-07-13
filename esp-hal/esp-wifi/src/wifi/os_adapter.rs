@@ -1,7 +1,11 @@
 // 10
-use core::ptr::addr_of_mut;
+use core::{cell::RefCell, ptr::addr_of_mut};
 
-// 15
+// 12
+use enumset::EnumSet;
+
+// 14
+use super::WifiEvent;
 use crate::{
     compat::{
         common::{
@@ -10,7 +14,11 @@ use crate::{
         },
         malloc::calloc,
     },
-    hal::sync::RawMutex,
+    hal::{
+        clock::RadioClockController,
+        peripherals::RADIO_CLK,
+        sync::{Locked, RawMutex},
+    },
     preempt::yield_task,
 };
 
@@ -18,6 +26,12 @@ static mut WIFI_LOCK: RawMutex = RawMutex::new();
 
 // 43
 static mut QUEUE_HANDLE: *mut ConcurrentQueue = core::ptr::null_mut();
+
+// useful for waiting for events - clear and wait for the event bit to be set
+// again
+// 47
+pub(crate) static WIFI_EVENTS: Locked<RefCell<EnumSet<WifiEvent>>> =
+    Locked::new(RefCell::new(enumset::enum_set!()));
 
 /// **************************************************************************
 /// Name: esp_spin_lock_create
@@ -420,6 +434,63 @@ pub unsafe extern "C" fn free(p: *mut crate::binary::c_types::c_void) {
     unsafe {
         crate::compat::malloc::free(p.cast());
     }
+}
+
+/// **************************************************************************
+/// Name: wifi_apb80m_request
+///
+/// Description:
+///   Take Wi-Fi lock in auto-sleep
+///
+/// *************************************************************************
+// 971
+pub unsafe extern "C" fn wifi_apb80m_request() {
+    trace!("wifi_apb80m_request - no-op")
+}
+
+/// **************************************************************************
+/// Name: esp32c3_phy_enable
+///
+/// Description:
+///   Initialize PHY hardware
+///
+/// Input Parameters:
+///   None
+///
+/// Returned Value:
+///   None
+///
+/// *************************************************************************
+// 1019
+pub unsafe extern "C" fn phy_enable() {
+    // quite some code needed here
+    trace!("phy_enable");
+
+    unsafe {
+        crate::common_adapter::chip_specific::phy_enable();
+    }
+}
+
+/// **************************************************************************
+/// Name: wifi_clock_enable
+///
+/// Description:
+///   Enable Wi-Fi clock
+///
+/// Input Parameters:
+///   None
+///
+/// Returned Value:
+///   None
+///
+/// *************************************************************************
+// 1080
+pub unsafe extern "C" fn wifi_clock_enable() {
+    trace!("wifi_clock_enable");
+    // stealing RADIO_CLK is safe since it is passed (as mutable reference or by
+    // value) into `init`
+    let radio_clocks = unsafe { RADIO_CLK::steal() };
+    RadioClockController::new(radio_clocks).enable_wifi(true);
 }
 
 /// **************************************************************************

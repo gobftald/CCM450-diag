@@ -712,6 +712,7 @@ unsafe extern "C" {
     pub static mut g_wifi_osi_funcs: wifi_osi_funcs_t;
 }
 
+// 6671
 unsafe extern "C" {
     /// @brief     Set the WiFi operating mode
     ///
@@ -726,6 +727,38 @@ unsafe extern "C" {
     ///     - ESP_ERR_INVALID_ARG: invalid argument
     ///     - others: refer to error code in esp_err.h
     pub fn esp_wifi_set_mode(mode: wifi_mode_t) -> esp_err_t;
+}
+
+// 6675
+unsafe extern "C" {
+    /// @brief  Get current operating mode of WiFi
+    ///
+    /// @param[out]  mode  store current WiFi mode
+    ///
+    /// @return
+    ///     - ESP_OK: succeed
+    ///     - ESP_ERR_WIFI_NOT_INIT: WiFi is not initialized by esp_wifi_init
+    ///     - ESP_ERR_INVALID_ARG: invalid argument
+    pub fn esp_wifi_get_mode(mode: *mut wifi_mode_t) -> esp_err_t;
+}
+
+// 6679
+unsafe extern "C" {
+    /// @brief  Start WiFi according to current configuration
+    ///         If mode is WIFI_MODE_STA, it creates station control block and starts station
+    ///         If mode is WIFI_MODE_AP, it creates soft-AP control block and starts soft-AP
+    ///         If mode is WIFI_MODE_APSTA, it creates soft-AP and station control block and starts soft-AP and station
+    ///         If mode is WIFI_MODE_NAN, it creates NAN control block and starts NAN
+    ///
+    /// @return
+    ///     - ESP_OK: succeed
+    ///     - ESP_ERR_WIFI_NOT_INIT: WiFi is not initialized by esp_wifi_init
+    ///     - ESP_ERR_INVALID_ARG: It doesn't normally happen, the function called inside the API was passed
+    ///       invalid argument, user should check if the wifi related config is correct
+    ///     - ESP_ERR_NO_MEM: out of memory
+    ///     - ESP_ERR_WIFI_CONN: WiFi internal error, station or soft-AP control block wrong
+    ///     - ESP_FAIL: other WiFi internal errors
+    pub fn esp_wifi_start() -> esp_err_t;
 }
 
 // 7159

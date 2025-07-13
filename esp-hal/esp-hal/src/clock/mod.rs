@@ -322,6 +322,13 @@ impl<'d> RadioClockController<'d> {
         Self { _rcc: rcc }
     }
 
+    /// Enable the WiFi clocks
+    #[cfg(wifi)]
+    #[inline]
+    pub fn enable_wifi(&mut self, enable: bool) {
+        clocks_ll::enable_wifi(enable);
+    }
+
     /// Do any common initial initialization needed
     //#[instability::unstable]
     #[inline]
