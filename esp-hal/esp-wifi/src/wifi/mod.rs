@@ -18,7 +18,7 @@ use num_derive::FromPrimitive;
 use smoltcp::phy::{Device, DeviceCapabilities};
 
 // 64
-use crate::{common_adapter::read_mac, esp_wifi_result, EspWifiController};
+use crate::{EspWifiController, common_adapter::read_mac, esp_wifi_result};
 
 // 73
 const MTU: usize = crate::CONFIG.mtu;
@@ -34,8 +34,7 @@ use crate::binary::include::{
 #[derive(EnumSetType, Debug, PartialOrd)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(Default)]
-#[allow(clippy::upper_case_acronyms)] // FIXME
-                                      // 146
+// 146
 pub enum AuthMethod {
     /// No authentication (open network).
     None,
@@ -281,6 +280,34 @@ impl defmt::Format for ClientConfiguration {
     }
 }
 
+/// Introduces Wi-Fi configuration options.
+#[derive(EnumSetType, Debug, PartialOrd)]
+//#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+// 649
+pub enum Capability {
+    /// The device operates as a client, connecting to an existing network.
+    Client,
+
+    /// The device operates as an access point, allowing other devices to
+    /// connect to it.
+    AccessPoint,
+
+    /// The device can operate in both client and access point modes
+    /// simultaneously.
+    Mixed,
+}
+
+#[cfg(feature = "defmt")]
+impl defmt::Format for Capability {
+    fn format(&self, f: defmt::Formatter) {
+        match self {
+            Capability::Client => defmt::write!(f, "Client"),
+            Capability::AccessPoint => defmt::write!(f, "AccessPoint"),
+            Capability::Mixed => defmt::write!(f, "Mixed"),
+        }
+    }
+}
+
 /// Configuration of Wi-Fi operation mode.
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -347,8 +374,7 @@ pub enum WifiError {
 #[repr(i32)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, FromPrimitive)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-#[allow(clippy::enum_variant_names)] // FIXME remove prefix
-                                     // 1249
+// 1249
 pub enum InternalWifiError {
     /// Out of memory
     EspErrNoMem = 0x101,
@@ -630,5 +656,16 @@ impl WifiController<'_> {
         esp_wifi_result!(unsafe { esp_wifi_set_mode(mode) })?;
 
         Ok(())
+    }
+
+    /// Get the supported capabilities of the controller.
+    // 2839
+    pub fn capabilities(&self) -> Result<EnumSet<crate::wifi::Capability>, WifiError> {
+        //pub fn capabilities(&self) -> Result<EnumSet<crate::wifi::Capability>, InternalWifiError> {
+        let caps =
+            enumset::enum_set! { Capability::Client | Capability::AccessPoint | Capability::Mixed };
+        //InternalWifiError::EspErrNoMem;
+        Ok(caps)
+        //Err(caps)
     }
 }

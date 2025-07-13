@@ -16,7 +16,7 @@ macro_rules! backtrace_println {
     }
 }
 
-const MAX_BACKTRACE_ADDRESSES: usize = 10;
+const MAX_BACKTRACE_ADDRESSES: usize = 20;
 pub struct Backtrace(pub(crate) heapless::Vec<BacktraceFrame, MAX_BACKTRACE_ADDRESSES>);
 
 // 17
@@ -77,7 +77,9 @@ fn panic_handler(info: &core::panic::PanicInfo) -> ! {
     let backtrace = Backtrace::capture();
     #[cfg(target_arch = "riscv32")]
     if backtrace.frames().is_empty() {
-        backtrace_println!("No backtrace available - make sure to force frame-pointers. (see https://crates.io/crates/esp-backtrace)");
+        backtrace_println!(
+            "No backtrace available - make sure to force frame-pointers. (see https://crates.io/crates/esp-backtrace)"
+        );
     }
     for frame in backtrace.frames() {
         backtrace_println!("0x{:x}", frame.program_counter());
@@ -138,7 +140,9 @@ fn exception_handler(context: &arch::TrapFrame) -> ! {
         let backtrace = Backtrace::from_sp(context.s0 as u32);
         let frames = backtrace.frames();
         if frames.is_empty() {
-            backtrace_println!("No backtrace available - make sure to force frame-pointers. (see https://crates.io/crates/esp-backtrace)");
+            backtrace_println!(
+                "No backtrace available - make sure to force frame-pointers. (see https://crates.io/crates/esp-backtrace)"
+            );
         }
         for frame in backtrace.frames() {
             backtrace_println!("0x{:x}", frame.program_counter());

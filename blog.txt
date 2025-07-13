@@ -83,8 +83,8 @@ riscv32-esp-elf-objdump -xD esp-wifi|less
 ddbug -c function -p all -f function-inline=no esp-minimal|less
 
 openocd -c 'set ESP_RTOS none' -f board/esp32c3-builtin.cfg
-riscv32-esp-elf-gdb esp-minimal
-cat /dev/cu.usbmodem101 |defmt-print -e target/riscv32imc-unknown-none-elf/release/esp-minimal
+riscv32-esp-elf-gdb esp-wifi
+cat /dev/cu.usbmodem1101 |defmt-print -e target/riscv32imc-unknown-none-elf/debug/esp-wifi
 
 espflash save-image --chip esp32c3 esp-wifi esp-wifi.img
 esptool.py image_info --version 2 esp-wifi.img

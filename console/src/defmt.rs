@@ -30,7 +30,7 @@ unsafe impl defmt::Logger for Logger {
             // safety: accessing the `static mut` is OK because we have acquired a critical
             // section.
             if TAKEN {
-                panic!("defmt logger taken reentrantly")
+                crate::panic!("defmt logger taken reentrantly")
             }
 
             // safety: accessing the `static mut` is OK because we have acquired a critical

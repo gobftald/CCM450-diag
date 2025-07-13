@@ -44,11 +44,15 @@ async fn main(spawner: embassy_executor::Spawner) {
 
     let esp_wifi_ctrl = &*mk_static!(
         esp_wifi::EspWifiController<'static>,
-        esp_wifi::init(timg0.timer0, rng.clone(), peripherals.RADIO_CLK).unwrap()
+        unwrap!(esp_wifi::init(
+            timg0.timer0,
+            rng.clone(),
+            peripherals.RADIO_CLK
+        ))
     );
 
     let (mut controller, interfaces) =
-        esp_wifi::wifi::new(&esp_wifi_ctrl, peripherals.WIFI).unwrap();
+        unwrap!(esp_wifi::wifi::new(&esp_wifi_ctrl, peripherals.WIFI));
 
     let wifi_ap_device = interfaces.ap;
     let wifi_sta_device = interfaces.sta;
@@ -115,4 +119,5 @@ async fn run() {
 #[embassy_executor::task]
 async fn connection(mut controller: esp_wifi::wifi::WifiController<'static>) {
     debug!("start connection task");
+    debug!("Device capabilities: {:?}", controller.capabilities());
 }
