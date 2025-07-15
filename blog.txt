@@ -121,3 +121,6 @@ usb_uart_tx_one_char and usb_uart_tx_flush and their convenient callers like pri
 mentioned core_println we put them all behind a feature called "console"
 if we switched it off there many error since in this case we should not use any live printing call,
 only the prints in panic_handler does not problematic, if it 'befind' "panic_immediate_abort" enabled 
+
+#print cfg for a target
+rustc --print cfg --target riscv32imc-unknown-none-elf

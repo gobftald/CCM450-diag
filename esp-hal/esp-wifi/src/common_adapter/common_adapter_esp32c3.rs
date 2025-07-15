@@ -1,3 +1,6 @@
+// 1
+use portable_atomic::{AtomicU32, Ordering};
+
 // 3
 use crate::hal::peripherals::{APB_CTRL, LPWR};
 
@@ -59,5 +62,5 @@ pub(crate) fn phy_mem_init() {
 
 // 71
 pub(crate) unsafe fn phy_enable() {
-    //let count = PHY_ACCESS_REF.fetch_add(1, Ordering::SeqCst);
+    let count = PHY_ACCESS_REF.fetch_add(1, Ordering::SeqCst);
 }

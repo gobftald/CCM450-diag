@@ -21,6 +21,7 @@ smoltcp = { path = "../../smoltcp/smoltcp", default-features = false, features =
   #"socket-raw",
 ], optional = true }
 embassy-net-driver = { path = "../../embassy/embassy-net-driver", optional = true }
+portable-atomic = { path = "../../portable-atomic", default-features = false }
 
 [build-dependencies]
 esp-metadata = { path = "../esp-metadata" }
