@@ -140,3 +140,15 @@ impl PeripheralClockControl {
         critical_section::with(|_| Self::enable_internal(peripheral, true));
     }
 }
+
+// 1254
+use crate::rtc_cntl::SocResetReason;
+
+/// Retrieves the reason for the last reset as a SocResetReason enum value.
+/// Returns `None` if the reset reason cannot be determined.
+#[inline]
+// 1307
+pub fn reset_reason() -> Option<SocResetReason> {
+    //crate::rtc_cntl::reset_reason(Cpu::current())
+    crate::rtc_cntl::reset_reason()
+}

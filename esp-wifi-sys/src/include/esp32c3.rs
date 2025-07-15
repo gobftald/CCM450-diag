@@ -1181,6 +1181,78 @@ pub struct wifi_osi_funcs_t {
     pub _magic: i32,
 }
 
+/// @brief Structure holding PHY init parameters
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct esp_phy_init_data_t {
+    /// opaque PHY initialization parameters
+    pub params: [u8; 128usize],
+}
+
+/// @brief Opaque PHY calibration data
+#[repr(C)]
+#[derive(Copy, Clone)]
+// 7856
+pub struct esp_phy_calibration_data_t {
+    #[doc = "< PHY version"]
+    pub version: [u8; 4usize],
+    #[doc = "< The MAC address of the station"]
+    pub mac: [u8; 6usize],
+    #[doc = "< calibration data"]
+    pub opaque: [u8; 1894usize],
+}
+
+/// Do part of RF calibration. This should be used after power-on reset.
+pub const esp_phy_calibration_mode_t_PHY_RF_CAL_PARTIAL: esp_phy_calibration_mode_t = 0;
+/// Don't do any RF calibration. This mode is only suggested to be used after deep sleep reset.
+pub const esp_phy_calibration_mode_t_PHY_RF_CAL_NONE: esp_phy_calibration_mode_t = 1;
+/// Do full RF calibration. Produces best results, but also consumes a lot of time and current. Suggested to be used once.
+pub const esp_phy_calibration_mode_t_PHY_RF_CAL_FULL: esp_phy_calibration_mode_t = 2;
+/// @brief PHY calibration mode
+///
+pub type esp_phy_calibration_mode_t = crate::c_types::c_uint;
+
+// 7938
+unsafe extern "C" {
+    /// @brief Get PHY lib version
+    /// @return PHY lib version.
+    pub fn get_phy_version_str() -> *mut crate::c_types::c_char;
+}
+
+// 7970
+unsafe extern "C" {
+    /// @brief Initialize PHY module and do RF calibration
+    /// @param[in] init_data Initialization parameters to be used by the PHY
+    /// @param[inout] cal_data As input, calibration data previously obtained.
+    ///  As output, will contain new calibration data.
+    /// @param[in] cal_mode  RF calibration mode
+    /// @return ESP_CAL_DATA_CHECK_FAIL if calibration data checksum fails,
+    ///  other values are reserved for future use
+    pub fn register_chipv7_phy(
+        init_data: *const esp_phy_init_data_t,
+        cal_data: *mut esp_phy_calibration_data_t,
+        cal_mode: esp_phy_calibration_mode_t,
+    ) -> crate::c_types::c_int;
+}
+
+// 7990
+unsafe extern "C" {
+    /// @brief Open PHY and RF.
+    pub fn phy_wakeup_init();
+}
+
+// 8006
+unsafe extern "C" {
+    /// @brief Store and load PHY digital registers.
+    ///
+    /// @param     backup_en  if backup_en is true, store PHY digital registers to memory.
+    ///            Otherwise load PHY digital registers from memory
+    /// @param     mem_addr   Memory address to store and load PHY digital registers
+    ///
+    /// @return    memory size
+    pub fn phy_dig_reg_backup(backup_en: bool, mem_addr: *mut u32) -> u8;
+}
+
 #[repr(C)]
 #[derive(Copy, Clone)]
 // 9117

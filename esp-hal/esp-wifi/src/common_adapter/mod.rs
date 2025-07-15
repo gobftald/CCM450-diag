@@ -1,18 +1,28 @@
-use esp_wifi_sys::c_types::c_char;
+// 1
+use esp_wifi_sys::{
+    c_types::c_char,
+    include::{esp_phy_calibration_data_t, esp_phy_calibration_mode_t, register_chipv7_phy},
+};
 
+// 11
+use portable_atomic::{AtomicU32, Ordering};
 // 13
 use crate::{
-    binary::include::esp_event_base_t,
+    binary::include::{esp_event_base_t, get_phy_version_str},
     compat::{
         common::{sem_create, sem_delete, sem_give, sem_take, str_from_c},
         timer_compat::{compat_timer_disarm, compat_timer_setfn},
     },
-    hal::{self, ram},
+    hal::{self, clock::RadioClockController, peripherals::RADIO_CLK, ram},
 };
 
 // 19
 #[cfg_attr(esp32c3, path = "common_adapter_esp32c3.rs")]
 pub(crate) mod chip_specific;
+
+// 28
+#[cfg_attr(esp32c3, path = "phy_init_data_esp32c3.rs")]
+pub(crate) mod phy_init_data;
 
 /// **************************************************************************
 /// Name: esp_semphr_create
@@ -165,6 +175,7 @@ pub unsafe extern "C" fn ets_timer_disarm(timer: *mut crate::binary::c_types::c_
 }
 
 #[unsafe(no_mangle)]
+// 259
 pub unsafe extern "C" fn ets_timer_setfn(
     ptimer: *mut crate::binary::c_types::c_void,
     pfunction: *mut crate::binary::c_types::c_void,
@@ -178,6 +189,65 @@ pub unsafe extern "C" fn ets_timer_setfn(
                 unsafe extern "C" fn(*mut crate::binary::c_types::c_void),
             >(pfunction),
             parg,
+        );
+    }
+}
+
+// 327
+static PHY_CLOCK_ENABLE_REF: AtomicU32 = AtomicU32::new(0);
+
+// 329
+pub(crate) unsafe fn phy_enable_clock() {
+    let count = PHY_CLOCK_ENABLE_REF.fetch_add(1, Ordering::Acquire);
+    if count == 0 {
+        // stealing RADIO_CLK is safe since it is passed (as mutable reference or by
+        // value) into `init`
+        let radio_clocks = unsafe { RADIO_CLK::steal() };
+        RadioClockController::new(radio_clocks).enable_phy(true);
+        trace!("phy_enable_clock done!");
+    }
+}
+
+// 352
+pub(crate) fn phy_calibrate() {
+    let mut cal_data: [u8; core::mem::size_of::<esp_phy_calibration_data_t>()] =
+        [0u8; core::mem::size_of::<esp_phy_calibration_data_t>()];
+
+    let phy_version = unsafe { get_phy_version_str() };
+    trace!("phy_version {}", unsafe { str_from_c(phy_version) });
+
+    let init_data = &phy_init_data::PHY_INIT_DATA_DEFAULT;
+
+    unsafe {
+        chip_specific::bbpll_en_usb();
+
+        cfg_if::cfg_if! {
+            if #[cfg(phy_full_calibration)] {
+                const CALIBRATION_MODE: esp_phy_calibration_mode_t = esp_wifi_sys::include::esp_phy_calibration_mode_t_PHY_RF_CAL_FULL;
+            } else {
+                const CALIBRATION_MODE: esp_phy_calibration_mode_t = esp_wifi_sys::include::esp_phy_calibration_mode_t_PHY_RF_CAL_PARTIAL;
+            }
+        };
+
+        cfg_if::cfg_if! {
+            if #[cfg(phy_skip_calibration_after_deep_sleep)] {
+                let calibration_mode = if crate::hal::system::reset_reason()
+                    == Some(crate::hal::rtc_cntl::SocResetReason::CoreDeepSleep) {
+                    esp_wifi_sys::include::esp_phy_calibration_mode_t_PHY_RF_CAL_NONE
+                } else {
+                    CALIBRATION_MODE
+                };
+            } else {
+                let calibration_mode = CALIBRATION_MODE;
+            }
+        };
+
+        debug!("Using calibration mode {}", calibration_mode);
+
+        register_chipv7_phy(
+            init_data,
+            &mut cal_data as *mut _ as *mut crate::binary::include::esp_phy_calibration_data_t,
+            calibration_mode,
         );
     }
 }

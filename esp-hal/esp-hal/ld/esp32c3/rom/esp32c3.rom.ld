@@ -4,6 +4,8 @@
  ***************************************/
 
 /* Functions */
+/* 16 */
+rtc_get_reset_reason = 0x40000018;
 /* 30 */
 PROVIDE( ets_delay_us = 0x40000050 );
 /* 33 */
@@ -515,6 +517,8 @@ sta_rxcb = 0x3fcdf84c;
  ***************************************/
 
 /* Functions */
+/* 1793 */
+phy_get_romfuncs = 0x400018fc;
 /* 1815 */
 rom_i2c_readReg = 0x40001954;
 /* 1817 */

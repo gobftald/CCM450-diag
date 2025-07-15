@@ -13,7 +13,7 @@ use crate::{interrupt::InterruptHandler, time::Duration};
 // 62
 pub mod systimer;
 #[cfg(any(timg0, /*timg1*/))]
-#[cfg(timergroup)]
+#[cfg(timg0)]
 pub mod timg;
 
 /// Timer errors.
@@ -205,7 +205,6 @@ impl PeriodicTimer<'_>
 crate::any_peripheral! {
     /// Any Timer peripheral.
     pub peripheral AnyTimer<'d> {
-        #[cfg(timergroup)]
         TimgTimer(timg::Timer<'d>),
         #[cfg(systimer)]
         SystimerAlarm(systimer::Alarm<'d>),

@@ -322,9 +322,18 @@ impl<'d> RadioClockController<'d> {
         Self { _rcc: rcc }
     }
 
+    /// Enable the PHY clocks
+    #[cfg(phy)]
+    #[inline]
+    // 613
+    pub fn enable_phy(&mut self, enable: bool) {
+        clocks_ll::enable_phy(enable);
+    }
+
     /// Enable the WiFi clocks
     #[cfg(wifi)]
     #[inline]
+    // 629
     pub fn enable_wifi(&mut self, enable: bool) {
         clocks_ll::enable_wifi(enable);
     }

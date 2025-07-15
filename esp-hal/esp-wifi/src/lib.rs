@@ -6,7 +6,7 @@
 #![allow(static_mut_refs)]
 
 #[allow(unused_imports)]
-#[macro_use(info, unwrap, panic, debug_assert, trace, warn)]
+#[macro_use(info, unwrap, panic, debug_assert, trace, warn, debug)]
 extern crate console;
 
 // 103

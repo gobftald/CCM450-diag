@@ -168,10 +168,27 @@ pub(crate) fn esp32c3_rtc_apb_freq_update(apb_freq: ApbClock) {
         .store5()
         .modify(|_, w| unsafe { w.scratch5().bits(value) });
 }
+// Mask for clock bits used by both WIFI and Bluetooth, 0, 1, 2, 3, 7, 8, 9, 10,
+// 19, 20, 21, 22, 23
+// 169
+const SYSTEM_WIFI_CLK_WIFI_BT_COMMON_M: u32 = 0x78078F;
 
 // SYSTEM_WIFI_CLK_EN : R/W ;bitpos:[31:0] ;default: 32'hfffce030
 // 171
 const SYSTEM_WIFI_CLK_EN: u32 = 0x00FB9FCF;
+
+// 173
+pub(super) fn enable_phy(enable: bool) {
+    // `periph_ll_wifi_bt_module_enable_clk_clear_rst`
+    // `periph_ll_wifi_bt_module_disable_clk_set_rst`
+    APB_CTRL::regs().wifi_clk_en().modify(|r, w| unsafe {
+        if enable {
+            w.bits(r.bits() | SYSTEM_WIFI_CLK_WIFI_BT_COMMON_M)
+        } else {
+            w.bits(r.bits() & !SYSTEM_WIFI_CLK_WIFI_BT_COMMON_M)
+        }
+    });
+}
 
 // 185
 pub(super) fn enable_wifi(_: bool) {
