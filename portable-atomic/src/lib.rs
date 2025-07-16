@@ -34,6 +34,10 @@ compile_error!(
 // 465
 mod cfgs;
 
+#[cfg(target_pointer_width = "32")]
+// 469
+pub use self::cfg_has_atomic_32 as cfg_has_atomic_ptr;
+
 #[macro_use]
 // 476
 mod utils;
@@ -90,6 +94,12 @@ macro_rules! atomic_int {
             }
         }
     };
+}
+
+// 4776
+cfg_has_atomic_ptr! {
+    #[cfg(target_pointer_width = "32")]
+    atomic_int!(AtomicUsize, usize, 4);
 }
 
 // 4804

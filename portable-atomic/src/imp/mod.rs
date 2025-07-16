@@ -60,6 +60,10 @@ mod interrupt;
     not(portable_atomic_no_cfg_target_has_atomic),
     cfg(not(target_has_atomic = "ptr"))
 )]
-#[cfg(any(not(target_pointer_width = "16"), feature = "fallback"))]
-// 278
-pub(crate) use self::interrupt::AtomicU32;
+items! {
+    pub(crate) use self::interrupt::AtomicUsize;
+
+    #[cfg(any(not(target_pointer_width = "16"), feature = "fallback"))]
+    // 278
+    pub(crate) use self::interrupt::AtomicU32;
+}

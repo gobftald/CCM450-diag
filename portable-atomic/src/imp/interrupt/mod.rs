@@ -154,6 +154,10 @@ macro_rules! atomic_int {
     };
 }
 
+#[cfg(target_pointer_width = "32")]
+// 874
+atomic_int!(load_store_atomic, AtomicUsize, usize, 4);
+
 #[cfg(not(target_pointer_width = "16"))]
 // 904
 atomic_int!(load_store_atomic, AtomicU32, u32, 4);

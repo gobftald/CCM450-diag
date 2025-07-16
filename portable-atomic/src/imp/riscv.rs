@@ -101,3 +101,7 @@ macro_rules! atomic {
 
 // 560
 atomic!(AtomicU32, u32, "w", maxu, minu);
+
+// 567
+#[cfg(target_pointer_width = "32")]
+atomic!(AtomicUsize, usize, "w", maxu, minu);

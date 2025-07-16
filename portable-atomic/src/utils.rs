@@ -23,6 +23,14 @@ macro_rules! static_assert_layout {
     };
 }
 
+// This just outputs the input as is, but can be used like an item-level block by using it with cfg.
+// 258
+macro_rules! items {
+    ($($tt:tt)*) => {
+        $($tt)*
+    };
+}
+
 // https://github.com/rust-lang/rust/blob/1.84.0/library/core/src/sync/atomic.rs#L3338
 #[inline]
 #[cfg_attr(
