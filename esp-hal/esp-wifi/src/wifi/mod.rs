@@ -479,6 +479,77 @@ pub enum WifiEvent {
     ApStart,
     /// Soft-AP stop.
     ApStop,
+
+    /// A station connected to Soft-AP.
+    ApStaconnected,
+    /// A station disconnected from Soft-AP.
+    ApStadisconnected,
+    /// Received probe request packet in Soft-AP interface.
+    ApProbereqrecved,
+
+    /// Received report of FTM procedure.
+    FtmReport,
+
+    /// AP's RSSI crossed configured threshold.
+    StaBssRssiLow,
+    /// Status indication of Action Tx operation.
+    ActionTxStatus,
+    /// Remain-on-Channel operation complete.
+    RocDone,
+
+    /// Station beacon timeout.
+    StaBeaconTimeout,
+
+    /// Connectionless module wake interval has started.
+    ConnectionlessModuleWakeIntervalStart,
+
+    /// Soft-AP WPS succeeded in registrar mode.
+    ApWpsRgSuccess,
+    /// Soft-AP WPS failed in registrar mode.
+    ApWpsRgFailed,
+    /// Soft-AP WPS timed out in registrar mode.
+    ApWpsRgTimeout,
+    /// Soft-AP WPS pin code in registrar mode.
+    ApWpsRgPin,
+    /// Soft-AP WPS overlap in registrar mode.
+    ApWpsRgPbcOverlap,
+
+    /// iTWT setup.
+    ItwtSetup,
+    /// iTWT teardown.
+    ItwtTeardown,
+    /// iTWT probe.
+    ItwtProbe,
+    /// iTWT suspended.
+    ItwtSuspend,
+    /// TWT wakeup event.
+    TwtWakeup,
+    /// bTWT setup.
+    BtwtSetup,
+    /// bTWT teardown.
+    BtwtTeardown,
+
+    /// NAN (Neighbor Awareness Networking) discovery has started.
+    NanStarted,
+    /// NAN discovery has stopped.
+    NanStopped,
+    /// NAN service discovery match found.
+    NanSvcMatch,
+    /// Replied to a NAN peer with service discovery match.
+    NanReplied,
+    /// Received a follow-up message in NAN.
+    NanReceive,
+    /// Received NDP (Neighbor Discovery Protocol) request from a NAN peer.
+    NdpIndication,
+    /// NDP confirm indication.
+    NdpConfirm,
+    /// NAN datapath terminated indication.
+    NdpTerminated,
+    /// Wi-Fi home channel change, doesn't occur when scanning.
+    HomeChannelChange,
+
+    /// Received Neighbor Report response.
+    StaNeighborRep,
 }
 
 /// Error originating from the underlying drivers
