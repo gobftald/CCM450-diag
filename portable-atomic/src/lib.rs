@@ -81,14 +81,35 @@ macro_rules! atomic_int {
                 }
             }
 
+            /// Loads a value from the atomic integer.
+            ///
+            /// `load` takes an [`Ordering`] argument which describes the memory ordering of this operation.
+            /// Possible values are [`SeqCst`], [`Acquire`] and [`Relaxed`].
+            // 3044
+            pub fn load(&self, order: Ordering) -> $int_type {
+                self.inner.load(order)
+            }
+
+            /// Stores a value into the atomic integer.
+            ///
+            /// `store` takes an [`Ordering`] argument which describes the memory ordering of this operation.
+            /// Possible values are [`SeqCst`], [`Release`] and [`Relaxed`].
+            // 3074
+            pub fn store(&self, val: $int_type, order: Ordering) {
+                self.inner.store(val, order)
+            }
+
+            /// Adds to the current value, returning the previous value.
+            ///
+            /// This operation wraps around on overflow.
+            ///
             /// `fetch_add` takes an [`Ordering`] argument which describes the memory ordering
             /// of this operation. All ordering modes are possible. Note that using
             /// [`Acquire`] makes the store part of this operation [`Relaxed`], and
             /// using [`Release`] makes the load part [`Relaxed`].
 
             #[inline]
-            // 3239
-            #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
+            // 3240
             pub fn fetch_add(&self, val: $int_type, order: Ordering) -> $int_type {
                 self.inner.fetch_add(val, order)
             }

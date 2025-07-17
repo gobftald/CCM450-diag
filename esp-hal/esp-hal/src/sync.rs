@@ -1,5 +1,5 @@
+// 4
 #[cfg(single_core)]
-// 5
 use core::cell::Cell;
 use core::cell::UnsafeCell;
 
@@ -97,6 +97,9 @@ struct GenericRawMutex<L: single_core::RawLock> {
     #[cfg(single_core)]
     is_locked: Cell<bool>,
 }
+
+// 234
+unsafe impl<L: single_core::RawLock> Sync for GenericRawMutex<L> {}
 
 // 236
 impl<L: single_core::RawLock> GenericRawMutex<L> {

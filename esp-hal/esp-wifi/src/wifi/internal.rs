@@ -6,13 +6,14 @@ use esp_wifi_sys::include::{
 
 // 10
 use super::os_adapter::{
-    calloc_internal, coex_register_start_cb, coex_schm_register_cb_wrapper, free, log_timestamp,
-    malloc, malloc_internal, mutex_delete, mutex_lock, mutex_unlock, phy_enable, queue_recv,
-    queue_send, recursive_mutex_create, spin_lock_create, spin_lock_delete,
-    task_create_pinned_to_core, task_delay, task_get_current_task, task_get_max_priority,
-    task_ms_to_tick, wifi_apb80m_request, wifi_calloc, wifi_clock_enable, wifi_create_queue,
-    wifi_delete_queue, wifi_int_disable, wifi_int_restore, wifi_malloc, wifi_thread_semphr_get,
-    wifi_zalloc, zalloc_internal,
+    calloc_internal, coex_enable, coex_register_start_cb, coex_schm_register_cb_wrapper,
+    coex_wifi_release, coex_wifi_request, event_post, free, log_timestamp, malloc, malloc_internal,
+    mutex_delete, mutex_lock, mutex_unlock, phy_enable, queue_recv, queue_send,
+    recursive_mutex_create, spin_lock_create, spin_lock_delete, task_create_pinned_to_core,
+    task_delay, task_get_current_task, task_get_max_priority, task_ms_to_tick, wifi_apb80m_request,
+    wifi_calloc, wifi_clock_enable, wifi_create_queue, wifi_delete_queue, wifi_int_disable,
+    wifi_int_restore, wifi_malloc, wifi_reset_mac, wifi_thread_semphr_get, wifi_zalloc,
+    zalloc_internal,
 };
 #[cfg(feature = "sys-logs")]
 use super::os_adapter::{log_write, log_writev};
@@ -71,7 +72,7 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _task_get_max_priority: Some(task_get_max_priority), // 168
     _malloc: Some(malloc),                        // 172
     _free: Some(free),                            // 176
-    _event_post: None,                            // 180 Some(event_post),
+    _event_post: Some(event_post),                // 180
     _get_free_heap_size: None,                    // 184 Some(get_free_heap_size),
     _rand: None,                                  // 188 Some(rand),
     _dport_access_stall_other_cpu_start_wrap: None, // 192 Some(dport_access_stall_other_cpu_start_wrap),
@@ -87,7 +88,7 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _timer_done: None,                            // 232 Some(ets_timer_done),
     _timer_setfn: Some(ets_timer_setfn),          // 236
     _timer_arm_us: None,                          // 240 Some(ets_timer_arm_us),
-    _wifi_reset_mac: None,                        // 244 Some(wifi_reset_mac),
+    _wifi_reset_mac: Some(wifi_reset_mac),        // 244
     _wifi_clock_enable: Some(wifi_clock_enable),  // 248
     _wifi_clock_disable: None,                    // 252 Some(wifi_clock_disable),
     _wifi_rtc_enable_iso: None,                   // 256 Some(wifi_rtc_enable_iso),
@@ -132,12 +133,12 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _wifi_delete_queue: Some(wifi_delete_queue), // 380
     _coex_init: None,                            // 384 Some(super::coex_init),
     _coex_deinit: None,                          // 388 Some(coex_deinit),
-    _coex_enable: None,                          // 392 Some(coex_enable),
+    _coex_enable: Some(coex_enable),             // 392
     _coex_disable: None,                         // 396 Some(coex_disable),
     _coex_status_get: None,                      // 400 Some(coex_status_get),
     _coex_condition_set: None,                   // 404
-    _coex_wifi_request: None,                    // 408 Some(coex_wifi_request),
-    _coex_wifi_release: None,                    // 412 Some(coex_wifi_release),
+    _coex_wifi_request: Some(coex_wifi_request), // 408
+    _coex_wifi_release: Some(coex_wifi_release), // 412
     _coex_wifi_channel_set: None,                // 416 Some(coex_wifi_channel_set),
     _coex_event_duration_get: None,              // 420 Some(coex_event_duration_get),
     _coex_pti_get: None,                         // 424 Some(coex_pti_get),

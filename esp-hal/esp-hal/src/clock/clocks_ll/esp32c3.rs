@@ -196,6 +196,16 @@ pub(super) fn enable_wifi(_: bool) {
     // `periph_ll_wifi_module__clk_clear_rst`, no-op
 }
 
+// 195
+pub(super) fn reset_mac() {
+    APB_CTRL::regs()
+        .wifi_rst_en()
+        .modify(|_, w| w.mac_rst().set_bit());
+    APB_CTRL::regs()
+        .wifi_rst_en()
+        .modify(|_, w| w.mac_rst().clear_bit());
+}
+
 // 204
 pub(super) fn init_clocks() {
     // undo the power down in base_settings (esp32c3_sleep)

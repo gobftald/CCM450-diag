@@ -1,8 +1,10 @@
 //! WiFi
 
-// 4
+// 3
+pub mod event;
 mod internal;
 pub(crate) mod os_adapter;
+pub(crate) mod state;
 
 // 7
 use alloc::string::String;
@@ -446,11 +448,36 @@ pub enum WifiError {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 // 1140
 pub enum WifiEvent {
+    /// Wi-Fi is ready for operation.
+    WifiReady = 0,
+    /// Scan operation has completed.
+    ScanDone,
     /// Station mode started.
     StaStart,
+    /// Station mode stopped.
+    StaStop,
+    /// Station connected to a network.
+    StaConnected,
+    /// Station disconnected from a network.
+    StaDisconnected,
+    /// Station authentication mode changed.
+    StaAuthmodeChange,
+
+    /// Station WPS succeeds in enrollee mode.
+    StaWpsErSuccess,
+    /// Station WPS fails in enrollee mode.
+    StaWpsErFailed,
+    /// Station WPS timeout in enrollee mode.
+    StaWpsErTimeout,
+    /// Station WPS pin code in enrollee mode.
+    StaWpsErPin,
+    /// Station WPS overlap in enrollee mode.
+    StaWpsErPbcOverlap,
 
     /// Soft-AP start.
     ApStart,
+    /// Soft-AP stop.
+    ApStop,
 }
 
 /// Error originating from the underlying drivers

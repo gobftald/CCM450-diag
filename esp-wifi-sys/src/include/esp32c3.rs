@@ -110,6 +110,132 @@ pub const wifi_mode_t_WIFI_MODE_NAN: wifi_mode_t = 4;
 pub const wifi_mode_t_WIFI_MODE_MAX: wifi_mode_t = 5;
 pub type wifi_mode_t = crate::c_types::c_uint;
 
+// 3782
+/// authenticate mode : open
+pub const wifi_auth_mode_t_WIFI_AUTH_OPEN: wifi_auth_mode_t = 0;
+/// authenticate mode : WEP
+pub const wifi_auth_mode_t_WIFI_AUTH_WEP: wifi_auth_mode_t = 1;
+/// authenticate mode : WPA_PSK
+pub const wifi_auth_mode_t_WIFI_AUTH_WPA_PSK: wifi_auth_mode_t = 2;
+/// authenticate mode : WPA2_PSK
+pub const wifi_auth_mode_t_WIFI_AUTH_WPA2_PSK: wifi_auth_mode_t = 3;
+/// authenticate mode : WPA_WPA2_PSK
+pub const wifi_auth_mode_t_WIFI_AUTH_WPA_WPA2_PSK: wifi_auth_mode_t = 4;
+/// authenticate mode : WiFi EAP security
+pub const wifi_auth_mode_t_WIFI_AUTH_ENTERPRISE: wifi_auth_mode_t = 5;
+/// authenticate mode : WiFi EAP security
+pub const wifi_auth_mode_t_WIFI_AUTH_WPA2_ENTERPRISE: wifi_auth_mode_t = 5;
+/// authenticate mode : WPA3_PSK
+pub const wifi_auth_mode_t_WIFI_AUTH_WPA3_PSK: wifi_auth_mode_t = 6;
+/// authenticate mode : WPA2_WPA3_PSK
+pub const wifi_auth_mode_t_WIFI_AUTH_WPA2_WPA3_PSK: wifi_auth_mode_t = 7;
+/// authenticate mode : WAPI_PSK
+pub const wifi_auth_mode_t_WIFI_AUTH_WAPI_PSK: wifi_auth_mode_t = 8;
+/// authenticate mode : OWE
+pub const wifi_auth_mode_t_WIFI_AUTH_OWE: wifi_auth_mode_t = 9;
+/// authenticate mode : WPA3_ENT_SUITE_B_192_BIT
+pub const wifi_auth_mode_t_WIFI_AUTH_WPA3_ENT_192: wifi_auth_mode_t = 10;
+/// this authentication mode will yield same result as WIFI_AUTH_WPA3_PSK and not recommended to be used.
+/// It will be deprecated in future, please use WIFI_AUTH_WPA3_PSK instead.
+pub const wifi_auth_mode_t_WIFI_AUTH_WPA3_EXT_PSK: wifi_auth_mode_t = 11;
+/// this authentication mode will yield same result as WIFI_AUTH_WPA3_PSK and not recommended to be used.
+/// It will be deprecated in future, please use WIFI_AUTH_WPA3_PSK instead.
+pub const wifi_auth_mode_t_WIFI_AUTH_WPA3_EXT_PSK_MIXED_MODE: wifi_auth_mode_t = 12;
+/// authenticate mode : DPP
+pub const wifi_auth_mode_t_WIFI_AUTH_DPP: wifi_auth_mode_t = 13;
+pub const wifi_auth_mode_t_WIFI_AUTH_MAX: wifi_auth_mode_t = 14;
+pub type wifi_auth_mode_t = crate::c_types::c_uint;
+
+/// Argument structure for WIFI_EVENT_SCAN_DONE event
+#[repr(C)]
+#[derive(Copy, Clone)]
+// 5421
+pub struct wifi_event_sta_scan_done_t {
+    // status of scanning APs: 0 — success, 1 - failure
+    pub status: u32,
+    // number of scan results
+    pub number: u8,
+    // scan sequence number, used for block scan
+    pub scan_id: u8,
+}
+
+/// Argument structure for WIFI_EVENT_STA_CONNECTED event
+#[repr(C)]
+#[derive(Copy, Clone)]
+// 5432
+pub struct wifi_event_sta_connected_t {
+    /// SSID of connected AP
+    pub ssid: [u8; 32usize],
+    /// SSID length of connected AP
+    pub ssid_len: u8,
+    /// BSSID of connected AP
+    pub bssid: [u8; 6usize],
+    /// channel of connected AP
+    pub channel: u8,
+    /// authentication mode used by AP
+    pub authmode: wifi_auth_mode_t,
+    /// authentication id assigned by the connected AP
+    pub aid: u16,
+}
+
+/// Argument structure for WIFI_EVENT_STA_DISCONNECTED event
+#[repr(C)]
+#[derive(Copy, Clone)]
+// 5449
+pub struct wifi_event_sta_disconnected_t {
+    /// SSID of disconnected AP
+    pub ssid: [u8; 32usize],
+    /// SSID length of disconnected AP
+    pub ssid_len: u8,
+    /// BSSID of disconnected AP
+    pub bssid: [u8; 6usize],
+    /// reason of disconnection
+    pub reason: u8,
+    /// rssi of disconnection
+    pub rssi: i8,
+}
+
+/// Argument structure for WIFI_EVENT_STA_AUTHMODE_CHANGE event
+#[repr(C)]
+#[derive(Copy, Clone)]
+// 5464
+pub struct wifi_event_sta_authmode_change_t {
+    /// the old auth mode of AP
+    pub old_mode: wifi_auth_mode_t,
+    /// the new auth mode of AP
+    pub new_mode: wifi_auth_mode_t,
+}
+
+/// Argument structure for WIFI_EVENT_STA_WPS_ER_PIN event
+#[repr(C)]
+#[derive(Copy, Clone)]
+// 5473
+pub struct wifi_event_sta_wps_er_pin_t {
+    /// PIN code of station in enrollee mode
+    pub pin_code: [u8; 8usize],
+}
+
+/// Argument structure for WIFI_EVENT_STA_WPS_ER_SUCCESS event
+#[repr(C)]
+#[derive(Copy, Clone)]
+// 5493
+pub struct wifi_event_sta_wps_er_success_t {
+    /// Number of AP credentials received
+    pub ap_cred_cnt: u8,
+    /// All AP credentials received from WPS handshake
+    pub ap_cred: [wifi_event_sta_wps_er_success_t__bindgen_ty_1; 3usize],
+}
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+// 5501
+pub struct wifi_event_sta_wps_er_success_t__bindgen_ty_1 {
+    /// SSID of AP
+    pub ssid: [u8; 32usize],
+    /// assphrase for the AP
+    pub passphrase: [u8; 64usize],
+}
+
 /// @brief The AES 128 encrypt callback function used by esp_wifi.
 /// @param key  Encryption key.
 /// @param iv  Encryption IV for CBC mode (16 bytes).
@@ -1184,6 +1310,7 @@ pub struct wifi_osi_funcs_t {
 /// @brief Structure holding PHY init parameters
 #[repr(C)]
 #[derive(Copy, Clone)]
+// 7841
 pub struct esp_phy_init_data_t {
     /// opaque PHY initialization parameters
     pub params: [u8; 128usize],
@@ -1251,6 +1378,35 @@ unsafe extern "C" {
     ///
     /// @return    memory size
     pub fn phy_dig_reg_backup(backup_en: bool, mem_addr: *mut u32) -> u8;
+}
+
+// 8833
+unsafe extern "C" {
+    /// @brief Enable software coexist
+    ///        extern function for internal use.
+    ///
+    /// @return Enable ok or failed.
+    pub fn coex_enable() -> esp_err_t;
+}
+
+// 8857
+unsafe extern "C" {
+    /// @brief WiFi requests coexistence.
+    ///
+    /// @param event : WiFi event
+    /// @param latency : WiFi will request coexistence after latency
+    /// @param duration : duration for WiFi to request coexistence
+    /// @return : 0 - success, other - failed
+    pub fn coex_wifi_request(event: u32, latency: u32, duration: u32) -> crate::c_types::c_int;
+}
+
+// 8861
+unsafe extern "C" {
+    /// @brief WiFi release coexistence.
+    ///
+    /// @param event : WiFi event
+    /// @return : 0 - success, other - failed
+    pub fn coex_wifi_release(event: u32) -> crate::c_types::c_int;
 }
 
 #[repr(C)]

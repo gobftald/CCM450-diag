@@ -22,6 +22,7 @@ smoltcp = { path = "../../smoltcp/smoltcp", default-features = false, features =
 ], optional = true }
 embassy-net-driver = { path = "../../embassy/embassy-net-driver", optional = true }
 portable-atomic = { path = "../../portable-atomic", default-features = false }
+portable-atomic-enum = { path = "../../portable-atomic-enum", features = ["portable-atomic"] }
 
 [build-dependencies]
 esp-metadata = { path = "../esp-metadata" }

@@ -338,6 +338,13 @@ impl<'d> RadioClockController<'d> {
         clocks_ll::enable_wifi(enable);
     }
 
+    /// Reset the MAC
+    #[inline]
+    // 644
+    pub fn reset_mac(&mut self) {
+        clocks_ll::reset_mac();
+    }
+
     /// Do any common initial initialization needed
     //#[instability::unstable]
     #[inline]

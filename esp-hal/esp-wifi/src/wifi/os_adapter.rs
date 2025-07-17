@@ -19,6 +19,7 @@ use crate::{
         peripherals::RADIO_CLK,
         sync::{Locked, RawMutex},
     },
+    memory_fence::memory_fence,
     preempt::yield_task,
 };
 
@@ -437,6 +438,67 @@ pub unsafe extern "C" fn free(p: *mut crate::binary::c_types::c_void) {
 }
 
 /// **************************************************************************
+/// Name: esp_event_post
+///
+/// Description:
+///   Active work queue and let the work to process the cached event
+///
+/// Input Parameters:
+///   event_base      - Event set name
+///   event_id        - Event ID
+///   event_data      - Event private data
+///   event_data_size - Event data size
+///   ticks           - Waiting system ticks
+///
+/// Returned Value:
+///   0 if success or -1 if fail
+///
+/// *************************************************************************
+// 864
+pub unsafe extern "C" fn event_post(
+    event_base: *const crate::binary::c_types::c_char,
+    event_id: i32,
+    event_data: *mut crate::binary::c_types::c_void,
+    event_data_size: usize,
+    ticks_to_wait: u32,
+) -> i32 {
+    trace!(
+        "event_post {:?} {} {:?} {} {:?}",
+        event_base, event_id, event_data, event_data_size, ticks_to_wait
+    );
+    use num_traits::FromPrimitive;
+
+    let event = unwrap!(WifiEvent::from_i32(event_id));
+    trace!("EVENT: {:?}", event);
+
+    WIFI_EVENTS.with(|events| events.borrow_mut().insert(event));
+    let handled =
+        unsafe { super::event::dispatch_event_handler(event, event_data, event_data_size) };
+
+    super::state::update_state(event, handled);
+
+    /*
+    event.waker().wake();
+
+    match event {
+        WifiEvent::StaConnected | WifiEvent::StaDisconnected => {
+            crate::wifi::embassy::STA_LINK_STATE_WAKER.wake();
+        }
+
+        WifiEvent::ApStart | WifiEvent::ApStop => {
+            crate::wifi::embassy::AP_LINK_STATE_WAKER.wake();
+        }
+
+        _ => {}
+    }
+    */
+
+    memory_fence();
+
+    0
+}
+
+/// **************************************************************************
 /// Name: wifi_apb80m_request
 ///
 /// Description:
@@ -469,6 +531,27 @@ pub unsafe extern "C" fn phy_enable() {
     unsafe {
         crate::common_adapter::chip_specific::phy_enable();
     }
+}
+
+/// **************************************************************************
+/// Name: wifi_reset_mac
+///
+/// Description:
+///   Reset Wi-Fi hardware MAC
+///
+/// Input Parameters:
+///   None
+///
+/// Returned Value:
+///   None
+///
+/// *************************************************************************
+pub unsafe extern "C" fn wifi_reset_mac() {
+    trace!("wifi_reset_mac");
+    // stealing RADIO_CLK is safe since it is passed (as mutable reference or by
+    // value) into `init`
+    let radio_clocks = unsafe { RADIO_CLK::steal() };
+    RadioClockController::new(radio_clocks).reset_mac();
 }
 
 /// **************************************************************************
@@ -740,6 +823,66 @@ pub unsafe extern "C" fn wifi_delete_queue(queue: *mut crate::binary::c_types::c
             warn!("unknown queue when trying to delete WIFI queue");
         }
     }
+}
+
+/// **************************************************************************
+/// Name: wifi_coex_enable
+///
+/// Description:
+///   Don't support
+///
+/// *************************************************************************
+// 1747
+pub unsafe extern "C" fn coex_enable() -> crate::binary::c_types::c_int {
+    trace!("coex_enable");
+
+    #[cfg(coex)]
+    return unsafe { crate::binary::include::coex_enable() };
+
+    #[cfg(not(coex))]
+    0
+}
+
+/// **************************************************************************
+/// Name: esp_coex_wifi_request
+///
+/// Description:
+///   Don't support
+///
+/// *************************************************************************
+#[cfg_attr(not(coex), allow(unused_variables))]
+// 1798
+pub unsafe extern "C" fn coex_wifi_request(
+    event: u32,
+    latency: u32,
+    duration: u32,
+) -> crate::binary::c_types::c_int {
+    trace!("coex_wifi_request");
+
+    #[cfg(coex)]
+    return unsafe { crate::binary::include::coex_wifi_request(event, latency, duration) };
+
+    #[cfg(not(coex))]
+    0
+}
+
+/// **************************************************************************
+/// Name: esp_coex_wifi_release
+///
+/// Description:
+///   Don't support
+///
+/// *************************************************************************
+#[cfg_attr(not(coex), allow(unused_variables))]
+// 1820
+pub unsafe extern "C" fn coex_wifi_release(event: u32) -> crate::binary::c_types::c_int {
+    trace!("coex_wifi_release");
+
+    #[cfg(coex)]
+    return unsafe { crate::binary::include::coex_wifi_release(event) };
+
+    #[cfg(not(coex))]
+    0
 }
 
 #[allow(unused_variables)]
