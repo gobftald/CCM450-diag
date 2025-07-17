@@ -204,6 +204,18 @@ impl RawMutex {
     }
 }
 
+// 395
+unsafe impl embassy_sync::blocking_mutex::raw::RawMutex for RawMutex {
+    #[allow(clippy::declare_interior_mutable_const)]
+    const INIT: Self = Self::new();
+
+    fn lock<R>(&self, f: impl FnOnce() -> R) -> R {
+        // embassy_sync semantics allow reentrancy.
+        let _token = LockGuard::new_reentrant(&self.inner);
+        f()
+    }
+}
+
 // Prefer this over a critical-section as this allows you to have multiple
 // locks active at the same time rather than using the global mutex that is
 // critical-section.

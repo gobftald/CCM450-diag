@@ -477,9 +477,9 @@ pub unsafe extern "C" fn event_post(
 
     super::state::update_state(event, handled);
 
-    /*
     event.waker().wake();
 
+    /*
     match event {
         WifiEvent::StaConnected | WifiEvent::StaDisconnected => {
             crate::wifi::embassy::STA_LINK_STATE_WAKER.wake();
@@ -859,10 +859,10 @@ pub unsafe extern "C" fn coex_wifi_request(
 ) -> crate::binary::c_types::c_int {
     trace!("coex_wifi_request");
 
-    #[cfg(coex)]
-    return unsafe { crate::binary::include::coex_wifi_request(event, latency, duration) };
+    //#[cfg(coex)]
+    //return unsafe { crate::binary::include::coex_wifi_request(event, latency, duration) };
 
-    #[cfg(not(coex))]
+    //#[cfg(not(coex))]
     0
 }
 
@@ -878,10 +878,10 @@ pub unsafe extern "C" fn coex_wifi_request(
 pub unsafe extern "C" fn coex_wifi_release(event: u32) -> crate::binary::c_types::c_int {
     trace!("coex_wifi_release");
 
-    #[cfg(coex)]
-    return unsafe { crate::binary::include::coex_wifi_release(event) };
+    //#[cfg(coex)]
+    //return unsafe { crate::binary::include::coex_wifi_release(event) };
 
-    #[cfg(not(coex))]
+    //#[cfg(not(coex))]
     0
 }
 

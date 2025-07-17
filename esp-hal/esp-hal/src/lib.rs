@@ -108,7 +108,8 @@ pub use procmacros::blocking_main as main;
 // 277
 pub mod sync;
 
-// 288
+// 287
+pub mod asynch;
 pub mod config;
 
 #[cfg(interrupt_core0)]

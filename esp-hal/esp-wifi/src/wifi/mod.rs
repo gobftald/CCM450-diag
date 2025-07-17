@@ -12,6 +12,7 @@ use core::{marker::PhantomData, ptr::addr_of};
 
 // 17
 use enumset::{EnumSet, EnumSetType};
+use esp_hal::asynch::AtomicWaker;
 
 // 54
 use num_derive::FromPrimitive;
@@ -815,5 +816,16 @@ impl WifiController<'_> {
 
     fn clear_events(events: impl Into<EnumSet<WifiEvent>>) {
         WIFI_EVENTS.with(|evts| evts.get_mut().remove_all(events.into()));
+    }
+}
+
+// 3078
+impl WifiEvent {
+    pub(crate) fn waker(&self) -> &'static AtomicWaker {
+        // for now use only one waker for all events
+        // if that ever becomes a problem we might want to pick some events to use their
+        // own
+        static WAKER: AtomicWaker = AtomicWaker::new();
+        &WAKER
     }
 }
