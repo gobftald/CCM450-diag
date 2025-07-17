@@ -1,3 +1,7 @@
+// 1
+#[cfg_attr(esp32c3, path = "os_adapter_esp32c3.rs")]
+pub(crate) mod os_adapter_chip_specific;
+
 // 10
 use core::{cell::RefCell, ptr::addr_of_mut};
 
@@ -10,7 +14,7 @@ use crate::{
     compat::{
         common::{
             ConcurrentQueue, create_queue, create_recursive_mutex, delete_queue, lock_mutex,
-            receive_queued, send_queued, thread_sem_get, unlock_mutex,
+            receive_queued, send_queued, str_from_c, thread_sem_get, unlock_mutex,
         },
         malloc::calloc,
     },
@@ -33,6 +37,79 @@ static mut QUEUE_HANDLE: *mut ConcurrentQueue = core::ptr::null_mut();
 // 47
 pub(crate) static WIFI_EVENTS: Locked<RefCell<EnumSet<WifiEvent>>> =
     Locked::new(RefCell::new(enumset::enum_set!()));
+
+/// **************************************************************************
+/// Name: wifi_env_is_chip
+///
+/// Description:
+///   Config chip environment
+///
+/// Returned Value:
+///   True if on chip or false if on FPGA.
+///
+/// *************************************************************************
+// 60
+pub unsafe extern "C" fn env_is_chip() -> bool {
+    true
+}
+
+/// **************************************************************************
+/// Name: wifi_set_intr
+///
+/// Description:
+///   Do nothing
+///
+/// Input Parameters:
+///     cpu_no      - The CPU which the interrupt number belongs.
+///     intr_source - The interrupt hardware source number.
+///     intr_num    - The interrupt number CPU.
+///     intr_prio   - The interrupt priority.
+///
+/// Returned Value:
+///     None
+///
+/// *************************************************************************
+// 80
+pub unsafe extern "C" fn set_intr(cpu_no: i32, intr_source: u32, intr_num: u32, intr_prio: i32) {
+    trace!(
+        "set_intr {} {} {} {}",
+        cpu_no, intr_source, intr_num, intr_prio
+    );
+    unsafe {
+        crate::wifi::os_adapter::os_adapter_chip_specific::set_intr(
+            cpu_no,
+            intr_source,
+            intr_num,
+            intr_prio,
+        );
+    }
+}
+
+// 107
+pub static mut ISR_INTERRUPT_1: (
+    *mut crate::binary::c_types::c_void,
+    *mut crate::binary::c_types::c_void,
+) = (core::ptr::null_mut(), core::ptr::null_mut());
+
+/// **************************************************************************
+/// Name: esp32c3_ints_on
+///
+/// Description:
+///   Enable Wi-Fi interrupt
+///
+/// Input Parameters:
+///   mask - No mean
+///
+/// Returned Value:
+///   None
+///
+/// *************************************************************************
+// 125
+pub unsafe extern "C" fn ints_on(mask: u32) {
+    trace!("chip_ints_on {:x}", mask);
+
+    crate::wifi::os_adapter::os_adapter_chip_specific::chip_ints_on(mask);
+}
 
 /// **************************************************************************
 /// Name: esp_spin_lock_create
@@ -375,7 +452,7 @@ pub unsafe extern "C" fn task_ms_to_tick(ms: u32) -> i32 {
 // 786
 pub unsafe extern "C" fn task_get_current_task() -> *mut crate::binary::c_types::c_void {
     let res = crate::preempt::current_task() as *mut crate::binary::c_types::c_void;
-    trace!("task get current task - return {:?}", res);
+    //trace!("task get current task - return {:?}", res);
 
     res
 }
@@ -534,6 +611,25 @@ pub unsafe extern "C" fn phy_enable() {
 }
 
 /// **************************************************************************
+/// Name: wifi_phy_update_country_info
+///
+/// Description:
+///   Don't support
+///
+/// *************************************************************************
+#[allow(clippy::unnecessary_cast)]
+// 1036
+pub unsafe extern "C" fn phy_update_country_info(
+    country: *const crate::binary::c_types::c_char,
+) -> crate::binary::c_types::c_int {
+    unsafe {
+        // not implemented in original code
+        trace!("phy_update_country_info {}", str_from_c(country.cast()));
+        -1
+    }
+}
+
+/// **************************************************************************
 /// Name: wifi_reset_mac
 ///
 /// Description:
@@ -546,6 +642,7 @@ pub unsafe extern "C" fn phy_enable() {
 ///   None
 ///
 /// *************************************************************************
+// 1059
 pub unsafe extern "C" fn wifi_reset_mac() {
     trace!("wifi_reset_mac");
     // stealing RADIO_CLK is safe since it is passed (as mutable reference or by
@@ -844,6 +941,24 @@ pub unsafe extern "C" fn coex_enable() -> crate::binary::c_types::c_int {
 }
 
 /// **************************************************************************
+/// Name: esp_coex_status_get
+///
+/// Description:
+///   Don't support
+///
+/// *************************************************************************
+// 1781
+pub unsafe extern "C" fn coex_status_get() -> u32 {
+    trace!("coex_status_get");
+
+    //#[cfg(coex)]
+    //return unsafe { crate::binary::include::coex_status_get() };
+
+    //#[cfg(not(coex))]
+    0
+}
+
+/// **************************************************************************
 /// Name: esp_coex_wifi_request
 ///
 /// Description:
@@ -885,6 +1000,81 @@ pub unsafe extern "C" fn coex_wifi_release(event: u32) -> crate::binary::c_types
     0
 }
 
+/// **************************************************************************
+/// Name: wifi_coex_get_pti
+///
+/// Description:
+///   Don't support
+///
+/// *************************************************************************
+#[cfg(any(esp32c3, esp32c2, esp32c6, esp32s3))]
+#[cfg_attr(not(coex), allow(unused_variables))]
+// 1882
+pub unsafe extern "C" fn coex_pti_get(event: u32, pti: *mut u8) -> crate::binary::c_types::c_int {
+    trace!("coex_pti_get");
+
+    //#[cfg(coex)]
+    //return unsafe { crate::binary::include::coex_pti_get(event, pti) };
+
+    //#[cfg(not(coex))]
+    0
+}
+
+/// **************************************************************************
+/// Name: wifi_coex_clear_schm_status_bit
+///
+/// Description:
+///   Don't support
+///
+/// *************************************************************************
+#[allow(unused_variables)]
+// 1906
+pub unsafe extern "C" fn coex_schm_status_bit_clear(type_: u32, status: u32) {
+    trace!("coex_schm_status_bit_clear");
+
+    //#[cfg(coex)]
+    //unsafe {
+    //    crate::binary::include::coex_schm_status_bit_clear(type_, status)
+    //};
+}
+
+/// **************************************************************************
+/// Name: wifi_coex_set_schm_status_bit
+///
+/// Description:
+///   Don't support
+///
+/// *************************************************************************
+#[allow(unused_variables)]
+// 1923
+pub unsafe extern "C" fn coex_schm_status_bit_set(type_: u32, status: u32) {
+    trace!("coex_schm_status_bit_set");
+
+    //#[cfg(coex)]
+    //unsafe {
+    //    crate::binary::include::coex_schm_status_bit_set(type_, status)
+    //};
+}
+
+/// **************************************************************************
+/// Name: wifi_coex_set_schm_interval
+///
+/// Description:
+///   Don't support
+///
+/// *************************************************************************
+#[allow(unused_variables)]
+// 1940
+pub unsafe extern "C" fn coex_schm_interval_set(interval: u32) -> crate::binary::c_types::c_int {
+    trace!("coex_schm_interval_set");
+
+    //#[cfg(coex)]
+    //return unsafe { crate::binary::include::coex_schm_interval_set(interval) };
+
+    //#[cfg(not(coex))]
+    0
+}
+
 #[allow(unused_variables)]
 // 2020
 pub unsafe extern "C" fn coex_schm_register_cb_wrapper(
@@ -919,4 +1109,28 @@ pub unsafe extern "C" fn coex_register_start_cb(
 
     //#[cfg(not(coex))]
     0
+}
+
+/// **************************************************************************
+/// Name: esp_clk_slowclk_cal_get_wrapper
+///
+/// Description:
+///   Get the calibration value of RTC slow clock
+///
+/// Input Parameters:
+///   None
+///
+/// Returned Value:
+///   The calibration value obtained using rtc_clk_cal
+///
+/// *************************************************************************
+#[allow(unused)]
+// 2093
+pub unsafe extern "C" fn slowclk_cal_get() -> u32 {
+    trace!("slowclk_cal_get");
+
+    // TODO not hardcode this
+
+    #[cfg(esp32c3)]
+    return 28639;
 }

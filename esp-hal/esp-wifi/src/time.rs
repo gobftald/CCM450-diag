@@ -20,6 +20,12 @@ pub(crate) fn time_diff(start: u64, end: u64) -> u64 {
     end.wrapping_sub(start) & 0x000f_ffff_ffff_ffff
 }
 
+#[allow(unused)]
+// 28
+pub(crate) fn micros_to_ticks(us: u64) -> u64 {
+    us * (TICKS_PER_SECOND / 1_000_000)
+}
+
 // 33
 pub(crate) fn millis_to_ticks(ms: u64) -> u64 {
     ms * (TICKS_PER_SECOND / 1_000)

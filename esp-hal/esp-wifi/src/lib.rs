@@ -4,6 +4,7 @@
 #![no_std]
 #![cfg_attr(feature = "sys-logs", feature(c_variadic))]
 #![allow(static_mut_refs)]
+#![feature(let_chains)]
 
 #[allow(unused_imports)]
 #[macro_use(info, warn, debug, trace, panic, unwrap, debug_assert, debug_assert_eq)]

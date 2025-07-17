@@ -18,7 +18,7 @@ use esp_hal::asynch::AtomicWaker;
 use num_derive::FromPrimitive;
 
 // 56
-pub(crate) use os_adapter::WIFI_EVENTS;
+pub(crate) use os_adapter::{ISR_INTERRUPT_1, WIFI_EVENTS};
 
 // 61
 use smoltcp::phy::{Device, DeviceCapabilities};
