@@ -8,7 +8,7 @@ pub(crate) mod state;
 
 // 7
 use alloc::string::String;
-use core::{marker::PhantomData, ptr::addr_of};
+use core::{marker::PhantomData, ptr::addr_of, task::Poll};
 
 // 17
 use enumset::{EnumSet, EnumSetType};
@@ -882,11 +882,31 @@ impl WifiController<'_> {
 
         wifi_start()?;
 
+        self.wait_for_all_events(events, false).await;
+
         Ok(())
     }
 
+    // 3038
     fn clear_events(events: impl Into<EnumSet<WifiEvent>>) {
         WIFI_EVENTS.with(|evts| evts.get_mut().remove_all(events.into()));
+    }
+
+    /// Wait for multiple [`WifiEvent`]s.
+    // 3062
+    pub async fn wait_for_all_events(
+        &mut self,
+        mut events: EnumSet<WifiEvent>,
+        clear_pending: bool,
+    ) {
+        if clear_pending {
+            Self::clear_events(events);
+        }
+
+        while !events.is_empty() {
+            let fired = MultiWifiEventFuture::new(events).await;
+            events -= fired;
+        }
     }
 }
 
@@ -898,5 +918,45 @@ impl WifiEvent {
         // own
         static WAKER: AtomicWaker = AtomicWaker::new();
         &WAKER
+    }
+}
+
+#[must_use = "futures do nothing unless you `.await` or poll them"]
+// 3117
+pub(crate) struct MultiWifiEventFuture {
+    event: EnumSet<WifiEvent>,
+}
+
+// 3121
+impl MultiWifiEventFuture {
+    /// Creates a new `Future` for the specified set of WiFi events.
+    pub fn new(event: EnumSet<WifiEvent>) -> Self {
+        Self { event }
+    }
+}
+
+// 3128
+impl core::future::Future for MultiWifiEventFuture {
+    type Output = EnumSet<WifiEvent>;
+
+    fn poll(
+        self: core::pin::Pin<&mut Self>,
+        cx: &mut core::task::Context<'_>,
+    ) -> Poll<Self::Output> {
+        let output = WIFI_EVENTS.with(|events| {
+            let events = events.get_mut();
+            let active = events.intersection(self.event);
+            events.remove_all(active);
+            active
+        });
+        if output.is_empty() {
+            for event in self.event.iter() {
+                event.waker().register(cx.waker());
+            }
+
+            Poll::Pending
+        } else {
+            Poll::Ready(output)
+        }
     }
 }

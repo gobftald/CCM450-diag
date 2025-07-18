@@ -43,7 +43,8 @@ mod preempt_builtin;
 // 138
 pub mod preempt;
 
-// 141
+// 140
+mod radio;
 mod time;
 
 #[cfg(feature = "wifi")]

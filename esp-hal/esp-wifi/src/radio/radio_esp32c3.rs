@@ -8,7 +8,7 @@ extern "C" fn WIFI_MAC() {
         trace!("interrupt WIFI_MAC {:?} {:?}", fnc, arg);
 
         if !fnc.is_null() {
-            let fnc: fn(*mut binary::c_types::c_void) = core::mem::transmute(fnc);
+            let fnc: fn(*mut crate::binary::c_types::c_void) = core::mem::transmute(fnc);
             fnc(arg);
         }
 
@@ -26,7 +26,7 @@ extern "C" fn WIFI_PWR() {
         trace!("interrupt WIFI_PWR {:?} {:?}", fnc, arg);
 
         if !fnc.is_null() {
-            let fnc: fn(*mut binary::c_types::c_void) = core::mem::transmute(fnc);
+            let fnc: fn(*mut crate::binary::c_types::c_void) = core::mem::transmute(fnc);
             fnc(arg);
         }
 

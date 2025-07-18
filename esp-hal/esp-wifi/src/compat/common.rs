@@ -241,7 +241,7 @@ pub(crate) fn sem_take(semphr: *mut c_void, tick: u32) -> i32 {
 
 // 254
 pub(crate) fn sem_give(semphr: *mut c_void) -> i32 {
-    trace!("semphr_give {:?}", semphr);
+    //trace!("semphr_give {:?}", semphr);
     let sem = semphr as *mut u32;
 
     critical_section::with(|_| unsafe {
@@ -361,9 +361,7 @@ pub(crate) fn send_queued(
 ) -> i32 {
     trace!(
         "queue_send queue {:?} item {:x} block_time_tick {}",
-        queue,
-        item as usize,
-        block_time_tick
+        queue, item as usize, block_time_tick
     );
 
     let queue: *mut ConcurrentQueue = queue.cast();
@@ -378,9 +376,7 @@ pub(crate) fn receive_queued(
 ) -> i32 {
     trace!(
         "queue_recv {:?} item {:?} block_time_tick {}",
-        queue,
-        item,
-        block_time_tick
+        queue, item, block_time_tick
     );
 
     let forever = block_time_tick == OSI_FUNCS_TIME_BLOCKING;

@@ -170,7 +170,7 @@ pub unsafe extern "C" fn spin_lock_delete(lock: *mut crate::binary::c_types::c_v
 pub unsafe extern "C" fn wifi_int_disable(
     _wifi_int_mux: *mut crate::binary::c_types::c_void,
 ) -> u32 {
-    trace!("wifi_int_disable");
+    //trace!("wifi_int_disable");
     // TODO: can we use wifi_int_mux?
     let token = unsafe { WIFI_LOCK.acquire() };
     unsafe { core::mem::transmute::<esp_hal::sync::RestoreState, u32>(token) }
@@ -196,9 +196,29 @@ pub unsafe extern "C" fn wifi_int_restore(
     _wifi_int_mux: *mut crate::binary::c_types::c_void,
     tmp: u32,
 ) {
-    trace!("wifi_int_restore");
+    //trace!("wifi_int_restore");
     let token = unsafe { core::mem::transmute::<u32, esp_hal::sync::RestoreState>(tmp) };
     unsafe { WIFI_LOCK.release(token) }
+}
+
+/// **************************************************************************
+/// Name: esp_task_yield_from_isr
+///
+/// Description:
+///   Do nothing in NuttX
+///
+/// Input Parameters:
+///   None
+///
+/// Returned Value:
+///   None
+///
+/// *************************************************************************
+// 266
+pub unsafe extern "C" fn task_yield_from_isr() {
+    // original: /* Do nothing */
+    trace!("task_yield_from_isr");
+    yield_task();
 }
 
 /// **************************************************************************
@@ -313,6 +333,35 @@ pub unsafe extern "C" fn queue_send(
     block_time_tick: u32,
 ) -> i32 {
     send_queued(queue.cast(), item, block_time_tick)
+}
+
+/// **************************************************************************
+/// Name: esp_queue_send_from_isr
+///
+/// Description:
+///   Send message of low priority to queue in ISR within
+///   a certain period of time
+///
+/// Input Parameters:
+///   queue - Message queue data pointer
+///   item  - Message data pointer
+///   hptw  - No mean
+///
+/// Returned Value:
+///   True if success or false if fail
+///
+/// *************************************************************************
+// 460
+pub unsafe extern "C" fn queue_send_from_isr(
+    queue: *mut crate::binary::c_types::c_void,
+    item: *mut crate::binary::c_types::c_void,
+    _hptw: *mut crate::binary::c_types::c_void,
+) -> i32 {
+    trace!("queue_send_from_isr");
+    unsafe {
+        *(_hptw as *mut u32) = 1;
+        queue_send(queue, item, 1000)
+    }
 }
 
 /// **************************************************************************
@@ -674,6 +723,23 @@ pub unsafe extern "C" fn wifi_clock_enable() {
 }
 
 /// **************************************************************************
+/// Name: esp_timer_get_time
+///
+/// Description:
+///   Get time in microseconds since boot.
+///
+/// Returned Value:
+///   System time in micros
+///
+/// *************************************************************************
+#[unsafe(no_mangle)]
+// 1142
+pub unsafe extern "C" fn esp_timer_get_time() -> i64 {
+    trace!("esp_timer_get_time");
+    crate::time::ticks_to_micros(crate::time::systimer_count()) as i64
+}
+
+/// **************************************************************************
 /// Name: esp_log_write
 ///
 /// Description:
@@ -995,6 +1061,27 @@ pub unsafe extern "C" fn coex_wifi_release(event: u32) -> crate::binary::c_types
 
     //#[cfg(coex)]
     //return unsafe { crate::binary::include::coex_wifi_release(event) };
+
+    //#[cfg(not(coex))]
+    0
+}
+
+/// **************************************************************************
+/// Name: wifi_coex_get_event_duration
+///
+/// Description:
+///   Don't support
+///
+/// *************************************************************************
+// 1859
+pub unsafe extern "C" fn coex_event_duration_get(
+    event: u32,
+    duration: *mut u32,
+) -> crate::binary::c_types::c_int {
+    trace!("coex_event_duration_get");
+
+    //#[cfg(coex)]
+    //return unsafe { crate::binary::include::coex_event_duration_get(event, duration) };
 
     //#[cfg(not(coex))]
     0

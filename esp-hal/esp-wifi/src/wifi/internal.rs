@@ -6,16 +6,17 @@ use esp_wifi_sys::include::{
 
 // 10
 use super::os_adapter::{
-    calloc_internal, coex_enable, coex_pti_get, coex_register_start_cb, coex_schm_interval_set,
-    coex_schm_register_cb_wrapper, coex_schm_status_bit_clear, coex_schm_status_bit_set,
-    coex_status_get, coex_wifi_release, coex_wifi_request, env_is_chip, event_post, free, ints_on,
-    log_timestamp, malloc, malloc_internal, mutex_delete, mutex_lock, mutex_unlock,
-    os_adapter_chip_specific, phy_enable, phy_update_country_info, queue_recv, queue_send,
-    recursive_mutex_create, set_intr, slowclk_cal_get, spin_lock_create, spin_lock_delete,
-    task_create_pinned_to_core, task_delay, task_get_current_task, task_get_max_priority,
-    task_ms_to_tick, wifi_apb80m_request, wifi_calloc, wifi_clock_enable, wifi_create_queue,
-    wifi_delete_queue, wifi_int_disable, wifi_int_restore, wifi_malloc, wifi_reset_mac,
-    wifi_thread_semphr_get, wifi_zalloc, zalloc_internal,
+    calloc_internal, coex_enable, coex_event_duration_get, coex_pti_get, coex_register_start_cb,
+    coex_schm_interval_set, coex_schm_register_cb_wrapper, coex_schm_status_bit_clear,
+    coex_schm_status_bit_set, coex_status_get, coex_wifi_release, coex_wifi_request, env_is_chip,
+    esp_timer_get_time, event_post, free, ints_on, log_timestamp, malloc, malloc_internal,
+    mutex_delete, mutex_lock, mutex_unlock, os_adapter_chip_specific, phy_enable,
+    phy_update_country_info, queue_recv, queue_send, queue_send_from_isr, recursive_mutex_create,
+    set_intr, slowclk_cal_get, spin_lock_create, spin_lock_delete, task_create_pinned_to_core,
+    task_delay, task_get_current_task, task_get_max_priority, task_ms_to_tick, task_yield_from_isr,
+    wifi_apb80m_request, wifi_calloc, wifi_clock_enable, wifi_create_queue, wifi_delete_queue,
+    wifi_int_disable, wifi_int_restore, wifi_malloc, wifi_reset_mac, wifi_thread_semphr_get,
+    wifi_zalloc, zalloc_internal,
 };
 #[cfg(feature = "sys-logs")]
 use super::os_adapter::{log_write, log_writev};
@@ -41,7 +42,7 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _spin_lock_delete: Some(spin_lock_delete),         // 36
     _wifi_int_disable: Some(wifi_int_disable),         // 40
     _wifi_int_restore: Some(wifi_int_restore),         // 44
-    _task_yield_from_isr: None,                        // 48 Some(task_yield_from_isr),
+    _task_yield_from_isr: Some(task_yield_from_isr),   // 48
     _semphr_create: Some(semphr_create),               // 52
     _semphr_delete: Some(semphr_delete),               // 56
     _semphr_take: Some(semphr_take),                   // 60
@@ -55,7 +56,7 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _queue_create: None,                               // 92 Some(queue_create),
     _queue_delete: None,                               // 96 Some(queue_delete),
     _queue_send: Some(queue_send),                     // 100
-    _queue_send_from_isr: None,                        // 104 Some(queue_send_from_isr),
+    _queue_send_from_isr: Some(queue_send_from_isr),   // 104
     _queue_send_to_back: None,                         // 108 Some(queue_send_to_back),
     _queue_send_to_front: None,                        // 112 Some(queue_send_to_front),
     _queue_recv: Some(queue_recv),                     // 116
@@ -95,7 +96,7 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _wifi_clock_disable: None,                    // 252 Some(wifi_clock_disable),
     _wifi_rtc_enable_iso: None,                   // 256 Some(wifi_rtc_enable_iso),
     _wifi_rtc_disable_iso: None,                  // 260 Some(wifi_rtc_disable_iso),
-    _esp_timer_get_time: None,                    // 264 Some(esp_timer_get_time),
+    _esp_timer_get_time: Some(esp_timer_get_time), // 264
     _nvs_set_i8: None,                            // 268 Some(nvs_set_i8),
     _nvs_get_i8: None,                            // 272 Some(nvs_get_i8),
     _nvs_set_u8: None,                            // 276 Some(nvs_set_u8),
@@ -142,7 +143,7 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _coex_wifi_request: Some(coex_wifi_request), // 408
     _coex_wifi_release: Some(coex_wifi_release), // 412
     _coex_wifi_channel_set: None,                // 416 Some(coex_wifi_channel_set),
-    _coex_event_duration_get: None,              // 420 Some(coex_event_duration_get),
+    _coex_event_duration_get: Some(coex_event_duration_get), // 420
     _coex_pti_get: Some(coex_pti_get),           // 424
     _coex_schm_status_bit_clear: Some(coex_schm_status_bit_clear), // 428
     _coex_schm_status_bit_set: Some(coex_schm_status_bit_set), // 432
