@@ -62,3 +62,22 @@ pub(crate) fn assert_store_ordering(order: Ordering) {
         _ => unreachable!(),
     }
 }
+
+// https://github.com/rust-lang/rust/blob/1.84.0/library/core/src/sync/atomic.rs#L3404
+#[inline]
+pub(crate) fn assert_compare_exchange_ordering(success: Ordering, failure: Ordering) {
+    match success {
+        Ordering::AcqRel
+        | Ordering::Acquire
+        | Ordering::Relaxed
+        | Ordering::Release
+        | Ordering::SeqCst => {}
+        _ => unreachable!(),
+    }
+    match failure {
+        Ordering::Acquire | Ordering::Relaxed | Ordering::SeqCst => {}
+        Ordering::Release => panic!("there is no such thing as a release failure ordering"),
+        Ordering::AcqRel => panic!("there is no such thing as an acquire-release failure ordering"),
+        _ => unreachable!(),
+    }
+}

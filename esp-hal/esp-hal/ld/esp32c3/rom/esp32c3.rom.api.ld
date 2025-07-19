@@ -5,6 +5,9 @@
 /* 4 */
 PROVIDE ( esp_rom_crc32_le = crc32_le );
 
+/* 43 */
+PROVIDE ( esp_rom_delay_us = ets_delay_us );
+
 /* 58 */
 PROVIDE ( esp_rom_regi2c_read = rom_i2c_readReg );
 /* 60 */

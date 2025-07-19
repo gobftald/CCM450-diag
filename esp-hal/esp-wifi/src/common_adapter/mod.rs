@@ -1,14 +1,16 @@
 // 1
 use esp_wifi_sys::{
     c_types::c_char,
-    include::{esp_phy_calibration_data_t, esp_phy_calibration_mode_t, register_chipv7_phy},
+    include::{
+        esp_phy_calibration_data_t, esp_phy_calibration_mode_t, register_chipv7_phy, timeval,
+    },
 };
 
 // 11
 use portable_atomic::{AtomicU32, Ordering};
 // 13
 use crate::{
-    binary::include::{esp_event_base_t, get_phy_version_str},
+    binary::include::{esp_event_base_t, esp_timer_get_time, get_phy_version_str},
     compat::{
         common::{sem_create, sem_delete, sem_give, sem_take, str_from_c},
         timer_compat::{
@@ -170,6 +172,31 @@ pub unsafe extern "C" fn puts(s: *const c_char) {
 // 222
 static mut WIFI_EVENT: esp_event_base_t = c"WIFI_EVENT".as_ptr();
 
+// stuff needed by wpa-supplicant
+#[unsafe(no_mangle)]
+// 226
+pub unsafe extern "C" fn __assert_func(
+    file: *const c_char,
+    line: u32,
+    func: *const c_char,
+    failed_expr: *const c_char,
+) {
+    unsafe {
+        let file = str_from_c(file);
+        let (func_pre, func) = if func.is_null() {
+            ("", "")
+        } else {
+            (", function: ", str_from_c(func))
+        };
+        let expr = str_from_c(failed_expr);
+
+        panic!(
+            "assertion \"{}\" failed: file \"{}\", line {}{}{}",
+            expr, file, line, func_pre, func
+        );
+    }
+}
+
 #[unsafe(no_mangle)]
 // 230
 pub unsafe extern "C" fn ets_timer_done(timer: *mut crate::binary::c_types::c_void) {
@@ -209,6 +236,42 @@ pub unsafe extern "C" fn ets_timer_arm(
     repeat: bool,
 ) {
     compat_timer_arm(timer.cast(), tmout, repeat);
+}
+
+#[unsafe(no_mangle)]
+// 295
+pub unsafe extern "C" fn gettimeofday(tv: *mut timeval, _tz: *mut ()) -> i32 {
+    if !tv.is_null() {
+        unsafe {
+            let microseconds = esp_timer_get_time();
+            (*tv).tv_sec = (microseconds / 1_000_000) as u64;
+            (*tv).tv_usec = (microseconds % 1_000_000) as u32;
+        }
+    }
+
+    0
+}
+
+#[unsafe(no_mangle)]
+// 308
+pub unsafe extern "C" fn esp_fill_random(dst: *mut u8, len: u32) {
+    trace!("esp_fill_random");
+    unsafe {
+        let dst = core::slice::from_raw_parts_mut(dst, len as usize);
+
+        // stealing RNG is safe since we own it (passed into `init`)
+        let mut rng = esp_hal::rng::Rng::new(esp_hal::peripherals::RNG::steal());
+        for chunk in dst.chunks_mut(4) {
+            let bytes = rng.random().to_le_bytes();
+            chunk.copy_from_slice(&bytes[..chunk.len()]);
+        }
+    }
+}
+
+#[unsafe(no_mangle)]
+// 323
+pub unsafe extern "C" fn strrchr(_s: *const (), _c: u32) -> *const u8 {
+    todo!("strrchr");
 }
 
 // 327

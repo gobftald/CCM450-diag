@@ -140,6 +140,43 @@ macro_rules! atomic_int {
     (cas[emulate], $atomic_type:ident, $int_type:ident) => {
         impl $atomic_type {
             #[inline]
+            // 442
+            pub(crate) fn compare_exchange(
+                &self,
+                current: $int_type,
+                new: $int_type,
+                success: Ordering,
+                failure: Ordering,
+            ) -> Result<$int_type, $int_type> {
+                crate::utils::assert_compare_exchange_ordering(success, failure);
+                // SAFETY: any data races are prevented by disabling interrupts (see
+                // module-level comments) and the raw pointer is valid because we got it
+                // from a reference.
+                with(|| unsafe {
+                    let prev = self.v.get().read();
+                    if prev == current {
+                        self.v.get().write(new);
+                        Ok(prev)
+                    } else {
+                        Err(prev)
+                    }
+                })
+            }
+
+            #[inline]
+            // 466
+            pub(crate) fn compare_exchange_weak(
+                &self,
+                current: $int_type,
+                new: $int_type,
+                success: Ordering,
+                failure: Ordering,
+            ) -> Result<$int_type, $int_type> {
+                self.compare_exchange(current, new, success, failure)
+            }
+
+            #[inline]
+            // 477
             pub(crate) fn fetch_add(&self, val: $int_type, _order: Ordering) -> $int_type {
                 // SAFETY: any data races are prevented by disabling interrupts (see
                 // module-level comments) and the raw pointer is valid because we got it
@@ -157,6 +194,10 @@ macro_rules! atomic_int {
 #[cfg(target_pointer_width = "32")]
 // 874
 atomic_int!(load_store_atomic, AtomicUsize, usize, 4);
+
+#[cfg(not(all(target_arch = "avr", portable_atomic_no_asm)))]
+// 887
+atomic_int!(load_store_atomic[sub_word], AtomicU8, u8, 1);
 
 #[cfg(not(target_pointer_width = "16"))]
 // 904

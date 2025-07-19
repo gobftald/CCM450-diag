@@ -119,6 +119,14 @@ pub(crate) const CONFIG: config::EspWifiConfig = config::EspWifiConfig {
 //type TimeBase = PeriodicTimer<'static, Blocking>
 type TimeBase = PeriodicTimer<'static>;
 
+// 248
+pub(crate) mod flags {
+    use portable_atomic::AtomicBool;
+
+    // 252
+    pub(crate) static WIFI: AtomicBool = AtomicBool::new(false);
+}
+
 #[derive(Debug, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 // 258

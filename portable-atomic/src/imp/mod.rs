@@ -61,7 +61,7 @@ mod interrupt;
     cfg(not(target_has_atomic = "ptr"))
 )]
 items! {
-    pub(crate) use self::interrupt::AtomicUsize;
+    pub(crate) use self::interrupt::{AtomicUsize, AtomicU8};
 
     #[cfg(any(not(target_pointer_width = "16"), feature = "fallback"))]
     // 278

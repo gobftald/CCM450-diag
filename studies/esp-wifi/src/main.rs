@@ -102,7 +102,7 @@ async fn main(spawner: embassy_executor::Spawner) {
     }
     */
 
-    spawner.spawn(connection(controller)).ok();
+    //spawner.spawn(connection(controller)).ok();
     spawner.spawn(run()).ok();
 }
 

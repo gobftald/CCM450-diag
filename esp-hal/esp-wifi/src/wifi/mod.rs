@@ -7,33 +7,43 @@ pub(crate) mod os_adapter;
 pub(crate) mod state;
 
 // 7
-use alloc::string::String;
+use alloc::{collections::vec_deque::VecDeque, string::String};
 use core::{marker::PhantomData, ptr::addr_of, task::Poll};
 
 // 17
 use enumset::{EnumSet, EnumSetType};
-use esp_hal::asynch::AtomicWaker;
+use esp_hal::{asynch::AtomicWaker, sync::Locked};
 
 // 54
 use num_derive::FromPrimitive;
 
 // 56
 pub(crate) use os_adapter::{ISR_INTERRUPT_1, WIFI_EVENTS};
+use portable_atomic::{AtomicUsize, Ordering};
 
 // 61
 use smoltcp::phy::{Device, DeviceCapabilities};
+pub use state::*;
 
 // 64
-use crate::{EspWifiController, common_adapter::read_mac, esp_wifi_result};
+use crate::{
+    EspWifiController, common_adapter::read_mac, esp_wifi_result, hal::ram,
+    wifi::private::EspWifiPacketBuffer,
+};
 
 // 73
 const MTU: usize = crate::CONFIG.mtu;
 
 // 86
-use crate::binary::include::{
-    esp_wifi_get_mode, esp_wifi_init_internal, esp_wifi_set_mode, esp_wifi_start,
-    g_wifi_default_wpa_crypto_funcs, wifi_mode_t, wifi_mode_t_WIFI_MODE_AP,
-    wifi_mode_t_WIFI_MODE_APSTA, wifi_mode_t_WIFI_MODE_NULL, wifi_mode_t_WIFI_MODE_STA,
+use crate::binary::{
+    c_types,
+    include::{
+        self, esp_err_t, esp_interface_t_ESP_IF_WIFI_AP, esp_interface_t_ESP_IF_WIFI_STA,
+        esp_supplicant_init, esp_wifi_connect, esp_wifi_get_mode, esp_wifi_init_internal,
+        esp_wifi_internal_reg_rxcb, esp_wifi_set_mode, esp_wifi_set_tx_done_cb, esp_wifi_start,
+        g_wifi_default_wpa_crypto_funcs, wifi_auth_mode_t, wifi_mode_t, wifi_mode_t_WIFI_MODE_AP,
+        wifi_mode_t_WIFI_MODE_APSTA, wifi_mode_t_WIFI_MODE_NULL, wifi_mode_t_WIFI_MODE_STA,
+    },
 };
 
 /// Supported Wi-Fi authentication methods.
@@ -360,6 +370,28 @@ impl Configuration {
     }
 }
 
+// 798
+trait AuthMethodExt {
+    fn to_raw(&self) -> wifi_auth_mode_t;
+}
+
+// 803
+impl AuthMethodExt for AuthMethod {
+    fn to_raw(&self) -> wifi_auth_mode_t {
+        match self {
+            AuthMethod::None => include::wifi_auth_mode_t_WIFI_AUTH_OPEN,
+            AuthMethod::WEP => include::wifi_auth_mode_t_WIFI_AUTH_WEP,
+            AuthMethod::WPA => include::wifi_auth_mode_t_WIFI_AUTH_WPA_PSK,
+            AuthMethod::WPA2Personal => include::wifi_auth_mode_t_WIFI_AUTH_WPA2_PSK,
+            AuthMethod::WPAWPA2Personal => include::wifi_auth_mode_t_WIFI_AUTH_WPA_WPA2_PSK,
+            AuthMethod::WPA2Enterprise => include::wifi_auth_mode_t_WIFI_AUTH_WPA2_ENTERPRISE,
+            AuthMethod::WPA3Personal => include::wifi_auth_mode_t_WIFI_AUTH_WPA3_PSK,
+            AuthMethod::WPA2WPA3Personal => include::wifi_auth_mode_t_WIFI_AUTH_WPA2_WPA3_PSK,
+            AuthMethod::WAPIPersonal => include::wifi_auth_mode_t_WIFI_AUTH_WAPI_PSK,
+        }
+    }
+}
+
 /// Wifi Mode (Sta and/or Ap)
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -416,6 +448,16 @@ impl TryFrom<wifi_mode_t> for WifiMode {
         }
     }
 }
+
+// 1102
+const RX_QUEUE_SIZE: usize = crate::CONFIG.rx_queue_size;
+const TX_QUEUE_SIZE: usize = crate::CONFIG.tx_queue_size;
+
+// 1105
+pub(crate) static DATA_QUEUE_RX_AP: Locked<VecDeque<EspWifiPacketBuffer>> =
+    Locked::new(VecDeque::new());
+pub(crate) static DATA_QUEUE_RX_STA: Locked<VecDeque<EspWifiPacketBuffer>> =
+    Locked::new(VecDeque::new());
 
 /// Common errors.
 #[derive(Debug, Clone, Copy)]
@@ -648,9 +690,118 @@ pub(crate) fn wifi_init() -> Result<(), WifiError> {
         internal::G_CONFIG.feature_caps = internal::g_wifi_feature_caps;
 
         esp_wifi_result!(esp_wifi_init_internal(addr_of!(internal::G_CONFIG)))?;
+        esp_wifi_result!(esp_wifi_set_mode(wifi_mode_t_WIFI_MODE_NULL))?;
+
+        esp_wifi_result!(esp_supplicant_init())?;
+
+        esp_wifi_result!(esp_wifi_set_tx_done_cb(Some(esp_wifi_tx_done_cb)))?;
+
+        esp_wifi_result!(esp_wifi_internal_reg_rxcb(
+            esp_interface_t_ESP_IF_WIFI_STA,
+            Some(recv_cb_sta)
+        ))?;
+
+        // until we support APSTA we just register the same callback for AP and STA
+        esp_wifi_result!(esp_wifi_internal_reg_rxcb(
+            esp_interface_t_ESP_IF_WIFI_AP,
+            Some(recv_cb_ap)
+        ))?;
+
+        crate::flags::WIFI.store(true, Ordering::SeqCst);
 
         Ok(())
     }
+}
+
+// 1408
+unsafe extern "C" fn recv_cb_sta(
+    buffer: *mut c_types::c_void,
+    len: u16,
+    eb: *mut c_types::c_void,
+) -> esp_err_t {
+    let packet = EspWifiPacketBuffer { buffer, len, eb };
+    // We must handle the result outside of the lock because
+    // EspWifiPacketBuffer::drop must not be called in a critical section.
+    // Dropping an EspWifiPacketBuffer will call `esp_wifi_internal_free_rx_buffer`
+    // which will try to lock an internal mutex. If the mutex is already taken,
+    // the function will try to trigger a context switch, which will fail if we
+    // are in an interrupt-free context.
+    match DATA_QUEUE_RX_STA.with(|queue| {
+        if queue.len() < RX_QUEUE_SIZE {
+            queue.push_back(packet);
+            Ok(())
+        } else {
+            Err(packet)
+        }
+    }) {
+        Ok(()) => {
+            embassy::STA_RECEIVE_WAKER.wake();
+            include::ESP_OK as esp_err_t
+        }
+        _ => {
+            debug!("RX QUEUE FULL");
+            include::ESP_ERR_NO_MEM as esp_err_t
+        }
+    }
+}
+
+// 1470
+pub(crate) static WIFI_TX_INFLIGHT: AtomicUsize = AtomicUsize::new(0);
+
+// 1439
+unsafe extern "C" fn recv_cb_ap(
+    buffer: *mut c_types::c_void,
+    len: u16,
+    eb: *mut c_types::c_void,
+) -> esp_err_t {
+    let packet = EspWifiPacketBuffer { buffer, len, eb };
+    // We must handle the result outside of the critical section because
+    // EspWifiPacketBuffer::drop must not be called in a critical section.
+    // Dropping an EspWifiPacketBuffer will call `esp_wifi_internal_free_rx_buffer`
+    // which will try to lock an internal mutex. If the mutex is already taken,
+    // the function will try to trigger a context switch, which will fail if we
+    // are in an interrupt-free context.
+    match DATA_QUEUE_RX_AP.with(|queue| {
+        if queue.len() < RX_QUEUE_SIZE {
+            queue.push_back(packet);
+            Ok(())
+        } else {
+            Err(packet)
+        }
+    }) {
+        Ok(()) => {
+            embassy::AP_RECEIVE_WAKER.wake();
+            include::ESP_OK as esp_err_t
+        }
+        _ => {
+            debug!("RX QUEUE FULL");
+            include::ESP_ERR_NO_MEM as esp_err_t
+        }
+    }
+}
+
+// 1472
+fn decrement_inflight_counter() {
+    unwrap!(
+        WIFI_TX_INFLIGHT.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |x| {
+            Some(x.saturating_sub(1))
+        })
+    );
+}
+
+#[ram]
+// 1481
+unsafe extern "C" fn esp_wifi_tx_done_cb(
+    _ifidx: u8,
+    _data: *mut u8,
+    _data_len: *mut u16,
+    _tx_status: bool,
+) {
+    trace!("esp_wifi_tx_done_cb");
+
+    decrement_inflight_counter();
+
+    embassy::TRANSMIT_WAKER.wake();
 }
 
 // 1494
@@ -660,6 +811,28 @@ pub(crate) fn wifi_start() -> Result<(), WifiError> {
     }
 
     Ok(())
+}
+
+// 1662
+mod private {
+    use super::*;
+
+    #[derive(Debug)]
+    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+    /// Take care not to drop this while in a critical section.
+    ///
+    /// Dropping an EspWifiPacketBuffer will call
+    /// `esp_wifi_internal_free_rx_buffer` which will try to lock an
+    /// internal mutex. If the mutex is already taken, the function will try
+    /// to trigger a context switch, which will fail if we are in a critical
+    /// section.
+    pub struct EspWifiPacketBuffer {
+        pub(crate) buffer: *mut c_types::c_void,
+        pub(crate) len: u16,
+        pub(crate) eb: *mut c_types::c_void,
+    }
+
+    unsafe impl Send for EspWifiPacketBuffer {}
 }
 
 /// Provides methods for retrieving the Wi-Fi mode and MAC address.
@@ -743,6 +916,16 @@ pub(crate) mod embassy {
     use embassy_net_driver::{Capabilities, Driver, HardwareAddress};
 
     use super::*;
+
+    // We can get away with a single tx waker because the transmit queue is shared
+    // between interfaces.
+    pub(crate) static TRANSMIT_WAKER: AtomicWaker = AtomicWaker::new();
+
+    // 2506
+    pub(crate) static AP_RECEIVE_WAKER: AtomicWaker = AtomicWaker::new();
+
+    // 2509
+    pub(crate) static STA_RECEIVE_WAKER: AtomicWaker = AtomicWaker::new();
 
     // 2530
     impl Driver for WifiDevice<'_> {
@@ -860,6 +1043,11 @@ impl WifiController<'_> {
         //Err(caps)
     }
 
+    // 2882
+    fn connect_impl(&mut self) -> Result<(), WifiError> {
+        esp_wifi_result!(unsafe { esp_wifi_connect() })
+    }
+
     // 2920
     fn mode(&self) -> Result<WifiMode, WifiError> {
         WifiMode::current()
@@ -887,9 +1075,33 @@ impl WifiController<'_> {
         Ok(())
     }
 
+    /// Async version of [`crate::wifi::WifiController`]'s `connect` method
+    // 3006
+    pub async fn connect_async(&mut self) -> Result<(), WifiError> {
+        Self::clear_events(WifiEvent::StaConnected | WifiEvent::StaDisconnected);
+
+        let err = crate::wifi::WifiController::connect_impl(self).err();
+
+        if MultiWifiEventFuture::new(WifiEvent::StaConnected | WifiEvent::StaDisconnected)
+            .await
+            .contains(WifiEvent::StaDisconnected)
+        {
+            Err(err.unwrap_or(WifiError::Disconnected))
+        } else {
+            Ok(())
+        }
+    }
+
     // 3038
     fn clear_events(events: impl Into<EnumSet<WifiEvent>>) {
         WIFI_EVENTS.with(|evts| evts.get_mut().remove_all(events.into()));
+    }
+
+    /// Wait for one [`WifiEvent`].
+    // 3043
+    pub async fn wait_for_event(&mut self, event: WifiEvent) {
+        Self::clear_events(event);
+        WifiEventFuture::new(event).await
     }
 
     /// Wait for multiple [`WifiEvent`]s.
@@ -918,6 +1130,37 @@ impl WifiEvent {
         // own
         static WAKER: AtomicWaker = AtomicWaker::new();
         &WAKER
+    }
+}
+
+#[must_use = "futures do nothing unless you `.await` or poll them"]
+// 3088
+pub(crate) struct WifiEventFuture {
+    event: WifiEvent,
+}
+
+// 3093
+impl WifiEventFuture {
+    /// Creates a new `Future` for the specified WiFi event.
+    pub fn new(event: WifiEvent) -> Self {
+        Self { event }
+    }
+}
+
+// 3100
+impl core::future::Future for WifiEventFuture {
+    type Output = ();
+
+    fn poll(
+        self: core::pin::Pin<&mut Self>,
+        cx: &mut core::task::Context<'_>,
+    ) -> Poll<Self::Output> {
+        self.event.waker().register(cx.waker());
+        if WIFI_EVENTS.with(|events| events.get_mut().remove(self.event)) {
+            Poll::Ready(())
+        } else {
+            Poll::Pending
+        }
     }
 }
 

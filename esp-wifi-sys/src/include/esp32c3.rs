@@ -68,6 +68,14 @@ pub struct ets_timer {
     pub priv_: *mut crate::c_types::c_void,
 }
 
+#[repr(C)]
+#[derive(Copy, Clone)]
+// 1537
+pub struct timeval {
+    pub tv_sec: u64,
+    pub tv_usec: u32,
+}
+
 // 1550
 pub type va_list = __builtin_va_list;
 
@@ -96,6 +104,18 @@ pub type esp_err_t = crate::c_types::c_int;
 // 3724
 pub type esp_event_base_t = *const crate::c_types::c_char;
 
+// 3735
+/// Station interface
+pub const esp_interface_t_ESP_IF_WIFI_STA: esp_interface_t = 0;
+/// Soft-AP interface
+pub const esp_interface_t_ESP_IF_WIFI_AP: esp_interface_t = 1;
+/// NAN interface
+pub const esp_interface_t_ESP_IF_WIFI_NAN: esp_interface_t = 2;
+/// Ethernet interface
+pub const esp_interface_t_ESP_IF_ETH: esp_interface_t = 3;
+pub const esp_interface_t_ESP_IF_MAX: esp_interface_t = 4;
+pub type esp_interface_t = crate::c_types::c_uint;
+
 // 3745
 /// < null mode
 pub const wifi_mode_t_WIFI_MODE_NULL: wifi_mode_t = 0;
@@ -109,6 +129,13 @@ pub const wifi_mode_t_WIFI_MODE_APSTA: wifi_mode_t = 3;
 pub const wifi_mode_t_WIFI_MODE_NAN: wifi_mode_t = 4;
 pub const wifi_mode_t_WIFI_MODE_MAX: wifi_mode_t = 5;
 pub type wifi_mode_t = crate::c_types::c_uint;
+
+// 3757
+pub const wifi_interface_t_WIFI_IF_STA: wifi_interface_t = 0;
+pub const wifi_interface_t_WIFI_IF_AP: wifi_interface_t = 1;
+pub const wifi_interface_t_WIFI_IF_NAN: wifi_interface_t = 2;
+pub const wifi_interface_t_WIFI_IF_MAX: wifi_interface_t = 3;
+pub type wifi_interface_t = crate::c_types::c_uint;
 
 // 3782
 /// authenticate mode : open
@@ -887,6 +914,30 @@ unsafe extern "C" {
     pub fn esp_wifi_start() -> esp_err_t;
 }
 
+unsafe extern "C" {
+    /// @brief     Connect WiFi station to the AP.
+    ///
+    /// @attention 1. This API only impact WIFI_MODE_STA or WIFI_MODE_APSTA mode
+    /// @attention 2. If station interface is connected to an AP, call esp_wifi_disconnect to disconnect.
+    /// @attention 3. The scanning triggered by esp_wifi_scan_start() will not be effective until connection between
+    ///               device and the AP is established. If device is scanning and connecting at the same time, it will
+    ///               abort scanning and return a warning message and error number ESP_ERR_WIFI_STATE.
+    /// @attention 4. This API attempts to connect to an Access Point (AP) only once. To enable reconnection
+    ///               in case of a connection failure, please use the 'failure_retry_cnt' feature in the
+    ///               'wifi_sta_config_t'. Users are suggested to implement reconnection logic in their application
+    ///               for scenarios where the specified AP does not exist, or reconnection is desired after the device
+    ///               has received a disconnect event.
+    ///
+    /// @return
+    ///     - ESP_OK: succeed
+    ///     - ESP_ERR_WIFI_NOT_INIT: WiFi is not initialized by esp_wifi_init
+    ///     - ESP_ERR_WIFI_NOT_STARTED: WiFi is not started by esp_wifi_start
+    ///     - ESP_ERR_WIFI_MODE: WiFi mode error
+    ///     - ESP_ERR_WIFI_CONN: WiFi internal error, station or soft-AP control block wron
+    ///     - ESP_ERR_WIFI_SSID: SSID of AP which station connects is invalid
+    pub fn esp_wifi_connect() -> esp_err_t;
+}
+
 // 7159
 pub const wifi_log_level_t_WIFI_LOG_NONE: wifi_log_level_t = 0;
 pub const wifi_log_level_t_WIFI_LOG_ERROR: wifi_log_level_t = 1;
@@ -919,6 +970,32 @@ unsafe extern "C" {
     pub fn esp_wifi_init_internal(config: *const wifi_init_config_t) -> esp_err_t;
 }
 
+/// @brief     The WiFi RX callback function
+///            Each time the WiFi need to forward the packets to high layer, the callback function
+///            will be called
+// 7224
+pub type wifi_rxcb_t = ::core::option::Option<
+    unsafe extern "C" fn(
+        buffer: *mut crate::c_types::c_void,
+        len: u16,
+        eb: *mut crate::c_types::c_void,
+    ) -> esp_err_t,
+>;
+
+// 7231
+unsafe extern "C" {
+    /// @brief     Set the WiFi RX callback
+    /// @attention 1. Currently we support only one RX callback for each interface
+    ///
+    /// @param     wifi_interface_t ifx : interface
+    /// @param     wifi_rxcb_t fn : WiFi RX callback
+    ///
+    /// @return
+    ///     - ESP_OK : succeed
+    ///     - others : fail
+    pub fn esp_wifi_internal_reg_rxcb(ifx: wifi_interface_t, fn_: wifi_rxcb_t) -> esp_err_t;
+}
+
 // 7308
 unsafe extern "C" {
     /// @brief     Set current WiFi log level
@@ -929,6 +1006,30 @@ unsafe extern "C" {
     ///     - ESP_OK: succeed
     ///     - ESP_FAIL: level is invalid
     pub fn esp_wifi_internal_set_log_level(level: wifi_log_level_t) -> esp_err_t;
+}
+
+/// @brief    TxDone callback function type. Should be registered using esp_wifi_set_tx_done_cb()
+///
+/// @param    ifidx The interface id that the tx callback has been triggered from
+/// @param    data Pointer to the data transmitted
+/// @param    data_len Length of the data transmitted
+/// @param    txStatus True:if the data was transmitted successfully False: if data transmission failed
+// 7366
+pub type wifi_tx_done_cb_t = ::core::option::Option<
+    unsafe extern "C" fn(ifidx: u8, data: *mut u8, data_len: *mut u16, txStatus: bool),
+>;
+
+// 7369
+unsafe extern "C" {
+    /// @brief    Register the txDone callback function of type wifi_tx_done_cb_t
+    ///
+    /// @param    cb The callback function
+    ///
+    /// @return
+    ///     - ESP_OK: succeed
+    ///     - ESP_ERR_WIFI_NOT_INIT: WiFi is not initialized by esp_wifi_init
+    ///     - ESP_ERR_WIFI_NOT_STARTED: WiFi is not started by esp_wifi_start
+    pub fn esp_wifi_set_tx_done_cb(cb: wifi_tx_done_cb_t) -> esp_err_t;
 }
 
 #[repr(C)]
@@ -1307,6 +1408,16 @@ pub struct wifi_osi_funcs_t {
     pub _magic: i32,
 }
 
+// 7826
+unsafe extern "C" {
+    /// @brief     Supplicant initialization
+    ///
+    /// @return
+    ///     - ESP_OK : succeed
+    ///     - ESP_ERR_NO_MEM : out of memory
+    pub fn esp_supplicant_init() -> esp_err_t;
+}
+
 /// @brief Structure holding PHY init parameters
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -1378,6 +1489,12 @@ unsafe extern "C" {
     ///
     /// @return    memory size
     pub fn phy_dig_reg_backup(backup_en: bool, mem_addr: *mut u32) -> u8;
+}
+
+unsafe extern "C" {
+    /// @brief Get time in microseconds since boot
+    /// @return Number of microseconds since the initialization of ESP Timer
+    pub fn esp_timer_get_time() -> i64;
 }
 
 // 8833

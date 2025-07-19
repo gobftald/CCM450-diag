@@ -397,3 +397,34 @@ pub(crate) fn receive_queued(
         yield_task();
     }
 }
+
+/// Implementation of sleep() from newlib in esp-idf.
+/// components/newlib/time.c
+#[unsafe(no_mangle)]
+// 415
+pub(crate) unsafe extern "C" fn sleep(
+    seconds: crate::binary::c_types::c_uint,
+) -> crate::binary::c_types::c_uint {
+    trace!("sleep");
+
+    unsafe {
+        usleep(seconds * 1_000);
+    }
+    0
+}
+
+/// Implementation of usleep() from newlib in esp-idf.
+/// components/newlib/time.c
+#[unsafe(no_mangle)]
+// 429
+unsafe extern "C" fn usleep(us: u32) -> crate::binary::c_types::c_int {
+    trace!("usleep");
+    unsafe extern "C" {
+        fn esp_rom_delay_us(us: u32);
+    }
+
+    unsafe {
+        esp_rom_delay_us(us);
+    }
+    0
+}

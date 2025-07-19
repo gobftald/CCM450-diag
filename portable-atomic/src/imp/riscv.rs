@@ -99,6 +99,16 @@ macro_rules! atomic {
     };
 }
 
+// 457
+macro_rules! atomic_sub_word {
+    ($atomic_type:ident, $value_type:ty, $size:tt, $max:tt, $min:tt) => {
+        #[cfg(not(any(target_feature = "zabha", portable_atomic_target_feature = "zabha")))]
+        atomic_load_store!($atomic_type, $value_type, $size);
+    };
+}
+
+// 556
+atomic_sub_word!(AtomicU8, u8, "b", maxu, minu);
 // 560
 atomic!(AtomicU32, u32, "w", maxu, minu);
 
