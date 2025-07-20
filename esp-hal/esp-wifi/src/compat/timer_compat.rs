@@ -160,10 +160,15 @@ pub(crate) fn compat_timer_arm_us(ets_timer: *mut ets_timer, us: u32, repeat: bo
     let systick = crate::time::systimer_count();
     let ticks = crate::time::micros_to_ticks(us as u64);
 
+    /*
     trace!(
         "timer_arm_us {:x} current: {} ticks: {} repeat: {}",
-        ets_timer as usize, systick, ticks, repeat
+        ets_timer as usize,
+        systick,
+        ticks,
+        repeat
     );
+    */
 
     TIMERS.with(|timers| {
         if let Some(timer) = timers.find(ets_timer) {
@@ -215,10 +220,14 @@ pub(crate) fn compat_timer_setfn(
     pfunction: unsafe extern "C" fn(*mut c_types::c_void),
     parg: *mut c_types::c_void,
 ) {
+    /*
     trace!(
         "timer_setfn {:x} {:?} {:?}",
-        ets_timer as usize, pfunction, parg
+        ets_timer as usize,
+        pfunction,
+        parg
     );
+    */
     let set = TIMERS.with(|timers| unsafe {
         if let Some(timer) = timers.find(ets_timer) {
             timer.callback = TimerCallback::new(pfunction, parg);

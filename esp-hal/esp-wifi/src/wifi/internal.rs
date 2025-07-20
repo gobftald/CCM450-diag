@@ -7,24 +7,25 @@ use esp_wifi_sys::include::{
 // 10
 use super::os_adapter::{
     calloc_internal, coex_enable, coex_event_duration_get, coex_pti_get, coex_register_start_cb,
+    coex_schm_curr_period_get, coex_schm_flexible_period_get, coex_schm_flexible_period_set,
     coex_schm_interval_set, coex_schm_register_cb_wrapper, coex_schm_status_bit_clear,
-    coex_schm_status_bit_set, coex_status_get, coex_wifi_release, coex_wifi_request, env_is_chip,
-    esp_timer_get_time, event_post, free, ints_on, log_timestamp, malloc, malloc_internal,
-    mutex_delete, mutex_lock, mutex_unlock, os_adapter_chip_specific, phy_enable,
-    phy_update_country_info, queue_recv, queue_send, queue_send_from_isr, recursive_mutex_create,
-    set_intr, slowclk_cal_get, spin_lock_create, spin_lock_delete, task_create_pinned_to_core,
-    task_delay, task_get_current_task, task_get_max_priority, task_ms_to_tick, task_yield_from_isr,
-    wifi_apb80m_request, wifi_calloc, wifi_clock_enable, wifi_create_queue, wifi_delete_queue,
-    wifi_int_disable, wifi_int_restore, wifi_malloc, wifi_reset_mac, wifi_thread_semphr_get,
-    wifi_zalloc, zalloc_internal,
+    coex_schm_status_bit_set, coex_status_get, coex_wifi_channel_set, coex_wifi_release,
+    coex_wifi_request, env_is_chip, esp_timer_get_time, event_post, free, ints_on, log_timestamp,
+    malloc, malloc_internal, mutex_delete, mutex_lock, mutex_unlock, os_adapter_chip_specific,
+    phy_enable, phy_update_country_info, queue_recv, queue_send, queue_send_from_isr,
+    recursive_mutex_create, set_intr, slowclk_cal_get, spin_lock_create, spin_lock_delete,
+    task_create_pinned_to_core, task_delay, task_get_current_task, task_get_max_priority,
+    task_ms_to_tick, task_yield_from_isr, wifi_apb80m_request, wifi_calloc, wifi_clock_enable,
+    wifi_create_queue, wifi_delete_queue, wifi_int_disable, wifi_int_restore, wifi_malloc,
+    wifi_reset_mac, wifi_thread_semphr_get, wifi_zalloc, zalloc_internal,
 };
 #[cfg(feature = "sys-logs")]
 use super::os_adapter::{log_write, log_writev};
 
 // 11
 use crate::common_adapter::{
-    ets_timer_arm, ets_timer_disarm, ets_timer_done, ets_timer_setfn, read_mac, semphr_create,
-    semphr_delete, semphr_give, semphr_take,
+    ets_timer_arm, ets_timer_arm_us, ets_timer_disarm, ets_timer_done, ets_timer_setfn, random,
+    read_mac, semphr_create, semphr_delete, semphr_give, semphr_take,
 };
 
 #[unsafe(no_mangle)]
@@ -90,7 +91,7 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _timer_disarm: Some(ets_timer_disarm),        // 228
     _timer_done: Some(ets_timer_done),            // 232
     _timer_setfn: Some(ets_timer_setfn),          // 236
-    _timer_arm_us: None,                          // 240 Some(ets_timer_arm_us),
+    _timer_arm_us: Some(ets_timer_arm_us),        // 240
     _wifi_reset_mac: Some(wifi_reset_mac),        // 244
     _wifi_clock_enable: Some(wifi_clock_enable),  // 248
     _wifi_clock_disable: None,                    // 252 Some(wifi_clock_disable),
@@ -111,7 +112,7 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _nvs_erase_key: None,                         // 312 Some(nvs_erase_key),
     _get_random: None,                            // 316 Some(get_random),
     _get_time: None,                              // 320 Some(get_time),
-    _random: None,                                // 324 Some(random),
+    _random: Some(random),                        // 324
 
     //here is the _slowclk_cal_get position
     //
@@ -123,34 +124,34 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _log_writev: Some(log_writev), // 336
     #[cfg(not(feature = "sys-logs"))]
     _log_writev: None,
-    _log_timestamp: Some(log_timestamp),         // 340
-    _malloc_internal: Some(malloc_internal),     // 344
-    _realloc_internal: None,                     // 348 Some(realloc_internal),
-    _calloc_internal: Some(calloc_internal),     // 352
-    _zalloc_internal: Some(zalloc_internal),     // 356
-    _wifi_malloc: Some(wifi_malloc),             // 360
-    _wifi_realloc: None,                         // 364 Some(wifi_realloc),
-    _wifi_calloc: Some(wifi_calloc),             // 368
-    _wifi_zalloc: Some(wifi_zalloc),             // 372
-    _wifi_create_queue: Some(wifi_create_queue), // 376
-    _wifi_delete_queue: Some(wifi_delete_queue), // 380
-    _coex_init: None,                            // 384 Some(super::coex_init),
-    _coex_deinit: None,                          // 388 Some(coex_deinit),
-    _coex_enable: Some(coex_enable),             // 392
-    _coex_disable: None,                         // 396 Some(coex_disable),
-    _coex_status_get: Some(coex_status_get),     // 400
-    _coex_condition_set: None,                   // 404
-    _coex_wifi_request: Some(coex_wifi_request), // 408
-    _coex_wifi_release: Some(coex_wifi_release), // 412
-    _coex_wifi_channel_set: None,                // 416 Some(coex_wifi_channel_set),
+    _log_timestamp: Some(log_timestamp),                 // 340
+    _malloc_internal: Some(malloc_internal),             // 344
+    _realloc_internal: None,                             // 348 Some(realloc_internal),
+    _calloc_internal: Some(calloc_internal),             // 352
+    _zalloc_internal: Some(zalloc_internal),             // 356
+    _wifi_malloc: Some(wifi_malloc),                     // 360
+    _wifi_realloc: None,                                 // 364 Some(wifi_realloc),
+    _wifi_calloc: Some(wifi_calloc),                     // 368
+    _wifi_zalloc: Some(wifi_zalloc),                     // 372
+    _wifi_create_queue: Some(wifi_create_queue),         // 376
+    _wifi_delete_queue: Some(wifi_delete_queue),         // 380
+    _coex_init: None,                                    // 384 Some(super::coex_init),
+    _coex_deinit: None,                                  // 388 Some(coex_deinit),
+    _coex_enable: Some(coex_enable),                     // 392
+    _coex_disable: None,                                 // 396 Some(coex_disable),
+    _coex_status_get: Some(coex_status_get),             // 400
+    _coex_condition_set: None,                           // 404
+    _coex_wifi_request: Some(coex_wifi_request),         // 408
+    _coex_wifi_release: Some(coex_wifi_release),         // 412
+    _coex_wifi_channel_set: Some(coex_wifi_channel_set), //416
     _coex_event_duration_get: Some(coex_event_duration_get), // 420
-    _coex_pti_get: Some(coex_pti_get),           // 424
+    _coex_pti_get: Some(coex_pti_get),                   // 424
     _coex_schm_status_bit_clear: Some(coex_schm_status_bit_clear), // 428
     _coex_schm_status_bit_set: Some(coex_schm_status_bit_set), // 432
     _coex_schm_interval_set: Some(coex_schm_interval_set), // 436
-    _coex_schm_interval_get: None,               // 440 Some(coex_schm_interval_get),
-    _coex_schm_curr_period_get: None,            // 444 Some(coex_schm_curr_period_get),
-    _coex_schm_curr_phase_get: None,             // 448 Some(coex_schm_curr_phase_get),
+    _coex_schm_interval_get: None,                       // 440 Some(coex_schm_interval_get),
+    _coex_schm_curr_period_get: Some(coex_schm_curr_period_get), // 444
+    _coex_schm_curr_phase_get: None,                     // 448 Some(coex_schm_curr_phase_get),
 
     #[cfg(any(esp32c3, esp32c2, esp32c6, esp32h2, esp32s3, esp32s2))]
     _slowclk_cal_get: Some(slowclk_cal_get), // 328
@@ -174,8 +175,8 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
 
     _magic: ESP_WIFI_OS_ADAPTER_MAGIC as i32, // 472
 
-    _coex_schm_flexible_period_set: None, // 464 Some(coex_schm_flexible_period_set),
-    _coex_schm_flexible_period_get: None, // 468 Some(coex_schm_flexible_period_get),
+    _coex_schm_flexible_period_set: Some(coex_schm_flexible_period_set), // 464
+    _coex_schm_flexible_period_get: Some(coex_schm_flexible_period_get), // 468
 };
 
 // 214

@@ -14,7 +14,8 @@ use crate::{
     compat::{
         common::{sem_create, sem_delete, sem_give, sem_take, str_from_c},
         timer_compat::{
-            compat_timer_arm, compat_timer_disarm, compat_timer_done, compat_timer_setfn,
+            compat_timer_arm, compat_timer_arm_us, compat_timer_disarm, compat_timer_done,
+            compat_timer_setfn,
         },
     },
     hal::{self, clock::RadioClockController, peripherals::RADIO_CLK, ram},
@@ -65,7 +66,7 @@ pub unsafe extern "C" fn semphr_create(max: u32, init: u32) -> *mut crate::binar
 #[allow(unused)]
 // 71
 pub unsafe extern "C" fn semphr_delete(semphr: *mut crate::binary::c_types::c_void) {
-    //trace!("semphr_delete {:?}", semphr);
+    trace!("semphr_delete {:?}", semphr);
     sem_delete(semphr);
 }
 
@@ -109,6 +110,20 @@ pub unsafe extern "C" fn semphr_take(
 // 112
 pub unsafe extern "C" fn semphr_give(semphr: *mut crate::binary::c_types::c_void) -> i32 {
     sem_give(semphr)
+}
+
+/// **************************************************************************
+/// Name: esp_random_ulong
+/// *************************************************************************
+#[ram]
+#[unsafe(no_mangle)]
+// 122
+pub unsafe extern "C" fn random() -> crate::binary::c_types::c_ulong {
+    trace!("random");
+
+    // stealing RNG is safe since we own it (passed into `init`)
+    let mut rng = hal::rng::Rng::new(unsafe { hal::peripherals::RNG::steal() });
+    rng.random()
 }
 
 /// **************************************************************************
@@ -236,6 +251,16 @@ pub unsafe extern "C" fn ets_timer_arm(
     repeat: bool,
 ) {
     compat_timer_arm(timer.cast(), tmout, repeat);
+}
+
+#[unsafe(no_mangle)]
+// 286
+pub unsafe extern "C" fn ets_timer_arm_us(
+    timer: *mut crate::binary::c_types::c_void,
+    tmout: u32,
+    repeat: bool,
+) {
+    compat_timer_arm_us(timer.cast(), tmout, repeat);
 }
 
 #[unsafe(no_mangle)]

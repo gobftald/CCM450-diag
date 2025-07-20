@@ -15,6 +15,7 @@ extern crate console;
 
 use core::net::Ipv4Addr;
 use embassy_net::StackResources;
+use embassy_time::{Duration, Timer};
 
 use core::cell::OnceCell;
 
@@ -102,7 +103,7 @@ async fn main(spawner: embassy_executor::Spawner) {
     }
     */
 
-    //spawner.spawn(connection(controller)).ok();
+    spawner.spawn(connection(controller)).ok();
     spawner.spawn(run()).ok();
 }
 
@@ -124,4 +125,27 @@ async fn connection(mut controller: esp_wifi::wifi::WifiController<'static>) {
     debug!("Starting wifi");
     controller.start_async().await.unwrap();
     debug!("Wifi started!");
+
+    loop {
+        match esp_wifi::wifi::ap_state() {
+            esp_wifi::wifi::WifiState::ApStarted => {
+                debug!("About to connect...");
+
+                match controller.connect_async().await {
+                    Ok(_) => {
+                        // wait until we're no longer connected
+                        controller
+                            .wait_for_event(esp_wifi::wifi::WifiEvent::StaDisconnected)
+                            .await;
+                        debug!("STA disconnected");
+                    }
+                    Err(e) => {
+                        debug!("Failed to connect to wifi: {:?}", e);
+                        Timer::after(Duration::from_millis(5000)).await
+                    }
+                }
+            }
+            _ => return,
+        }
+    }
 }

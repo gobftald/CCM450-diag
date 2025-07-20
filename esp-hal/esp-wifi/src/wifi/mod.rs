@@ -38,11 +38,15 @@ const MTU: usize = crate::CONFIG.mtu;
 use crate::binary::{
     c_types,
     include::{
-        self, esp_err_t, esp_interface_t_ESP_IF_WIFI_AP, esp_interface_t_ESP_IF_WIFI_STA,
-        esp_supplicant_init, esp_wifi_connect, esp_wifi_get_mode, esp_wifi_init_internal,
-        esp_wifi_internal_reg_rxcb, esp_wifi_set_mode, esp_wifi_set_tx_done_cb, esp_wifi_start,
-        g_wifi_default_wpa_crypto_funcs, wifi_auth_mode_t, wifi_mode_t, wifi_mode_t_WIFI_MODE_AP,
-        wifi_mode_t_WIFI_MODE_APSTA, wifi_mode_t_WIFI_MODE_NULL, wifi_mode_t_WIFI_MODE_STA,
+        self, __BindgenBitfieldUnit, esp_err_t, esp_interface_t_ESP_IF_WIFI_AP,
+        esp_interface_t_ESP_IF_WIFI_STA, esp_supplicant_init, esp_wifi_connect, esp_wifi_get_mode,
+        esp_wifi_init_internal, esp_wifi_internal_reg_rxcb, esp_wifi_set_config, esp_wifi_set_mode,
+        esp_wifi_set_tx_done_cb, esp_wifi_start, g_wifi_default_wpa_crypto_funcs, wifi_ap_config_t,
+        wifi_auth_mode_t, wifi_cipher_type_t_WIFI_CIPHER_TYPE_CCMP, wifi_config_t,
+        wifi_interface_t_WIFI_IF_AP, wifi_interface_t_WIFI_IF_STA, wifi_mode_t,
+        wifi_mode_t_WIFI_MODE_AP, wifi_mode_t_WIFI_MODE_APSTA, wifi_mode_t_WIFI_MODE_NULL,
+        wifi_mode_t_WIFI_MODE_STA, wifi_pmf_config_t, wifi_scan_threshold_t,
+        wifi_sort_method_t_WIFI_CONNECT_AP_BY_SIGNAL, wifi_sta_config_t,
     },
 };
 
@@ -808,6 +812,22 @@ unsafe extern "C" fn esp_wifi_tx_done_cb(
 pub(crate) fn wifi_start() -> Result<(), WifiError> {
     unsafe {
         esp_wifi_result!(esp_wifi_start())?;
+
+        let mode = WifiMode::current()?;
+
+        // This is not an if-else because in AP-STA mode, both are true
+        if mode.is_ap() {
+            esp_wifi_result!(include::esp_wifi_set_inactive_time(
+                wifi_interface_t_WIFI_IF_AP,
+                crate::CONFIG.ap_beacon_timeout
+            ))?;
+        }
+        if mode.is_sta() {
+            esp_wifi_result!(include::esp_wifi_set_inactive_time(
+                wifi_interface_t_WIFI_IF_STA,
+                crate::CONFIG.beacon_timeout
+            ))?;
+        };
     }
 
     Ok(())
@@ -891,6 +911,89 @@ impl Device for WifiDevice<'_> {
             Some(crate::CONFIG.max_burst_size)
         };
         caps
+    }
+}
+
+fn apply_ap_config(config: &AccessPointConfiguration) -> Result<(), WifiError> {
+    let mut cfg = wifi_config_t {
+        ap: wifi_ap_config_t {
+            ssid: [0; 32],
+            password: [0; 64],
+            ssid_len: 0,
+            channel: config.channel,
+            authmode: config.auth_method.to_raw(),
+            ssid_hidden: if config.ssid_hidden { 1 } else { 0 },
+            max_connection: config.max_connections as u8,
+            beacon_interval: 100,
+            pairwise_cipher: wifi_cipher_type_t_WIFI_CIPHER_TYPE_CCMP,
+            ftm_responder: false,
+            pmf_cfg: wifi_pmf_config_t {
+                capable: true,
+                required: false,
+            },
+            sae_pwe_h2e: 0,
+            csa_count: 3,
+            dtim_period: 2,
+        },
+    };
+
+    if config.auth_method == AuthMethod::None && !config.password.is_empty() {
+        return Err(WifiError::InternalError(
+            InternalWifiError::EspErrInvalidArg,
+        ));
+    }
+
+    unsafe {
+        cfg.ap.ssid[0..(config.ssid.len())].copy_from_slice(config.ssid.as_bytes());
+        cfg.ap.ssid_len = config.ssid.len() as u8;
+        cfg.ap.password[0..(config.password.len())].copy_from_slice(config.password.as_bytes());
+
+        esp_wifi_result!(esp_wifi_set_config(wifi_interface_t_WIFI_IF_AP, &mut cfg))
+    }
+}
+
+// 2294
+fn apply_sta_config(config: &ClientConfiguration) -> Result<(), WifiError> {
+    let mut cfg = wifi_config_t {
+        sta: wifi_sta_config_t {
+            ssid: [0; 32],
+            password: [0; 64],
+            scan_method: crate::CONFIG.scan_method,
+            bssid_set: config.bssid.is_some(),
+            bssid: config.bssid.unwrap_or_default(),
+            channel: config.channel.unwrap_or(0),
+            listen_interval: crate::CONFIG.listen_interval,
+            sort_method: wifi_sort_method_t_WIFI_CONNECT_AP_BY_SIGNAL,
+            threshold: wifi_scan_threshold_t {
+                rssi: -99,
+                authmode: config.auth_method.to_raw(),
+            },
+            pmf_cfg: wifi_pmf_config_t {
+                capable: true,
+                required: false,
+            },
+            sae_pwe_h2e: 3,
+            _bitfield_align_1: [0; 0],
+            _bitfield_1: __BindgenBitfieldUnit::new([0; 4]),
+            failure_retry_cnt: crate::CONFIG.failure_retry_cnt,
+            _bitfield_align_2: [0; 0],
+            _bitfield_2: __BindgenBitfieldUnit::new([0; 4]),
+            sae_pk_mode: 0, // ??
+            sae_h2e_identifier: [0; 32],
+        },
+    };
+
+    if config.auth_method == AuthMethod::None && !config.password.is_empty() {
+        return Err(WifiError::InternalError(
+            InternalWifiError::EspErrInvalidArg,
+        ));
+    }
+
+    unsafe {
+        cfg.sta.ssid[0..(config.ssid.len())].copy_from_slice(config.ssid.as_bytes());
+        cfg.sta.password[0..(config.password.len())].copy_from_slice(config.password.as_bytes());
+
+        esp_wifi_result!(esp_wifi_set_config(wifi_interface_t_WIFI_IF_STA, &mut cfg))
     }
 }
 
@@ -1028,6 +1131,21 @@ impl WifiController<'_> {
         };
 
         esp_wifi_result!(unsafe { esp_wifi_set_mode(mode) })?;
+
+        match conf {
+            Configuration::None => Ok::<(), WifiError>(()),
+            Configuration::Client(config) => apply_sta_config(config),
+            Configuration::AccessPoint(config) => apply_ap_config(config),
+            Configuration::Mixed(sta_config, ap_config) => {
+                apply_ap_config(ap_config).and_then(|()| apply_sta_config(sta_config))
+            } //Configuration::EapClient(config) => apply_sta_eap_config(config),
+        }
+        .inspect_err(|_| {
+            // we/the driver might have applied a partial configuration
+            // so we better disable AP/STA just in case the caller ignores the error we
+            // return here - they will run into futher errors this way
+            unsafe { esp_wifi_set_mode(wifi_mode_t_WIFI_MODE_NULL) };
+        })?;
 
         Ok(())
     }

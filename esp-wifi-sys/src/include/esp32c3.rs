@@ -1,5 +1,21 @@
 #![allow(non_camel_case_types, non_upper_case_globals)]
 
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+// 12
+pub struct __BindgenBitfieldUnit<Storage> {
+    storage: Storage,
+}
+
+// 15
+impl<Storage> __BindgenBitfieldUnit<Storage> {
+    #[inline]
+    // 17
+    pub const fn new(storage: Storage) -> Self {
+        Self { storage }
+    }
+}
+
 // 841
 pub const CONFIG_ESP_WIFI_TX_BUFFER_TYPE: u32 = 1;
 
@@ -172,6 +188,192 @@ pub const wifi_auth_mode_t_WIFI_AUTH_WPA3_EXT_PSK_MIXED_MODE: wifi_auth_mode_t =
 pub const wifi_auth_mode_t_WIFI_AUTH_DPP: wifi_auth_mode_t = 13;
 pub const wifi_auth_mode_t_WIFI_AUTH_MAX: wifi_auth_mode_t = 14;
 pub type wifi_auth_mode_t = crate::c_types::c_uint;
+
+// 3943
+/// the cipher type is none
+pub const wifi_cipher_type_t_WIFI_CIPHER_TYPE_NONE: wifi_cipher_type_t = 0;
+/// the cipher type is WEP40
+pub const wifi_cipher_type_t_WIFI_CIPHER_TYPE_WEP40: wifi_cipher_type_t = 1;
+/// the cipher type is WEP104
+pub const wifi_cipher_type_t_WIFI_CIPHER_TYPE_WEP104: wifi_cipher_type_t = 2;
+/// the cipher type is TKIP
+pub const wifi_cipher_type_t_WIFI_CIPHER_TYPE_TKIP: wifi_cipher_type_t = 3;
+/// the cipher type is CCMP
+pub const wifi_cipher_type_t_WIFI_CIPHER_TYPE_CCMP: wifi_cipher_type_t = 4;
+/// the cipher type is TKIP and CCMP
+pub const wifi_cipher_type_t_WIFI_CIPHER_TYPE_TKIP_CCMP: wifi_cipher_type_t = 5;
+/// the cipher type is AES-CMAC-128
+pub const wifi_cipher_type_t_WIFI_CIPHER_TYPE_AES_CMAC128: wifi_cipher_type_t = 6;
+/// the cipher type is SMS4
+pub const wifi_cipher_type_t_WIFI_CIPHER_TYPE_SMS4: wifi_cipher_type_t = 7;
+/// the cipher type is GCMP
+pub const wifi_cipher_type_t_WIFI_CIPHER_TYPE_GCMP: wifi_cipher_type_t = 8;
+/// the cipher type is GCMP-256
+pub const wifi_cipher_type_t_WIFI_CIPHER_TYPE_GCMP256: wifi_cipher_type_t = 9;
+/// the cipher type is AES-GMAC-128
+pub const wifi_cipher_type_t_WIFI_CIPHER_TYPE_AES_GMAC128: wifi_cipher_type_t = 10;
+/// the cipher type is AES-GMAC-256
+pub const wifi_cipher_type_t_WIFI_CIPHER_TYPE_AES_GMAC256: wifi_cipher_type_t = 11;
+/// the cipher type is unknown
+pub const wifi_cipher_type_t_WIFI_CIPHER_TYPE_UNKNOWN: wifi_cipher_type_t = 12;
+pub type wifi_cipher_type_t = crate::c_types::c_uint;
+
+// 4262
+/// Do fast scan, scan will end after find SSID match AP
+pub const wifi_scan_method_t_WIFI_FAST_SCAN: wifi_scan_method_t = 0;
+/// All channel scan, scan will end after scan all the channel
+pub const wifi_scan_method_t_WIFI_ALL_CHANNEL_SCAN: wifi_scan_method_t = 1;
+pub type wifi_scan_method_t = crate::c_types::c_uint;
+
+// 4267
+/// Sort match AP in scan list by RSSI
+pub const wifi_sort_method_t_WIFI_CONNECT_AP_BY_SIGNAL: wifi_sort_method_t = 0;
+/// Sort match AP in scan list by security mode
+pub const wifi_sort_method_t_WIFI_CONNECT_AP_BY_SECURITY: wifi_sort_method_t = 1;
+pub type wifi_sort_method_t = crate::c_types::c_uint;
+
+/// @brief Structure describing parameters for a WiFi fast scan
+#[repr(C)]
+#[derive(Copy, Clone)]
+// 4275
+pub struct wifi_scan_threshold_t {
+    #[doc = "< The minimum rssi to accept in the fast scan mode"]
+    pub rssi: i8,
+    #[doc = "< The weakest authmode to accept in the fast scan mode\nNote: In case this value is not set and password is set as per WPA2 standards(password len >= 8), it will be defaulted to WPA2 and device won't connect to deprecated WEP/WPA networks. Please set authmode threshold as WIFI_AUTH_WEP/WIFI_AUTH_WPA_PSK to connect to WEP/WPA networks"]
+    pub authmode: wifi_auth_mode_t,
+}
+
+/// Configuration structure for Protected Management Frame
+#[repr(C)]
+#[derive(Copy, Clone)]
+// 4299
+pub struct wifi_pmf_config_t {
+    /// Deprecated variable. Device will always connect in PMF mode if other device also advertises PMF capability.
+    pub capable: bool,
+    /// Advertises that Protected Management Frame is required. Device will not associate to non-PMF capable devices.
+    pub required: bool,
+}
+
+// 4305
+pub const wifi_sae_pwe_method_t_WPA3_SAE_PWE_UNSPECIFIED: wifi_sae_pwe_method_t = 0;
+pub const wifi_sae_pwe_method_t_WPA3_SAE_PWE_HUNT_AND_PECK: wifi_sae_pwe_method_t = 1;
+pub const wifi_sae_pwe_method_t_WPA3_SAE_PWE_HASH_TO_ELEMENT: wifi_sae_pwe_method_t = 2;
+pub const wifi_sae_pwe_method_t_WPA3_SAE_PWE_BOTH: wifi_sae_pwe_method_t = 3;
+/// Configuration for SAE PWE derivation
+pub type wifi_sae_pwe_method_t = crate::c_types::c_uint;
+
+// 4311
+pub const wifi_sae_pk_mode_t_WPA3_SAE_PK_MODE_AUTOMATIC: wifi_sae_pk_mode_t = 0;
+pub const wifi_sae_pk_mode_t_WPA3_SAE_PK_MODE_ONLY: wifi_sae_pk_mode_t = 1;
+pub const wifi_sae_pk_mode_t_WPA3_SAE_PK_MODE_DISABLED: wifi_sae_pk_mode_t = 2;
+/// Configuration for SAE-PK
+pub type wifi_sae_pk_mode_t = crate::c_types::c_uint;
+
+/// @brief Soft-AP configuration settings for the device
+#[repr(C)]
+#[derive(Copy, Clone)]
+// 4319
+pub struct wifi_ap_config_t {
+    /// SSID of soft-AP. If ssid_len field is 0, this must be a Null terminated string.
+    /// Otherwise, length is set according to ssid_len."]
+    pub ssid: [u8; 32usize],
+    /// Password of soft-AP.
+    pub password: [u8; 64usize],
+    /// Optional length of SSID field.
+    pub ssid_len: u8,
+    /// Channel of soft-AP
+    pub channel: u8,
+    /// Auth mode of soft-AP. Do not support AUTH_WEP, AUTH_WAPI_PSK and AUTH_OWE in soft-AP mode.
+    /// When the auth mode is set to WPA2_PSK, WPA2_WPA3_PSK or WPA3_PSK, the pairwise cipher
+    /// will be overwritten with WIFI_CIPHER_TYPE_CCMP.s
+    pub authmode: wifi_auth_mode_t,
+    /// Broadcast SSID or not, default 0, broadcast the SSID
+    pub ssid_hidden: u8,
+    /// Max number of stations allowed to connect in
+    pub max_connection: u8,
+    /// Beacon interval which should be multiples of 100. Unit: TU(time unit, 1 TU = 1024 us).
+    /// Range: 100 ~ 60000. Default value: 100
+    pub beacon_interval: u16,
+    /// Channel Switch Announcement Count. Notify the station that the channel will switch after
+    /// the csa_count beacon intervals. Default value: 3
+    pub csa_count: u8,
+    /// Dtim period of soft-AP. Default value: 2
+    pub dtim_period: u8,
+    /// Pairwise cipher of SoftAP, group cipher will be derived using this. Cipher values are valid
+    /// starting from WIFI_CIPHER_TYPE_TKIP, enum values before that will be considered as invalid
+    /// and default cipher suites(TKIP+CCMP) will be used. Valid cipher suites in softAP mode are
+    /// WIFI_CIPHER_TYPE_TKIP, WIFI_CIPHER_TYPE_CCMP and WIFI_CIPHER_TYPE_TKIP_CCMP.s
+    pub pairwise_cipher: wifi_cipher_type_t,
+    /// Enable FTM Responder mode
+    pub ftm_responder: bool,
+    /// Configuration for Protected Management Frame
+    pub pmf_cfg: wifi_pmf_config_t,
+    /// Configuration for SAE PWE derivation method
+    pub sae_pwe_h2e: wifi_sae_pwe_method_t,
+}
+
+#[doc = " @brief STA configuration settings for the device"]
+#[repr(C)]
+#[derive(Copy, Clone)]
+// 4352
+pub struct wifi_sta_config_t {
+    /// SSID of target AP.
+    pub ssid: [u8; 32usize],
+    /// Password of target AP.
+    pub password: [u8; 64usize],
+    /// do all channel scan or fast scan
+    pub scan_method: wifi_scan_method_t,
+    /// whether set MAC address of target AP or not. Generally, station_config.bssid_set needs to be 0;
+    /// and it needs to be 1 only when users need to check the MAC address of the AP.
+    pub bssid_set: bool,
+    /// MAC address of target AP
+    pub bssid: [u8; 6usize],
+    /// channel of target AP. Set to 1~13 to scan starting from the specified channel before connecting to AP.
+    /// If the channel of AP is unknown, set it to 0.
+    pub channel: u8,
+    /// Listen interval for ESP32 station to receive beacon when WIFI_PS_MAX_MODEM is set.
+    /// Units: AP beacon intervals. Defaults to 3 if set to 0.
+    pub listen_interval: u16,
+    /// sort the connect AP in the list by rssi or security mode
+    pub sort_method: wifi_sort_method_t,
+    /// When scan_threshold is set, only APs which have an auth mode that is more secure than
+    /// the selected auth mode and a signal stronger than the minimum RSSI will be used.
+    pub threshold: wifi_scan_threshold_t,
+    /// Configuration for Protected Management Frame. Will be advertised in RSN Capabilities in RSN IE.
+    pub pmf_cfg: wifi_pmf_config_t,
+    pub _bitfield_align_1: [u32; 0],
+    pub _bitfield_1: __BindgenBitfieldUnit<[u8; 4usize]>,
+    /// Configuration for SAE PWE derivation method
+    pub sae_pwe_h2e: wifi_sae_pwe_method_t,
+    /// Configuration for SAE-PK (Public Key) Authentication method
+    pub sae_pk_mode: wifi_sae_pk_mode_t,
+    /// Number of connection retries station will do before moving to next AP.
+    /// scan_method should be set as WIFI_ALL_CHANNEL_SCAN to use this config.
+    /// Note: Enabling this may cause connection time to increase in case best AP doesn't behave properly.
+    pub failure_retry_cnt: u8,
+    pub _bitfield_align_2: [u32; 0],
+    pub _bitfield_2: __BindgenBitfieldUnit<[u8; 4usize]>,
+    /// Password identifier for H2E. this needs to be null terminated string
+    pub sae_h2e_identifier: [u8; 32usize],
+}
+
+/// @brief Configuration data for device's AP or STA or NAN.
+///
+/// The usage of this union (for ap, sta or nan configuration) is determined by the accompanying
+/// interface argument passed to esp_wifi_set_config() or esp_wifi_get_config()
+#[repr(C)]
+#[derive(Copy, Clone)]
+// 4678
+pub union wifi_config_t {
+    /// configuration of AP
+    pub ap: wifi_ap_config_t,
+    /// configuration of STA
+    pub sta: wifi_sta_config_t,
+    /*
+    /// configuration of NAN
+    pub nan: wifi_nan_config_t,
+    */
+}
 
 /// Argument structure for WIFI_EVENT_SCAN_DONE event
 #[repr(C)]
@@ -914,6 +1116,7 @@ unsafe extern "C" {
     pub fn esp_wifi_start() -> esp_err_t;
 }
 
+// 6691
 unsafe extern "C" {
     /// @brief     Connect WiFi station to the AP.
     ///
@@ -936,6 +1139,53 @@ unsafe extern "C" {
     ///     - ESP_ERR_WIFI_CONN: WiFi internal error, station or soft-AP control block wron
     ///     - ESP_ERR_WIFI_SSID: SSID of AP which station connects is invalid
     pub fn esp_wifi_connect() -> esp_err_t;
+}
+
+// 6830
+unsafe extern "C" {
+    /// @brief     Set the configuration of the STA, AP or NAN
+    ///
+    /// @attention 1. This API can be called only when specified interface is enabled, otherwise, API fail
+    /// @attention 2. For station configuration, bssid_set needs to be 0; and it needs to be 1 only
+    ///               when users need to check the MAC address of the AP.
+    /// @attention 3. ESP devices are limited to only one channel, so when in the soft-AP+station mode,
+    ///               the soft-AP will adjust its channel automatically to be the same as the channel of the station.
+    /// @attention 4. The configuration will be stored in NVS for station and soft-AP
+    ///
+    /// @param     interface  interface
+    /// @param     conf  station, soft-AP or NAN configuration
+    ///
+    /// @return
+    ///     - ESP_OK: succeed
+    ///     - ESP_ERR_WIFI_NOT_INIT: WiFi is not initialized by esp_wifi_init
+    ///     - ESP_ERR_INVALID_ARG: invalid argument
+    ///     - ESP_ERR_WIFI_IF: invalid interface
+    ///     - ESP_ERR_WIFI_MODE: invalid mode
+    ///     - ESP_ERR_WIFI_PASSWORD: invalid password
+    ///     - ESP_ERR_WIFI_NVS: WiFi internal NVS error
+    ///     - others: refer to the error code in esp_err.h
+    pub fn esp_wifi_set_config(interface: wifi_interface_t, conf: *mut wifi_config_t) -> esp_err_t;
+}
+
+// 6942
+unsafe extern "C" {
+    /// @brief     Set the inactive time of the STA or AP
+    /// @attention 1. For Station, If the station does not receive a beacon frame from the connected SoftAP
+    ///               during the inactive time, disconnect from SoftAP. Default 6s.
+    /// @attention 2. For SoftAP, If the softAP doesn't receive any data from the connected STA during inactive time,
+    ///               the softAP will force deauth the STA. Default is 300s.
+    /// @attention 3. The inactive time configuration is not stored into flash
+    ///
+    /// @param     ifx  interface to be configured.
+    /// @param     sec  Inactive time. Unit seconds.
+    ///
+    /// @return
+    ///     - ESP_OK: succeed
+    ///     - ESP_ERR_WIFI_NOT_INIT: WiFi is not initialized by esp_wifi_init
+    ///     - ESP_ERR_WIFI_NOT_STARTED: WiFi is not started by esp_wifi_start
+    ///     - ESP_ERR_INVALID_ARG: invalid argument, For Station, if sec is less than 3. For SoftAP,
+    ///       if sec is less than 10.
+    pub fn esp_wifi_set_inactive_time(ifx: wifi_interface_t, sec: u16) -> esp_err_t;
 }
 
 // 7159

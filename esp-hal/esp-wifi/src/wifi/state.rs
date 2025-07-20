@@ -39,6 +39,12 @@ impl From<WifiEvent> for WifiState {
 pub(crate) static STA_STATE: AtomicWifiState = AtomicWifiState::new(WifiState::Invalid);
 pub(crate) static AP_STATE: AtomicWifiState = AtomicWifiState::new(WifiState::Invalid);
 
+/// Get the current state of the AP
+// 41
+pub fn ap_state() -> WifiState {
+    AP_STATE.load(Ordering::Relaxed)
+}
+
 // 50
 pub(crate) fn update_state(event: WifiEvent, handled: bool) {
     match event {
