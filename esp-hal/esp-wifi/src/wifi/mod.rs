@@ -1026,9 +1026,11 @@ pub(crate) mod embassy {
 
     // 2506
     pub(crate) static AP_RECEIVE_WAKER: AtomicWaker = AtomicWaker::new();
+    pub(crate) static AP_LINK_STATE_WAKER: AtomicWaker = AtomicWaker::new();
 
     // 2509
     pub(crate) static STA_RECEIVE_WAKER: AtomicWaker = AtomicWaker::new();
+    pub(crate) static STA_LINK_STATE_WAKER: AtomicWaker = AtomicWaker::new();
 
     // 2530
     impl Driver for WifiDevice<'_> {

@@ -4,7 +4,7 @@ version = "0.7.0"
 edition = "2021"
 
 [dependencies]
-console  = { path = "../../console", features = ["usb_uart"]}
+console  = { path = "../../console", features = ["jtag_serial"]}
 defmt = { version = "0.3.10", optional = true }
 critical-section = { version = "1.2.0" }
 embassy-executor-macros = { path = "../embassy-executor-macros" }

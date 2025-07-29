@@ -242,6 +242,7 @@ pub(crate) fn sem_take(semphr: *mut c_void, tick: u32) -> i32 {
 // 254
 pub(crate) fn sem_give(semphr: *mut c_void) -> i32 {
     trace!("semphr_give {:?}", semphr);
+
     let sem = semphr as *mut u32;
 
     critical_section::with(|_| unsafe {
@@ -285,7 +286,7 @@ pub(crate) fn mutex_delete(mutex: *mut c_void) {
 /// Lock a mutex. Block until successful.
 // 295
 pub(crate) fn lock_mutex(mutex: *mut c_void) -> i32 {
-    trace!("mutex_lock ptr = {:?}", mutex);
+    //trace!("mutex_lock ptr = {:?}", mutex);
 
     let ptr = mutex as *mut Mutex;
     let current_task = current_task() as usize;
@@ -315,7 +316,7 @@ pub(crate) fn lock_mutex(mutex: *mut c_void) -> i32 {
 
 // 324
 pub(crate) fn unlock_mutex(mutex: *mut c_void) -> i32 {
-    trace!("mutex_unlock {:?}", mutex);
+    //trace!("mutex_unlock {:?}", mutex);
 
     let ptr = mutex as *mut Mutex;
     critical_section::with(|_| unsafe {

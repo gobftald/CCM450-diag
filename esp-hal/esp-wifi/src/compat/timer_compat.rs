@@ -184,10 +184,10 @@ pub(crate) fn compat_timer_arm_us(ets_timer: *mut ets_timer, us: u32, repeat: bo
 
 // 172
 pub fn compat_timer_disarm(ets_timer: *mut ets_timer) {
-    trace!("timer disarm");
+    //trace!("timer disarm");
     TIMERS.with(|timers| {
         if let Some(timer) = timers.find(ets_timer) {
-            trace!("timer_disarm {:x}", timer.id());
+            //trace!("timer_disarm {:x}", timer.id());
             timer.active = false;
         } else {
             trace!("timer_disarm {:x} not found", ets_timer as usize);
@@ -196,7 +196,7 @@ pub fn compat_timer_disarm(ets_timer: *mut ets_timer) {
 }
 
 pub fn compat_timer_done(ets_timer: *mut ets_timer) {
-    trace!("timer done");
+    //trace!("timer done");
     TIMERS.with(|timers| {
         if let Some(timer) = timers.find(ets_timer) {
             trace!("timer_done {:x}", timer.id());

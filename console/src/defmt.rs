@@ -6,7 +6,11 @@
 #[cfg(feature = "critical-section")]
 use critical_section::RestoreState;
 
+#[cfg(feature = "usb_uart")]
 use crate::usb_uart::*;
+
+#[cfg(feature = "jtag_serial")]
+use crate::jtag_serial::*;
 
 /// Global logger lock.
 #[cfg(feature = "critical-section")]
@@ -77,7 +81,7 @@ unsafe impl defmt::Logger for Logger {
     }
 
     unsafe fn flush() {
-        unsafe { usb_uart_tx_flush() }
+        flush()
     }
 
     unsafe fn write(bytes: &[u8]) {

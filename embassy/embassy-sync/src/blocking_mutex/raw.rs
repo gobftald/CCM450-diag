@@ -1,7 +1,6 @@
 //! Mutex primitives.
 //!
 //! This module provides a trait for mutexes that can be used in different contexts.
-use core::marker::PhantomData;
 
 /// Raw mutex trait.
 ///

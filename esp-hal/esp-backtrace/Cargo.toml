@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 heapless = "0.8"
 defmt    = { version = "0.3.10", optional = true }
-console  = { path = "../../console", features = ["usb_uart"] }      # default console
+console  = { path = "../../console", features = ["jtag_serial"] }      # default console
 
 [features]
 default = ["esp32c3"]

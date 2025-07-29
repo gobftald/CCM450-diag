@@ -22,6 +22,8 @@
         *(.text.ic_register_tx_cb)
         *(.text.ic_register_rx_cb)
         *(.text.ic_register_timer_post_cb)
+        *(.text.ic_register_michael_mic_failure_cb)
+        *(.text.ic_register_pp_tx_done_cb)
         *(.text.ic_register_config_cb)
         *(.text.ic_is_mgmt_hwdecr_enabled)
         *(.text.ic_register_pm_tx_null_cb)
@@ -42,8 +44,8 @@
         *(.text.ic_set_trc)
         *(.text.ic_deinit)
         *(.text.ic_init)
-        *(.text.ic_enable)
-        *(.text.ic_disable)
+        *(.text.ic_set_interrupt_handler)
+        *(.text.ic_clear_interrupt_handler)
         *(.text.ic_enable_rx)
         *(.text.ic_disable_rx)
         *(.text.ic_set_beacon_int)
@@ -58,6 +60,8 @@
         *(.text.ic_set_interface)
         *(.text.ic_trc_set_per_pkt_rate)
         *(.text.ic_trc_update_ifx_phy_mode)
+        *(.text.ic_stop_hw_txq)
+        *(.text.ic_stop_sw_txq)
         *(.text.ic_create_wifi_task)
         *(.text.ic_delete_wifi_task)
         *(.text.ic_update_sta_tsf)
@@ -87,6 +91,8 @@
         *(.text.lmacProcessTxError)
         *(.text.lmacDisableTransmit)
         *(.text.lmacProcessTxTimeout)
+        *(.text.lmacStopTransmit)
+        *(.text.lmac_stop_hw_txq)
 
     /* pm.o */
         *(.text.hal_pm_unblock_txq)
@@ -148,6 +154,8 @@
         *(.text.pm_on_coex_start)
         *(.text.pm_on_probe_resp_rx)
         *(.text.pm_on_data_tx_done)
+        *(.text.pm_disconnected_start)
+        *(.text.pm_disconnected_stop)
         *(.text.pm_start)
         *(.text.pm_stop)
         *(.text.pm_attach)
@@ -173,7 +181,9 @@
         *(.text.pp_register_net80211_tx_cb)
         *(.text.pp_register_config_cb)
         *(.text.pp_register_timer_cb)
+        *(.text.pp_register_michael_mic_failure_cb)
         *(.text.pp_default_event_handler)
+        *(.text.ppRegisterTxDoneUserActionCallback)
         *(.text.ppRegisterRxCallback)
         *(.text.ppRegisterTxCallback)
         *(.text.ppCheckTxQIdle)
@@ -195,6 +205,8 @@
         *(.text.ppCalTxopDur)
         *(.text.ppPrepareBarFrame)
         *(.text.pp_attach)
+        *(.text.ppClearTxq)
+        *(.text.pp_stop_sw_txq)
         *(.text.ppGetTaskHdl)
 
     /* pp_debug.o */
@@ -294,14 +306,19 @@
         *(.text.hal_ba_session_restore_by_hw_index)
 
     /* hal_coex.o */
+        *(.text.hal_coex_pti_init)
         *(.text.hal_set_rx_beacon_pti)
         *(.text.hal_set_rx_beacon_time)
+        *(.text.hal_set_rx_active_pti)
+        *(.text.hal_set_rx_ack_pti)
+        *(.text.hal_set_wifi_default_pti)
 
     /* hal_crypto.o */
         *(.text.hal_crypto_clr_key_entry)
         *(.text.hal_crypto_set_key_entry)
         *(.text.hal_crypto_is_key_valid)
         *(.text.hal_crypto_get_key_entry)
+        *(.text.hal_crypto_init)
         *(.text.hal_crypto_mgmt_rx_enabled)
         *(.text.hal_crypto_enable)
         *(.text.hal_crypto_disable)
@@ -317,10 +334,15 @@
         *(.text.hal_mac_tx_set_cca)
         *(.text.hal_mac_disable_low_rate)
         *(.text.hal_mac_enable_low_rate)
+        *(.text.mac_rxbuf_init)
+        *(.text.mac_txrx_init)
         *(.text.hal_mac_set_rxq_policy)
+        *(.text.mac_last_rxbuf_init)
+        *(.text.hal_deinit)
         *(.text.hal_mac_set_addr)
         *(.text.hal_mac_set_bssid)
         *(.text.hal_mac_rx_set_policy)
+        *(.text.hal_init)
         *(.text.hal_mac_tsf_reset)
         *(.text.hal_disable_sta_beacon_filter)
         *(.text.hal_rx_enable_bssid_check)
@@ -337,6 +359,8 @@
         *(.text.hal_mac_get_txq_state)
         *(.text.hal_mac_clr_txq_state)
         *(.text.hal_mac_get_txq_pmd)
+        *(.text.hal_attenna_init)
+        *(.text.hal_mac_rate_autoack_init)
 
     /* hal_pwr.o */
 
@@ -347,6 +371,8 @@
         *(.text.hal_sniffer_set_promis_misc_pkt)
 
     /* hal_tsf.o */
+        *(.text.hal_enable_sta_tsf)
+        *(.text.hal_disable_sta_tsf)
         *(.text.hal_disable_softap_tsf)
         *(.text.hal_timer_update_by_rtc)
         *(.text.hal_set_sta_tsf)

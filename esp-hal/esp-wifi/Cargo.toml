@@ -4,14 +4,14 @@ version = "0.14.0"
 edition = "2024"
 
 [dependencies]
-console = { path = "../../console", features = ["usb_uart"]}
+console = { path = "../../console" }
 defmt = { version = "0.3.10", optional = true }
 esp-hal = { path = "../esp-hal" }
 rand_core = { path = "../../rand_core" }
 cfg-if = "1.0.0"
 esp-alloc = { path = "../esp-alloc", optional = true }
 allocator-api2 = { path = "../../allocator-api2"}
-esp-wifi-sys = { path = "../../esp-wifi-sys" }
+esp-wifi-sys = { version = "0.7.1", path = "../../esp-wifi-sys" }
 num-derive = { version = "0.4.2" }
 num-traits = { version = "0.2.19", default-features = false }
 critical-section = { version = "1.2.0" }

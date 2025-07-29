@@ -66,7 +66,7 @@ pub unsafe extern "C" fn semphr_create(max: u32, init: u32) -> *mut crate::binar
 #[allow(unused)]
 // 71
 pub unsafe extern "C" fn semphr_delete(semphr: *mut crate::binary::c_types::c_void) {
-    trace!("semphr_delete {:?}", semphr);
+    //trace!("semphr_delete {:?}", semphr);
     sem_delete(semphr);
 }
 
@@ -315,6 +315,7 @@ pub(crate) unsafe fn phy_enable_clock() {
 }
 
 // 352
+#[allow(unused)]
 pub(crate) fn phy_calibrate() {
     let mut cal_data: [u8; core::mem::size_of::<esp_phy_calibration_data_t>()] =
         [0u8; core::mem::size_of::<esp_phy_calibration_data_t>()];

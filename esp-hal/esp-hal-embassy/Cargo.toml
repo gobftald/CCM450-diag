@@ -4,7 +4,7 @@ version = "0.8.0"
 edition = "2024"
 
 [dependencies]
-console = { path = "../../console", features = ["usb_uart"]}
+console = { path = "../../console" }
 defmt = { version = "0.3.10", optional = true }
 critical-section = { version = "1.2.0" }
 esp-hal = { path = "../esp-hal" }

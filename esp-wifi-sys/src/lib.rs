@@ -17,7 +17,7 @@ pub mod include;
 pub mod log {
     #[unsafe(no_mangle)]
     // 26
-    pub unsafe extern "C" fn phy_printf(s: *const u8, args: ...) {
+    pub unsafe extern "C" gd (s: *const u8, args: ...) {
         unsafe {
             syslog(0, s, args);
         }

@@ -88,6 +88,7 @@ async fn main(spawner: embassy_executor::Spawner) {
         esp_wifi::wifi::ClientConfiguration {
             ssid: SSID.into(),
             password: PASSWORD.into(),
+            auth_method: esp_wifi::wifi::AuthMethod::WPA2Personal,
             ..Default::default()
         },
         esp_wifi::wifi::AccessPointConfiguration {
@@ -133,6 +134,8 @@ async fn connection(mut controller: esp_wifi::wifi::WifiController<'static>) {
 
                 match controller.connect_async().await {
                     Ok(_) => {
+                        debug!("WifiEvent::StaConnected");
+
                         // wait until we're no longer connected
                         controller
                             .wait_for_event(esp_wifi::wifi::WifiEvent::StaDisconnected)
@@ -145,7 +148,14 @@ async fn connection(mut controller: esp_wifi::wifi::WifiController<'static>) {
                     }
                 }
             }
-            _ => return,
+            _ => {
+                debug!("SoftAP failed to start");
+                return;
+            }
         }
     }
 }
+
+// cmd line
+// SSID="iWIFI-2.4" PASSWORD="dingomolarsanta" DEFMT_LOG=debug \
+// cargo run --release --features=backtrace,esp-wifi/sys-logs

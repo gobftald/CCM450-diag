@@ -1,10 +1,10 @@
 [package]
 name = "esp-wifi-sys"
-version = "0.1.0"
+version = "0.7.1"
 edition = "2024"
 
 [dependencies]
-console = { path = "../console", features = ["usb_uart"]}
+console = { path = "../console" }
 defmt = { version = "0.3.10", optional = true }
 
 [build-dependencies]

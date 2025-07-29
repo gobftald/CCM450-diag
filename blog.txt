@@ -80,6 +80,7 @@ cargo new --lib macros                  // in ccm-diag/riscv/riscv-rt
     Ctrl-x 2        // use a TUI layout with at least two windows
 
 riscv32-esp-elf-objdump -xD esp-wifi|less
+riscv32-esp-elf-objdump -xCD libphy.a|less -s -M +Gg
 ddbug -c function -p all -f function-inline=no esp-minimal|less
 
 openocd -c 'set ESP_RTOS none' -f board/esp32c3-builtin.cfg
@@ -124,3 +125,7 @@ only the prints in panic_handler does not problematic, if it 'befind' "panic_imm
 
 #print cfg for a target
 rustc --print cfg --target riscv32imc-unknown-none-elf
+
+#gdb watchpoint
+watch *0x3fc9d5f8
+watch *(0x3fc9d5f8 as *[u8;1024])

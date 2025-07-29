@@ -5,7 +5,7 @@ edition = "2021"
 rust-version = "1.81"
 
 [dependencies]
-console = { path = "../../console", features = ["usb_uart"]}
+console = { path = "../../console" }
 defmt = { version = "0.3.10", optional = true, features = ["ip_in_core"] }
 allocator-api2 = { path = "../../allocator-api2", features = ["alloc"] }
 managed = { path = "../managed", default-features = false }

@@ -2,8 +2,11 @@
 #![macro_use]
 #![allow(unused_macros)]
 
-#[cfg(all(feature = "defmt", not(feature = "usb_uart")))]
-compile_error!("defmt needs usb_uart as console");
+#[cfg(not(any(feature = "usb_uart", feature = "jtag_serial")))]
+compile_error!("either usb_uart or jtag_serial should be enabled");
+
+#[cfg(all(feature = "usb_uart", feature = "jtag_serial"))]
+compile_error!("don't enable both usb_uart and jtag_serial should be enabled together");
 
 #[cfg(feature = "defmt")]
 mod defmt;
@@ -12,6 +15,11 @@ mod defmt;
 mod usb_uart;
 #[cfg(feature = "usb_uart")]
 pub use usb_uart::{Printer, print};
+
+#[cfg(feature = "jtag_serial")]
+mod jtag_serial;
+#[cfg(feature = "jtag_serial")]
+pub use jtag_serial::{Printer, print};
 
 #[collapse_debuginfo(yes)]
 #[macro_export]
@@ -282,7 +290,7 @@ impl<T, E> Try for Result<T, E> {
     }
 }
 
-#[cfg(feature = "usb_uart")]
+#[cfg(any(feature = "usb_uart", feature = "jtag_serial"))]
 #[collapse_debuginfo(yes)]
 #[macro_export]
 macro_rules! println {
@@ -294,7 +302,7 @@ macro_rules! println {
     };
 }
 
-#[cfg(feature = "usb_uart")]
+#[cfg(any(feature = "usb_uart", feature = "jtag_serial"))]
 #[collapse_debuginfo(yes)]
 #[macro_export]
 // when using always use:

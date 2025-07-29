@@ -174,7 +174,7 @@ pub unsafe extern "C" fn spin_lock_delete(lock: *mut crate::binary::c_types::c_v
 pub unsafe extern "C" fn wifi_int_disable(
     _wifi_int_mux: *mut crate::binary::c_types::c_void,
 ) -> u32 {
-    trace!("wifi_int_disable");
+    //trace!("wifi_int_disable");
     // TODO: can we use wifi_int_mux?
     let token = unsafe { WIFI_LOCK.acquire() };
     unsafe { core::mem::transmute::<esp_hal::sync::RestoreState, u32>(token) }
@@ -200,7 +200,7 @@ pub unsafe extern "C" fn wifi_int_restore(
     _wifi_int_mux: *mut crate::binary::c_types::c_void,
     tmp: u32,
 ) {
-    trace!("wifi_int_restore");
+    //trace!("wifi_int_restore");
     let token = unsafe { core::mem::transmute::<u32, esp_hal::sync::RestoreState>(tmp) };
     unsafe { WIFI_LOCK.release(token) }
 }
@@ -485,7 +485,7 @@ pub unsafe extern "C" fn task_delay(tick: u32) {
 /// *************************************************************************
 // 768
 pub unsafe extern "C" fn task_ms_to_tick(ms: u32) -> i32 {
-    trace!("task_ms_to_tick ms {}", ms);
+    //trace!("task_ms_to_tick ms {}", ms);
     crate::time::millis_to_ticks(ms as u64) as i32
 }
 
@@ -505,7 +505,7 @@ pub unsafe extern "C" fn task_ms_to_tick(ms: u32) -> i32 {
 // 786
 pub unsafe extern "C" fn task_get_current_task() -> *mut crate::binary::c_types::c_void {
     let res = crate::preempt::current_task() as *mut crate::binary::c_types::c_void;
-    trace!("task get current task - return {:?}", res);
+    //trace!("task get current task - return {:?}", res);
 
     res
 }
@@ -525,7 +525,7 @@ pub unsafe extern "C" fn task_get_current_task() -> *mut crate::binary::c_types:
 /// *************************************************************************
 // 806
 pub unsafe extern "C" fn task_get_max_priority() -> i32 {
-    trace!("task_get_max_priority");
+    //trace!("task_get_max_priority");
     255
 }
 
@@ -613,7 +613,6 @@ pub unsafe extern "C" fn event_post(
 
     event.waker().wake();
 
-    /*
     match event {
         WifiEvent::StaConnected | WifiEvent::StaDisconnected => {
             crate::wifi::embassy::STA_LINK_STATE_WAKER.wake();
@@ -625,7 +624,6 @@ pub unsafe extern "C" fn event_post(
 
         _ => {}
     }
-    */
 
     memory_fence();
 
@@ -679,11 +677,9 @@ pub unsafe extern "C" fn phy_enable() {
 pub unsafe extern "C" fn phy_update_country_info(
     country: *const crate::binary::c_types::c_char,
 ) -> crate::binary::c_types::c_int {
-    unsafe {
-        // not implemented in original code
-        trace!("phy_update_country_info {}", str_from_c(country.cast()));
-        -1
-    }
+    // not implemented in original code
+    trace!("phy_update_country_info {}", str_from_c(country.cast()));
+    -1
 }
 
 /// **************************************************************************
@@ -743,8 +739,31 @@ pub unsafe extern "C" fn wifi_clock_enable() {
 #[unsafe(no_mangle)]
 // 1142
 pub unsafe extern "C" fn esp_timer_get_time() -> i64 {
-    trace!("esp_timer_get_time");
+    //trace!("esp_timer_get_time");
     crate::time::ticks_to_micros(crate::time::systimer_count()) as i64
+}
+
+/// **************************************************************************
+/// Name: esp_get_random
+///
+/// Description:
+///   Fill random data int given buffer of given length
+///
+/// Input Parameters:
+///   buf - buffer pointer
+///   len - buffer length
+///
+/// Returned Value:
+///   0 if success or -1 if fail
+///
+/// *************************************************************************
+// 1422
+pub unsafe extern "C" fn get_random(buf: *mut u8, len: usize) -> crate::binary::c_types::c_int {
+    trace!("get_random");
+    unsafe {
+        crate::common_adapter::esp_fill_random(buf, len as u32);
+    }
+    0
 }
 
 /// **************************************************************************
@@ -922,7 +941,7 @@ pub unsafe extern "C" fn wifi_malloc(size: usize) -> *mut crate::binary::c_types
 /// *************************************************************************
 // 1652
 pub unsafe extern "C" fn wifi_calloc(n: usize, size: usize) -> *mut crate::binary::c_types::c_void {
-    trace!("wifi_calloc {} {}", n, size);
+    //trace!("wifi_calloc {} {}", n, size);
     unsafe { calloc(n as u32, size) as *mut crate::binary::c_types::c_void }
 }
 
@@ -1005,10 +1024,10 @@ pub unsafe extern "C" fn wifi_delete_queue(queue: *mut crate::binary::c_types::c
 /// *************************************************************************
 // 1747
 pub unsafe extern "C" fn coex_enable() -> crate::binary::c_types::c_int {
-    #[cfg(coex)]
-    return unsafe { crate::binary::include::coex_enable() };
+    //#[cfg(coex)]
+    //return unsafe { crate::binary::include::coex_enable() };
 
-    #[cfg(not(coex))]
+    //#[cfg(not(coex))]
     0
 }
 
@@ -1035,7 +1054,7 @@ pub unsafe extern "C" fn coex_status_get() -> u32 {
 ///   Don't support
 ///
 /// *************************************************************************
-#[cfg_attr(not(coex), allow(unused_variables))]
+#[allow(unused_variables)]
 // 1798
 pub unsafe extern "C" fn coex_wifi_request(
     event: u32,
@@ -1056,7 +1075,7 @@ pub unsafe extern "C" fn coex_wifi_request(
 ///   Don't support
 ///
 /// *************************************************************************
-#[cfg_attr(not(coex), allow(unused_variables))]
+#[allow(unused_variables)]
 // 1820
 pub unsafe extern "C" fn coex_wifi_release(event: u32) -> crate::binary::c_types::c_int {
     //#[cfg(coex)]
@@ -1073,6 +1092,7 @@ pub unsafe extern "C" fn coex_wifi_release(event: u32) -> crate::binary::c_types
 ///   Don't support
 ///
 /// *************************************************************************
+#[allow(unused_variables)]
 // 1838
 pub unsafe extern "C" fn coex_wifi_channel_set(
     primary: u8,
@@ -1092,6 +1112,7 @@ pub unsafe extern "C" fn coex_wifi_channel_set(
 ///   Don't support
 ///
 /// *************************************************************************
+#[allow(unused_variables)]
 // 1859
 pub unsafe extern "C" fn coex_event_duration_get(
     event: u32,
@@ -1112,7 +1133,7 @@ pub unsafe extern "C" fn coex_event_duration_get(
 ///
 /// *************************************************************************
 #[cfg(any(esp32c3, esp32c2, esp32c6, esp32s3))]
-#[cfg_attr(not(coex), allow(unused_variables))]
+#[allow(unused_variables)]
 // 1882
 pub unsafe extern "C" fn coex_pti_get(event: u32, pti: *mut u8) -> crate::binary::c_types::c_int {
     //#[cfg(coex)]
@@ -1178,7 +1199,6 @@ pub unsafe extern "C" fn coex_schm_interval_set(interval: u32) -> crate::binary:
 ///   Don't support
 ///
 /// *************************************************************************
-#[allow(unused_variables)]
 // 1975
 pub unsafe extern "C" fn coex_schm_curr_period_get() -> u8 {
     //#[cfg(coex)]
@@ -1211,6 +1231,7 @@ pub unsafe extern "C" fn coex_schm_register_cb_wrapper(
     */
 }
 
+#[allow(unused_variables)]
 // 2037
 pub unsafe extern "C" fn coex_schm_flexible_period_set(period: u8) -> i32 {
     /*
@@ -1245,9 +1266,10 @@ pub unsafe extern "C" fn coex_schm_flexible_period_get() -> u8 {
     0
 }
 
+#[allow(unused_variables)]
 // 2073
 pub unsafe extern "C" fn coex_register_start_cb(
-    _cb: Option<unsafe extern "C" fn() -> esp_wifi_sys::c_types::c_int>,
+    cb: Option<unsafe extern "C" fn() -> esp_wifi_sys::c_types::c_int>,
 ) -> esp_wifi_sys::c_types::c_int {
     //#[cfg(coex)]
     //return unsafe { esp_wifi_sys::include::coex_register_start_cb(_cb) };
@@ -1269,7 +1291,6 @@ pub unsafe extern "C" fn coex_register_start_cb(
 ///   The calibration value obtained using rtc_clk_cal
 ///
 /// *************************************************************************
-#[allow(unused)]
 // 2093
 pub unsafe extern "C" fn slowclk_cal_get() -> u32 {
     trace!("slowclk_cal_get");

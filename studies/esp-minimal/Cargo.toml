@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 esp-hal = { path = "../../esp-hal/esp-hal" }
-console = { path = "../../console", features = ["usb_uart"]}
+console = { path = "../../console" }
 defmt   = { version = "0.3.10", optional = true }
 
 [dependencies.esp-backtrace]

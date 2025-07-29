@@ -137,29 +137,29 @@ impl EspHeap {
             let mut heap = Heap::empty();
             heap.init(heap_bottom, size);
 
-            *HEAP.heap.borrow_mut() = Some(heap);
+            critical_section::with(|_| *HEAP.heap.borrow_mut() = Some(heap));
         }
     }
 
     /// Returns an estimate of the amount of bytes in use in all memory regions.
     // 449
     pub fn used(&self) -> usize {
-        //critical_section::with(|cs| {
-        //let regions = self.heap.borrow_ref(cs);
-        /*
-        for region in regions.iter() {
-            if let Some(region) = region.as_ref() {
-                used += region.heap.used();
+        critical_section::with(|_| {
+            //let regions = self.heap.borrow_ref(cs);
+            /*
+            for region in regions.iter() {
+                if let Some(region) = region.as_ref() {
+                    used += region.heap.used();
+                }
             }
-        }
-        */
+            */
 
-        if let Some(heap) = self.heap.borrow().as_ref() {
-            heap.used()
-        } else {
-            0
-        }
-        //})
+            if let Some(heap) = self.heap.borrow().as_ref() {
+                heap.used()
+            } else {
+                0
+            }
+        })
     }
 
     /// Return usage stats for the Heap.
@@ -170,58 +170,57 @@ impl EspHeap {
         //const EMPTY_REGION_STAT: Option<RegionStats> = None;
         //let mut region_stats: [Option<RegionStats>; 3] = [EMPTY_REGION_STAT; 3];
 
-        //critical_section::with(|cs| {
-        /*
-        let mut used = 0;
-        let mut free = 0;
-        let regions = self.heap.borrow_ref(cs);
-        for (id, region) in regions.iter().enumerate() {
-            if let Some(region) = region.as_ref() {
-                let stats = region.stats();
-                free += stats.free;
-                used += stats.used;
-                region_stats[id] = Some(region.stats());
-            }
-        }
-
-        cfg_if::cfg_if! {
-            if #[cfg(feature = "internal-heap-stats")] {
-                let internal_heap_stats = self.internal_heap_stats.borrow_ref(cs);
-                HeapStats {
-                    region_stats,
-                    size: free + used,
-                    current_usage: used,
-                    max_usage: internal_heap_stats.max_usage,
-                    total_allocated: internal_heap_stats.total_allocated,
-                    total_freed: internal_heap_stats.total_freed,
-                }
-            } else {
-                HeapStats {
-                    region_stats,
-                    size: free + used,
-                    current_usage: used,
+        critical_section::with(|cs| {
+            /*
+            let mut used = 0;
+            let mut free = 0;
+            let regions = self.heap.borrow_ref(cs);
+            for (id, region) in regions.iter().enumerate() {
+                if let Some(region) = region.as_ref() {
+                    let stats = region.stats();
+                    free += stats.free;
+                    used += stats.used;
+                    region_stats[id] = Some(region.stats());
                 }
             }
-        }
-        */
 
-        let mut used = 0;
-        let mut free = 0;
-        if let Some(heap) = self.heap.borrow().as_ref() {
-            used = heap.used();
-            free = heap.free();
-        }
+            cfg_if::cfg_if! {
+                if #[cfg(feature = "internal-heap-stats")] {
+                    let internal_heap_stats = self.internal_heap_stats.borrow_ref(cs);
+                    HeapStats {
+                        region_stats,
+                        size: free + used,
+                        current_usage: used,
+                        max_usage: internal_heap_stats.max_usage,
+                        total_allocated: internal_heap_stats.total_allocated,
+                        total_freed: internal_heap_stats.total_freed,
+                    }
+                } else {
+                    HeapStats {
+                        region_stats,
+                        size: free + used,
+                        current_usage: used,
+                    }
+                }
+            }
+            */
 
-        let internal_heap_stats = self.internal_heap_stats.borrow();
-        HeapStats {
-            size: free + used,
-            current_usage: used,
-            max_usage: internal_heap_stats.max_usage,
-            total_allocated: internal_heap_stats.total_allocated,
-            total_freed: internal_heap_stats.total_freed,
-        }
+            let mut used = 0;
+            let mut free = 0;
+            if let Some(heap) = self.heap.borrow().as_ref() {
+                used = heap.used();
+                free = heap.free();
+            }
 
-        //})
+            let internal_heap_stats = self.internal_heap_stats.borrow();
+            HeapStats {
+                size: free + used,
+                current_usage: used,
+                max_usage: internal_heap_stats.max_usage,
+                total_allocated: internal_heap_stats.total_allocated,
+                total_freed: internal_heap_stats.total_freed,
+            }
+        })
     }
 }
 
@@ -231,30 +230,32 @@ unsafe impl GlobalAlloc for EspHeap {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         //unsafe { self.alloc_caps(EnumSet::empty(), layout) }
 
-        #[cfg(feature = "internal-heap-stats")]
-        let before = self.used();
+        critical_section::with(|_| {
+            #[cfg(feature = "internal-heap-stats")]
+            let before = self.used();
 
-        let res = if let Some(heap) = self.heap.borrow_mut().as_mut() {
-            let res = heap.allocate_first_fit(layout);
-            if let Ok(res) = res {
-                res
+            let res = if let Some(heap) = self.heap.borrow_mut().as_mut() {
+                let res = heap.allocate_first_fit(layout);
+                if let Ok(res) = res {
+                    res
+                } else {
+                    return core::ptr::null_mut();
+                }
             } else {
                 return core::ptr::null_mut();
+            };
+
+            #[cfg(feature = "internal-heap-stats")]
+            {
+                let mut internal_heap_stats = self.internal_heap_stats.borrow_mut();
+                let used = self.used();
+
+                internal_heap_stats.total_allocated += used - before;
+                internal_heap_stats.max_usage = core::cmp::max(internal_heap_stats.max_usage, used);
             }
-        } else {
-            return core::ptr::null_mut();
-        };
 
-        #[cfg(feature = "internal-heap-stats")]
-        {
-            let mut internal_heap_stats = self.internal_heap_stats.borrow_mut();
-            let used = self.used();
-
-            internal_heap_stats.total_allocated += used - before;
-            internal_heap_stats.max_usage = core::cmp::max(internal_heap_stats.max_usage, used);
-        }
-
-        res.as_ptr()
+            res.as_ptr()
+        })
     }
 
     // 601
@@ -264,23 +265,23 @@ unsafe impl GlobalAlloc for EspHeap {
                 return;
             }
 
-            //critical_section::with(|cs| {
-            #[cfg(feature = "internal-heap-stats")]
-            let before = self.used();
+            critical_section::with(|_| {
+                #[cfg(feature = "internal-heap-stats")]
+                let before = self.used();
 
-            if let Some(heap) = self.heap.borrow_mut().as_mut() {
-                if heap.bottom() <= ptr && heap.top() >= ptr {
-                    heap.deallocate(NonNull::new_unchecked(ptr), layout);
+                if let Some(heap) = self.heap.borrow_mut().as_mut() {
+                    if heap.bottom() <= ptr && heap.top() >= ptr {
+                        heap.deallocate(NonNull::new_unchecked(ptr), layout);
+                    }
                 }
-            }
 
-            #[cfg(feature = "internal-heap-stats")]
-            {
-                let mut internal_heap_stats = self.internal_heap_stats.borrow_mut();
+                #[cfg(feature = "internal-heap-stats")]
+                {
+                    let mut internal_heap_stats = self.internal_heap_stats.borrow_mut();
 
-                internal_heap_stats.total_freed += before - self.used();
-            }
-            //})
+                    internal_heap_stats.total_freed += before - self.used();
+                }
+            })
         }
     }
 }

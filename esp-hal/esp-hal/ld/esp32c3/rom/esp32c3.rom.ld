@@ -1,9 +1,12 @@
+/* ROM function interface esp32c3.rom.ld for esp32c3
+ *
+ */
+
 /* 11 */
 /***************************************
  Group common
  ***************************************/
 
-/* Functions */
 /* 16 */
 rtc_get_reset_reason = 0x40000018;
 /* 30 */
@@ -27,6 +30,7 @@ ets_update_cpu_frequency = 0x40000588;
  Group crypto
  ***************************************/
 
+/* 408 */
 /* Functions */
 /* 415 */
 crc32_le = 0x40000628;
@@ -37,6 +41,7 @@ crc32_le = 0x40000628;
  Group usb_uart
  ***************************************/
 
+/* 515 */
  /* Functions */
  /* 518 */
  PROVIDE( usb_uart_tx_flush = 0x400008d4 );
@@ -49,6 +54,7 @@ crc32_le = 0x40000628;
  Group rom_pp
  ***************************************/
 
+/* 1502 */
 /* Functions */
 /* 1503 */
 esp_pp_rom_version_get = 0x400015b0;
@@ -67,7 +73,7 @@ hal_mac_tx_get_blockack = 0x400015d0;
 /* 1511 */
 ic_get_trc = 0x400015d8;
 /* 1512 */
-/* ic_mac_deinit = 0x400015dc; */
+/****ic_mac_deinit = 0x400015dc; */
 /* 1513 */
 ic_mac_init = 0x400015e0;
 /* 1514 */
@@ -75,19 +81,27 @@ ic_interface_enabled = 0x400015e4;
 /* 1515 */
 is_lmac_idle = 0x400015e8;
 /* 1516 */
-/*lmacAdjustTimestamp = 0x400015ec;*/
+/****lmacAdjustTimestamp = 0x400015ec;*/
 /* 1517 */
 lmacDiscardAgedMSDU = 0x400015f0;
 /* 1518 */
 /*lmacDiscardMSDU = 0x400015f4;*/
 /* 1519 */
-/*lmacEndFrameExchangeSequence = 0x400015f8;*/
+/****lmacEndFrameExchangeSequence = 0x400015f8;*/
 /* 1520 */
 lmacIsIdle = 0x400015fc;
 /* 1521 */
 lmacIsLongFrame = 0x40001600;
 /* 1522 */
-/*lmacMSDUAged = 0x40001604;*/
+/****lmacMSDUAged = 0x40001604;*/
+/**** 1523 */
+lmacPostTxComplete = 0x40001608;
+/**** 1524 */
+lmacProcessAllTxTimeout = 0x4000160c;
+/**** 1525 */
+lmacProcessCollisions = 0x40001610;
+/**** 1526 */
+lmacProcessRxSucData = 0x40001614;
 /* 1527 */
 lmacReachLongLimit = 0x40001618;
 /* 1528 */
@@ -97,17 +111,17 @@ lmacRecycleMPDU = 0x40001620;
 /* 1530 */
 lmacRxDone = 0x40001624;
 /* 1531 */
-/*lmacSetTxFrame = 0x40001628;*/
+/****lmacSetTxFrame = 0x40001628;*/
 /* 1532 */
-/*lmacTxFrame = 0x40001630;*/
+/****lmacTxFrame = 0x40001630;*/
 /* 1538 */
-/* pm_check_state = 0x40001648; */
+/****pm_check_state = 0x40001648; */
 /* 1539 */
 pm_disable_dream_timer = 0x4000164c;
 /* 1540 */
 pm_disable_sleep_delay_timer = 0x40001650;
 /* 1541 */
-/*pm_dream = 0x40001654;*/
+/****pm_dream = 0x40001654;*/
 /* 1542 */
 pm_mac_wakeup = 0x40001658;
 /* 1543 */
@@ -127,35 +141,35 @@ pm_is_waked = 0x40001674;
 /* 1550 */
 pm_keep_alive = 0x40001678;
 /* 1551 */
-/* pm_on_beacon_rx = 0x4000167c; */
+/****pm_on_beacon_rx = 0x4000167c; */
 /* 1552 */
 pm_on_data_rx = 0x40001680;
 /* 1553 */
 pm_on_tbtt = 0x40001684;
 /* 1554 */
-/* pm_parse_beacon = 0x40001688;*/
+/****pm_parse_beacon = 0x40001688;*/
 /* 1555 */
-/* pm_process_tim = 0x4000168c; */
+/****pm_process_tim = 0x4000168c; */
 /* 1556 */
-/*pm_rx_beacon_process = 0x40001690;*/
+/****pm_rx_beacon_process = 0x40001690;*/
 /* 1557 */
-/* pm_rx_data_process = 0x40001694; */
+/****pm_rx_data_process = 0x40001694; */
 /* 1558 */
-/*pm_sleep = 0x40001698;*/
+/****pm_sleep = 0x40001698;*/
 /* 1559 */
 pm_sleep_for = 0x4000169c;
 /* 1560 */
-/* pm_tbtt_process = 0x400016a0; */
+/****pm_tbtt_process = 0x400016a0; */
 /* 1561 */
 ppAMPDU2Normal = 0x400016a4;
 /* 1562 */
-/*ppAssembleAMPDU = 0x400016a8;*/
+/****ppAssembleAMPDU = 0x400016a8;*/
 /* 1563 */
 ppCalFrameTimes = 0x400016ac;
 /* 1564 */
 ppCalSubFrameLength = 0x400016b0;
 /* 1565 */
-/*ppCalTxAMPDULength = 0x400016b4;*/
+/****ppCalTxAMPDULength = 0x400016b4;*/
 /* 1566 */
 ppCheckTxAMPDUlength = 0x400016b8;
 /* 1567 */
@@ -189,9 +203,9 @@ ppResortTxAMPDU = 0x400016fc;
 /* 1582 */
 ppResumeTxAMPDU = 0x40001700;
 /* 1583 */
-/* ppRxFragmentProc = 0x40001704; */
+/****ppRxFragmentProc = 0x40001704; */
 /* 1584 */
-/* ppRxPkt = 0x40001708; */
+/****ppRxPkt = 0x40001708; */
 /* 1585 */
 ppRxProtoProc = 0x4000170c;
 /* 1586 */
@@ -211,7 +225,7 @@ ppTxProtoProc = 0x40001728;
 /* 1593 */
 ppTxqUpdateBitmap = 0x4000172c;
 /* 1594 */
-/*pp_coex_tx_request = 0x40001730;*/
+/****pp_coex_tx_request = 0x40001730;*/
 /* 1595 */
 pp_hdrsize = 0x40001734;
 /* 1596 */
@@ -245,7 +259,7 @@ rcUpdateAckSnr = 0x40001774;
 /* 1611 */
 /*rcUpdateRate = 0x40001778;*/
 /* 1612 */
-/* rcUpdateTxDone = 0x4000177c; */
+/****rcUpdateTxDone = 0x4000177c; */
 /* 1613 */
 rcUpdateTxDoneAmpdu2 = 0x40001780;
 /* 1614 */
@@ -273,9 +287,11 @@ trc_tid_isTxAmpduOperational = 0x400017ac;
 /* 1625 */
 trcAmpduSetState = 0x400017b0;
 /* 1626 */
-/*wDev_AppendRxBlocks = 0x400017b8;*/
+/****wDev_AppendRxBlocks = 0x400017b8;*/
 /* 1627 */
 wDev_DiscardFrame = 0x400017bc;
+/* 1630 */
+/****wDev_IndicateFrame = 0x400017c8;*/
 /* 1631 */
 wdev_bank_store = 0x400017cc;
 /* 1632 */
@@ -297,7 +313,7 @@ hal_mac_is_dma_enable = 0x400017ec;
 /* 1640 */
 /*wDev_ProcessFiq = 0x400017f0;*/
 /* 1641 */
-/*wDev_ProcessRxSucData = 0x400017f4;*/
+/****wDev_ProcessRxSucData = 0x400017f4;*/
 /* 1642 */
 wdevProcessRxSucDataAll = 0x400017f8;
 /* 1643 */
@@ -309,7 +325,7 @@ ppDequeueTxDone_Locked = 0x40001800;
 /* 1646 */
 config_is_cache_tx_buf_enabled = 0x4000180c;
 /* 1647 */
-//ppMapWaitTxq = 0x40001810;
+/****ppMapWaitTxq = 0x40001810;*/
 /* 1648 */
 ppProcessWaitingQueue = 0x40001814;
 /* 1649 */
@@ -447,17 +463,17 @@ ic_reset_rx_ba = 0x4000184c;
 /* 1719 */
 ieee80211_align_eb = 0x40001850;
 /* 1720 */
-/*ieee80211_ampdu_reorder = 0x40001854;*/
+/****ieee80211_ampdu_reorder = 0x40001854;*/
 /* 1721 */
 ieee80211_ampdu_start_age_timer = 0x40001858;
 /* 1722 */
-/*ieee80211_encap_esfbuf = 0x4000185c;*/
+/****ieee80211_encap_esfbuf = 0x4000185c;*/
 /* 1723 */
 ieee80211_is_tx_allowed = 0x40001860;
 /* 1724 */
 ieee80211_output_pending_eb = 0x40001864;
 /* 1725 */
-/*ieee80211_output_process = 0x40001868;*/
+/****ieee80211_output_process = 0x40001868;*/
 /* 1726 */
 ieee80211_set_tx_desc = 0x4000186c;
 /* 1728 */
@@ -525,3 +541,17 @@ rom_i2c_readReg = 0x40001954;
 rom_i2c_writeReg = 0x4000195c;
 /* 1847 */
  rom_read_hw_noisefloor = 0x400019d4;
+/* 1854 */
+/****rom_set_tx_dig_gain = 0x400019f0; */
+/* 1855 */
+/****rom_set_txcap_reg = 0x400019f4; */
+/* 1879 */
+/****rom_agc_reg_init = 0x40001a54; */
+/* 1880 */
+/****rom_bb_reg_init = 0x40001a58; */
+/* 1888 */
+/****rom_phy_xpd_rf = 0x40001a78; */
+/* 1893 */
+/* rom_write_txrate_power_offset = 0x40001a8c; */
+/* 1920 */
+/****rom_open_i2c_xpd = 0x40001af8; */

@@ -4,7 +4,7 @@ version = "0.4.0"
 edition = "2021"
 
 [dependencies]
-console = { path = "../../console", features = ["usb_uart"]}
+console = { path = "../../console" }
 defmt = { version = "0.3", optional = true }
 embassy-time-driver = { path = "../embassy-time-driver" }
 

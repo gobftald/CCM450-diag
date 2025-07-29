@@ -1,7 +1,7 @@
 #[unsafe(no_mangle)]
 // 2
 pub unsafe extern "C" fn malloc(size: usize) -> *mut u8 {
-    trace!("alloc {}", size);
+    //trace!("alloc {}", size);
 
     unsafe extern "C" {
         fn esp_wifi_allocate_from_internal_ram(size: usize) -> *mut u8;
@@ -38,7 +38,7 @@ pub unsafe extern "C" fn free(ptr: *mut u8) {
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn calloc(number: u32, size: usize) -> *mut u8 {
-    trace!("calloc {} {}", number, size);
+    //trace!("calloc {} {}", number, size);
 
     let total_size = number as usize * size;
     unsafe {

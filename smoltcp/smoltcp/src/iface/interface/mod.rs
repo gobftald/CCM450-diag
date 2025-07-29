@@ -25,6 +25,7 @@ use crate::wire::{HardwareAddress, IpCidr};
 /// The network interface logically owns a number of other data structures; to avoid
 /// a dependency on heap allocation, it instead owns a `BorrowMut<[T]>`, which can be
 /// a `&mut [T]`, or `Vec<T>` if a heap is available.
+#[allow(unused)]
 // 111
 pub struct Interface {
     pub(crate) inner: InterfaceInner,

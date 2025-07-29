@@ -5,18 +5,21 @@
         *(.text.abort)
         *(.text.DefaultExceptionHandler)
         *(.text.default_post_init)
+
     } > ROTEXT
 
 .console : ALIGN(4)
     {
         *(.text.*console*print*)
-        *(.text.*console*Printer*)   
+        *(.text.*console*Printer*) 
+
     } > ROTEXT
 
 .esp-hal : ALIGN(4)
     {
         *(.text._setup_interrupts)
         *(.text.*esp_hal*interrupt*riscv*vectored*enable*)
+        *(.text.*esp_hal*interrupt*riscv*vectored*init_vectoring*)
         *(.text.hal_main)
         *(.text.*esp_hal4init*)
         *(.text.unlikely.EspDefaultHandler)
@@ -30,10 +33,11 @@
         *(.text.*esp_hal*timer*PeriodicTimer*)
         *(.text.*esp_hal*TIMG0*)
 
+        *(.text.*esp_hal*rtc_cntl*)
+
         *(.text.*esp_hal*soc*)
 
         *(.text.*esp_hal*sync*)
-
 
     } > ROTEXT
 
@@ -53,6 +57,7 @@
         *(.text.*embassy_time*)
         *(.text.*_embassy_time*)
         *(.text.*embassy_net*Inner*)
+        *(.text.*embassy_net*new*)
         *(.text.*embassy_sync*)
 
     } > ROTEXT
@@ -62,14 +67,32 @@
         *(.text.*esp_hal_embassy8Executor*)
         *(.text.*esp_hal_embassy11time_driver*)
         *(.text.*esp_hal_embassy11timer_queue*)
-        *(.text.*esp_hal_embassy*timers*)
+
     } > ROTEXT
 
 .esp-alloc : ALIGN(4)
     {
         *(.text.*esp_alloc*EspHeap*)
+        *(.text.*___rustc12___rust_alloc)
+        *(.text.*___rustc14___rust_dealloc)
+        *(.text.*___rustc14___rust_realloc)
+        *(.text.*___rustc19___rust_alloc_zeroed)
+
         *(.text.*linked_list_allocator*)
+        
         *(.text.*allocator_api*)
+
+    } > ROTEXT
+
+.port-atomic : ALIGN(4)
+    {
+        *(.text.*portable_atomic*AtomicBool*load*)
+        *(.text.*portable_atomic*AtomicUsize*load*)
+        *(.text.*portable_atomic*AtomicU32*load*)
+        
+        *(.text.*portable_atomic*AtomicUsize*store*)
+        *(.text.*portable_atomic*AtomicU32*store*)
+
     } > ROTEXT
 
 INCLUDE "debug_esp_wifi.x"
@@ -86,50 +109,24 @@ INCLUDE "debug_libnet80211.x"
 
 INCLUDE "debug_libwpa-suppl.x"
 
-.smoltcp : ALIGN(4)
-    {
-        *(.text.*smoltcp*)
-    } > ROTEXT
+INCLUDE "debug_smoltcp.x"
 
 .core : ALIGN(4)
     {
-        *(.text.*alloc*alloc*)
-        *(.text.*alloc*)
-        *(.text.*core*alloc*)
-        *(.text.*core*cell*)
-        *(.text.*core*slice*)
-
-        *(.text.memset)
-        *(.text.memcpy)
-        *(.text.memcmp)
-        *(.text.memmove)
-
         *(.text.strlen)
 
-        *(.text.*compiler_builtins*)
+        *(.text.*alloc*alloc*)
+        *(.text.*alloc*raw_vec*)
+        *(.text.*alloc*collections*)
 
-        *(.text.*Lanon*c503613613ad7ebc*)   /* __ledf2, __eqdf2 */
+        *(.text.*core*alloc*layout*Layout*is_size_align_valid*)
 
-        *(.text.*__adddf3)
-        *(.text.*__bswapsi2)
-        *(.text.*__ctzsi2)
-        *(.text.*__divdf3)
-        *(.text.*__divdi3)
-        *(.text.*__divsf3)
-        *(.text.*__extendsfdf2)
-        *(.text.*__fixdfsi)
-        *(.text.*__fixunsdfsi)
-        *(.text.*__floatsidf)
-        *(.text.*__floatundisf)
-        *(.text.*__floatunsidf)
-        *(.text.*__gedf2)
-        *(.text.*__gtdf2)
-        *(.text.*__ltdf2)
-        *(.text.*__moddi3)
-        *(.text.*__muldf3)
-        *(.text.*__nedf2)
-        *(.text.*__subdf3)
-        *(.text.*__udivdi3)
-        *(.text.*__umoddi3)
+        *(.text.*core*cell*once*OnceCell*try_init*)
+        *(.text.*core*cell*panic_already_borrowed*)
+        *(.text.*core*cell*panic_already_mutably_borrowed*)
+
+        *(.text.*core*slice*index*slice_start_index_len_fail*do_panic*runtime*)
+        *(.text.*core*slice*index*slice_end_index_len_fail*do_panic*runtime*)
+        *(.text.*core*slice*index*slice_index_order_fail*do_panic*runtime*)
 
     } > ROTEXT

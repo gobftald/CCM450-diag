@@ -10,14 +10,14 @@ use super::os_adapter::{
     coex_schm_curr_period_get, coex_schm_flexible_period_get, coex_schm_flexible_period_set,
     coex_schm_interval_set, coex_schm_register_cb_wrapper, coex_schm_status_bit_clear,
     coex_schm_status_bit_set, coex_status_get, coex_wifi_channel_set, coex_wifi_release,
-    coex_wifi_request, env_is_chip, esp_timer_get_time, event_post, free, ints_on, log_timestamp,
-    malloc, malloc_internal, mutex_delete, mutex_lock, mutex_unlock, os_adapter_chip_specific,
-    phy_enable, phy_update_country_info, queue_recv, queue_send, queue_send_from_isr,
-    recursive_mutex_create, set_intr, slowclk_cal_get, spin_lock_create, spin_lock_delete,
-    task_create_pinned_to_core, task_delay, task_get_current_task, task_get_max_priority,
-    task_ms_to_tick, task_yield_from_isr, wifi_apb80m_request, wifi_calloc, wifi_clock_enable,
-    wifi_create_queue, wifi_delete_queue, wifi_int_disable, wifi_int_restore, wifi_malloc,
-    wifi_reset_mac, wifi_thread_semphr_get, wifi_zalloc, zalloc_internal,
+    coex_wifi_request, env_is_chip, esp_timer_get_time, event_post, free, get_random, ints_on,
+    log_timestamp, malloc, malloc_internal, mutex_delete, mutex_lock, mutex_unlock,
+    os_adapter_chip_specific, phy_enable, phy_update_country_info, queue_recv, queue_send,
+    queue_send_from_isr, recursive_mutex_create, set_intr, slowclk_cal_get, spin_lock_create,
+    spin_lock_delete, task_create_pinned_to_core, task_delay, task_get_current_task,
+    task_get_max_priority, task_ms_to_tick, task_yield_from_isr, wifi_apb80m_request, wifi_calloc,
+    wifi_clock_enable, wifi_create_queue, wifi_delete_queue, wifi_int_disable, wifi_int_restore,
+    wifi_malloc, wifi_reset_mac, wifi_thread_semphr_get, wifi_zalloc, zalloc_internal,
 };
 #[cfg(feature = "sys-logs")]
 use super::os_adapter::{log_write, log_writev};
@@ -110,7 +110,7 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _nvs_set_blob: None,                          // 304 Some(nvs_set_blob),
     _nvs_get_blob: None,                          // 308 Some(nvs_get_blob),
     _nvs_erase_key: None,                         // 312 Some(nvs_erase_key),
-    _get_random: None,                            // 316 Some(get_random),
+    _get_random: Some(get_random),                // 316
     _get_time: None,                              // 320 Some(get_time),
     _random: Some(random),                        // 324
 

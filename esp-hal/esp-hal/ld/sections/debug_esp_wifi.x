@@ -6,12 +6,28 @@
         *(.text.*esp_wifi*common_adapter*semphr_delete*)
         *(.text.*esp_wifi*common_adapter*read_mac*)
         *(.text.*esp_wifi*common_adapter*chip_specific*enable_wifi_power_domain*)
+        *(.text.*esp_wifi*common_adapter*chip_specific*phy_enable*)
         *(.text.puts)
         *(.text.ets_timer_disarm)
         *(.text.ets_timer_setfn)
 
-        /* compat */
-        *(.text.strnlen)
+
+        *(.text.*esp_wifi*compat*common*sem_take*)
+        *(.text.*esp_wifi*compat*common*receive_queued*)
+        *(.text.*strnlen)
+
+        /* common_adapter */
+        *(.text.*strrchr)
+        *(.text.sleep)
+        *(.text.*__assert_func)
+        *(.text.usleep)
+        *(.text.ets_timer_done)
+        *(.text.ets_timer_arm)
+        *(.text.ets_timer_arm_us)
+        *(.text.gettimeofday)
+        *(.text.esp_fill_random)
+
+        *(.text.*esp_wifi*compat*timer_compat*TimerQueue*remove*)
 
         *(.text.*esp_wifi*preempt*enable*)
         *(.text.*esp_wifi*preempt*yield_task*)
@@ -41,21 +57,65 @@
         *(.text.*esp_wifi*wifi*os_adapter*task_get_current_task*)
         *(.text.*esp_wifi*wifi*os_adapter*task_get_max_priority*)
         *(.text.*esp_wifi*wifi*os_adapter*log_timestamp*)
+        *(.text.esp_wifi_allocate_from_internal_ram)
         *(.text.*esp_wifi*wifi*os_adapter*wifi_malloc*)
+        *(.text.calloc)
         *(.text.*esp_wifi*wifi*os_adapter*wifi_calloc*)
         *(.text.*esp_wifi*wifi*os_adapter*wifi_zalloc*)
+        *(.text.free)
+        *(.text.*esp_wifi*wifi*os_adapter*free*)
         *(.text.*esp_wifi*wifi*os_adapter*wifi_create_queue*)
         *(.text.*esp_wifi*wifi*os_adapter*wifi_delete_queue*)
         *(.text.*esp_wifi*wifi*os_adapter*coex_schm_register_cb_wrapper*)
         *(.text.*esp_wifi*wifi*os_adapter*coex_register_start_cb*)
+        *(.text.*esp_wifi*wifi*os_adapter*os_adapter_chip_specific7set_isr*)
+        *(.text.*esp_wifi*wifi*os_adapter*env_is_chip*)
+        *(.text.*esp_wifi*wifi*os_adapter*set_intr*)
+        *(.text.*esp_wifi*wifi*os_adapter*phy_update_country_info*)
+        *(.text.*esp_wifi*wifi*os_adapter*wifi_clock_enable*)
+        *(.text.*esp_wifi*wifi*os_adapter*coex_enable*)
+        *(.text.*esp_wifi*wifi*os_adapter*coex_wifi_request*)
+        *(.text.*esp_wifi*wifi*os_adapter*coex_wifi_release*)
+        *(.text.*esp_wifi*wifi*os_adapter*coex_wifi_channel_set*)
+        *(.text.*esp_wifi*wifi*os_adapter*coex_pti_get*)
+        *(.text.*esp_wifi*wifi*os_adapter*coex_schm_status_bit_set*)
+        *(.text.*esp_wifi*wifi*os_adapter*coex_schm_curr_period_get*)
+        *(.text.*esp_wifi*wifi*os_adapter*coex_schm_flexible_period_set*)
+        *(.text.*esp_wifi*wifi*os_adapter*slowclk_cal_get*)
+        *(.text.*esp_wifi*wifi*os_adapter*ints_on*)
+        *(.text.*esp_wifi*wifi*os_adapter*task_yield_from_isr*)
+        *(.text.*esp_wifi*wifi*os_adapter*event_post*)
+        *(.text.*esp_wifi*wifi*os_adapter*phy_enable*)
+        *(.text.*esp_wifi*wifi*os_adapter*wifi_reset_mac*)
+        *(.text.*esp_wifi*wifi*os_adapter*get_random*)
+        *(.text.esp_timer_get_time)
 
-        *(.text.*esp_wifi*wifi*WifiDevice*mac_address*)
+        *(.text.*esp_wifi*wifi*wifi_start*)
+        *(.text.*esp_wifi*wifi*recv_cb_sta*)
+        *(.text.*esp_wifi*wifi*recv_cb_ap*)
+        *(.text.*esp_wifi*wifi*apply_ap_config*)
+        *(.text.*esp_wifi*wifi*apply_sta_config*)
+
+        *(.text.*esp_wifi*wifi*WifiController*set_configuration*)
+        *(.text.*esp_wifi*wifi*WifiController*connect_impl*)
+        *(.text.*esp_wifi*wifi*WifiController*mode*)
+
+        *(.text.*esp_wifi*wifi*WifiEventFuture*Future*)
+        *(.text.*esp_wifi*wifi*MultiWifiEventFuture*Future*)
+
         *(.text.*esp_wifi*wifi*embassy*impl*embassy_net_driver*)
+        *(.text.*esp_wifi*wifi*impl*num_traits*FromPrimitive*InternalWifiError*)
+        *(.text.*esp_wifi*wifi*AccessPointConfiguration*Default*)
+        *(.text.*esp_wifi*wifi*WifiMode*current*)
+        *(.text.*esp_wifi*wifi*state*ap_state*)
+        *(.text.*esp_wifi*wifi*event*dispatch_event_handler*)
+
+        *(.text.WIFI_MAC)
+        *(.text.WIFI_PWR)
 
         *(.text.*drop_in_place*esp_wifi*compat*timer_compat*Timer*)
 
         /* esp-wifi-sys */
-        *(.text.net80211_printf)    /* phy_printf, pp_printf */
-
+        *(.text.net80211_printf)    /* phy_printf, pp_printf */        
 
     } > ROTEXT
