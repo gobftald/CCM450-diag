@@ -9,6 +9,8 @@ console = { path = "../../console" }
 defmt = { version = "0.3.10", optional = true, features = ["ip_in_core"] }
 allocator-api2 = { path = "../../allocator-api2", features = ["alloc"] }
 managed = { path = "../managed", default-features = false }
+byteorder = { version = "1.0", default-features = false }
+bitflags = { version = "1.0", default-features = false }
 
 [features]
 alloc = ["managed/alloc", "defmt?/alloc"]
@@ -21,11 +23,20 @@ alloc = ["managed/alloc", "defmt?/alloc"]
 "multicast" = []
 
 "socket" = []
+"socket-udp" = ["socket"]
+"socket-icmp" = ["socket"]
 "socket-dhcpv4" = ["socket", "medium-ethernet", "proto-dhcpv4"]
+
+"packetmeta-id" = []
 
 "async" = []
 
-default = [ "medium-ethernet", "proto-ipv4", "proto-dhcpv4", "socket-dhcpv4", "async" ]
+default = [
+    "medium-ethernet",
+    "proto-ipv4", "proto-dhcpv4",
+    "socket-udp", "socket-dhcpv4", "socket-icmp",
+    "async", "packetmeta-id",
+]
 
 # Private features
 # Features starting with "_" are considered private. They should not be enabled by

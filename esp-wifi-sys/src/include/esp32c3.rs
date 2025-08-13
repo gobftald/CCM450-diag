@@ -1220,6 +1220,42 @@ unsafe extern "C" {
     pub fn esp_wifi_init_internal(config: *const wifi_init_config_t) -> esp_err_t;
 }
 
+// 7181
+unsafe extern "C" {
+    /// @brief  free the rx buffer which allocated by wifi driver
+    ///
+    /// @param  void* buffer: rx buffer pointer
+    pub fn esp_wifi_internal_free_rx_buffer(buffer: *mut crate::c_types::c_void);
+}
+
+// 7185
+unsafe extern "C" {
+    /// @brief  transmit the buffer via wifi driver
+    ///
+    /// This API makes a copy of the input buffer and then forwards the buffer
+    /// copy to WiFi driver.\n\n @param  wifi_interface_t wifi_if : wifi interface id
+    ///
+    /// @param  void *buffer : the buffer to be transmit
+    /// @param  uint16_t len : the length of buffer
+    ///
+    /// @return
+    ///     - ESP_OK  : Successfully transmit the buffer to wifi driver
+    ///     - ESP_ERR_NO_MEM: out of memory
+    ///     - ESP_ERR_INVALID_ARG: invalid argumen
+    ///     - ESP_ERR_WIFI_IF : WiFi interface is invalid
+    ///     - ESP_ERR_WIFI_CONN : WiFi interface is not created, e.g. send the data to STA while WiFi mode is AP mode
+    ///     - ESP_ERR_WIFI_NOT_STARTED : WiFi is not started
+    ///     - ESP_ERR_WIFI_STATE : WiFi internal state is not ready, e.g. WiFi is not started
+    ///     - ESP_ERR_WIFI_NOT_ASSOC : WiFi is not associated
+    ///     - ESP_ERR_WIFI_TX_DISALLOW : WiFi TX is disallowed, e.g. WiFi hasn't pass the authentication
+    ///     - ESP_ERR_WIFI_POST : caller fails to post event to WiFi task
+    pub fn esp_wifi_internal_tx(
+        wifi_if: wifi_interface_t,
+        buffer: *mut crate::c_types::c_void,
+        len: u16,
+    ) -> crate::c_types::c_int;
+}
+
 /// @brief     The WiFi RX callback function
 ///            Each time the WiFi need to forward the packets to high layer, the callback function
 ///            will be called

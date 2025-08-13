@@ -4,9 +4,6 @@ The `iface` module deals with the *network interfaces*. It filters incoming fram
 provides lookup and caching of hardware addresses, and handles management packets.
 */
 
-// 7
-mod fragmentation;
-
 // 8
 mod interface;
 
@@ -19,8 +16,11 @@ mod route;
 mod socket_meta;
 mod socket_set;
 
+// 17
+mod packet;
+
 // 21
-pub use self::interface::{Config, Interface};
+pub use self::interface::{Config, Interface, InterfaceInner as Context};
 
 // 25
 pub use self::route::Routes;

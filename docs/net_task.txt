@@ -1,0 +1,918 @@
+// main.rs
+#[embassy_executor::task(pool_size = 2)]
+async fn net_task(mut runner: embassy_net::Runner<'static, esp_wifi::wifi::WifiDevice<'static>>) {
+                                                // it is where we put WifiDevice as Driver
+                                                // this will go into DriverAdapter's inner
+    runner.run().await
+}
+
+// Users/piv/esp/ccm-diag/embassy/embassy-net/src/lib.rs
+pub struct Runner<'d, D: Driver> {
+    driver: D,
+    stack: Stack<'d>,
+}
+
+// esp-hal/esp-wifi/src/wifi/mod.rs
+/// A wifi device implementing smoltcp's Device trait.
+pub struct WifiDevice<'d> {
+    _phantom: PhantomData<&'d ()>,
+    mode: WifiDeviceMode,
+}
+
+// esp-hal/esp-wifi/src/wifi/mod.rs
+pub enum WifiDeviceMode {
+    Sta,
+    Ap,
+}
+
+// embassy/embassy-net/src/lib.rs
+/// Network stack handle
+pub struct Stack<'d> {
+    inner: &'d RefCell<Inner>,
+}
+
+// embassy/embassy-net/src/lib.rs
+pub(crate) struct Inner {
+    pub(crate) sockets: SocketSet<'static>, // Lifetime type-erased.
+    pub(crate) iface: Interface,
+    /// Waker used for triggering polls.
+    pub(crate) waker: WakerRegistration,
+    /// Waker used for waiting for link up or config up.
+    state_waker: WakerRegistration,
+    hardware_address: HardwareAddress,
+    next_local_port: u16,
+    link_up: bool,
+    #[cfg(feature = "proto-ipv4")]
+    static_v4: Option<StaticConfigV4>,
+    #[cfg(feature = "dhcpv4")]
+    dhcp_socket: Option<SocketHandle>,
+}
+
+// sof Inner.sockets
+
+// smoltcp/smoltcp/src/iface/socket_set.rs
+/// An extensible set of sockets.
+pub struct SocketSet<'a> {
+    sockets: ManagedSlice<'a, SocketStorage<'a>>,
+}
+
+// smoltcp/managed/src/slice.rs
+/// This enum can be used to represent exclusive access to slices of objects.
+pub enum ManagedSlice<'a, T: 'a> {
+    /// Borrowed variant.
+    Borrowed(&'a mut [T]),
+    /// Owned variant, only available with the `std` or `alloc` feature enabled.
+    #[cfg(any(feature = "std", feature = "alloc"))]
+    Owned(Vec<T>),
+}
+
+/// smoltcp/smoltcp/src/iface/socket_set.rs
+pub struct SocketStorage<'a> {
+    inner: Option<Item<'a>>,
+}
+
+// smoltcp/smoltcp/src/iface/socket_set.rs
+/// An item of a socket set.
+pub(crate) struct Item<'a> {
+    pub(crate) meta: Meta,
+    pub(crate) socket: Socket<'a>,
+}
+
+// smoltcp/smoltcp/src/iface/socket_meta.rs
+/// Network socket metadata.
+pub(crate) struct Meta {
+    /// Handle of this socket within its enclosing `SocketSet`.
+    /// Mainly useful for debug output.
+    pub(crate) handle: SocketHandle,
+    /// See [NeighborState](struct.NeighborState.html).
+    neighbor_state: NeighborState,
+}
+
+// smoltcp/smoltcp/src/iface/socket_set.rs
+/// A handle, identifying a socket in an Interface.
+pub struct SocketHandle(usize);
+
+// smoltcp/smoltcp/src/iface/socket_meta.rs
+/// This enum tracks whether the socket should be polled based on the neighbor
+/// it is going to send packets to.
+enum NeighborState {
+    /// Socket can be polled immediately.
+    #[default]
+    Active,
+    /// Socket should not be polled until either `silent_until` passes or
+    /// `neighbor` appears in the neighbor cache.
+    Waiting {
+        neighbor: IpAddress,
+        silent_until: Instant,
+    },
+}
+
+// smoltcp/smoltcp/src/socket/mod.rs
+/// A network socket.
+///
+/// This enumeration abstracts the various types of sockets based on the IP protocol.
+/// To downcast a `Socket` value to a concrete socket, use the [AnySocket] trait,
+/// e.g. to get `udp::Socket`, call `udp::Socket::downcast(socket)`.
+///
+/// It is usually more convenient to use [SocketSet::get] instead.
+pub enum Socket<'a> {
+    //#[cfg(feature = "socket-raw")]    // don't implement yet
+    //Raw(raw::Socket<'a>),
+    //#[cfg(feature = "socket-icmp")]   // first we implement this for dhcp
+    //Icmp(icmp::Socket<'a>),
+    //#[cfg(feature = "socket-udp")]    // and this also for dhcp
+    //Udp(udp::Socket<'a>),
+    //#[cfg(feature = "socket-tcp")]    // don't implement yet
+    //Tcp(tcp::Socket<'a>),
+    #[cfg(feature = "socket-dhcpv4")]   // we implement this
+    Dhcpv4(dhcpv4::Socket<'a>),
+    //#[cfg(feature = "socket-dns")]    // don't implement yet
+    //Dns(dns::Socket<'a>),
+}
+
+// smoltcp/smoltcp/src/socket/icmp.rs
+pub struct Socket<'a> {
+    rx_buffer: PacketBuffer<'a>,
+    tx_buffer: PacketBuffer<'a>,
+    /// The endpoint this socket is communicating with
+    endpoint: Endpoint,
+    /// The time-to-live (IPv4) or hop limit (IPv6) value used in outgoing packets.
+    hop_limit: Option<u8>,
+    #[cfg(feature = "async")]
+    rx_waker: WakerRegistration,
+    #[cfg(feature = "async")]
+    tx_waker: WakerRegistration,
+}
+
+// smoltcp/smoltcp/src/socket/udp.rs
+pub struct Socket<'a> {
+    endpoint: IpListenEndpoint,
+    rx_buffer: PacketBuffer<'a>,
+    tx_buffer: PacketBuffer<'a>,
+    /// The time-to-live (IPv4) or hop limit (IPv6) value used in outgoing packets.
+    hop_limit: Option<u8>,
+    #[cfg(feature = "async")]
+    rx_waker: WakerRegistration,
+    #[cfg(feature = "async")]
+    tx_waker: WakerRegistration,
+}
+
+// smoltcp/smoltcp/src/socket/dhcpv4.rs
+pub struct Socket<'a> {
+    /// State of the DHCP client.
+    state: ClientState,
+    /// Set to true on config/state change, cleared back to false by the `config` function.
+    config_changed: bool,
+    /// xid of the last sent message.
+    transaction_id: u32,
+
+    /// Max lease duration. If set, it sets a maximum cap to the server-provided lease duration.
+    /// Useful to react faster to IP configuration changes and to test whether renews work correctly.
+    max_lease_duration: Option<Duration>,
+
+    retry_config: RetryConfig,
+
+    /// Ignore NAKs.
+    ignore_naks: bool,
+
+    /// Server port config
+    pub(crate) server_port: u16,
+
+    /// Client port config
+    pub(crate) client_port: u16,
+
+    /// A buffer contains options additional to be added to outgoing DHCP
+    /// packets.
+    outgoing_options: &'a [DhcpOption<'a>],
+    /// A buffer containing all requested parameters.
+    parameter_request_list: Option<&'a [u8]>,
+
+    /// Incoming DHCP packets are copied into this buffer, overwriting the previous.
+    receive_packet_buffer: Option<&'a mut [u8]>,
+
+    /// Waker registration
+    #[cfg(feature = "async")]
+    waker: WakerRegistration,
+}
+
+// smoltcp/smoltcp/src/storage/packet_buffer.rs
+pub struct PacketBuffer<'a, H: 'a> {
+    metadata_ring: RingBuffer<'a, PacketMetadata<H>>,
+    payload_ring: RingBuffer<'a, u8>,
+}
+
+// smoltcp/smoltcp/src/storage/ring_buffer.rs
+pub struct RingBuffer<'a, T: 'a> {
+    storage: ManagedSlice<'a, T>,                       // in smoltcp/managed
+    read_at: usize,
+    length: usize,
+}
+
+// smoltcp/smoltcp/src/storage/packet_buffer.rs
+pub struct PacketMetadata<H> {
+    size: usize,
+    header: Option<H>,
+}
+
+//sof icmp socket
+
+// smoltcp/smoltcp/src/socket/icmp.rs
+/// An ICMP packet ring buffer.
+pub type PacketBuffer<'a> = crate::storage::PacketBuffer<'a, IpAddress>;
+
+// smoltcp/smoltcp/src/socket/icmp.rs
+/// Type of endpoint to bind the ICMP socket to
+pub enum Endpoint {
+    #[default]
+    Unspecified,
+    Ident(u16),
+    Udp(IpListenEndpoint),
+}
+
+// smoltcp/smoltcp/src/wire/ip.rs
+/// An internet endpoint address for listening.
+///
+/// In contrast with [`Endpoint`], `ListenEndpoint` allows not specifying the address,
+/// in order to listen on a given port at all our addresses.
+pub struct ListenEndpoint {         // since in ip -> IpListenEndpoint
+    pub addr: Option<Address>,
+    pub port: u16,
+}
+
+// embassy/embassy-sync/src/waitqueue/waker_registration.rs
+use core::task::Waker;
+pub struct WakerRegistration {
+    waker: Option<Waker>,
+}
+
+// eof icmp socket
+
+// sof udp socket
+
+// smoltcp/smoltcp/src/socket/udp.rs
+pub type PacketMetadata = crate::storage::PacketMetadata<UdpMetadata>;
+
+pub struct UdpMetadata {
+    /// The IP endpoint from which an incoming datagram was received, or to which an outgoing
+    /// datagram will be sent.
+    pub endpoint: IpEndpoint,   // see at socket icmp Endpoint (dor ip it's defined as IpEndpoint)
+    /// The IP address to which an incoming datagram was sent, or from which an outgoing datagram
+    /// will be sent. Incoming datagrams always have this set. On outgoing datagrams, if it is not
+    /// set, and the socket is not bound to a single address anyway, a suitable address will be
+    /// determined using the algorithms of RFC 6724 (candidate source address selection) or some
+    /// heuristic (for IPv4).
+    pub local_address: Option<IpAddress>,   // Address defined as/for ip
+    pub meta: PacketMeta,
+}
+
+// smoltcp/smoltcp/src/phy/mod.rs
+/// Metadata associated to a packet.
+pub struct PacketMeta {
+    #[cfg(feature = "packetmeta-id")]
+    pub id: u32,
+}
+
+// regarding all other fields see at icmp socket
+
+// eof udp socket
+
+// sof dhcp socket
+
+// smoltcp/smoltcp/src/socket/dhcpv4.rs
+enum ClientState {
+    /// Discovering the DHCP server
+    Discovering(DiscoverState),
+    /// Requesting an address
+    Requesting(RequestState),
+    /// Having an address, refresh it periodically.
+    Renewing(RenewState),
+}
+
+// smoltcp/smoltcp/src/socket/dhcpv4.rs
+struct DiscoverState {
+    /// When to send next request
+    retry_at: Instant,
+}
+
+// smoltcp/smoltcp/src/socket/dhcpv4.rs
+struct RequestState {
+    /// When to send next request
+    retry_at: Instant,
+    /// How many retries have been done
+    retry: u16,
+    /// Server we're trying to request from
+    server: ServerInfo,
+    /// IP address that we're trying to request.
+    requested_ip: Ipv4Address,
+}
+
+// smoltcp/smoltcp/src/socket/dhcpv4.rs
+/// Information on how to reach a DHCP server.
+pub struct ServerInfo {
+    /// IP address to use as destination in outgoing packets
+    pub address: Ipv4Address,
+    /// Server identifier to use in outgoing packets. Usually equal to server_address,
+    /// but may differ in some situations (eg DHCP relays)
+    pub identifier: Ipv4Address,
+}
+
+// smoltcp/smoltcp/src/socket/dhcpv4.rs
+struct RenewState {
+    /// Active network config
+    config: Config<'static>,
+
+    /// Renew timer. When reached, we will start attempting
+    /// to renew this lease with the DHCP server.
+    ///
+    /// Must be less or equal than `rebind_at`.
+    renew_at: Instant,
+
+    /// Rebind timer. When reached, we will start broadcasting to renew
+    /// this lease with any DHCP server.
+    ///
+    /// Must be greater than or equal to `renew_at`, and less than or
+    /// equal to `expires_at`.
+    rebind_at: Instant,
+
+    /// Whether the T2 time has elapsed
+    rebinding: bool,
+
+    /// Expiration timer. When reached, this lease is no longer valid, so it must be
+    /// thrown away and the ethernet interface deconfigured.
+    expires_at: Instant,
+}
+
+// smoltcp/smoltcp/src/socket/dhcpv4.rs
+/// IPv4 configuration data provided by the DHCP server.
+pub struct Config<'a> {
+    /// Information on how to reach the DHCP server that responded with DHCP
+    /// configuration.
+    pub server: ServerInfo,
+    /// IP address
+    pub address: Ipv4Cidr,
+    /// Router address, also known as default gateway. Does not necessarily
+    /// match the DHCP server's address.
+    pub router: Option<Ipv4Address>,
+    /// DNS servers
+    // DHCP_MAX_DNS_SERVER_COUNT will be used when 'push'
+    //pub dns_servers: Vec<Ipv4Address, DHCP_MAX_DNS_SERVER_COUNT>,
+    pub dns_servers: Vec<Ipv4Address>,
+    /// Received DHCP packet
+    pub packet: Option<DhcpPacket<&'a [u8]>>,
+}
+
+/// A read/write wrapper around a Dynamic Host Configuration Protocol packet buffer.
+pub struct Packet<T: AsRef<[u8]>> {
+    buffer: T,
+}
+
+// smoltcp/smoltcp/src/socket/dhcpv4.rs
+pub struct RetryConfig {
+    pub discover_timeout: Duration,
+    /// The REQUEST timeout doubles every 2 tries.
+    pub initial_request_timeout: Duration,
+    pub request_retries: u16,
+    pub min_renew_timeout: Duration,
+    /// An upper bound on how long to wait between retrying a renew or rebind.
+    ///
+    /// Set this to [`Duration::MAX`] if you don't want to impose an upper bound.
+    pub max_renew_timeout: Duration,
+}
+
+// smoltcp/smoltcp/src/socket/dhcpv4.rs
+pub struct DhcpOption<'a> {
+    pub kind: u8,
+    pub data: &'a [u8],
+}
+
+// eof dhcp socket
+
+// eof Inner.SocketSet
+
+// sof Interface / InterfaceInner
+
+// smoltcp/smoltcp/src/iface/interface/mod.rs
+pub struct Interface {
+    pub(crate) inner: InterfaceInner,
+    fragments: FragmentsBuffer,         // we don't use it
+    fragmenter: Fragmenter,             // we don't use it
+}
+
+// smoltcp/smoltcp/src/iface/interface/mod.rs
+/// The device independent part of an Ethernet network interface.
+pub struct InterfaceInner {
+    caps: DeviceCapabilities,
+    now: Instant,
+    rand: Rand,
+
+    #[cfg(feature = "medium-ethernet")]
+    neighbor_cache: NeighborCache,
+    hardware_addr: HardwareAddress,
+
+    ip_addrs: Vec<IpCidr>,
+    any_ip: bool,
+    routes: Routes,
+}
+
+// smoltcp/smoltcp/src/phy/mod.rs
+/// A description of device capabilities.
+pub struct DeviceCapabilities {
+    /// Medium of the device.
+    ///
+    /// This indicates what kind of packet the sent/received bytes are, and determines
+    /// some behaviors of Interface. For example, ARP/NDISC address resolution is only done
+    /// for Ethernet mediums.
+    pub medium: Medium,
+
+    /// Maximum transmission unit.
+    ///
+    /// The network device is unable to send or receive frames larger than the value returned
+    /// by this function.
+    ///
+    /// For Ethernet devices, this is the maximum Ethernet frame size, including the Ethernet header (14 octets), but
+    /// *not* including the Ethernet FCS (4 octets). Therefore, Ethernet MTU = IP MTU + 14.
+    ///
+    /// Note that in Linux and other OSes, "MTU" is the IP MTU, not the Ethernet MTU, even for Ethernet
+    /// devices. This is a common source of confusion.
+    ///
+    /// Most common IP MTU is 1500. Minimum is 576 (for IPv4) or 1280 (for IPv6). Maximum is 9216 octets.
+    pub max_transmission_unit: usize,
+
+    /// Maximum burst size, in terms of MTU.
+    ///
+    /// The network device is unable to send or receive bursts large than the value returned
+    /// by this function.
+    ///
+    /// If `None`, there is no fixed limit on burst size, e.g. if network buffers are
+    /// dynamically allocated.
+    pub max_burst_size: Option<usize>,
+
+    /// Checksum behavior.
+    ///
+    /// If the network device is capable of verifying or computing checksums for some protocols,
+    /// it can request that the stack not do so in software to improve performance.
+    pub checksum: ChecksumCapabilities,
+}
+
+// smoltcp/smoltcp/src/phy/mod.rs
+/// Type of medium of a device.
+pub enum Medium {
+    /// Ethernet medium. Devices of this type send and receive Ethernet frames,
+    /// and interfaces using it must do neighbor discovery via ARP or NDISC.
+    ///
+    /// Examples of devices of this type are Ethernet, WiFi (802.11), Linux `tap`, and VPNs in tap (layer 2) mode.
+    #[cfg(feature = "medium-ethernet")]
+    Ethernet,
+    /*
+    /// IP medium. Devices of this type send and receive IP frames, without an
+    /// Ethernet header. MAC addresses are not used, and no neighbor discovery (ARP, NDISC) is done.
+    ///
+    /// Examples of devices of this type are the Linux `tun`, PPP interfaces, VPNs in tun (layer 3) mode.
+    #[cfg(feature = "medium-ip")]
+    Ip,
+
+    #[cfg(feature = "medium-ieee802154")]
+    Ieee802154,
+    */
+}
+
+// smoltcp/smoltcp/src/phy/mod.rs
+/// A description of checksum behavior for every supported protocol.
+pub struct ChecksumCapabilities {
+    pub ipv4: Checksum,
+    pub udp: Checksum,
+    //pub tcp: Checksum,
+    #[cfg(feature = "proto-ipv4")]
+    pub icmpv4: Checksum,
+    #[cfg(feature = "proto-ipv6")]
+    pub icmpv6: Checksum,
+}
+
+// smoltcp/smoltcp/src/phy/mod.rs
+/// A description of checksum behavior for a particular protocol.
+pub enum Checksum {
+    /// Verify checksum when receiving and compute checksum when sending.
+    #[default]
+    Both,
+    /// Verify checksum when receiving.
+    Rx,
+    /// Compute checksum before sending.
+    Tx,
+    /// Ignore checksum completely.
+    None,
+}
+
+// smoltcp/smoltcp/src/iface/interface/mod.rs
+use super::neighbor::Cache as NeighborCache;
+
+// smoltcp/smoltcp/src/iface/neighbor.rs
+/// A neighbor cache backed by a map.
+pub struct Cache {
+    storage: LinearMap<IpAddress, Neighbor, IFACE_NEIGHBOR_CACHE_COUNT>,
+    silent_until: Instant,
+}
+
+// smoltcp/smoltcp/src/iface/interface/mod.rs
+pub mod config {
+    // 140
+    pub const IFACE_MAX_ADDR_COUNT: usize = 8;
+    // 142
+    pub const IFACE_MAX_ROUTE_COUNT: usize = 4;
+    // 144
+    pub const IFACE_NEIGHBOR_CACHE_COUNT: usize = 3;
+}
+
+/// A cached neighbor.
+///
+/// A neighbor mapping translates from a protocol address (ipv4) to a hardware address,
+/// and contains the timestamp past which the mapping should be discarded.
+pub struct Neighbor {
+    hardware_addr: HardwareAddress,
+    expires_at: Instant,
+}
+
+// smoltcp/smoltcp/src/iface/route.rs
+/// A routing table.
+pub struct Routes {
+    //storage: Vec<Route, IFACE_MAX_ROUTE_COUNT>,
+    storage: Vec<Route>,
+}
+
+// smoltcp/smoltcp/src/iface/route.rs
+/// A prefix of addresses that should be routed via a router
+pub struct Route {
+    pub cidr: IpCidr,
+    pub via_router: IpAddress,
+    /// `None` means "forever".
+    pub preferred_until: Option<Instant>,
+    /// `None` means "forever".
+    pub expires_at: Option<Instant>,
+}
+
+// eof Interface / InterfaceInner
+
+// back to 'runner.run().await'
+
+// embassy/embassy-net/src/lib.rs
+impl<'d, D: Driver> Runner<'d, D>
+    /// Run the network stack.
+    ///
+    /// You must call this in a background task, to process network events.
+    pub async fn run(&mut self) -> ! {
+        poll_fn(|cx| {
+            self.stack.with_mut(|i| i.poll(cx, &mut self.driver));  // here we transfer diver to Inner's poll which will
+                                                                    // be put into DriverAdapter then smoldev as a device
+            Poll::<()>::Pending
+        })
+        .await;                         // here we are waiting for Inner::poll's Timer's ready, see below
+        unreachable!()
+    }
+
+// embassy/embassy-net/src/lib.rs
+impl<'d> Stack<'d> 
+    fn with_mut<R>(&self, f: impl FnOnce(&mut Inner) -> R) -> R {
+        f(&mut self.inner.borrow_mut())
+    }
+
+// embassy/embassy-net/src/lib.rs
+i: Inner inside Stack
+
+impl Inner 
+    fn poll<D: Driver>(&mut self, cx: &mut Context<'_>, driver: &mut D) {
+        self.waker.register(cx.waker());
+
+        let (_hardware_addr, medium) = to_smoltcp_hardware_address(driver.hardware_address());
+
+        self.iface.set_hardware_addr(_hardware_addr);
+
+        let timestamp = instant_to_smoltcp(Instant::now());
+        let mut smoldev = DriverAdapter {
+            cx: Some(cx),
+            inner: driver,
+            medium,
+        };
+        self.iface.poll(timestamp, &mut smoldev, &mut self.sockets);            // !!!! interface poll
+
+        // Update link up
+        let old_link_up = self.link_up;                             // old state
+        self.link_up = driver.link_state(cx) == LinkState::Up;      // current state
+
+        // Print when changed
+        if old_link_up != self.link_up {
+            info!("link_up = {:?}", self.link_up);
+            self.state_waker.wake();                                // kick off state waker
+        }
+
+        #[cfg(feature = "dhcpv4")]
+        if let Some(dhcp_handle) = self.dhcp_socket {
+            let socket = self.sockets.get_mut::<dhcpv4::Socket>(dhcp_handle);
+
+            let configure = if self.link_up {                       // current state is up
+                if old_link_up != self.link_up {                    // old state was down
+                    socket.reset();                                 // drop/clear all current sockets
+                }
+                match socket.poll() {                               // !!! dhcp socket poll (if we get from down to up)
+                    None => false,                                  // don't call apply_static_config
+                    Some(dhcpv4::Event::Deconfigured) => {          // Configuration has been lost (e.g. the lease has expired)
+                        self.static_v4 = None;
+                        true                                        // needs apply_static_config to set static_v4 = None
+                    }
+                    Some(dhcpv4::Event::Configured(config)) => {
+                        self.static_v4 = Some(StaticConfigV4 {
+                            address: config.address,
+                            gateway: config.router,
+                            dns_servers: config.dns_servers,
+                        });
+                        true                                        // needs apply_static_config to set static_v4
+                                                                    // to the configured values
+                    }
+                }
+            } else if old_link_up {                                 // old state was up and current state is down
+                socket.reset();                                     // drop/clear all current sockets
+                self.static_v4 = None;
+                true                                                // needs apply_static_config to set static_v4
+            } else {
+                false                                               // otherwise don't call apply_static_config
+            };
+            if configure {
+                self.apply_static_config()
+            }
+        }
+
+        if let Some(poll_at) = self.iface.poll_at(timestamp, &mut self.sockets) {   // get optimal poll time
+            let t = pin!(Timer::at(instant_from_smoltcp(poll_at)));         // make a future
+            
+            if t.poll(cx).is_ready() {                    // it is the 'Ready', the Runner's 'async fn run' waits for
+                cx.waker().wake_by_ref();
+            }
+        }
+    }
+
+// eof 'runner.run().await'
+
+
+
+
+
+
+// sof smoltcp
+//self.iface.poll(timestamp, &mut smoldev, &mut self.sockets); // THE call from (Stack.)Inner::poll
+
+// smoltcp/smoltcp/src/iface/interface/mod.rs
+impl Interface    
+    /// Transmit packets queued in the sockets, and receive packets queued
+    /// in the device.
+    ///
+    /// This function returns a value indicating whether the state of any socket
+    /// might have changed.
+    pub fn poll(
+        &mut self,
+        timestamp: Instant,
+        device: &mut (impl Device + ?Sized),        // DriverAdapter implements Device and its 'inner' implements Driver
+                                                    // which is WifiDevice
+        sockets: &mut SocketSet<'_>,
+    ) -> PollResult {
+        let mut res = PollResult::None;
+
+        // Process ingress while there's packets available.
+        loop {
+            match self.socket_ingress(device, sockets) {
+                PollIngressSingleResult::None => break,
+                PollIngressSingleResult::PacketProcessed => {}
+                PollIngressSingleResult::SocketStateChanged => res = PollResult::SocketStateChanged,
+            }
+        }
+
+        // Process egress.
+        match self.poll_egress(timestamp, device, sockets) {
+            PollResult::None => {}
+            PollResult::SocketStateChanged => res = PollResult::SocketStateChanged,
+        }
+
+        res
+    }
+
+smoltcp/smoltcp/src/phy/mod.rs
+pub trait Device {
+    type RxToken<'a>: RxToken
+    where
+        Self: 'a;
+    type TxToken<'a>: TxToken
+    where
+        Self: 'a;
+
+    /// Construct a token pair consisting of one receive token and one transmit token.
+    ///
+    /// The additional transmit token makes it possible to generate a reply packet based
+    /// on the contents of the received packet. For example, this makes it possible to
+    /// handle arbitrarily large ICMP echo ("ping") requests, where the all received bytes
+    /// need to be sent back, without heap allocation.
+    ///
+    /// The timestamp must be a number of milliseconds, monotonically increasing since an
+    /// arbitrary moment in time, such as system startup.
+    // 357
+    fn receive(&mut self, timestamp: Instant) -> Option<(Self::RxToken<'_>, Self::TxToken<'_>)>;
+
+    /// Construct a transmit token.
+    ///363
+    /// The timestamp must be a number of milliseconds, monotonically increasing since an
+    /// arbitrary moment in time, such as system startup.
+    //
+    fn transmit(&mut self, timestamp: Instant) -> Option<Self::TxToken<'_>>;
+
+    /// Get a description of device capabilities.
+    // 366
+    fn capabilities(&self) -> DeviceCapabilities;
+}
+
+// smoltcp/smoltcp/src/phy/mod.rs
+/// A token to receive a single network packet.
+pub trait RxToken {
+    /// Consumes the token to receive a single network packet.
+    ///
+    /// This method receives a packet and then calls the given closure `f` with the raw
+    /// packet bytes as argument.
+    fn consume<R, F>(self, f: F) -> R
+    where
+        F: FnOnce(&[u8]) -> R;
+
+    /// The Packet ID associated with the frame received by this [`RxToken`]
+    fn meta(&self) -> PacketMeta {
+        PacketMeta::default()
+    }
+}
+
+// smoltcp/smoltcp/src/phy/mod.rs
+/// A token to transmit a single network packet.
+pub trait TxToken {
+    /// Consumes the token to send a single network packet.
+    ///
+    /// This method constructs a transmit buffer of size `len` and calls the passed
+    /// closure `f` with a mutable reference to that buffer. The closure should construct
+    /// a valid network packet (e.g. an ethernet packet) in the buffer. When the closure
+    /// returns, the transmit buffer is sent out.
+    fn consume<R, F>(self, len: usize, f: F) -> R
+    where
+        F: FnOnce(&mut [u8]) -> R;
+
+    /// The Packet ID to be associated with the frame to be transmitted by this [`TxToken`].
+    #[allow(unused_variables)]
+    fn set_meta(&mut self, meta: PacketMeta) {}
+}
+
+// sof socket_ingress
+
+// smoltcp/smoltcp/src/iface/interface/mod.rs
+impl Interface
+    fn socket_ingress(
+        &mut self,
+        device: &mut (impl Device + ?Sized),        // DriverAdapter implements Device and its 'inner' implements Driver
+                                                    // which is WifiDevice
+        sockets: &mut SocketSet<'_>,
+    ) -> PollIngressSingleResult {
+        let Some((rx_token, tx_token)) = device.receive(self.inner.now) else {
+            return PollIngressSingleResult::None;   // first poll quit here, since we haven't receive anything yet
+        };
+
+        let rx_meta = rx_token.meta();
+        rx_token.consume(|frame| {
+            if frame.is_empty() {
+                return PollIngressSingleResult::PacketProcessed;
+            }
+
+            if let Some(packet) = self
+                .inner
+                .process_ethernet(sockets, rx_meta, frame /*, &mut self.fragments*/)
+            {
+                if let Err(err) = self
+                    .inner
+                    .dispatch(tx_token, packet /*, &mut self.fragmenter*/)
+                {
+                    net_debug!("Failed to send response: {:?}", err);
+                }
+            }
+
+            // TODO: Propagate the PollIngressSingleResult from deeper.
+            // There's many received packets that we process but can't cause sockets
+            // to change state. For example IP fragments, multicast stuff, ICMP pings
+            // if they dont't match any raw socket...
+            // We should return `PacketProcessed` for these to save the user from
+            // doing useless socket polls.
+            PollIngressSingleResult::SocketStateChanged
+        })
+    }
+
+
+// smoltcp/smoltcp/src/iface/interface/mod.rs
+impl Interface
+    pub fn poll
+        loop
+            match self.socket_ingress(device, sockets) {
+                PollIngressSingleResult::None => break,
+                PollIngressSingleResult::PacketProcessed => {}
+                PollIngressSingleResult::SocketStateChanged => res = PollResult::SocketStateChanged,
+
+            // smoltcp/smoltcp/src/iface/interface/mod.rs
+            fn socket_ingress
+                let Some((rx_token, tx_token)) = device.receive(self.inner.now) else
+                    return PollIngressSingleResult::None;   // first poll quit here from loop,
+                                                            // since we haven't receive anything yet
+                                                            // -> poll_egress
+
+            match self.poll_egress(timestamp, device, sockets)
+                PollResult::None => {}
+                PollResult::SocketStateChanged => res = PollResult::SocketStateChanged,
+
+            // smoltcp/smoltcp/src/iface/interface/mod.rs
+            pub fn poll_egress
+                self.socket_egress(device, sockets)
+                fn socket_egress
+                    device.capabilities()
+                    for item in sockets.items_mut().meta.egress_permitted(self.inner.now, |ip_addr| self.inner.has_neighbor(&ip_addr))
+                        // first time it returns true for all sockets since NeighborState is default Active
+                        // now we are only one socket: dhcpv4
+                    let mut respond =
+                        neighbor_addr = Some(response.ip_repr().dst_addr())
+                        device.transmit(inner.now)
+                        inner.dispatch_ip(t, meta, response)
+                    let result = match &mut item.socket
+                        Socket::Dhcpv4(socket) => socket.dispatch(&mut self.inner, |inner, (ip, udp, dhcp)|
+                            respond(inner, PacketMeta::default(), Packet::new_ipv4(ip, IpPayload::Dhcpv4(udp, dhcp)),
+                                // see respond closure above
+                                inner.dispatch_ip(t, meta, response)
+                                fn dispatch_ip<Tx: TxToken>(
+                                    &mut self,
+                                    #[allow(unused_mut)] mut tx_token: Tx,
+                                    meta: PacketMeta,
+                                    packet: Packet)
+                                    packet.ip_repr()
+                                    self.caps.clone()
+                                    ip_repr.buffer_len()
+                                    EthernetFrame::<&[u8]>::buffer_len(total_len)
+                                    match self.caps.medium 
+                                        Medium::Ethernet =>
+                                            match self.lookup_hardware_addr(tx_token, &ip_repr.dst_addr())
+                                                (HardwareAddress::Ethernet(addr), tx_token) => (addr, tx_token)
+                                    let emit_ethernet = |repr: &IpRepr, tx_buffer: &mut [u8]|
+                                        self.hardware_addr.ethernet_or_panic()
+                                        frame.set_src_addr(src_addr)
+                                        frame.set_dst_addr(dst_hardware_addr)
+                                        frame.set_ethertype(EthernetProtocol::Ipv4)
+                                    let emit_ip = |repr: &IpRepr, tx_buffer: &mut [u8]|
+                                        repr.emit(&mut *tx_buffer, &self.caps.checksum)
+                                        packet.emit_payload(repr, payload, &caps)
+                                    let total_ip_len = ip_repr.buffer_len()
+                                    match &mut ip_repr
+                                        IpRepr::Ipv4(_repr) =>
+                                             tx_token.set_meta(meta)
+                                             tx_token.consume(total_len, |mut tx_buffer|
+                                                emit_ethernet(&ip_repr, tx_buffer)?
+                                                emit_ip(&ip_repr, tx_buffer)
+                                            // embassy/embassy-net/src/driver_util.rs
+                                            impl<T> phy::TxToken for TxTokenAdapter<T>
+                                                fn consume<R, F>(self, len: usize, f: F) -> R                                                                                                                        │
+                                                    where F: FnOnce(&mut [u8]) -> R,
+                                                    self.0.consume(len, |buf|
+                                                        let r = f(buf);
+                                                        trace!("embassy device tx: {:02x}", buf);
+                                                    // esp-hal/esp-wifi/src/wifi/mod.rs
+                                                    impl TxToken for WifiTxToken
+                                                        fn consume<R, F>(self, len: usize, f: F) -> R
+                                                            where F: FnOnce(&mut [u8]) -> R,
+                                                            self.consume_token(len, f)
+                                                            fn consume_token<R, F>(self, len: usize, f: F) -> R
+                                                                where F: FnOnce(&mut [u8]) -> R,
+                                                                self.mode.increase_in_flight_counter()
+                                                                static mut BUFFER: [u8; MTU] = [0u8; MTU];
+                                                                let buffer = unsafe { &mut BUFFER[..len] };
+                                                                let res = f(buffer);    // closure wit emit_ethernet
+                                                                                        // and emit_ip, see above
+                                                                esp_wifi_send_data(self.mode.interface(), buffer)
+!!! physical sending                                                esp_wifi_internal_tx
+                        .map_err(|_| EgressError::Dispatch)?; // first time we got here
+                                                              // since esp_wifi_internal_tx failed with
+                                                              // result = ESP_ERR_WIFI_NOT_STARTED
+                                                              // so in dispatch we don't get after 'emit'
+                                                              // so don't modify 'state.retry_at'
+                // socket_egress returns with PollResult::None
+                // poll_egress returns with PollResult::None
+                // Interface::poll returns with PollResult::None    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -105,7 +105,18 @@ async fn main(spawner: embassy_executor::Spawner) {
     */
 
     spawner.spawn(connection(controller)).ok();
+    spawner.spawn(net_task(sta_runner)).ok();
     spawner.spawn(run()).ok();
+
+    let sta_address = loop {
+        if let Some(config) = sta_stack.config_v4() {
+            let address = config.address.address();
+            debug!("Got IP: {}", address);
+            break address;
+        }
+        debug!("Waiting for IP...");
+        Timer::after(Duration::from_millis(500)).await;
+    };
 }
 
 #[embassy_executor::task]
@@ -142,8 +153,8 @@ async fn connection(mut controller: esp_wifi::wifi::WifiController<'static>) {
                             .await;
                         debug!("STA disconnected");
                     }
-                    Err(e) => {
-                        debug!("Failed to connect to wifi: {:?}", e);
+                    Err(_e) => {
+                        debug!("Failed to connect to wifi: {:?}", _e);
                         Timer::after(Duration::from_millis(5000)).await
                     }
                 }
@@ -154,6 +165,11 @@ async fn connection(mut controller: esp_wifi::wifi::WifiController<'static>) {
             }
         }
     }
+}
+
+#[embassy_executor::task(pool_size = 2)]
+async fn net_task(mut runner: embassy_net::Runner<'static, esp_wifi::wifi::WifiDevice<'static>>) {
+    runner.run().await
 }
 
 // cmd line

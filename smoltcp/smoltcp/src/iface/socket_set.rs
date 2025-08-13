@@ -1,6 +1,3 @@
-// 1
-use core::fmt;
-
 // 2
 use managed::ManagedSlice;
 
@@ -36,13 +33,6 @@ pub(crate) struct Item<'a> {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 // 30
 pub struct SocketHandle(usize);
-
-// 32
-impl fmt::Display for SocketHandle {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "#{}", self.0)
-    }
-}
 
 /// An extensible set of sockets.
 ///
@@ -132,5 +122,17 @@ impl<'a> SocketSet<'a> {
             Some(item) => item.socket,
             None => panic!("handle does not refer to a valid socket"),
         }
+    }
+
+    /// Iterate every socket in this set.
+    // 143
+    pub(crate) fn items(&self) -> impl Iterator<Item = &Item<'a>> + '_ {
+        self.sockets.iter().filter_map(|x| x.inner.as_ref())
+    }
+
+    /// Iterate every socket in this set.
+    // 148
+    pub(crate) fn items_mut(&mut self) -> impl Iterator<Item = &mut Item<'a>> + '_ {
+        self.sockets.iter_mut().filter_map(|x| x.inner.as_mut())
     }
 }

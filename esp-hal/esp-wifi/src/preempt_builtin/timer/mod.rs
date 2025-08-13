@@ -1,5 +1,6 @@
 use esp_hal::{
     interrupt::{InterruptHandler, Priority},
+    sync::Locked,
     time::Rate,
     trapframe::TrapFrame,
 };
@@ -19,11 +20,7 @@ use crate::TimeBase;
 const TIMESLICE_FREQUENCY: Rate = Rate::from_hz(crate::CONFIG.tick_rate_hz);
 
 // 19
-//pub(crate) static TIMER: Locked<Option<TimeBase>> = Locked::new(None);
-// The original Locked type his is largely equivalent to a `Mutex<RefCell<T>>`,
-// but accessing the inner data doesn't hold a critical section on multi-core systems.
-// So we will totally skip its 'with' function
-pub(crate) static mut TIMER: Option<TimeBase> = None;
+pub(crate) static TIMER: Locked<Option<TimeBase>> = Locked::new(None);
 
 // 22
 pub(crate) fn setup_timebase(mut timer: TimeBase) {
@@ -34,21 +31,17 @@ pub(crate) fn setup_timebase(mut timer: TimeBase) {
 
     timer.set_interrupt_handler(handler);
     unwrap!(timer.start(TIMESLICE_FREQUENCY.as_duration()));
-    //TIMER.with(|t| {
-    timer.enable_interrupt(true);
-    //t.replace(timer);
-    unsafe {
-        TIMER.replace(timer);
-    }
-    //});
+    TIMER.with(|t| {
+        timer.enable_interrupt(true);
+        t.replace(timer);
+    });
 }
 
 // 35
 pub(crate) fn clear_timer_interrupt() {
-    //TIMER.with(|timer| {
-    //unwrap!(timer.as_mut()).clear_interrupt();
-    unwrap!(unsafe { TIMER.as_mut() }).clear_interrupt();
-    //});
+    TIMER.with(|timer| {
+        unwrap!(timer.as_mut()).clear_interrupt();
+    });
 }
 
 // 49

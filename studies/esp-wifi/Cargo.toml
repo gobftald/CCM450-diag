@@ -12,7 +12,7 @@ esp-alloc = { path = "../../esp-hal/esp-alloc" }
 esp-hal-embassy  = { path = "../../esp-hal/esp-hal-embassy"  }
 embassy-executor = { path = "../../embassy/embassy-executor" }
 embassy-time = { path = "../../embassy/embassy-time" }
-embassy-net = { path =  "../../embassy/embassy-net", features = ["dhcpv4"]}
+embassy-net = { path =  "../../embassy/embassy-net", features = ["udp", "dhcpv4"]}
 
 esp-wifi = { path = "../../esp-hal/esp-wifi", features = ["wifi"] }
 
@@ -27,7 +27,7 @@ esp-wifi = { path = "../../esp-hal/esp-wifi", features = ["wifi"] }
 default = [
     "esp32c3",
     "console/jtag_serial",
-    #"defmt",
+    "defmt",
 ]
 
 esp32c3 = [

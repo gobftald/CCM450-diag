@@ -45,6 +45,12 @@ pub fn ap_state() -> WifiState {
     AP_STATE.load(Ordering::Relaxed)
 }
 
+/// Get the current state of the STA
+// 45
+pub fn sta_state() -> WifiState {
+    STA_STATE.load(Ordering::Relaxed)
+}
+
 // 50
 pub(crate) fn update_state(event: WifiEvent, handled: bool) {
     match event {
@@ -57,9 +63,9 @@ pub(crate) fn update_state(event: WifiEvent, handled: bool) {
             AP_STATE.store(WifiState::from(event), Ordering::Relaxed)
         }
 
-        other => {
+        _other => {
             if !handled {
-                debug!("Unhandled event: {:?}", other)
+                debug!("Unhandled event: {:?}", _other)
             }
         }
     }

@@ -1,7 +1,16 @@
 #![no_std]
 
 #[allow(unused_imports)]
-#[macro_use(assert_eq, unwrap, panic, trace, debug)]
+#[macro_use(
+    assert,
+    assert_eq,
+    unwrap,
+    panic,
+    trace,
+    debug,
+    debug_assert,
+    unreachable
+)]
 extern crate console;
 
 #[macro_use]
@@ -31,7 +40,6 @@ pub mod phy;
 #[cfg(feature = "socket")]
 // 167
 pub mod socket;
-
-// 169
+pub mod storage;
 pub mod time;
 pub mod wire;

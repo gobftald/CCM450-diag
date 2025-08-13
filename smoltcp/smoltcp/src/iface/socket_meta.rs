@@ -2,7 +2,11 @@
 use super::SocketHandle;
 
 // 2
-use crate::{time::Instant, wire::IpAddress};
+use crate::{
+    socket::PollAt,
+    time::{Duration, Instant},
+    wire::IpAddress,
+};
 
 /// Neighbor dependency.
 ///
@@ -37,4 +41,73 @@ pub(crate) struct Meta {
     pub(crate) handle: SocketHandle,
     /// See [NeighborState](struct.NeighborState.html).
     neighbor_state: NeighborState,
+}
+
+// 41
+impl Meta {
+    /// Minimum delay between neighbor discovery requests for this particular
+    /// socket, in milliseconds.
+    ///
+    /// See also `iface::NeighborCache::SILENT_TIME`.
+    // 46
+    pub(crate) const DISCOVERY_SILENT_TIME: Duration = Duration::from_millis(1_000);
+
+    // 48
+    pub(crate) fn poll_at<F>(&self, socket_poll_at: PollAt, has_neighbor: F) -> PollAt
+    where
+        F: Fn(IpAddress) -> bool,
+    {
+        match self.neighbor_state {
+            NeighborState::Active => socket_poll_at,
+            NeighborState::Waiting { neighbor, .. } if has_neighbor(neighbor) => socket_poll_at,
+            NeighborState::Waiting { silent_until, .. } => PollAt::Time(silent_until),
+        }
+    }
+
+    // 59
+    pub(crate) fn egress_permitted<F>(&mut self, timestamp: Instant, has_neighbor: F) -> bool
+    where
+        F: Fn(IpAddress) -> bool,
+    {
+        match self.neighbor_state {
+            NeighborState::Active => true,
+            NeighborState::Waiting {
+                neighbor,
+                silent_until,
+            } => {
+                if has_neighbor(neighbor) {
+                    net_trace!(
+                        "{}: neighbor {} discovered, unsilencing",
+                        self.handle,
+                        neighbor
+                    );
+                    self.neighbor_state = NeighborState::Active;
+                    true
+                } else if timestamp >= silent_until {
+                    net_trace!(
+                        "{}: neighbor {} silence timer expired, rediscovering",
+                        self.handle,
+                        neighbor
+                    );
+                    true
+                } else {
+                    false
+                }
+            }
+        }
+    }
+
+    // 91
+    pub(crate) fn neighbor_missing(&mut self, timestamp: Instant, neighbor: IpAddress) {
+        net_trace!(
+            "{}: neighbor {} missing, silencing until t+{}",
+            self.handle,
+            neighbor,
+            Self::DISCOVERY_SILENT_TIME
+        );
+        self.neighbor_state = NeighborState::Waiting {
+            neighbor,
+            silent_until: timestamp + Self::DISCOVERY_SILENT_TIME,
+        };
+    }
 }

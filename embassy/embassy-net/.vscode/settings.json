@@ -1,5 +1,6 @@
 {
     "rust-analyzer.cargo.features": [
         "dhcpv4"
-    ]
+    ],
+    "idf.pythonInstallPath": "/opt/homebrew/opt/python@3.12/Frameworks/Python.framework/Versions/3.12/bin/python3"
 }

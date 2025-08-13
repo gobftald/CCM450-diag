@@ -1,3 +1,28 @@
+// 91
+use crate::time::Instant;
+
+/// Metadata associated to a packet.
+///
+/// The packet metadata is a set of attributes associated to network packets
+/// as they travel up or down the stack. The metadata is get/set by the
+/// [`Device`] implementations or by the user when sending/receiving packets from a
+/// socket.
+///
+/// Metadata fields are enabled via Cargo features. If no field is enabled, this
+/// struct becomes zero-sized, which allows the compiler to optimize it out as if
+/// the packet metadata mechanism didn't exist at all.
+///
+/// Currently only UDP sockets allow setting/retrieving packet metadata. The metadata
+/// for packets emitted with other sockets will be all default values.
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, Default)]
+#[non_exhaustive]
+// 164
+pub struct PacketMeta {
+    #[cfg(feature = "packetmeta-id")]
+    pub id: u32,
+}
+
 /// A description of checksum behavior for a particular protocol.
 #[derive(Debug, Clone, Copy, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -14,6 +39,27 @@ pub enum Checksum {
     None,
 }
 
+// 184
+impl Checksum {
+    /// Returns whether checksum should be verified when receiving.
+    // 186
+    pub fn rx(&self) -> bool {
+        match *self {
+            Checksum::Both | Checksum::Rx => true,
+            _ => false,
+        }
+    }
+
+    /// Returns whether checksum should be verified when sending.
+    // 194
+    pub fn tx(&self) -> bool {
+        match *self {
+            Checksum::Both | Checksum::Tx => true,
+            _ => false,
+        }
+    }
+}
+
 /// A description of checksum behavior for every supported protocol.
 #[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -22,7 +68,7 @@ pub enum Checksum {
 pub struct ChecksumCapabilities {
     pub ipv4: Checksum,
     pub udp: Checksum,
-    pub tcp: Checksum,
+    //pub tcp: Checksum,
     #[cfg(feature = "proto-ipv4")]
     pub icmpv4: Checksum,
     #[cfg(feature = "proto-ipv6")]
@@ -73,6 +119,21 @@ pub struct DeviceCapabilities {
     /// If the network device is capable of verifying or computing checksums for some protocols,
     /// it can request that the stack not do so in software to improve performance.
     pub checksum: ChecksumCapabilities,
+}
+
+// 277
+impl DeviceCapabilities {
+    pub fn ip_mtu(&self) -> usize {
+        match self.medium {
+            #[cfg(feature = "medium-ethernet")]
+            Medium::Ethernet => {
+                self.max_transmission_unit - crate::wire::EthernetFrame::<&[u8]>::header_len()
+            } //#[cfg(feature = "medium-ip")]
+              //Medium::Ip => self.max_transmission_unit,
+              //#[cfg(feature = "medium-ieee802154")]
+              //Medium::Ieee802154 => self.max_transmission_unit, // TODO(thvdveld): what is the MTU for Medium::IEEE802
+        }
+    }
 }
 
 /// Type of medium of a device.
@@ -130,7 +191,68 @@ impl Default for Medium {
 /// real sending/receiving operation are performed when the tokens are consumed.
 // 340
 pub trait Device {
+    type RxToken<'a>: RxToken
+    where
+        Self: 'a;
+    type TxToken<'a>: TxToken
+    where
+        Self: 'a;
+
+    /// Construct a token pair consisting of one receive token and one transmit token.
+    ///
+    /// The additional transmit token makes it possible to generate a reply packet based
+    /// on the contents of the received packet. For example, this makes it possible to
+    /// handle arbitrarily large ICMP echo ("ping") requests, where the all received bytes
+    /// need to be sent back, without heap allocation.
+    ///
+    /// The timestamp must be a number of milliseconds, monotonically increasing since an
+    /// arbitrary moment in time, such as system startup.
+    // 357
+    fn receive(&mut self, timestamp: Instant) -> Option<(Self::RxToken<'_>, Self::TxToken<'_>)>;
+
+    /// Construct a transmit token.
+    ///363
+    /// The timestamp must be a number of milliseconds, monotonically increasing since an
+    /// arbitrary moment in time, such as system startup.
+    //
+    fn transmit(&mut self, timestamp: Instant) -> Option<Self::TxToken<'_>>;
+
     /// Get a description of device capabilities.
     // 366
     fn capabilities(&self) -> DeviceCapabilities;
+}
+
+/// A token to receive a single network packet.
+// 370
+pub trait RxToken {
+    /// Consumes the token to receive a single network packet.
+    ///
+    /// This method receives a packet and then calls the given closure `f` with the raw
+    /// packet bytes as argument.
+    fn consume<R, F>(self, f: F) -> R
+    where
+        F: FnOnce(&[u8]) -> R;
+
+    /// The Packet ID associated with the frame received by this [`RxToken`]
+    fn meta(&self) -> PacketMeta {
+        PacketMeta::default()
+    }
+}
+
+/// A token to transmit a single network packet.
+// 386
+pub trait TxToken {
+    /// Consumes the token to send a single network packet.
+    ///
+    /// This method constructs a transmit buffer of size `len` and calls the passed
+    /// closure `f` with a mutable reference to that buffer. The closure should construct
+    /// a valid network packet (e.g. an ethernet packet) in the buffer. When the closure
+    /// returns, the transmit buffer is sent out.
+    fn consume<R, F>(self, len: usize, f: F) -> R
+    where
+        F: FnOnce(&mut [u8]) -> R;
+
+    /// The Packet ID to be associated with the frame to be transmitted by this [`TxToken`].
+    #[allow(unused_variables)]
+    fn set_meta(&mut self, meta: PacketMeta) {}
 }

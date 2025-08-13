@@ -2,8 +2,9 @@
 use core::task::Context;
 
 // 3
-use embassy_net_driver::{Capabilities, Checksum, Driver};
+use embassy_net_driver::{Capabilities, Checksum, Driver, RxToken, TxToken};
 use smoltcp::phy::{self, Medium};
+use smoltcp::time::Instant;
 
 // 7
 pub(crate) struct DriverAdapter<'d, 'c, T>
@@ -21,7 +22,33 @@ impl<'d, 'c, T> phy::Device for DriverAdapter<'d, 'c, T>
 where
     T: Driver,
 {
+    type RxToken<'a>
+        = RxTokenAdapter<T::RxToken<'a>>
+    where
+        Self: 'a;
+
+    type TxToken<'a>
+        = TxTokenAdapter<T::TxToken<'a>>
+    where
+        Self: 'a;
+
+    // 30
+    fn receive(&mut self, _timestamp: Instant) -> Option<(Self::RxToken<'_>, Self::TxToken<'_>)> {
+        self.inner
+            .receive(unwrap!(self.cx.as_deref_mut()))
+            .map(|(rx, tx)| (RxTokenAdapter(rx), TxTokenAdapter(tx)))
+    }
+
+    /// Construct a transmit token.
+    // 37
+    fn transmit(&mut self, _timestamp: Instant) -> Option<Self::TxToken<'_>> {
+        self.inner
+            .transmit(unwrap!(self.cx.as_deref_mut()))
+            .map(TxTokenAdapter)
+    }
+
     /// Get a description of device capabilities.
+    // 42
     fn capabilities(&self) -> phy::DeviceCapabilities {
         fn convert(c: Checksum) -> phy::Checksum {
             match c {
@@ -39,7 +66,7 @@ where
         smolcaps.max_burst_size = caps.max_burst_size;
         smolcaps.medium = self.medium;
         smolcaps.checksum.ipv4 = convert(caps.checksum.ipv4);
-        smolcaps.checksum.tcp = convert(caps.checksum.tcp);
+        //smolcaps.checksum.tcp = convert(caps.checksum.tcp);
         smolcaps.checksum.udp = convert(caps.checksum.udp);
         #[cfg(feature = "proto-ipv4")]
         {
@@ -51,5 +78,52 @@ where
         }
 
         smolcaps
+    }
+}
+
+// 73
+pub(crate) struct RxTokenAdapter<T>(T)
+where
+    T: RxToken;
+
+// 77
+impl<T> phy::RxToken for RxTokenAdapter<T>
+where
+    T: RxToken,
+{
+    // 81
+    fn consume<R, F>(self, f: F) -> R
+    where
+        F: FnOnce(&[u8]) -> R,
+    {
+        self.0.consume(|buf| {
+            #[cfg(feature = "packet-trace")]
+            trace!("embassy device rx: {:02x}", buf);
+            f(buf)
+        })
+    }
+}
+
+// 93
+pub(crate) struct TxTokenAdapter<T>(T)
+where
+    T: TxToken;
+
+// 97
+impl<T> phy::TxToken for TxTokenAdapter<T>
+where
+    T: TxToken,
+{
+    // 101
+    fn consume<R, F>(self, len: usize, f: F) -> R
+    where
+        F: FnOnce(&mut [u8]) -> R,
+    {
+        self.0.consume(len, |buf| {
+            let r = f(buf);
+            #[cfg(feature = "packet-trace")]
+            trace!("embassy device tx: {:02x}", buf);
+            r
+        })
     }
 }

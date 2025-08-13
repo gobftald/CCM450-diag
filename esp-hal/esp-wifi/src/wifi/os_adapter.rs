@@ -10,6 +10,7 @@ use enumset::EnumSet;
 
 // 14
 use super::WifiEvent;
+#[allow(unused_imports)]
 use crate::{
     compat::{
         common::{
@@ -584,6 +585,7 @@ pub unsafe extern "C" fn free(p: *mut crate::binary::c_types::c_void) {
 ///   0 if success or -1 if fail
 ///
 /// *************************************************************************
+#[allow(unused_variables)]
 // 864
 pub unsafe extern "C" fn event_post(
     event_base: *const crate::binary::c_types::c_char,
@@ -673,12 +675,19 @@ pub unsafe extern "C" fn phy_enable() {
 ///
 /// *************************************************************************
 #[allow(clippy::unnecessary_cast)]
+#[allow(unused_variables)]
 // 1036
 pub unsafe extern "C" fn phy_update_country_info(
     country: *const crate::binary::c_types::c_char,
 ) -> crate::binary::c_types::c_int {
     // not implemented in original code
+    #[cfg(feature = "defmt")]
+    unsafe {
+        trace!("phy_update_country_info {}", str_from_c(country.cast()));
+    }
+    #[cfg(not(feature = "defmt"))]
     trace!("phy_update_country_info {}", str_from_c(country.cast()));
+
     -1
 }
 

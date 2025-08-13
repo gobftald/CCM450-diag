@@ -33,7 +33,7 @@ esp32   = []
 esp32c2 = []
 
 # Target the ESP32-C3.
-esp32c3 = ["dep:esp32c3", "portable-atomic/unsafe-assume-single-core",]
+esp32c3 = ["dep:esp32c3", "portable-atomic/unsafe-assume-single-core"]
 
 # Target the ESP32-C6.
 esp32c6 = []

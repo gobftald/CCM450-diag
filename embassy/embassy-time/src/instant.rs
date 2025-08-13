@@ -23,6 +23,14 @@ impl Instant {
         }
     }
 
+    /// Create an Instant from a microsecond count since system boot.
+    // 33
+    pub const fn from_micros(micros: u64) -> Self {
+        Self {
+            ticks: micros * (TICK_HZ / GCD_1M) / (1_000_000 / GCD_1M),
+        }
+    }
+
     /// Tick count since system boot.
     // 85
     pub const fn as_ticks(&self) -> u64 {

@@ -1,6 +1,10 @@
 #![no_std]
 
-#[macro_use(unwrap, debug, info)]
+#[cfg(not(any(feature = "proto-ipv4", feature = "proto-ipv6")))]
+compile_error!("You must enable at least one of the following features: proto-ipv4, proto-ipv6");
+
+#[allow(unused_imports)]
+#[macro_use(unwrap, debug, info, trace)]
 extern crate console;
 
 // 17
@@ -11,50 +15,48 @@ mod time;
 
 // 28
 use core::cell::RefCell;
+use core::future::{poll_fn, Future};
 
 // 30
 use core::mem::MaybeUninit;
 
+// 31
+use core::pin::pin;
+use core::task::{Context, Poll};
+
 // 34
 pub use embassy_net_driver as driver;
-use embassy_net_driver::Driver;
+use embassy_net_driver::{Driver, LinkState};
 use embassy_sync::waitqueue::WakerRegistration;
 
 // 37
-use embassy_time::Instant;
+use embassy_time::{Instant, Timer};
 //use heapless::Vec;
 use allocator_api2::vec::Vec;
 
-#[cfg(any(feature = "dns", feature = "dhcpv4"))]
+//#[cfg(any(feature = "dns", feature = "dhcpv4"))]
+#[cfg(feature = "dhcpv4")]
 // 44
 use smoltcp::iface::SocketHandle;
-
-// 45
 use smoltcp::iface::{Interface, SocketSet, SocketStorage};
 use smoltcp::phy::Medium;
-
-// 47
 #[cfg(feature = "dhcpv4")]
 use smoltcp::socket::dhcpv4::{self, RetryConfig};
 
 #[cfg(feature = "medium-ethernet")]
 // 50
 pub use smoltcp::wire::EthernetAddress;
-
 #[cfg(feature = "medium-ethernet")]
-// 52
 pub use smoltcp::wire::HardwareAddress;
 
 // 57
 pub use smoltcp::wire::IpCidr;
-
 #[cfg(feature = "proto-ipv4")]
-// 59
 pub use smoltcp::wire::{Ipv4Address, Ipv4Cidr};
 
 // 63
 use crate::driver_util::DriverAdapter;
-use crate::time::instant_to_smoltcp;
+use crate::time::{instant_from_smoltcp, instant_to_smoltcp};
 
 // 66
 const LOCAL_PORT_MIN: u16 = 1025;
@@ -65,10 +67,10 @@ const LOCAL_PORT_MAX: u16 = 65535;
 pub struct StackResources<const SOCK: usize> {
     sockets: MaybeUninit<[SocketStorage<'static>; SOCK]>,
     inner: MaybeUninit<RefCell<Inner>>,
-    #[cfg(feature = "dns")]
-    queries: MaybeUninit<[Option<dns::DnsQuery>; MAX_QUERIES]>,
-    #[cfg(feature = "dhcpv4-hostname")]
-    hostname: HostnameResources,
+    //#[cfg(feature = "dns")]
+    //queries: MaybeUninit<[Option<dns::DnsQuery>; MAX_QUERIES]>,
+    //#[cfg(feature = "dhcpv4-hostname")]
+    //hostname: HostnameResources,
 }
 
 // 89
@@ -78,13 +80,15 @@ impl<const SOCK: usize> StackResources<SOCK> {
         Self {
             sockets: MaybeUninit::uninit(),
             inner: MaybeUninit::uninit(),
-            #[cfg(feature = "dns")]
-            queries: MaybeUninit::uninit(),
+            //#[cfg(feature = "dns")]
+            //queries: MaybeUninit::uninit(),
+            /*
             #[cfg(feature = "dhcpv4-hostname")]
             hostname: HostnameResources {
                 option: MaybeUninit::uninit(),
                 data: MaybeUninit::uninit(),
             },
+            */
         }
     }
 }
@@ -124,9 +128,11 @@ pub struct DhcpConfig {
     pub server_port: u16,
     /// Client port. This is almost always 68. Do not change unless you know what you're doing.
     pub client_port: u16,
+    /*
     /// Our hostname. This will be sent to the DHCP server as Option 12.
     #[cfg(feature = "dhcpv4-hostname")]
     pub hostname: Option<heapless::String<MAX_HOSTNAME_LEN>>,
+    */
 }
 
 #[cfg(feature = "dhcpv4")]
@@ -139,8 +145,8 @@ impl Default for DhcpConfig {
             ignore_naks: Default::default(),
             server_port: smoltcp::wire::DHCP_SERVER_PORT,
             client_port: smoltcp::wire::DHCP_CLIENT_PORT,
-            #[cfg(feature = "dhcpv4-hostname")]
-            hostname: None,
+            //#[cfg(feature = "dhcpv4-hostname")]
+            //hostname: None,
         }
     }
 }
@@ -218,6 +224,8 @@ pub struct Stack<'d> {
     inner: &'d RefCell<Inner>,
 }
 
+#[allow(dead_code)]
+// we use hardware_address and next_local_port only in smoltcp
 // 262
 pub(crate) struct Inner {
     pub(crate) sockets: SocketSet<'static>, // Lifetime type-erased.
@@ -235,16 +243,16 @@ pub(crate) struct Inner {
     static_v6: Option<StaticConfigV6>,
     #[cfg(feature = "dhcpv4")]
     dhcp_socket: Option<SocketHandle>,
-    #[cfg(feature = "dns")]
-    dns_socket: SocketHandle,
-    #[cfg(feature = "dns")]
-    dns_waker: WakerRegistration,
-    #[cfg(feature = "dhcpv4-hostname")]
-    hostname: *mut HostnameResources,
+    //#[cfg(feature = "dns")]
+    //dns_socket: SocketHandle,
+    //#[cfg(feature = "dns")]
+    //dns_waker: WakerRegistration,
+    //#[cfg(feature = "dhcpv4-hostname")]
+    //hostname: *mut HostnameResources,
 }
 
 /// Create a new network stack.
-// 290
+// 291
 pub fn new<'d, D: Driver, const SOCK: usize>(
     mut driver: D,
     config: Config,
@@ -275,9 +283,6 @@ pub fn new<'d, D: Driver, const SOCK: usize>(
     let next_local_port =
         (random_seed % (LOCAL_PORT_MAX - LOCAL_PORT_MIN) as u64) as u16 + LOCAL_PORT_MIN;
 
-    #[cfg(feature = "dns")]
-    let dns_socket = sockets.add(dns::Socket::new * ());
-
     let mut inner = Inner {
         sockets,
         iface,
@@ -292,12 +297,12 @@ pub fn new<'d, D: Driver, const SOCK: usize>(
         static_v6: None,
         #[cfg(feature = "dhcpv4")]
         dhcp_socket: None,
-        #[cfg(feature = "dns")]
-        dns_socket,
-        #[cfg(feature = "dns")]
-        dns_waker: WakerRegistration::new(),
-        #[cfg(feature = "dhcpv4-hostname")]
-        hostname: &mut resources.hostname,
+        //#[cfg(feature = "dns")]
+        //dns_socket,
+        //#[cfg(feature = "dns")]
+        //dns_waker: WakerRegistration::new(),
+        //#[cfg(feature = "dhcpv4-hostname")]
+        //hostname: &mut resources.hostname,
     };
 
     #[cfg(feature = "proto-ipv4")]
@@ -311,7 +316,7 @@ pub fn new<'d, D: Driver, const SOCK: usize>(
     (stack, Runner { driver, stack })
 }
 
-// 363
+// 362
 fn to_smoltcp_hardware_address(addr: driver::HardwareAddress) -> (HardwareAddress, Medium) {
     match addr {
         #[cfg(feature = "medium-ethernet")]
@@ -328,9 +333,35 @@ fn to_smoltcp_hardware_address(addr: driver::HardwareAddress) -> (HardwareAddres
 
         #[allow(unreachable_patterns)]
         _ => panic!(
+            /*
             "Unsupported medium {:?}. Make sure to enable the right medium feature in embassy-net's Cargo features.",
             addr
+            */
+            "Unsupported medium. Make sure to enable the right medium feature in embassy-net's Cargo features."
         ),
+    }
+}
+
+// 382
+impl<'d> Stack<'d> {
+    // 383
+    fn with<R>(&self, f: impl FnOnce(&Inner) -> R) -> R {
+        f(&self.inner.borrow())
+    }
+
+    //387
+    fn with_mut<R>(&self, f: impl FnOnce(&mut Inner) -> R) -> R {
+        f(&mut self.inner.borrow_mut())
+    }
+
+    /// Get the current IPv4 configuration.
+    ///
+    /// If using DHCP, this will be None if DHCP hasn't been able to
+    /// acquire an IP address, or Some if it has.
+    #[cfg(feature = "proto-ipv4")]
+    // 499
+    pub fn config_v4(&self) -> Option<StaticConfigV4> {
+        self.with(|i| i.static_v4.clone())
     }
 }
 
@@ -371,8 +402,6 @@ impl Inner {
                 socket.set_outgoing_options(&[]);
 
                 socket.set_outgoing_options(&[]);
-                #[cfg(feature = "dhcpv4-hostname")]
-                if let Some(h) = c.hostname {}
 
                 socket.reset();
             }
@@ -390,8 +419,6 @@ impl Inner {
     fn apply_static_config(&mut self) {
         //let mut addrs = Vec::new();
         let mut addrs = Vec::<IpCidr>::with_capacity(smoltcp::config::IFACE_MAX_ADDR_COUNT);
-        #[cfg(feature = "dns")]
-        let mut dns_servers: Vec<_, 6> = Vec::new();
         #[cfg(feature = "proto-ipv4")]
         let mut gateway_v4 = None;
         #[cfg(feature = "proto-ipv6")]
@@ -406,11 +433,6 @@ impl Inner {
             //unwrap!(addrs.push(IpCidr::Ipv4(config.address)).ok());
             unwrap!(addrs.push_within_capacity(IpCidr::Ipv4(config.address)));
             gateway_v4 = config.gateway;
-            #[cfg(feature = "dns")]
-            for s in &config.dns_servers {
-                debug!("   DNS server:      {:?}", s);
-                unwrap!(dns_servers.push(s.clone().into()).ok());
-            }
         } else {
             info!("IPv4: DOWN");
         }
@@ -431,10 +453,90 @@ impl Inner {
         #[cfg(feature = "proto-ipv6")]
         if let Some(gateway) = gateway_v6 {}
 
-        // Apply DNS servers
-        #[cfg(feature = "dns")]
-        if !dns_servers.is_empty() {}
-
         self.state_waker.wake();
+    }
+
+    // 798
+    fn poll<D: Driver>(&mut self, cx: &mut Context<'_>, driver: &mut D) {
+        self.waker.register(cx.waker());
+
+        let (_hardware_addr, medium) = to_smoltcp_hardware_address(driver.hardware_address());
+
+        self.iface.set_hardware_addr(_hardware_addr);
+
+        let timestamp = instant_to_smoltcp(Instant::now());
+        let mut smoldev = DriverAdapter {
+            cx: Some(cx),
+            inner: driver,
+            medium,
+        };
+        self.iface.poll(timestamp, &mut smoldev, &mut self.sockets);
+
+        // Update link up
+        let old_link_up = self.link_up;
+        self.link_up = driver.link_state(cx) == LinkState::Up;
+
+        // Print when changed
+        if old_link_up != self.link_up {
+            info!("link_up = {:?}", self.link_up);
+            self.state_waker.wake();
+        }
+
+        #[cfg(feature = "dhcpv4")]
+        if let Some(dhcp_handle) = self.dhcp_socket {
+            let socket = self.sockets.get_mut::<dhcpv4::Socket>(dhcp_handle);
+
+            let configure = if self.link_up {
+                if old_link_up != self.link_up {
+                    socket.reset();
+                }
+                match socket.poll() {
+                    None => false,
+                    Some(dhcpv4::Event::Deconfigured) => {
+                        self.static_v4 = None;
+                        true
+                    }
+                    Some(dhcpv4::Event::Configured(config)) => {
+                        self.static_v4 = Some(StaticConfigV4 {
+                            address: config.address,
+                            gateway: config.router,
+                            dns_servers: config.dns_servers,
+                        });
+                        true
+                    }
+                }
+            } else if old_link_up {
+                socket.reset();
+                self.static_v4 = None;
+                true
+            } else {
+                false
+            };
+            if configure {
+                self.apply_static_config()
+            }
+        }
+
+        if let Some(poll_at) = self.iface.poll_at(timestamp, &mut self.sockets) {
+            let t = pin!(Timer::at(instant_from_smoltcp(poll_at)));
+            if t.poll(cx).is_ready() {
+                cx.waker().wake_by_ref();
+            }
+        }
+    }
+}
+
+// 880
+impl<'d, D: Driver> Runner<'d, D> {
+    /// Run the network stack.
+    ///
+    /// You must call this in a background task, to process network events.
+    pub async fn run(&mut self) -> ! {
+        poll_fn(|cx| {
+            self.stack.with_mut(|i| i.poll(cx, &mut self.driver));
+            Poll::<()>::Pending
+        })
+        .await;
+        unreachable!()
     }
 }

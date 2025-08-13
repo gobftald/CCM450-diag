@@ -270,6 +270,17 @@ impl<T: Clone, A: Allocator + Clone> Clone for Vec<T, A> {
     }
 }
 
+// 2788
+impl<'a, T, A: Allocator> IntoIterator for &'a Vec<T, A> {
+    type Item = &'a T;
+    type IntoIter = slice::Iter<'a, T>;
+
+    #[inline(always)]
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
 /// Implements comparison of vectors, [lexicographically](core::cmp::Ord#lexicographical-comparison).
 // 2916
 impl<T: PartialOrd, A: Allocator> PartialOrd for Vec<T, A> {

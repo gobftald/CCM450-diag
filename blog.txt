@@ -129,3 +129,5 @@ rustc --print cfg --target riscv32imc-unknown-none-elf
 #gdb watchpoint
 watch *0x3fc9d5f8
 watch *(0x3fc9d5f8 as *[u8;1024])
+
+SSID="iWIFI-2.4" PASSWORD="dingomolarsanta" DEFMT_LOG=debug,smoltcp=trace,embassy_net=trace cargo run --features=embassy-net/packet-trace

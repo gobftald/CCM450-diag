@@ -33,8 +33,10 @@ symbols = [
     "phy_full_calibration",                 # description: Use PHY_RF_CAL_FULL instead of PHY_RF_CAL_PARTIAL.
                                             # default:     - value: true
 
-    "phy_skip_calibration_after_deep_sleep" # description: Use PHY_RF_CAL_NONE after deep sleep.
+    "phy_skip_calibration_after_deep_sleep",# description: Use PHY_RF_CAL_NONE after deep sleep.
                                             # default:     - value: true
+    # others
+    "dump_packets",                         # Dump packets via an info log statement
 
 ]
  

@@ -55,9 +55,10 @@ builtin-scheduler = []
 #! ### Wireless Feature Flags
 
 ## Enable WiFi support
-wifi = ["dep:embassy-net-driver", "dep:enumset", "smoltcp"]
+wifi = ["dep:embassy-net-driver", "dep:enumset"]
 
 ## Provide implementations of smoltcp traits
+# don't use smoltcp from here, but via embassy_net
 smoltcp = ["dep:smoltcp"]
 
 ## Enable WiFi channel state information. See [ESP-IDF Programming Guide](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/network/esp_wifi.html#_CPPv4N18wifi_init_config_t10csi_enableE)",

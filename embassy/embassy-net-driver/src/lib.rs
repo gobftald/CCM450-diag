@@ -1,9 +1,12 @@
 #![no_std]
 
+use core::task::Context;
+
 /// Representation of an hardware address, such as an Ethernet address or an IEEE802.15.4 address.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[non_exhaustive]
+// 11
 pub enum HardwareAddress {
     /// Ethernet medium, with a A six-octet Ethernet address.
     ///
@@ -34,6 +37,45 @@ pub enum HardwareAddress {
 /// real sending/receiving operation are performed when the tokens are consumed.
 // 37
 pub trait Driver {
+    /// A token to receive a single network packet.
+    type RxToken<'a>: RxToken
+    where
+        Self: 'a;
+
+    /// A token to transmit a single network packet.
+    type TxToken<'a>: TxToken
+    where
+        Self: 'a;
+
+    /// Construct a token pair consisting of one receive token and one transmit token.
+    ///
+    /// If there is a packet ready to be received, this function must return `Some`.
+    /// If there isn't, it must return `None`, and wake `cx.waker()` when a packet is ready.
+    ///
+    /// The additional transmit token makes it possible to generate a reply packet based
+    /// on the contents of the received packet. For example, this makes it possible to
+    /// handle arbitrarily large ICMP echo ("ping") requests, where the all received bytes
+    /// need to be sent back, without heap allocation.
+    // 57
+    fn receive(&mut self, cx: &mut Context) -> Option<(Self::RxToken<'_>, Self::TxToken<'_>)>;
+
+    /// Construct a transmit token.
+    ///
+    /// If there is free space in the transmit buffer to transmit a packet, this function must return `Some`.
+    /// If there isn't, it must return `None`, and wake `cx.waker()` when space becomes available.
+    ///
+    /// Note that [`TxToken::consume`] is infallible, so it is not allowed to return a token
+    /// if there is no free space and fail later.
+    // 66
+    fn transmit(&mut self, cx: &mut Context) -> Option<Self::TxToken<'_>>;
+
+    /// Get the link state.
+    ///
+    /// This function must return the current link state of the device, and wake `cx.waker()` when
+    /// the link state changes.
+    // 72
+    fn link_state(&mut self, cx: &mut Context) -> LinkState;
+
     /// Get a description of device capabilities.
     // 75
     fn capabilities(&self) -> Capabilities;
@@ -49,15 +91,65 @@ pub trait Driver {
 
 // 85
 impl<T: ?Sized + Driver> Driver for &mut T {
+    type RxToken<'a>
+        = T::RxToken<'a>
+    where
+        Self: 'a;
+    type TxToken<'a>
+        = T::TxToken<'a>
+    where
+        Self: 'a;
+
+    // 95
+    fn transmit(&mut self, cx: &mut Context) -> Option<Self::TxToken<'_>> {
+        T::transmit(self, cx)
+    }
+
+    // 98
+    fn receive(&mut self, cx: &mut Context) -> Option<(Self::RxToken<'_>, Self::TxToken<'_>)> {
+        T::receive(self, cx)
+    }
+
     // 101
     fn capabilities(&self) -> Capabilities {
         T::capabilities(self)
+    }
+
+    // 104
+    fn link_state(&mut self, cx: &mut Context) -> LinkState {
+        T::link_state(self, cx)
     }
 
     // 107
     fn hardware_address(&self) -> HardwareAddress {
         T::hardware_address(self)
     }
+}
+
+/// A token to receive a single network packet.
+// 113
+pub trait RxToken {
+    /// Consumes the token to receive a single network packet.
+    ///
+    /// This method receives a packet and then calls the given closure `f` with the raw
+    /// packet bytes as argument.
+    fn consume<R, F>(self, f: F) -> R
+    where
+        F: FnOnce(&mut [u8]) -> R;
+}
+
+/// A token to transmit a single network packet.
+// 124
+pub trait TxToken {
+    /// Consumes the token to send a single network packet.
+    ///
+    /// This method constructs a transmit buffer of size `len` and calls the passed
+    /// closure `f` with a mutable reference to that buffer. The closure should construct
+    /// a valid network packet (e.g. an ethernet packet) in the buffer. When the closure
+    /// returns, the transmit buffer is sent out.
+    fn consume<R, F>(self, len: usize, f: F) -> R
+    where
+        F: FnOnce(&mut [u8]) -> R;
 }
 
 /// A description of device capabilities.
@@ -120,7 +212,6 @@ pub struct ChecksumCapabilities {
 /// A description of checksum behavior for a particular protocol.
 #[derive(Debug, Default, Clone, Copy)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-
 // 194
 pub enum Checksum {
     /// Verify checksum when receiving and compute checksum when sending.
@@ -132,4 +223,15 @@ pub enum Checksum {
     Tx,
     /// Ignore checksum completely.
     None,
+}
+
+/// The link state of a network device.
+#[derive(PartialEq, Eq, Clone, Copy)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+// 214
+pub enum LinkState {
+    /// The link is down.
+    Down,
+    /// The link is up.
+    Up,
 }

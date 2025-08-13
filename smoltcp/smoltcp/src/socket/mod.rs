@@ -1,6 +1,31 @@
+/*! Communication between endpoints.
+
+The `socket` module deals with *network endpoints* and *buffering*.
+It provides interfaces for accessing buffers of data, and protocol state machines
+for filling and emptying these buffers.
+
+The programming interface implemented here differs greatly from the common Berkeley socket
+interface. Specifically, in the Berkeley interface the buffering is implicit:
+the operating system decides on the good size for a buffer and manages it.
+The interface implemented by this module uses explicit buffering: you decide on the good
+size for a buffer, allocate it, and let the networking stack use it.
+*/
+
+// 14
+use crate::iface::Context;
+use crate::time::Instant;
+
 #[cfg(feature = "socket-dhcpv4")]
 // 18
 pub mod dhcpv4;
+
+#[cfg(feature = "socket-icmp")]
+// 22
+pub mod icmp;
+
+//#[cfg(feature = "socket-udp")]
+// 28
+pub mod udp;
 
 #[cfg(feature = "async")]
 // 31
@@ -9,6 +34,19 @@ mod waker;
 #[cfg(feature = "async")]
 // 33
 pub(crate) use self::waker::WakerRegistration;
+
+/// Gives an indication on the next time the socket should be polled.
+#[derive(Debug, PartialOrd, Ord, PartialEq, Eq, Clone, Copy)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+// 39
+pub(crate) enum PollAt {
+    /// The socket needs to be polled immediately.
+    Now,
+    /// The socket needs to be polled at given [Instant][struct.Instant].
+    Time(Instant),
+    /// The socket does not need to be polled unless there are external changes.
+    Ingress,
+}
 
 /// A network socket.
 ///
@@ -25,16 +63,36 @@ pub(crate) use self::waker::WakerRegistration;
 pub enum Socket<'a> {
     //#[cfg(feature = "socket-raw")]
     //Raw(raw::Socket<'a>),
-    //#[cfg(feature = "socket-icmp")]
-    //Icmp(icmp::Socket<'a>),
-    //#[cfg(feature = "socket-udp")]
-    //Udp(udp::Socket<'a>),
+    #[cfg(feature = "socket-icmp")]
+    Icmp(icmp::Socket<'a>),
+    #[cfg(feature = "socket-udp")]
+    Udp(udp::Socket<'a>),
     //#[cfg(feature = "socket-tcp")]
     //Tcp(tcp::Socket<'a>),
     #[cfg(feature = "socket-dhcpv4")]
     Dhcpv4(dhcpv4::Socket<'a>),
     //#[cfg(feature = "socket-dns")]
     //Dns(dns::Socket<'a>),
+}
+
+// 75
+impl<'a> Socket<'a> {
+    pub(crate) fn poll_at(&self, cx: &mut Context) -> PollAt {
+        match self {
+            //#[cfg(feature = "socket-raw")]
+            //Socket::Raw(s) => s.poll_at(cx),
+            #[cfg(feature = "socket-icmp")]
+            Socket::Icmp(s) => s.poll_at(cx),
+            #[cfg(feature = "socket-udp")]
+            Socket::Udp(s) => s.poll_at(cx),
+            //#[cfg(feature = "socket-tcp")]
+            //Socket::Tcp(s) => s.poll_at(cx),
+            #[cfg(feature = "socket-dhcpv4")]
+            Socket::Dhcpv4(s) => s.poll_at(cx),
+            //#[cfg(feature = "socket-dns")]
+            //Socket::Dns(s) => s.poll_at(cx),
+        }
+    }
 }
 
 /// A conversion trait for network sockets.
@@ -76,6 +134,14 @@ macro_rules! from_socket {
     };
 }
 
-// 138
+#[cfg(feature = "socket-icmp")]
+// 133
+from_socket!(icmp::Socket<'a>, Icmp);
+
+#[cfg(feature = "socket-udp")]
+// 135
+from_socket!(udp::Socket<'a>, Udp);
+
 #[cfg(feature = "socket-dhcpv4")]
+// 139
 from_socket!(dhcpv4::Socket<'a>, Dhcpv4);

@@ -17,6 +17,15 @@ pub struct Timer {
 
 // 100
 impl Timer {
+    /// Expire at specified [Instant](struct.Instant.html)
+    // 102
+    pub fn at(expires_at: Instant) -> Self {
+        Self {
+            expires_at,
+            yielded_once: false,
+        }
+    }
+
     /// Expire after specified [Duration](struct.Duration.html).
     /// This can be used as a `sleep` abstraction.
     ///

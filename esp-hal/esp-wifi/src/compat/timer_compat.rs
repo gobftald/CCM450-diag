@@ -43,6 +43,7 @@ pub(crate) struct Timer {
 }
 
 impl Timer {
+    #[allow(dead_code)]
     pub(crate) fn id(&self) -> usize {
         self.ets_timer as usize
     }

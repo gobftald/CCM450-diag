@@ -14,7 +14,10 @@ pub(crate) use timer::setup_timer;
 use timer::setup_multitasking;
 
 // 13
-use crate::{hal::trapframe::TrapFrame, preempt::Scheduler};
+use crate::{
+    hal::{sync::Locked, trapframe::TrapFrame},
+    preempt::Scheduler,
+};
 
 // 20
 struct Context {
@@ -119,11 +122,7 @@ impl SchedulerState {
 }
 
 // 118
-//static SCHEDULER_STATE: Locked<SchedulerState> = Locked::new(SchedulerState::new());
-// The original Locked type his is largely equivalent to a `Mutex<RefCell<T>>`,
-// but accessing the inner data doesn't hold a critical section on multi-core systems.
-// So we will totally skip its 'with' function
-static mut SCHEDULER_STATE: SchedulerState = SchedulerState::new();
+static SCHEDULER_STATE: Locked<SchedulerState> = Locked::new(SchedulerState::new());
 
 // 120
 struct BuiltinScheduler {}
@@ -156,22 +155,19 @@ impl Scheduler for BuiltinScheduler {
         let task = Box::new(Context::new(task, param, task_stack_size));
         let task_ptr = Box::into_raw(task);
 
-        //SCHEDULER_STATE.with(|state| unsafe {
-        //let current_task = state.current_task;
-        let current_task = unsafe { SCHEDULER_STATE.current_task };
+        SCHEDULER_STATE.with(|state| unsafe {
+            let current_task = state.current_task;
 
-        debug_assert!(
-            !current_task.is_null(),
-            "Tried to allocate a task before allocating the main task"
-        );
+            debug_assert!(
+                !current_task.is_null(),
+                "Tried to allocate a task before allocating the main task"
+            );
 
-        // Insert the new task at the next position.
-        unsafe {
+            // Insert the new task at the next position.
             let next = (*current_task).next;
             (*task_ptr).next = next;
             (*current_task).next = task_ptr;
-        }
-        //});
+        });
 
         task_ptr as *mut c_void
     }
@@ -211,29 +207,21 @@ fn allocate_main_task() {
         (*context_ptr).next = context_ptr;
     }
 
-    //SCHEDULER_STATE.with(|state| {
-    debug_assert!(
-        unsafe { SCHEDULER_STATE.current_task.is_null() },
-        "Tried to allocate main task multiple times",
-    );
-    //});
-
-    unsafe {
-        SCHEDULER_STATE.current_task = context_ptr;
-    }
-    //})
+    SCHEDULER_STATE.with(|state| {
+        debug_assert!(
+            state.current_task.is_null(),
+            "Tried to allocate main task multiple times",
+        );
+        state.current_task = context_ptr;
+    })
 }
 
 // 240
 fn current_task() -> *mut Context {
-    //SCHEDULER_STATE.with(|state| state.current_task)
-    unsafe { SCHEDULER_STATE.current_task }
+    SCHEDULER_STATE.with(|state| state.current_task)
 }
 
 // 256
 pub(crate) fn task_switch(trap_frame: &mut TrapFrame) {
-    //SCHEDULER_STATE.with(|state| state.switch_task(trap_frame));
-    unsafe {
-        SCHEDULER_STATE.switch_task(trap_frame);
-    }
+    SCHEDULER_STATE.with(|state| state.switch_task(trap_frame));
 }

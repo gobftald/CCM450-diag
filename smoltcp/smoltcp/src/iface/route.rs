@@ -14,13 +14,6 @@ use crate::wire::{Ipv4Address, Ipv4Cidr};
 // 13
 pub struct RouteTableFull;
 
-// 15
-impl core::fmt::Display for RouteTableFull {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "Route table full")
-    }
-}
-
 /// A prefix of addresses that should be routed via a router
 #[derive(Debug, Clone, Copy)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -104,5 +97,25 @@ impl Routes {
         } else {
             None
         }
+    }
+
+    // 149
+    pub(crate) fn lookup(&self, addr: &IpAddress, timestamp: Instant) -> Option<IpAddress> {
+        assert!(addr.is_unicast());
+
+        self.storage
+            .iter()
+            // Keep only matching routes
+            .filter(|route| {
+                if let Some(expires_at) = route.expires_at {
+                    if timestamp > expires_at {
+                        return false;
+                    }
+                }
+                route.cidr.contains_addr(addr)
+            })
+            // pick the most specific one (highest prefix_len)
+            .max_by_key(|route| route.cidr.prefix_len())
+            .map(|route| route.via_router)
     }
 }
