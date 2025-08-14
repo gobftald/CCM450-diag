@@ -1136,7 +1136,6 @@ fn apply_ap_config(config: &AccessPointConfiguration) -> Result<(), WifiError> {
         cfg.ap.ssid[0..(config.ssid.len())].copy_from_slice(config.ssid.as_bytes());
         cfg.ap.ssid_len = config.ssid.len() as u8;
         cfg.ap.password[0..(config.password.len())].copy_from_slice(config.password.as_bytes());
-
         esp_wifi_result!(esp_wifi_set_config(wifi_interface_t_WIFI_IF_AP, &mut cfg))
     }
 }
@@ -1396,6 +1395,7 @@ impl WifiController<'_> {
             } //Configuration::EapClient(config) => apply_sta_eap_config(config),
         }
         .inspect_err(|_| {
+            debug!(".inspect_err");
             // we/the driver might have applied a partial configuration
             // so we better disable AP/STA just in case the caller ignores the error we
             // return here - they will run into futher errors this way

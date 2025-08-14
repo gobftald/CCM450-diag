@@ -105,6 +105,7 @@ async fn main(spawner: embassy_executor::Spawner) {
     */
 
     spawner.spawn(connection(controller)).ok();
+    spawner.spawn(net_task(ap_runner)).ok();
     spawner.spawn(net_task(sta_runner)).ok();
     spawner.spawn(run()).ok();
 
@@ -117,6 +118,14 @@ async fn main(spawner: embassy_executor::Spawner) {
         debug!("Waiting for IP...");
         Timer::after(Duration::from_millis(500)).await;
     };
+    loop {
+        if ap_stack.is_link_up() {
+            break;
+        }
+        debug!("Waiting for AP...");
+        Timer::after(Duration::from_millis(500)).await;
+    }
+    debug!("AP Stack Link is up");
 }
 
 #[embassy_executor::task]

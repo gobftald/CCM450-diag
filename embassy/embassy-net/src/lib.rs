@@ -354,6 +354,12 @@ impl<'d> Stack<'d> {
         f(&mut self.inner.borrow_mut())
     }
 
+    /// Check whether the link is up.
+    // 397
+    pub fn is_link_up(&self) -> bool {
+        self.with(|i| i.link_up)
+    }
+
     /// Get the current IPv4 configuration.
     ///
     /// If using DHCP, this will be None if DHCP hasn't been able to
