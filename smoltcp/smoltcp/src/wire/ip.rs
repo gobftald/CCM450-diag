@@ -247,6 +247,13 @@ impl defmt::Format for ListenEndpoint {
     }
 }
 
+// 485
+impl From<u16> for ListenEndpoint {
+    fn from(port: u16) -> ListenEndpoint {
+        ListenEndpoint { addr: None, port }
+    }
+}
+
 /// An IP packet representation.
 ///
 /// This enum abstracts the various versions of IP packets. It either contains an IPv4

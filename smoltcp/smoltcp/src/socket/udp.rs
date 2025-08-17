@@ -1,3 +1,8 @@
+// 1
+use core::cmp::min;
+#[cfg(feature = "async")]
+use core::task::Waker;
+
 // 5
 use crate::iface::Context;
 use crate::phy::PacketMeta;
@@ -33,6 +38,33 @@ pub type PacketMetadata = crate::storage::PacketMetadata<UdpMetadata>;
 // 53
 pub type PacketBuffer<'a> = crate::storage::PacketBuffer<'a, UdpMetadata>;
 
+/// Error returned by [`Socket::bind`]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+// 58
+pub enum BindError {
+    InvalidState,
+    Unaddressable,
+}
+
+/// Error returned by [`Socket::send`]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+// 78
+pub enum SendError {
+    Unaddressable,
+    BufferFull,
+}
+
+/// Error returned by [`Socket::recv`]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+// 98
+pub enum RecvError {
+    Exhausted,
+    Truncated,
+}
+
 /// A User Datagram Protocol socket.
 ///
 /// A UDP socket is bound to a specific endpoint, and owns transmit and receive
@@ -53,6 +85,188 @@ pub struct Socket<'a> {
 
 // 132
 impl<'a> Socket<'a> {
+    /// Create an UDP socket with the given buffers.
+    // 134
+    pub fn new(rx_buffer: PacketBuffer<'a>, tx_buffer: PacketBuffer<'a>) -> Socket<'a> {
+        Socket {
+            endpoint: IpListenEndpoint::default(),
+            rx_buffer,
+            tx_buffer,
+            hop_limit: None,
+            #[cfg(feature = "async")]
+            rx_waker: WakerRegistration::new(),
+            #[cfg(feature = "async")]
+            tx_waker: WakerRegistration::new(),
+        }
+    }
+
+    /// Register a waker for receive operations.
+    ///
+    /// The waker is woken on state changes that might affect the return value
+    /// of `recv` method calls, such as receiving data, or the socket closing.
+    ///
+    /// Notes:
+    ///
+    /// - Only one waker can be registered at a time. If another waker was previously registered,
+    ///   it is overwritten and will no longer be woken.
+    /// - The Waker is woken only once. Once woken, you must register it again to receive more wakes.
+    /// - "Spurious wakes" are allowed: a wake doesn't guarantee the result of `recv` has
+    ///   necessarily changed.
+    #[cfg(feature = "async")]
+    // 160
+    pub fn register_recv_waker(&mut self, waker: &Waker) {
+        self.rx_waker.register(waker)
+    }
+
+    /// Register a waker for send operations.
+    ///
+    /// The waker is woken on state changes that might affect the return value
+    /// of `send` method calls, such as space becoming available in the transmit
+    /// buffer, or the socket closing.
+    ///
+    /// Notes:
+    ///
+    /// - Only one waker can be registered at a time. If another waker was previously registered,
+    ///   it is overwritten and will no longer be woken.
+    /// - The Waker is woken only once. Once woken, you must register it again to receive more wakes.
+    /// - "Spurious wakes" are allowed: a wake doesn't guarantee the result of `send` has
+    ///   necessarily changed.
+    #[cfg(feature = "async")]
+    // 178
+    pub fn register_send_waker(&mut self, waker: &Waker) {
+        self.tx_waker.register(waker)
+    }
+
+    /// Return the bound endpoint.
+    #[inline]
+    // 184
+    pub fn endpoint(&self) -> IpListenEndpoint {
+        self.endpoint
+    }
+
+    /// Bind the socket to the given endpoint.
+    ///
+    /// This function returns `Err(Error::Illegal)` if the socket was open
+    /// (see [is_open](#method.is_open)), and `Err(Error::Unaddressable)`
+    /// if the port in the given endpoint is zero.
+    // 220
+    pub fn bind<T: Into<IpListenEndpoint>>(&mut self, endpoint: T) -> Result<(), BindError> {
+        let endpoint = endpoint.into();
+        if endpoint.port == 0 {
+            return Err(BindError::Unaddressable);
+        }
+
+        if self.is_open() {
+            return Err(BindError::InvalidState);
+        }
+
+        self.endpoint = endpoint;
+
+        #[cfg(feature = "async")]
+        {
+            self.rx_waker.wake();
+            self.tx_waker.wake();
+        }
+
+        Ok(())
+    }
+
+    /// Check whether the socket is open.
+    #[inline]
+    // 259
+    pub fn is_open(&self) -> bool {
+        self.endpoint.port != 0
+    }
+
+    /// Enqueue a packet to be sent to a given remote endpoint, and return a pointer
+    /// to its payload.
+    ///
+    /// This function returns `Err(Error::Exhausted)` if the transmit buffer is full,
+    /// `Err(Error::Unaddressable)` if local or remote port, or remote address are unspecified,
+    /// and `Err(Error::Truncated)` if there is not enough transmit buffer capacity
+    /// to ever send this packet.
+    // 306
+    pub fn send(
+        &mut self,
+        size: usize,
+        meta: impl Into<UdpMetadata>,
+    ) -> Result<&mut [u8], SendError> {
+        let meta = meta.into();
+        if self.endpoint.port == 0 {
+            return Err(SendError::Unaddressable);
+        }
+        if meta.endpoint.addr.is_unspecified() {
+            return Err(SendError::Unaddressable);
+        }
+        if meta.endpoint.port == 0 {
+            return Err(SendError::Unaddressable);
+        }
+
+        let payload_buf = self
+            .tx_buffer
+            .enqueue(size, meta)
+            .map_err(|_| SendError::BufferFull)?;
+
+        net_trace!(
+            "udp:{}:{}: buffer to send {} octets",
+            self.endpoint,
+            meta.endpoint,
+            size
+        );
+        Ok(payload_buf)
+    }
+
+    /// Enqueue a packet to be sent to a given remote endpoint, and fill it from a slice.
+    ///
+    /// See also [send](#method.send).
+    // 378
+    pub fn send_slice(
+        &mut self,
+        data: &[u8],
+        meta: impl Into<UdpMetadata>,
+    ) -> Result<(), SendError> {
+        self.send(data.len(), meta)?.copy_from_slice(data);
+        Ok(())
+    }
+
+    /// Dequeue a packet received from a remote endpoint, and return the endpoint as well
+    /// as a pointer to the payload.
+    ///
+    /// This function returns `Err(Error::Exhausted)` if the receive buffer is empty.
+    // 391
+    pub fn recv(&mut self) -> Result<(&[u8], UdpMetadata), RecvError> {
+        let (remote_endpoint, payload_buf) =
+            self.rx_buffer.dequeue().map_err(|_| RecvError::Exhausted)?;
+
+        net_trace!(
+            "udp:{}:{}: receive {} buffered octets",
+            self.endpoint,
+            remote_endpoint.endpoint,
+            payload_buf.len()
+        );
+        Ok((payload_buf, remote_endpoint))
+    }
+
+    /// Dequeue a packet received from a remote endpoint, copy the payload into the given slice,
+    /// and return the amount of octets copied as well as the endpoint.
+    ///
+    /// **Note**: when the size of the provided buffer is smaller than the size of the payload,
+    /// the packet is dropped and a `RecvError::Truncated` error is returned.
+    ///
+    /// See also [recv](#method.recv).
+    // 411
+    pub fn recv_slice(&mut self, data: &mut [u8]) -> Result<(usize, UdpMetadata), RecvError> {
+        let (buffer, endpoint) = self.recv().map_err(|_| RecvError::Exhausted)?;
+
+        if data.len() < buffer.len() {
+            return Err(RecvError::Truncated);
+        }
+
+        let length = min(data.len(), buffer.len());
+        data[..length].copy_from_slice(&buffer[..length]);
+        Ok((length, endpoint))
+    }
+
     // 480
     pub(crate) fn accepts(&self, cx: &mut Context, ip_repr: &IpRepr, repr: &UdpRepr) -> bool {
         if self.endpoint.port != repr.dst_port {

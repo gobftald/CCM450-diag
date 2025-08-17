@@ -1043,7 +1043,7 @@ impl WifiRxToken {
         // taken, the function will try to trigger a context switch, which will
         // fail if we are in an interrupt-free context.
         let buffer = data.as_slice_mut();
-        dump_packet_info(buffer);
+        dump_packet_info(buffer, self.mode, '<');
 
         f(buffer)
     }
@@ -1074,7 +1074,7 @@ impl WifiTxToken {
 
         let res = f(buffer);
 
-        esp_wifi_send_data(self.mode.interface(), buffer);
+        esp_wifi_send_data(self.mode, buffer);
 
         res
     }
@@ -1085,14 +1085,14 @@ impl WifiTxToken {
 // though in reality `esp_wifi_internal_tx` copies the buffer into its own
 // memory and does not modify
 // 2239
-pub(crate) fn esp_wifi_send_data(interface: wifi_interface_t, data: &mut [u8]) {
+pub(crate) fn esp_wifi_send_data(mode: WifiDeviceMode, data: &mut [u8]) {
     trace!("sending... {} bytes", data.len());
-    dump_packet_info(data);
+    dump_packet_info(data, mode, '>');
 
     let len = data.len() as u16;
     let ptr = data.as_mut_ptr().cast();
 
-    let res = unsafe { esp_wifi_internal_tx(interface, ptr, len) };
+    let res = unsafe { esp_wifi_internal_tx(mode.interface(), ptr, len) };
 
     if res != 0 {
         warn!("esp_wifi_internal_tx {}", res);
@@ -1186,11 +1186,57 @@ fn apply_sta_config(config: &ClientConfiguration) -> Result<(), WifiError> {
 }
 
 // 2472
-fn dump_packet_info(_buffer: &mut [u8]) {
+fn dump_packet_info(buffer: &mut [u8], mode: WifiDeviceMode, direction: char) {
     #[cfg(dump_packets)]
     {
         //info!("@WIFIFRAME {:?}", _buffer);
-        info!("@WIFIFRAME {:x}", _buffer);
+
+        let mut addr1: [u8; 4] = [0; 4];
+        let mut addr2: [u8; 4] = [0; 4];
+        let port1: u16;
+        let port2: u16;
+        unsafe {
+            if direction == '>' {
+                core::ptr::copy_nonoverlapping(&buffer[26], &mut addr1 as *mut u8, 4);
+                core::ptr::copy_nonoverlapping(&buffer[30], &mut addr2 as *mut u8, 4);
+                port1 = (buffer[34] as u16) << 8 | (buffer[35] as u16);
+                port2 = (buffer[36] as u16) << 8 | (buffer[37] as u16);
+            } else {
+                core::ptr::copy_nonoverlapping(&buffer[26], &mut addr2 as *mut u8, 4);
+                core::ptr::copy_nonoverlapping(&buffer[30], &mut addr1 as *mut u8, 4);
+                port2 = (buffer[34] as u16) << 8 | (buffer[35] as u16);
+                port1 = (buffer[36] as u16) << 8 | (buffer[37] as u16);
+            }
+        }
+        match (buffer[12] as u16) << 8 | (buffer[13] as u16) {
+            0x0800 => {
+                match buffer[23] {
+                    0x01 => info!("@Icmp packet"),
+                    0x11 => info!(
+                        "@Udp {} {}.{}.{}.{} {} {}.{}.{}.{} {} {} {}",
+                        mode,
+                        addr1[0],
+                        addr1[1],
+                        addr1[2],
+                        addr1[3],
+                        direction,
+                        addr2[0],
+                        addr2[1],
+                        addr2[2],
+                        addr2[3],
+                        port1,
+                        direction,
+                        port2
+                    ),
+                    _ => {}
+                }
+                //info!("@Ipv4 packet arrived {:x}", buffer);
+            }
+            //0x0806 => info!("@Arp packet"),
+            //0x86DD => info!("@Ipv6 packet"),
+            //_ => info!("@WIFIFRAME {:x}", buffer),
+            _ => {}
+        }
     }
 }
 

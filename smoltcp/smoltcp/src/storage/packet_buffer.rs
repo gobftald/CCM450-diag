@@ -1,3 +1,6 @@
+// 1
+use managed::ManagedSlice;
+
 // 3
 use crate::storage::{Full, RingBuffer};
 
@@ -15,6 +18,12 @@ pub struct PacketMetadata<H> {
 
 // 15
 impl<H> PacketMetadata<H> {
+    // 16
+    /// Empty packet description.
+    pub const EMPTY: PacketMetadata<H> = PacketMetadata {
+        size: 0,
+        header: None,
+    };
     // 22
     fn padding(size: usize) -> PacketMetadata<H> {
         PacketMetadata {
@@ -47,6 +56,22 @@ pub struct PacketBuffer<'a, H: 'a> {
 
 // 48
 impl<'a, H> PacketBuffer<'a, H> {
+    /// Create a new packet buffer with the provided metadata and payload storage.
+    ///
+    /// Metadata storage limits the maximum _number_ of packets in the buffer and payload
+    /// storage limits the maximum _total size_ of packets.
+    // 53
+    pub fn new<MS, PS>(metadata_storage: MS, payload_storage: PS) -> PacketBuffer<'a, H>
+    where
+        MS: Into<ManagedSlice<'a, PacketMetadata<H>>>,
+        PS: Into<ManagedSlice<'a, u8>>,
+    {
+        PacketBuffer {
+            metadata_ring: RingBuffer::new(metadata_storage),
+            payload_ring: RingBuffer::new(payload_storage),
+        }
+    }
+
     /// Query whether the buffer is empty.
     // 65
     pub fn is_empty(&self) -> bool {
@@ -138,5 +163,19 @@ impl<'a, H> PacketBuffer<'a, H> {
                 })
                 .1
         })
+    }
+
+    /// Dequeue a single packet from the buffer, and return a reference to its payload
+    /// as well as its header, or return `Err(Error::Exhausted)` if the buffer is empty.
+    // 205
+    pub fn dequeue(&mut self) -> Result<(H, &mut [u8]), Empty> {
+        self.dequeue_padding();
+
+        let meta = self.metadata_ring.dequeue_one()?;
+
+        let payload_buf = self.payload_ring.dequeue_many(meta.size);
+        debug_assert!(payload_buf.len() == meta.size);
+        //Ok((meta.header.take().unwrap(), payload_buf))
+        Ok((unwrap!(meta.header.take()), payload_buf))
     }
 }

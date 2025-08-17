@@ -1,0 +1,47 @@
+// ccm-diag/studies/esp-wifi-apsta/src/main.rs
+ap_server_socket.bind(19924).unwrap();
+let (n, ep) = ap_server_socket.recv_from(&mut buf).await.unwrap();
+    //ccm-diag/embassy/embassy-net/src/udp.rs
+    pub fn recv_from<'s>(
+        &'s self,
+        buf: &'s mut [u8],
+    ) -> impl Future<Output = Result<(usize, UdpMetadata), RecvError>> + 's {
+        poll_fn(|cx| self.poll_recv_from(buf, cx))
+    }
+        //ccm-diag/embassy/embassy-net/src/udp.rs
+        pub fn poll_recv_from(
+            &self,
+            buf: &mut [u8],
+            cx: &mut Context<'_>,
+        ) -> Poll<Result<(usize, UdpMetadata), RecvError>> {
+            self.with_mut(|s, _| match s.recv_slice(buf) {      // try to get wifi raw packet
+                Ok((n, meta)) => Poll::Ready(Ok((n, meta))),
+                // No data ready
+                Err(udp::RecvError::Truncated) => Poll::Ready(Err(RecvError::Truncated)),
+                Err(udp::RecvError::Exhausted) => {
+                    s.register_recv_waker(cx.waker());          // if receive queue is empty
+                                                                // register our task for socket receive event
+                                                                // this is the eof processing a received packet
+                    Poll::Pending
+                }
+            })
+        }
+            //ccm-diag/embassy/embassy-net/src/udp.rs
+            fn with_mut<R>(&self, f: impl FnOnce(&mut udp::Socket, &mut Interface) -> R) -> R {
+                self.stack.with_mut(|i| {
+                    let socket = i.sockets.get_mut::<udp::Socket>(self.handle);
+                    let res = f(socket, &mut i.iface);  // call closure (recv_slice) with our smoltcp socket
+                    // triggering
+                    i.waker.wake();                     // wakes Runner (Interface.waker)
+                                                        // this starts to process rx or tx wifi raw queues
+                                                        // Runner::run calls Stack's Inner::poll
+                                                        // which calls 'self.waker.register(cx.waker())' to register itself again
+                                                        // and CAN wakes 'self.state_waker' if link state changed
+                                                        // and CAN wakes itself if 'self.iface.poll_at' timer elapsed
+                            
+                    res                                 // return with closure Poll result
+                                                        // the original 'recv_from(&mut buf).await' wait based on this 
+                                                        // so task which called recv_from waits on this
+                                                        // but net_task was waked every time
+                })
+            }

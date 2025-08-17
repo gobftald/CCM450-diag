@@ -29,6 +29,21 @@ pub struct RingBuffer<'a, T: 'a> {
 
 // 33
 impl<'a, T: 'a> RingBuffer<'a, T> {
+    /// Create a ring buffer with the given storage.
+    ///
+    /// During creation, every element in `storage` is reset.
+    // 37
+    pub fn new<S>(storage: S) -> RingBuffer<'a, T>
+    where
+        S: Into<ManagedSlice<'a, T>>,
+    {
+        RingBuffer {
+            storage: storage.into(),
+            read_at: 0,
+            length: 0,
+        }
+    }
+
     /// Clear the ring buffer.
     // 49
     pub fn clear(&mut self) {
@@ -144,6 +159,15 @@ impl<'a, T: 'a> RingBuffer<'a, T> {
             self.read_at = next_at;
         }
         Ok(res)
+    }
+
+    /// Dequeue an element from the buffer, and return a reference to it,
+    /// or return `Err(Empty)` if the buffer is empty.
+    ///
+    /// This function is a shortcut for `ring_buf.dequeue_one_with(Ok)`.
+    // 167
+    pub fn dequeue_one(&mut self) -> Result<&mut T, Empty> {
+        self.dequeue_one_with(Ok)?
     }
 }
 

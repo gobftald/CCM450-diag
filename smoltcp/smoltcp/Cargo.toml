@@ -13,6 +13,8 @@ byteorder = { version = "1.0", default-features = false }
 bitflags = { version = "1.0", default-features = false }
 
 [features]
+# we use allocato-api2 wit 'alloc', but not used this 'alloc' feature
+# since we use ManagedSlice in SocketSet with fixed number of slots
 alloc = ["managed/alloc", "defmt?/alloc"]
 "medium-ethernet" = ["socket"]
 

@@ -13,6 +13,10 @@ mod driver_util;
 // 24
 mod time;
 
+#[cfg(feature = "udp")]
+// 26
+pub mod udp;
+
 // 28
 use core::cell::RefCell;
 use core::future::{poll_fn, Future};
@@ -374,6 +378,17 @@ impl<'d> Stack<'d> {
 // 646
 impl Inner {
     #[cfg(feature = "proto-ipv4")]
+    #[allow(clippy::absurd_extreme_comparisons)]
+    pub fn get_local_port(&mut self) -> u16 {
+        let res = self.next_local_port;
+        self.next_local_port = if res >= LOCAL_PORT_MAX {
+            LOCAL_PORT_MIN
+        } else {
+            res + 1
+        };
+        res
+    }
+
     // 655
     pub fn set_config_v4(&mut self, config: ConfigV4) {
         // Handle static config.
@@ -525,7 +540,11 @@ impl Inner {
 
         if let Some(poll_at) = self.iface.poll_at(timestamp, &mut self.sockets) {
             let t = pin!(Timer::at(instant_from_smoltcp(poll_at)));
+            // embassy_time_driver::schedule_wake for cx
+            // timer will wake Runner::run's await
             if t.poll(cx).is_ready() {
+                // this wakes Runner immediately after we returned
+                // and 'run' enter await (see below)
                 cx.waker().wake_by_ref();
             }
         }
@@ -542,6 +561,7 @@ impl<'d, D: Driver> Runner<'d, D> {
             self.stack.with_mut(|i| i.poll(cx, &mut self.driver));
             Poll::<()>::Pending
         })
+        // either poll_at timer or Stack.inner.waker wake
         .await;
         unreachable!()
     }

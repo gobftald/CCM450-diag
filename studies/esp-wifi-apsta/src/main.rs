@@ -10,11 +10,14 @@
 mod panic;
 
 #[allow(unused_imports)]
-#[macro_use(core_println, debug, unwrap)] // core_println for panic_handler in mod panic
+#[macro_use(core_println, debug, unwrap, info)] // core_println for panic_handler in mod panic
 extern crate console;
 
 use core::net::Ipv4Addr;
-use embassy_net::StackResources;
+use embassy_net::{
+    StackResources,
+    udp::{PacketMetadata, UdpSocket},
+};
 use embassy_time::{Duration, Timer};
 
 use core::cell::OnceCell;
@@ -126,6 +129,32 @@ async fn main(spawner: embassy_executor::Spawner) {
         Timer::after(Duration::from_millis(500)).await;
     }
     debug!("AP Stack Link is up");
+
+    let mut ap_server_rx_meta = [PacketMetadata::EMPTY; 16];
+    let mut ap_server_rx_buffer = [0; 1536];
+    let mut ap_server_tx_meta = [PacketMetadata::EMPTY; 16];
+    let mut ap_server_tx_buffer = [0; 1536];
+    let mut buf = [0; 1536];
+
+    let mut ap_server_socket = UdpSocket::new(
+        ap_stack,
+        &mut ap_server_rx_meta,
+        &mut ap_server_rx_buffer,
+        &mut ap_server_tx_meta,
+        &mut ap_server_tx_buffer,
+    );
+
+    ap_server_socket.bind(19924).unwrap();
+
+    loop {
+        let (n, ep) = ap_server_socket.recv_from(&mut buf).await.unwrap();
+        if let Ok(s) = core::str::from_utf8(&buf[..n]) {
+            info!("ECHO (to {}): {}", ep, s);
+        } else {
+            info!("ECHO (to {}): bytearray len {}", ep, n);
+        }
+        ap_server_socket.send_to(&buf[..n], ep).await.unwrap();
+    }
 }
 
 #[embassy_executor::task]

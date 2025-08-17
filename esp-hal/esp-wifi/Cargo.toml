@@ -16,10 +16,7 @@ num-derive = { version = "0.4.2" }
 num-traits = { version = "0.2.19", default-features = false }
 critical-section = { version = "1.2.0" }
 enumset = { path = "../../enumset/enumset", default-features = false, optional = true }
-smoltcp = { path = "../../smoltcp/smoltcp", default-features = false, features = [
-  "medium-ethernet",
-  #"socket-raw",
-], optional = true }
+smoltcp = { path = "../../smoltcp/smoltcp", default-features = false, features = ["medium-ethernet"], optional = true }
 embassy-net-driver = { path = "../../embassy/embassy-net-driver", optional = true }
 portable-atomic = { path = "../../portable-atomic", default-features = false }
 portable-atomic-enum = { path = "../../portable-atomic-enum", features = ["portable-atomic"] }
