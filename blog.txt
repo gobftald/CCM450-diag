@@ -130,8 +130,8 @@ rustc --print cfg --target riscv32imc-unknown-none-elf
 watch *0x3fc9d5f8
 watch *(0x3fc9d5f8 as *[u8;1024])
 
-SSID="iWIFI-2.4" PASSWORD="dingomolarsanta" DEFMT_LOG=debug,smoltcp=trace,embassy_net=trace cargo run --features=embassy-net/packet-trace
-
+SSID="iWIFI-2.4" PASSWORD="dingomolarsanta" DEFMT_LOG=debug,smoltcp=trace,embassy_net=trace cargo run
+SSID="iWIFI-2.4" PASSWORD="dingomolarsanta" DEFMT_LOG=off,esp_wifi_apsta=debug,esp_wifi=debug,smoltcp=debug cargo run --features=esp-alloc/internal-heap-stats
 
 0xf6    0x12    0xfa    0x16    0x30    0x88            DESTINATION: Field = 0..6;
 0x3c    0x06    0x30    0x41    0xbf    0xcb            SOURCE: Field = 6..12;

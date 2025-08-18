@@ -14,8 +14,8 @@ use super::WifiEvent;
 use crate::{
     compat::{
         common::{
-            create_queue, create_recursive_mutex, delete_queue, lock_mutex, receive_queued,
-            send_queued, str_from_c, thread_sem_get, unlock_mutex, ConcurrentQueue,
+            ConcurrentQueue, create_queue, create_recursive_mutex, delete_queue, lock_mutex,
+            receive_queued, send_queued, str_from_c, thread_sem_get, unlock_mutex,
         },
         malloc::calloc,
     },
@@ -75,10 +75,7 @@ pub unsafe extern "C" fn env_is_chip() -> bool {
 pub unsafe extern "C" fn set_intr(cpu_no: i32, intr_source: u32, intr_num: u32, intr_prio: i32) {
     trace!(
         "set_intr {} {} {} {}",
-        cpu_no,
-        intr_source,
-        intr_num,
-        intr_prio
+        cpu_no, intr_source, intr_num, intr_prio
     );
     unsafe {
         crate::wifi::os_adapter::os_adapter_chip_specific::set_intr(
@@ -222,7 +219,7 @@ pub unsafe extern "C" fn wifi_int_restore(
 // 266
 pub unsafe extern "C" fn task_yield_from_isr() {
     // original: /* Do nothing */
-    trace!("task_yield_from_isr");
+    //trace!("task_yield_from_isr");
     yield_task();
 }
 
@@ -362,7 +359,7 @@ pub unsafe extern "C" fn queue_send_from_isr(
     item: *mut crate::binary::c_types::c_void,
     _hptw: *mut crate::binary::c_types::c_void,
 ) -> i32 {
-    trace!("queue_send_from_isr");
+    //trace!("queue_send_from_isr");
     unsafe {
         *(_hptw as *mut u32) = 1;
         queue_send(queue, item, 1000)
@@ -594,14 +591,10 @@ pub unsafe extern "C" fn event_post(
     event_data_size: usize,
     ticks_to_wait: u32,
 ) -> i32 {
-    trace!(
-        "event_post {:?} {} {:?} {} {:?}",
-        event_base,
-        event_id,
-        event_data,
-        event_data_size,
-        ticks_to_wait
-    );
+    //trace!(
+    //    "event_post {:?} {} {:?} {} {:?}",
+    //    event_base, event_id, event_data, event_data_size, ticks_to_wait
+    //);
     use num_traits::FromPrimitive;
 
     let event = unwrap!(WifiEvent::from_i32(event_id));
@@ -681,13 +674,14 @@ pub unsafe extern "C" fn phy_update_country_info(
     country: *const crate::binary::c_types::c_char,
 ) -> crate::binary::c_types::c_int {
     // not implemented in original code
+    /*
     #[cfg(feature = "defmt")]
     unsafe {
-        trace!("phy_update_country_info {}", str_from_c(country.cast()));
+        //trace!("phy_update_country_info {}", str_from_c(country.cast()));
     }
     #[cfg(not(feature = "defmt"))]
-    trace!("phy_update_country_info {}", str_from_c(country.cast()));
-
+    //trace!("phy_update_country_info {}", str_from_c(country.cast()));
+    */
     -1
 }
 
@@ -1014,7 +1008,7 @@ pub unsafe extern "C" fn wifi_create_queue(
 /// *************************************************************************
 // 1713
 pub unsafe extern "C" fn wifi_delete_queue(queue: *mut crate::binary::c_types::c_void) {
-    trace!("wifi_delete_queue {:?}", queue);
+    //trace!("wifi_delete_queue {:?}", queue);
     unsafe {
         if core::ptr::eq(queue, addr_of_mut!(QUEUE_HANDLE).cast()) {
             delete_queue(QUEUE_HANDLE);
@@ -1302,7 +1296,7 @@ pub unsafe extern "C" fn coex_register_start_cb(
 /// *************************************************************************
 // 2093
 pub unsafe extern "C" fn slowclk_cal_get() -> u32 {
-    trace!("slowclk_cal_get");
+    //trace!("slowclk_cal_get");
 
     // TODO not hardcode this
 

@@ -55,7 +55,8 @@ pub(crate) struct EspWifiConfig {
     pub(crate) scan_method: u32,
 }
 
-pub const ESP_WIFI_CONFIG_RX_QUEUE_SIZE: usize = 5;
+//pub const ESP_WIFI_CONFIG_RX_QUEUE_SIZE: usize = 5;
+pub const ESP_WIFI_CONFIG_RX_QUEUE_SIZE: usize = 8;
 pub const ESP_WIFI_CONFIG_TX_QUEUE_SIZE: usize = 3;
 pub const ESP_WIFI_CONFIG_STATIC_RX_BUF_NUM: usize = 10;
 pub const ESP_WIFI_CONFIG_DYNAMIC_RX_BUF_NUM: usize = 32;

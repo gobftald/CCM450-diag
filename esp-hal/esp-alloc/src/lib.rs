@@ -170,7 +170,7 @@ impl EspHeap {
         //const EMPTY_REGION_STAT: Option<RegionStats> = None;
         //let mut region_stats: [Option<RegionStats>; 3] = [EMPTY_REGION_STAT; 3];
 
-        critical_section::with(|cs| {
+        critical_section::with(|_cs| {
             /*
             let mut used = 0;
             let mut free = 0;

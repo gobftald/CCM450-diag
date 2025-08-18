@@ -203,7 +203,7 @@ pub(crate) fn sem_take(semphr: *mut c_void, tick: u32) -> i32 {
         tick
     };
 
-    trace!(">>>> semphr_take {:?} block_time_tick {}", semphr, tick);
+    //trace!(">>>> semphr_take {:?} block_time_tick {}", semphr, tick);
 
     let forever = tick == OSI_FUNCS_TIME_BLOCKING;
     let timeout = tick as u64;
@@ -224,7 +224,7 @@ pub(crate) fn sem_take(semphr: *mut c_void, tick: u32) -> i32 {
         });
 
         if res == 1 {
-            trace!(">>>> return from semphr_take");
+            //trace!(">>>> return from semphr_take");
             return 1;
         }
 
@@ -241,7 +241,7 @@ pub(crate) fn sem_take(semphr: *mut c_void, tick: u32) -> i32 {
 
 // 254
 pub(crate) fn sem_give(semphr: *mut c_void) -> i32 {
-    trace!("semphr_give {:?}", semphr);
+    //trace!("semphr_give {:?}", semphr);
 
     let sem = semphr as *mut u32;
 
@@ -253,7 +253,7 @@ pub(crate) fn sem_give(semphr: *mut c_void) -> i32 {
 }
 
 pub(crate) fn thread_sem_get() -> *mut c_void {
-    trace!("wifi_thread_semphr_get");
+    //trace!("wifi_thread_semphr_get");
     crate::preempt::current_task_thread_semaphore()
 }
 
@@ -271,7 +271,7 @@ pub(crate) fn create_recursive_mutex() -> *mut c_void {
     }
     memory_fence();
 
-    trace!("recursive_mutex_create called {:?}", ptr);
+    //trace!("recursive_mutex_create called {:?}", ptr);
     ptr as *mut c_void
 }
 
@@ -360,12 +360,10 @@ pub(crate) fn send_queued(
     item: *mut c_void,
     block_time_tick: u32,
 ) -> i32 {
-    trace!(
-        "queue_send queue {:?} item {:x} block_time_tick {}",
-        queue,
-        item as usize,
-        block_time_tick
-    );
+    //trace!(
+    //    "queue_send queue {:?} item {:x} block_time_tick {}",
+    //    queue, item as usize, block_time_tick
+    //);
 
     let queue: *mut ConcurrentQueue = queue.cast();
     unsafe { (*queue).enqueue(item) }
@@ -377,12 +375,12 @@ pub(crate) fn receive_queued(
     item: *mut c_void,
     block_time_tick: u32,
 ) -> i32 {
-    trace!(
-        "queue_recv {:?} item {:?} block_time_tick {}",
-        queue,
-        item,
-        block_time_tick
-    );
+    //trace!(
+    //    "queue_recv {:?} item {:?} block_time_tick {}",
+    //    queue,
+    //    item,
+    //    block_time_tick
+    //);
 
     let forever = block_time_tick == OSI_FUNCS_TIME_BLOCKING;
     let timeout = block_time_tick as u64;
@@ -390,7 +388,7 @@ pub(crate) fn receive_queued(
 
     loop {
         if unsafe { (*queue).try_dequeue(item) } {
-            trace!("received");
+            //trace!("received");
             return 1;
         }
 

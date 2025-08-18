@@ -1141,6 +1141,18 @@ unsafe extern "C" {
     pub fn esp_wifi_connect() -> esp_err_t;
 }
 
+// 6695
+unsafe extern "C" {
+    /// @brief     Disconnect WiFi station from the AP.
+    ///
+    /// @return
+    ///     - ESP_OK: succeed
+    ///     - ESP_ERR_WIFI_NOT_INIT: WiFi was not initialized by esp_wifi_init
+    ///     - ESP_ERR_WIFI_NOT_STARTED: WiFi was not started by esp_wifi_start
+    ///     - ESP_FAIL: other WiFi internal errors
+    pub fn esp_wifi_disconnect() -> esp_err_t;
+}
+
 // 6830
 unsafe extern "C" {
     /// @brief     Set the configuration of the STA, AP or NAN

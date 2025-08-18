@@ -41,7 +41,7 @@ async fn main(spawner: embassy_executor::Spawner) {
     let config = esp_hal::Config::new_and_default(esp_hal::clock::CpuClock::max());
     let peripherals = esp_hal::init(config);
 
-    esp_alloc::heap_allocator!(size: 72 * 1024);
+    esp_alloc::heap_allocator!(size: 128 * 1024);
 
     let timg0 = esp_hal::timer::timg::TimerGroup::new(peripherals.TIMG0);
     let mut rng = esp_hal::rng::Rng::new(peripherals.RNG);
@@ -130,30 +130,37 @@ async fn main(spawner: embassy_executor::Spawner) {
     }
     debug!("AP Stack Link is up");
 
-    let mut ap_server_rx_meta = [PacketMetadata::EMPTY; 16];
-    let mut ap_server_rx_buffer = [0; 1536];
-    let mut ap_server_tx_meta = [PacketMetadata::EMPTY; 16];
-    let mut ap_server_tx_buffer = [0; 1536];
+    let mut ap_udp_server_rx_meta = [PacketMetadata::EMPTY; 8];
+    let mut ap_udp_server_tx_meta = [PacketMetadata::EMPTY; 8];
+    let mut ap_udp_server_rx_buffer = [0; 1536];
+    let mut ap_udp_server_tx_buffer = [0; 1536];
     let mut buf = [0; 1536];
 
-    let mut ap_server_socket = UdpSocket::new(
+    let mut ap_udp_server_socket = UdpSocket::new(
         ap_stack,
-        &mut ap_server_rx_meta,
-        &mut ap_server_rx_buffer,
-        &mut ap_server_tx_meta,
-        &mut ap_server_tx_buffer,
+        &mut ap_udp_server_rx_meta,
+        &mut ap_udp_server_rx_buffer,
+        &mut ap_udp_server_tx_meta,
+        &mut ap_udp_server_tx_buffer,
     );
 
-    ap_server_socket.bind(19924).unwrap();
+    ap_udp_server_socket.bind(19924).unwrap();
 
     loop {
-        let (n, ep) = ap_server_socket.recv_from(&mut buf).await.unwrap();
+        let (n, ep) = ap_udp_server_socket.recv_from(&mut buf).await.unwrap();
         if let Ok(s) = core::str::from_utf8(&buf[..n]) {
             info!("ECHO (to {}): {}", ep, s);
         } else {
             info!("ECHO (to {}): bytearray len {}", ep, n);
         }
-        ap_server_socket.send_to(&buf[..n], ep).await.unwrap();
+        ap_udp_server_socket.send_to(&buf[..n], ep).await.unwrap();
+
+        /*
+        //needs --features=esp-alloc/internal-heap-stats
+        unsafe {
+            debug!("{}", esp_alloc::HEAP.stats());
+        }
+        */
     }
 }
 
@@ -173,8 +180,7 @@ async fn connection(mut controller: esp_wifi::wifi::WifiController<'static>) {
     debug!("Device capabilities: {:?}", controller.capabilities());
 
     debug!("Starting wifi");
-    controller.start_async().await.unwrap();
-    debug!("Wifi started!");
+    unwrap!(controller.start_async().await);
 
     loop {
         match esp_wifi::wifi::ap_state() {
@@ -193,7 +199,8 @@ async fn connection(mut controller: esp_wifi::wifi::WifiController<'static>) {
                     }
                     Err(_e) => {
                         debug!("Failed to connect to wifi: {:?}", _e);
-                        Timer::after(Duration::from_millis(5000)).await
+                        //Timer::after(Duration::from_millis(5000)).await
+                        Timer::after(Duration::from_millis(1000)).await
                     }
                 }
             }
@@ -211,5 +218,5 @@ async fn net_task(mut runner: embassy_net::Runner<'static, esp_wifi::wifi::WifiD
 }
 
 // cmd line
-// SSID="iWIFI-2.4" PASSWORD="dingomolarsanta" DEFMT_LOG=debug \
-// cargo run --release --features=backtrace,esp-wifi/sys-logs
+// SSID="iWIFI-2.4" PASSWORD="dingomolarsanta" DEFMT_LOG=off,esp_wifi_apsta=debug,esp_wifi=debug,smoltcp=debug \
+// cargo run --release --features==esp-alloc/internal-heap-stats

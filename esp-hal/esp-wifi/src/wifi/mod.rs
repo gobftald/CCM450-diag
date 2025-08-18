@@ -42,10 +42,11 @@ use crate::binary::{
     c_types,
     include::{
         self, __BindgenBitfieldUnit, esp_err_t, esp_interface_t_ESP_IF_WIFI_AP,
-        esp_interface_t_ESP_IF_WIFI_STA, esp_supplicant_init, esp_wifi_connect, esp_wifi_get_mode,
-        esp_wifi_init_internal, esp_wifi_internal_free_rx_buffer, esp_wifi_internal_reg_rxcb,
-        esp_wifi_internal_tx, esp_wifi_set_config, esp_wifi_set_mode, esp_wifi_set_tx_done_cb,
-        esp_wifi_start, g_wifi_default_wpa_crypto_funcs, wifi_ap_config_t, wifi_auth_mode_t,
+        esp_interface_t_ESP_IF_WIFI_STA, esp_supplicant_init, esp_wifi_connect,
+        esp_wifi_disconnect, esp_wifi_get_mode, esp_wifi_init_internal,
+        esp_wifi_internal_free_rx_buffer, esp_wifi_internal_reg_rxcb, esp_wifi_internal_tx,
+        esp_wifi_set_config, esp_wifi_set_mode, esp_wifi_set_tx_done_cb, esp_wifi_start,
+        g_wifi_default_wpa_crypto_funcs, wifi_ap_config_t, wifi_auth_mode_t,
         wifi_cipher_type_t_WIFI_CIPHER_TYPE_CCMP, wifi_config_t, wifi_interface_t,
         wifi_interface_t_WIFI_IF_AP, wifi_interface_t_WIFI_IF_STA, wifi_mode_t,
         wifi_mode_t_WIFI_MODE_AP, wifi_mode_t_WIFI_MODE_APSTA, wifi_mode_t_WIFI_MODE_NULL,
@@ -1232,8 +1233,8 @@ fn dump_packet_info(buffer: &mut [u8], mode: WifiDeviceMode, direction: char) {
                 }
                 //info!("@Ipv4 packet arrived {:x}", buffer);
             }
-            //0x0806 => info!("@Arp packet"),
-            //0x86DD => info!("@Ipv6 packet"),
+            0x0806 => info!("@Arp packet"),
+            0x86DD => info!("@Ipv6 packet"),
             //_ => info!("@WIFIFRAME {:x}", buffer),
             _ => {}
         }
@@ -1465,6 +1466,11 @@ impl WifiController<'_> {
     // 2882
     fn connect_impl(&mut self) -> Result<(), WifiError> {
         esp_wifi_result!(unsafe { esp_wifi_connect() })
+    }
+
+    // 2886
+    pub fn disconnect_impl(&mut self) -> Result<(), WifiError> {
+        esp_wifi_result!(unsafe { esp_wifi_disconnect() })
     }
 
     // 2920

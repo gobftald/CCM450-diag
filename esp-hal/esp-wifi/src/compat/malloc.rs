@@ -13,17 +13,17 @@ pub unsafe extern "C" fn malloc(size: usize) -> *mut u8 {
         warn!("Unable to allocate {} bytes", size);
     }
 
-    trace!("alloc {} {:?}", size, ptr);
+    //trace!("alloc {} {:?}", size, ptr);
     ptr
 }
 
 #[unsafe(no_mangle)]
 // 19
 pub unsafe extern "C" fn free(ptr: *mut u8) {
-    trace!("free {:?}", ptr);
+    //trace!("free {:?}", ptr);
 
     if ptr.is_null() {
-        warn!("Attempt to free null pointer");
+        //warn!("Attempt to free null pointer");
         return;
     }
 
