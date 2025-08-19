@@ -12,6 +12,7 @@
         *(.text.ets_timer_setfn)
 
 
+        *(.text.*esp_wifi*compat*common*lock_mutex*)
         *(.text.*esp_wifi*compat*common*sem_take*)
         *(.text.*esp_wifi*compat*common*receive_queued*)
         *(.text.*strnlen)
@@ -35,12 +36,14 @@
         *(.text.*esp_wifi*preempt_builtin*timer*timer_tick_handler*)
         *(.text.*esp_wifi*preempt_builtin*timer*arch_specific*setup_timer*)
         *(.text.FROM_CPU_INTR2) 
+        *(.text.*esp_wifi*preempt_builtin*SchedulerState*switch_task*)
         *(.text.*esp_wifi*preempt_builtin*BuiltinScheduler*as*esp_wifi*preempt*Scheduler*task_create*)
 
         *(.text.*esp_wifi*tasks*init_tasks*)
         *(.text.*esp_wifi*tasks*timer_task*)
 
         *(.text.*esp_wifi*wifi*new*)
+        *(.text.*esp_wifi*wifi*esp_wifi_send_data*)
     
         *(.text.*esp_wifi*wifi*os_adapter*spin_lock_create*)
         *(.text.*esp_wifi*wifi*os_adapter*wifi_int_disable*)
@@ -88,7 +91,11 @@
         *(.text.*esp_wifi*wifi*os_adapter*phy_enable*)
         *(.text.*esp_wifi*wifi*os_adapter*wifi_reset_mac*)
         *(.text.*esp_wifi*wifi*os_adapter*get_random*)
+
         *(.text.esp_timer_get_time)
+        *(.text.esp_wifi_internal_free_rx_buffer)
+        *(.text.esp_wifi_init_internal)
+        *(.text.esp_wifi_wpa_ptk_init_done_internal)
 
         *(.text.*esp_wifi*wifi*wifi_start*)
         *(.text.*esp_wifi*wifi*recv_cb_sta*)
@@ -109,9 +116,12 @@
         *(.text.*esp_wifi*wifi*WifiMode*current*)
         *(.text.*esp_wifi*wifi*state*ap_state*)
         *(.text.*esp_wifi*wifi*event*dispatch_event_handler*)
+        *(.text.*esp_wifi*wifi*private*EspWifiPacketBuffer*as*core*ops*drop*Drop*drop*)
 
         *(.text.WIFI_MAC)
         *(.text.WIFI_PWR)
+
+        *(.text.*esp_wifi*init*)
 
         *(.text.*drop_in_place*esp_wifi*compat*timer_compat*Timer*)
 

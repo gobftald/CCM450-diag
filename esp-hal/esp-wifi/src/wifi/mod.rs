@@ -1187,8 +1187,9 @@ fn apply_sta_config(config: &ClientConfiguration) -> Result<(), WifiError> {
 }
 
 // 2472
-fn dump_packet_info(buffer: &mut [u8], mode: WifiDeviceMode, direction: char) {
+fn dump_packet_info(_buffer: &mut [u8], _mode: WifiDeviceMode, _direction: char) {
     #[cfg(dump_packets)]
+    #[cfg(feature = "defmt")]
     {
         //info!("@WIFIFRAME {:?}", _buffer);
 
@@ -1197,45 +1198,45 @@ fn dump_packet_info(buffer: &mut [u8], mode: WifiDeviceMode, direction: char) {
         let port1: u16;
         let port2: u16;
         unsafe {
-            if direction == '>' {
-                core::ptr::copy_nonoverlapping(&buffer[26], &mut addr1 as *mut u8, 4);
-                core::ptr::copy_nonoverlapping(&buffer[30], &mut addr2 as *mut u8, 4);
-                port1 = (buffer[34] as u16) << 8 | (buffer[35] as u16);
-                port2 = (buffer[36] as u16) << 8 | (buffer[37] as u16);
+            if _direction == '>' {
+                core::ptr::copy_nonoverlapping(&_buffer[26], &mut addr1 as *mut u8, 4);
+                core::ptr::copy_nonoverlapping(&_buffer[30], &mut addr2 as *mut u8, 4);
+                port1 = (_buffer[34] as u16) << 8 | (_buffer[35] as u16);
+                port2 = (_buffer[36] as u16) << 8 | (_buffer[37] as u16);
             } else {
-                core::ptr::copy_nonoverlapping(&buffer[26], &mut addr2 as *mut u8, 4);
-                core::ptr::copy_nonoverlapping(&buffer[30], &mut addr1 as *mut u8, 4);
-                port2 = (buffer[34] as u16) << 8 | (buffer[35] as u16);
-                port1 = (buffer[36] as u16) << 8 | (buffer[37] as u16);
+                core::ptr::copy_nonoverlapping(&_buffer[26], &mut addr2 as *mut u8, 4);
+                core::ptr::copy_nonoverlapping(&_buffer[30], &mut addr1 as *mut u8, 4);
+                port2 = (_buffer[34] as u16) << 8 | (_buffer[35] as u16);
+                port1 = (_buffer[36] as u16) << 8 | (_buffer[37] as u16);
             }
         }
-        match (buffer[12] as u16) << 8 | (buffer[13] as u16) {
+        match (_buffer[12] as u16) << 8 | (_buffer[13] as u16) {
             0x0800 => {
-                match buffer[23] {
+                match _buffer[23] {
                     0x01 => info!("@Icmp packet"),
                     0x11 => info!(
                         "@Udp {} {}.{}.{}.{} {} {}.{}.{}.{} {} {} {}",
-                        mode,
+                        _mode,
                         addr1[0],
                         addr1[1],
                         addr1[2],
                         addr1[3],
-                        direction,
+                        _direction,
                         addr2[0],
                         addr2[1],
                         addr2[2],
                         addr2[3],
                         port1,
-                        direction,
+                        _direction,
                         port2
                     ),
                     _ => {}
                 }
-                //info!("@Ipv4 packet arrived {:x}", buffer);
+                //info!("@Ipv4 packet arrived {:x}", _buffer);
             }
             0x0806 => info!("@Arp packet"),
             0x86DD => info!("@Ipv6 packet"),
-            //_ => info!("@WIFIFRAME {:x}", buffer),
+            //_ => info!("@WIFIFRAME {:x}", _buffer),
             _ => {}
         }
     }

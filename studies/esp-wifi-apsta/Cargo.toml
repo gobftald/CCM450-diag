@@ -27,7 +27,7 @@ esp-wifi = { path = "../../esp-hal/esp-wifi", features = ["wifi"] }
 default = [
     "esp32c3",
     "console/jtag_serial",
-    "defmt",
+    #"defmt",
 ]
 
 esp32c3 = [

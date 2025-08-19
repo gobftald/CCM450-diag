@@ -58,6 +58,11 @@
         *(.text.*_embassy_time*)
         *(.text.*embassy_net*Inner*)
         *(.text.*embassy_net*new*)
+        *(.text.*embassy_net*udp*UdpSocket*poll_recv_from*)
+        *(.text.*embassy_net*Stack*is_link_up*)
+        *(.text.*embassy_net*Stack*config_v4*)
+
+        *(.text.*core*future*poll_fn*PollFn*as*core*future*future*Future*poll*)
         *(.text.*embassy_sync*)
 
     } > ROTEXT
@@ -128,5 +133,9 @@ INCLUDE "debug_smoltcp.x"
         *(.text.*core*slice*index*slice_start_index_len_fail*do_panic*runtime*)
         *(.text.*core*slice*index*slice_end_index_len_fail*do_panic*runtime*)
         *(.text.*core*slice*index*slice_index_order_fail*do_panic*runtime*)
+
+        /* it takes 544 bytes, so we use only in udp test server */
+        *(.text.*core*str*converts*from_utf8*)
+        *(.text.*core*slice*impl*copy_from_slice*len_mismatch_fail*do_panic*runtime*)
 
     } > ROTEXT

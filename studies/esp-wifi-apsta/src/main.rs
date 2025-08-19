@@ -148,8 +148,8 @@ async fn main(spawner: embassy_executor::Spawner) {
 
     loop {
         let (n, ep) = ap_udp_server_socket.recv_from(&mut buf).await.unwrap();
-        if let Ok(s) = core::str::from_utf8(&buf[..n]) {
-            info!("ECHO (to {}): {}", ep, s);
+        if let Ok(_s) = core::str::from_utf8(&buf[..n]) {
+            info!("ECHO (to {}): {}", ep, _s);
         } else {
             info!("ECHO (to {}): bytearray len {}", ep, n);
         }
