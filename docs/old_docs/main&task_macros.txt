@@ -1,0 +1,655 @@
+#[main]
+    // in tests/riscv32/Cargo.toml
+    [features]
+    default = [..., "esp32c3-hal/embassy", "esp32c3-hal/embassy-executor-thread",...]
+    [dependencies]
+    esp32c3-hal = { version = "0.15.0", path = "../../esp32c3-hal"}
+    
+    // in esp32c3-hal/Cargo.toml
+    [features]
+    embassy = ["esp-hal/embassy"]
+    embassy-executor-thread = ["esp-hal/embassy-executor-thread"]
+    default = ["embassy-integrated-timers",...]
+    [dependencies]
+    esp-hal = { version = "0.15.0", path = "../esp-hal", features = ["esp32c3"] }
+    embassy-time-driver = { version = "0.1.0",  path = "../embassy-time-driver", optional = true }
+    //in /Users/piv/esp/sandbox/esp32c3-hal/src/lib.rs
+    pub use esp_hal::{..., prelude, ...}
+
+    //in esp-hal/Cargo.toml
+    [features]
+    esp32c3 = [..., "procmacros/esp32c3", ...]
+    embassy = [..., "procmacros/embassy" ...]
+    embassy-executor-thread = [...]
+    embassy-integrated-timers = ["embassy-executor?/integrated-timers"] // see far below
+    [dependencies]
+    procmacros = { version = "0.8.0", package = "esp-hal-procmacros", path = "../esp-hal-procmacros", features = ["ram"]}
+    embassy-executor = { version = "0.5.0", path = "../embassy-executor", optional = true } // see far below
+    // in esp-hal/src/lib.rs
+    pub use procmacros as macros;
+    pub mod prelude;
+    // in esp-hal/src/prelude.rs
+    pub use crate::macros::{..., main};
+    
+    // esp-hal-procmacros/Cargo.toml
+    [features]
+    embassy = []
+    esp32c3 = []
+    [lib]
+    proc-macro = true
+    // in esp-hal-procmacros/src/lib.rs
+    #[cfg(feature = "embassy")]
+    mod embassy;
+    #[proc_macro_attribute]
+    pub fn main(args: TokenStream, item: TokenStream) -> TokenStream {
+        use self::embassy::{..., main::{main, run},...}
+        ...
+        run(&args.meta, f, main()).unwrap_or_else(|x| x).into()
+    }
+    // esp-hal-procmacros/src/embassy.rs
+    pub(crate) mod main {
+        pub fn run(
+            args: &[NestedMeta],
+            f: syn::ItemFn,
+            main: TokenStream,
+        ) -> Result<TokenStream, TokenStream> {
+            // here are many checks for 'main', e.g. must be async, not be generic, etc
+            ...
+            let result = quote! {
+!!!!            // see the location and definition of this attribute macro at the second half of this file 
+                // but explanation of its expansion can be found here in '#[main] chapter'
+                #[::embassy_executor::task()]
+                async fn __embassy_main(#fargs) #out {
+                    #f_body
+                }
+                unsafe fn __make_static<T>(t: &mut T) -> &'static mut T {
+                    ::core::mem::transmute(t)
+                }
+                #main
+            };
+            Ok(result)
+        }
+
+        // here are many checks for 'main', e.g. must be asyns, not be generic, etc
+        ...
+        pub fn main() -> TokenStream {
+            ...
+            quote! {
+                #[entry]
+                fn main() -> ! {
+                    let mut executor = #executor::new();
+                    let executor = unsafe { __make_static(&mut executor) };
+                    executor.run(|spawner| {
+                        spawner.must_spawn(__embassy_main(spawner));
+                    })
+                }
+            }
+        }
+    }
+
+    // #[entry]
+    // in tests/riscv32/Cargo.toml
+    // [features]
+    // default = [..., #"esp32c3-hal/vectored", # default in esp32c3-hal
+    // ...]
+    // in esp32c3-hal/Cargo.toml
+    // [features]
+    // default = [..., "rt"]
+    // rt  = ["esp-hal/rt-riscv"]
+    // in /Users/piv/esp/sandbox/esp-hal/Cargo.toml
+    // [features]
+    // rt-riscv  = ["esp-riscv-rt/zero-bss",..." ]
+    // [dependencies]
+    // esp-riscv-rt = { version = "0.6.1", path = "../esp-riscv-rt", optional = true}
+    // in esp-hal/src/lib.rs
+    // #[cfg(feature = "rt-riscv")]
+    // pub use esp_riscv_rt::entry;
+    // in esp-hal/src/prelude.rs        // 'importing' this see above
+    // #[cfg(any(feature = "rt-riscv", feature = "rt-xtensa"))]
+    // pub use crate::entry;
+    // in esp-riscv-rt/Cargo.toml
+    // [lib]
+    // proc-macro = true
+    // [dependencies]
+    // riscv-rt-macros = { version = "0.2.0", path = "../riscv-rt-macros" }
+    // in esp-riscv-rt/lib.rs
+    // pub use riscv_rt_macros::entry;
+    // in riscv-rt-macros/lib.rs
+    #[proc_macro_attribute]
+    pub fn entry(args: TokenStream, input: TokenStream) -> TokenStream {
+        // here are check for 'no arguments'
+        ...
+        quote!(
+            #[allow(non_snake_case)]
+            #[export_name = "main"]
+            #(#attrs)*
+            pub #unsafety fn __risc_v_rt__main(#args) -> ! {
+                #(#stmts)*
+            }
+        )
+        .into()
+    }
+
+    // #[main] and #[entry] generates (cargo expand --bin minimal)
+    async fn ____embassy_main_task(spawner: Spawner) {
+        // the body of the original #[main]
+    }
+    fn __embassy_main(spawner: Spawner) -> ::embassy_executor::SpawnToken<impl Sized> {
+        type Fut = impl ::core::future::Future + 'static;
+        const POOL_SIZE: usize = 1;
+        static POOL: ::embassy_executor::raw::TaskPool<Fut, POOL_SIZE> = ::embassy_executor::raw::TaskPool::new();
+        unsafe { POOL._spawn_async_fn(move || ____embassy_main_task(spawner)) }
+    }
+    unsafe fn __make_static<T>(t: &mut T) -> &'static mut T {
+        ::core::mem::transmute(t)
+    }
+    #[allow(non_snake_case)]
+    #[export_name = "main"]
+    pub fn __risc_v_rt__main() -> ! {
+        let mut executor = esp32c3_hal::embassy::executor::Executor::new();
+        let executor = unsafe { __make_static(&mut executor) };
+        executor
+            .run(|spawner| {
+                spawner.must_spawn(__embassy_main(spawner));
+            })
+    }
+
+// this is called from boot following this chain:
+// 42000020 _start  // esp-riscv-rt/lib.rs
+// _abs_start       // esp-riscv-rt/lib.rs
+// _start_rust      // esp-riscv-rt/lib.rs      // in tests/riscv32/Cargo.toml
+                                                // [features]
+                                                // default = [..., #"esp32c3-hal/vectored", # default in esp32c3-hal
+                                                // ...]
+                                                // in esp32c3-hal/Cargo.toml
+                                                // [features]
+                                                // default = [..., "rt"]
+                                                // rt  = ["esp-hal/rt-riscv"]
+                                                // in /Users/piv/esp/sandbox/esp-hal/Cargo.toml
+                                                // [features]
+                                                // rt-riscv  = ["esp-riscv-rt/zero-bss",..." ]
+                                                // [dependencies]
+                                                // esp-riscv-rt = { version = "0.6.1", path = "../esp-riscv-rt", optional = true}
+// hal_main         // esp-hal/src/lib.rs       // #[cfg(riscv)]
+                                                // #[export_name = "hal_main"]
+                                                // fn hal_main(a0: usize, a1: usize, a2: usize) -> ! {
+                                                //     extern "Rust" {
+                                                //         // This symbol will be provided by the user via `#[entry]`
+                                                //         // see above
+                                                //         fn main(a0: usize, a1: usize, a2: usize) -> !;
+                                                //     }
+                                                //     // Stack Smashing Protection
+                                                //     // in esp-hal/ld/sections/stack.x
+                                                //     // PROVIDE(__stack_chk_guard = _stack_end + 4096);
+                                                //     static mut __stack_chk_guard: u32;
+                                                //     let stack_chk_guard = core::ptr::addr_of_mut!(__stack_chk_guard);
+                                                //     stack_chk_guard.write_volatile(0xdeadbabe);
+                                                //
+                                                //     main(a0, a1, a2);
+                                                // }
+// main
+#[export_name = "main"]
+pub fn __risc_v_rt__main() -> ! {
+    let mut executor = esp32c3_hal::embassy::executor::Executor::new();
+        // which is esp_hal::embassy::executor::Executor::new() // see above
+        // in sandbox/esp-hal/src/lib.rs
+        // this path is why #[main] is implemented here and not in embassy-executor
+        // practically it is the main difference between the code of them
+        // so the top executor is here in the 'hal layer'
+        #[cfg(feature = "embassy")]
+        pub mod embassy;
+        // in esp-hal/src/embassy/mod.rs
+        #[cfg(any(
+        feature = "embassy-executor-interrupt",
+        feature = "embassy-executor-thread"      // see above
+        ))]
+        pub mod executor;
+        // in esp-hal/src/embassy/executor/mod.rs
+        #[cfg(feature = "embassy-executor-thread")]
+        pub use thread::Executor;
+        // so in esp-hal/src/embassy/executor/thread.rs
+        // this is the (hal's) top Executor
+        // this is not send, so it is owned by this thread forever
+        // we well put it to a local static variable, see __make_static(&mut executor)
+        pub struct Executor {
+            inner: raw::Executor,
+            not_send: PhantomData<*mut ()>,
+        }
+        impl Executor {
+            pub fn new() -> Self {
+                Self {
+                    inner: raw::Executor::new(usize::from_le_bytes([0, get_core() as u8, 0, 0]) as *mut ()),
+                    not_send: PhantomData,
+                }
+            }
+        }
+        // get_core() in sandbox/esp-hal/src/lib.rs
+        // gives 0 since we have only one core/cpu in esp32c3
+        // so we call raw::Executor::new(0:u32 as *mut ())
+        // in esp-hal/src/embassy/executor/thread.rs:
+        use embassy_executor::{raw, ...};
+        in our [dependency]:
+        embassy-executor = { version = "0.5.0", path = "../embassy-executor", optional = true }
+
+        // in embassy-executor/Cargo.toml
+        [features]
+        integrated-timers = [..."]
+        // in embassy-executor/src/lib.rs:
+        pub mod raw;
+        // so in embassy-executor/src/raw/mod.rs
+        pub struct Executor {
+            pub(crate) inner: SyncExecutor,
+            _not_sync: PhantomData<*mut ()>,
+        }
+        // it is not Sync, so its ownership can be moved but not shared 
+        impl Executor {
+           pub fn new(context: *mut ()) -> Self {
+           Self {
+               inner: SyncExecutor::new(Pender(context)),
+               _not_sync: PhantomData,
+        }
+
+        // Pender is also in embassy-executor/src/raw/mod.rs
+        // it signals a top level Executor to run/poll
+        pub(crate) struct Pender(*mut ());
+        // it can be used from any thread to call Executor in another thread
+        unsafe impl Send for Pender {}
+        unsafe impl Sync for Pender {}
+        // Rust external, defined anywhere
+        impl Pender {
+            pub(crate) fn pend(self) {
+                extern "Rust" {
+                fn __pender(context: *mut ());
+            }
+            unsafe { __pender(self.0) };
+        }
+
+        // SyncExecutor::new(Pender(context)) is also in embassy-executor/src/raw/mod.rs
+        // it is the real Executor below hal's Executor and raw Executor
+        // its 'poll' manage the tasks which (if spawned) is either in RunQueue or TimerQueue
+        // because of its pender, it is also sync, can be moved and share between threads
+        // so the there are three Ececutor layer: hal's top embassy is not Send,
+        // it contains a raw Executor which is Send but not Sync, which contains the
+        // SyncExecutor, whch both Send and Sync
+        pub(crate) struct SyncExecutor {
+            run_queue: RunQueue,
+            pender: Pender,
+
+            #[cfg(feature = "integrated-timers")]               // see above
+            pub(crate) timer_queue: timer_queue::TimerQueue,
+            #[cfg(feature = "integrated-timers")]
+            alarm: AlarmHandle,
+        }
+        impl SyncExecutor {
+            // creating RunQueue, TimerQueue and also storing a Pender
+            // for this Executor coming from the not sync raw Executor,
+            // to signal for the thread's top level Executor
+            // finally it contains an allocatedAlarmHandle
+            pub(crate) fn new(pender: Pender) -> Self {
+                #[cfg(feature = "integrated-timers")]
+                let alarm = unsafe { unwrap!(embassy_time_driver::allocate_alarm()) };
+                Self {
+                    run_queue: RunQueue::new(),
+                    pender,
+
+                    #[cfg(feature = "integrated-timers")]
+                    timer_queue: timer_queue::TimerQueue::new(),
+                    #[cfg(feature = "integrated-timers")]
+                    alarm,
+                }
+            }
+        }
+
+        // embassy_time_driver::allocate_alarm()
+        // see time.txt
+
+        // run_queue: RunQueue::new()
+        // see queues.txt
+
+        // timer_queue: timer_queue::TimerQueue::new()
+        // see queues.txt
+
+    // back to pub fn __risc_v_rt__main() -> !
+    let executor = unsafe { __make_static(&mut executor) };     // see above in macro expansion
+    // stores executor instance into the current function local static place, which is '&'static mut from' now
+    unsafe fn __make_static<T>(t: &mut T) -> &'static mut T {
+        ::core::mem::transmute(t)
+    }
+
+    executor.run(|spawner| { spawner.must_spawn(__embassy_main(spawner)); })
+    // first this calls
+    pub fn run(&'static mut self, init: impl FnOnce(Spawner)) -> ! {
+    // in esp-hal/src/embassy/executor/thread.rs, since this is the hal's top level Executor
+        // Run the executor.
+        // The `init` closure is called with a [`Spawner`] that spawns tasks on
+        // this executor. Use it to spawn the initial task(s). After `init`
+        // returns, the executor starts running the tasks.
+        init(self.inner.spawner());
+        // init is the got closure: |spawner| { spawner.must_spawn(__embassy_main(spawner));
+        // to get arg of closure we need to run: self.inner.spawner() which is (raw) Executor in embassy-executor/src/raw/mod.rs
+            // Get a spawner that spawns tasks in this (raw) Executor.
+            // It is OK to call this method multiple times to obtain multiple
+            // It is called with the pointer to the (raw) Executor for which it spawns
+            pub fn spawner(&'static self) -> super::Spawner {
+                super::Spawner::new(self)   // pointer to the raw Executor
+            }
+                // super spawner in embassy-executor/src/spawner.rs
+                // since lib.rs aboce raw/mod.rs contains
+                mod spawner;
+                // Handle to spawn tasks into an executor.
+                // This Spawner can spawn any task (Send and non-Send ones), but it can
+                // only be used in the executor thread (it is not Send itself).
+                // If you want to spawn tasks from another thread, use [SendSpawner].
+                pub struct Spawner {
+                    executor: &'static raw::Executor,
+                    not_send: PhantomData<*mut ()>,
+                // it contains only a pointer to the (raw) Executor for which it spawns
+                impl Spawner {
+                    pub(crate) fn new(executor: &'static raw::Executor) -> Self {
+                        Self {
+                            executor,
+                            not_send: PhantomData,
+                        }
+                    }
+                    ...
+                } 
+
+        // we get back to the inner closure with this newly created Spawner instance as an arg to the closure
+        // the inner closure is:
+        spawner.must_spawn(__embassy_main(spawner));
+        // which calls __embassy_main(spawner) from expanded #[main] macro
+        fn __embassy_main(spawner: Spawner) -> ::embassy_executor::SpawnToken<impl Sized>
+            // define a static future type
+            type Fut = impl ::core::future::Future + 'static;
+            // define a constant whic is the size of the task pool is we need multiply identical task
+            // this size can be parametrized in #[main/task] macro
+            // it is relevant only for #[taks], but from this point the #[main] and #[task] macro generate identical code
+            // since #[main]'s 'run' in esp-hal-procmacros/src/embassy.rs also calls  #[embassy_executor::task] // see above
+            // if don't specified (e.g. #[embassy_executor::task(pool_size = 4)]) the default is 1
+            const POOL_SIZE: usize = 1;
+            // creates a TaskPool and stores it in a local static variable
+            // see in Executor&Task.txt
+            static POOL: ::embassy_executor::raw::TaskPool<Fut, POOL_SIZE> = ::embassy_executor::raw::TaskPool::new();
+            // for better understanding TaskPool is essentially a `[TaskStorage<F>; N]`
+            pub struct TaskPool<F: Future + 'static, const N: usize> {
+                pool: [TaskStorage<F>; N],
+            }
+            // TaskStorage is the main struct for task and generic for a future we give it
+            // future can be constructed by us, or get an async function like this case 
+            // the async fn ____embassy_main_task(spawner: Spawner) which (name) is constucted 
+            // from the original #[main/task] attributes macro argument (next line), and it
+            // contains the body of that original function
+            
+            // using the previoulsly created TaskPool we put/move the  task (that mentioned 
+            // async fn, currently ____embassy_main_task(spawner)) which means we set the 'state',
+            // the 'future' and a function ptr called poll_fn to its 'poll'-er of TaskStrorage
+            // (our own [task] poller polling out future) and this TaskStrorage into TaskPool,
+            // see in Executor&Task.txt
+            unsafe { POOL._spawn_async_fn(move || ____embassy_main_task(spawner)) }
+            // this function return a SpawnToken defined in embassy-executor/src/spawner.rs
+            // which represents an instance of the task, ready to spawn
+            // The generic parameter `S` determines whether the task can be spawned in executors
+            // in other threads or not. If `S: Send`, it can, which allows spawning it into a
+            // [`SendSpawner`]. If not, it can't, so it can only be spawned into the current 
+            // thread's executor, with [`Spawner`].
+            // this is why __embassy_main returns ::embassy_executor::SpawnToken<impl Sized>
+            // since SpawnToken generic argument can be different
+            pub struct SpawnToken<S> {
+                raw_task: Option<raw::TaskRef>,     // see in Executor&Task.txt
+                phantom: PhantomData<*mut S>,
+            }
+            impl<S> SpawnToken<S> {
+                pub(crate) unsafe fn new(raw_task: raw::TaskRef) -> Self {
+                    Self {
+                        raw_task: Some(raw_task),
+                        phantom: PhantomData,
+                    }
+                }
+            }
+            // see SpawNerToken.txt
+
+        // this function return a SpawnToken defined in embassy-executor/src/spawner.rs
+        // and this is the final call in __embassy_main, so it returns also with this
+        // SpawnToken, which is the argument of
+        spawner.must_spawn(the got SpawnToken)
+        // this is in embassy-executor/src/spawner.rs naturally:
+        impl Spawner {
+            pub fn must_spawn<S>(&self, token: SpawnToken<S>) {
+                unwrap!(self.spawn(token));
+            }
+        }
+        // this calls the main spawn function, but wrapped into an unwrap! macro
+        // which calls Try::into_result for the return value of its argument
+        // then if the call was not sucessfull it panics with a message containing
+        // the value of its argument, e.g. the string of fuction call
+        match crate::fmt::Try::into_result(#### self.spawn(token) ####) {
+            ::core::result::Result::Ok(t) => t,
+            ::core::result::Result::Err(e) => {
+                {
+                    ::core::panicking::panic_fmt(
+                        format_args!(
+                            "unwrap of `{0}` failed: {1:?}",
+                            "self.spawn(token)",
+                            e,
+                        ),
+                    );
+                };
+            }
+        };
+        // spawn(token) is naturally also in embassy-executor/src/spawner.rs
+        // see SpawNerToken.txt
+        // Spawn a task into an executor with the got SpawnToken which points
+        // to (raw) Executor
+        pub fn spawn<S>(&self, token: SpawnToken<S>) -> Result<(), SpawnError>
+            let task: Option<TaskRef> = token.raw_task;
+            mem::forget(token);
+
+            match task {
+                Some(task) => {
+                    unsafe { self.executor.spawn(task) };
+                    Ok(())
+                }
+                None => Err(SpawnError::Busy),
+            }
+        // SpawnError::Busy is defined in this same source failed
+        
+        // calling (raw) Executor (got from SpawnToken) spawn() function
+        // which is naturally in embassy-executor/src/raw/mod.rs
+        // Spawn a task in this executor.
+        // `task` must be a valid pointer to an initialized but not-already-spawned task.
+        //
+        // It is OK to use `unsafe` to call this from a thread that's not the executor thread.
+        // In this case, the task's Future must be Send. This is because this is effectively
+        // sending the task to the executor thread.
+        // executor.spawn(task)
+        pub(super) unsafe fn spawn(&'static self, task: TaskRef) {
+            self.inner.spawn(task)      // inner is SyncExecutor
+        }
+
+        // it is also in embassy-executor/src/raw/mod.rs
+        impl SyncExecutor {
+            pub(super) unsafe fn spawn(&'static self, task: TaskRef) {
+                task.header().executor.set(Some(self));
+                self.enqueue(task);
+            }
+        }
+        // task.header() gets TaskHeader.executor // ses Executor&Task.txt
+        pub(crate) struct TaskHeader {
+            pub(crate) state: State,
+            run_queue_item: RunQueueItem, // SyncUnsafeCell<Option<TaskRef>>
+            executor: SyncUnsafeCell<Option<&'static SyncExecutor>>,
+            poll_fn: SyncUnsafeCell<Option<unsafe fn(TaskRef)>>,
+
+            #[cfg(feature = "integrated-timers")]
+            pub(crate) expires_at: SyncUnsafeCell<u64>,
+            #[cfg(feature = "integrated-timers")]
+            pub(crate) timer_queue_item: timer_queue::TimerQueueItem,
+        } 
+        // state, and poll_fn were set earlier in _spawn_async_fn
+        // run_queue_item will be set during enqueu
+        // so setting executor assigns task to a specifiv executor
+        //
+        // self.enqueue(task);
+
+        unsafe fn enqueue(&self, task: TaskRef) {
+            // insert/chain task into run_queue by managing its run_queue_item
+            // than RunQueue head
+            if self.run_queue.enqueue(task) {           // see queues.txt
+                // signal top Executor
+                self.pender.pend();                     // signal top Executor
+            }
+        }
+
+        // as we saw above pend() calls
+        fn __pender(context: *mut ())
+        // which is defined (linked from) hal level in esp-hal/embassy/executor/mod.rs
+        #[cfg(any(
+            feature = "embassy-executor-thread",        // see above
+            feature = "embassy-executor-interrupt",     // se above
+        ))]
+        #[export_name = "__pender"]
+        fn __pender(context: *mut ()) {
+            let context = (context as usize).to_le_bytes();
+
+            #[cfg(feature = "embassy-executor-thread")]
+            pend_thread_mode(context[1] as usize);      // the second byte is the id of core
+                                                        // asked for in top level Executor and through
+                                                        // the two other Executor layers below it
+                                                        // SyncExecutor puts it into its Pender
+                                                        // which calls this external (linked) __pender
+        }
+
+        // esp-hal/src/embassy/executor/thread.rs
+        // generic code in mod.rs, specific in thread.rs
+        // global atomic used to keep track of whether there is work to do since sev()
+        #[cfg(not(multi_core))]
+        static SIGNAL_WORK_THREAD_MODE: [AtomicBool; 1] = [AtomicBool::new(false)];
+        pub(crate) fn pend_thread_mode(core: usize) {
+            // Signal that there is work to be done.
+            SIGNAL_WORK_THREAD_MODE[core].store(true, Ordering::SeqCst);
+        }
+    
+        // spawner.must_spawn(the got SpawnToken) end with this
+        // so we get back into (top) executor.run(|spawner| { spawner.must_spawn(__embassy_main(spawner)); })
+        // in /Users/piv/esp/sandbox/esp-hal/src/embassy/executor/thread.rs
+        // after init(self.inner.spawner());
+        let cpu = get_core() as usize;      // for multi_core (single core always gives 0)
+        // this is the top level loop in (top) Executor, polling (raw) Executor's poll
+        // this is the level which receives (checks for) the signals of penders
+        loop {
+            self.inner.poll();      // call (raw) Executor's poll // see Executor&Task.txt
+            Self::wait_impl(cpu);
+        }
+
+        // if there are no more signal, it sits in asm!("wfi") wait-for-interrupt
+        // in a low power state and gets out from this only after interrupt
+        #[cfg(riscv)]
+        pub fn wait_impl(cpu: usize) {
+            // we do not care about race conditions between the load and store operations,
+            // interrupts will only set this value to true.
+            critical_section::with(|_|m{
+                // if there is work to do, loop back to polling
+                // TODO can we relax this?
+                if SIGNAL_WORK_THREAD_MODE[cpu].load(Ordering::SeqCst) {
+                    SIGNAL_WORK_THREAD_MODE[cpu].store(false, Ordering::SeqCst);
+                }
+                // if not, wait for interrupt
+                else {
+                    unsafe { core::arch::asm!("wfi") };
+                }
+            });
+            // if an interrupt occurred while waiting, it will be serviced
+            // here
+        }
+    } EOF pub fn run(&'static mut self, init: impl FnOnce(Spawner)) -> !
+} EOF pub fn __risc_v_rt__main() -> ! 
+
+
+// this attribute macro called from #[main] after creating Executor to create
+// TaskPool then spawn the main task,
+// and also called for any other task
+#[embassy_executor::task]
+    // in tests/riscv32/Cargo.toml
+    [dependencies]
+    esp32c3-hal = { version = "0.15.0", path = "../../esp32c3-hal"}
+    embassy-executor    = { version = "0.5.0", path = "../../embassy-executor", features = ["nightly"] }
+    
+    // in esp-hal/Cargo.toml
+    [features]
+    # in order to use hal's (top) Executor and __pender switch off (clear) executor-thread in embassy-executor,
+    # in such case you should define them in your hal, if you need embassy's Executor and __pender you should use 
+    # embassy-executor-thread = ["embassy", "embassy-executor/executor-thread"]
+    embassy-executor-thread   = ["embassy", "embassy-executor"]
+    [dependencies]
+    embassy-executor    = { version = "0.5.0", path = "../embassy-executor", optional = true }
+    // esp-hal imports embassy-executor crate but don't publish embassy_executor::task
+    // but application also includes embassy-executor so they can use #[embassy_executor::task]
+    // and also switch on the features = ["nightly"]
+
+    // in embassy-executor/Cargo.toml
+    [features]
+    nightly = ["embassy-executor-macros/nightly"]
+    [dependencies]
+    embassy-executor-macros = { version = "0.4.0", path = "../embassy-executor-macros" }
+    // in embassy-executor/src/lib.rs
+    // in embassy-executor-macros's lib.rs we import (mod macros;use macros::*;) #[main] as well
+    // but because there can be hal specific #[main] here we skip importing #[main] further
+    // this is why we need to specify #[embassy_executor::main] when we want to use #[main] from
+    // embassy-executor-macros
+    pub use embassy_executor_macros::task;
+
+    // in embassy-executor-macros/Cargo.toml
+    [lib]
+    proc-macro = true
+    [features]
+    nightly = []
+    // in embassy-executor-macros/src/lib.rs
+    mod macros;
+    use macros::*;
+
+    // it can be used declaring a task with a given pool size:
+    // #[embassy_executor::task(pool_size = 4)]
+    //
+    #[proc_macro_attribute]
+    pub fn task(args: TokenStream, item: TokenStream) -> TokenStream {
+        ...
+        task::run(&args.meta, f).unwrap_or_else(|x| x).into()
+    }
+    // in embassy-executor-macros/src/macros/mod.rs
+    // pub mod task;
+    // in embassy-executor-macros/src/macros/task.rs
+    pub fn run(args: &[NestedMeta], f: syn::ItemFn) -> Result<TokenStream, TokenStream> {
+        // reading (#[embassy_executor::task(pool_size = 4)] or defaulting POOL_SIZE
+        
+        // here are many checks for 'task', e.g. must be async, not be generic, etc
+
+        #[cfg(feature = "nightly")]
+        let mut task_outer: ItemFn = parse_quote! {
+            #visibility fn #task_ident(#fargs) -> ::embassy_executor::SpawnToken<impl Sized> {
+                type Fut = impl ::core::future::Future + 'static;
+                const POOL_SIZE: usize = #pool_size;
+                static POOL: ::embassy_executor::raw::TaskPool<Fut, POOL_SIZE> = ::embassy_executor::raw::TaskPool::new();
+                unsafe { POOL._spawn_async_fn(move || #task_inner_ident(#(#full_args,)*)) }
+            }
+        };
+
+        task_outer.attrs.append(&mut task_inner.attrs.clone());
+
+        let result = quote! {
+            // This is the user's task function, renamed.
+            // We put it outside the #task_ident fn below, because otherwise
+            // the items defined there (such as POOL) would be in scope
+            // in the user's code.
+            #[doc(hidden)]
+            #task_inner
+
+            #task_outer
+        };
+    }
+
+    // explanation of its expansion can found in the first (#[main] macro attribute) part, see above
+
+    // there is also #[main] definition in embassy-executor-macros for using top level Executor
+    // from embassy's own Executor in embassy-executor-macros/src/macros/main.rs
+    // this has 'main' for general avr, riscv, cortex_m, wasm, std architecture and the appropriate fn run()
+    // but as we've ween we use esp's our own specific top level Executor, see above

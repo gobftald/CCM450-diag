@@ -1,0 +1,55 @@
+[package]
+name = "uart-udp-server"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+console = { path = "../../console" }
+defmt = { version = "0.3.10", optional = true }
+esp-hal = { path = "../../esp-hal/esp-hal" }
+esp-alloc = { path = "../../esp-hal/esp-alloc" }
+
+esp-hal-embassy = { path = "../../esp-hal/esp-hal-embassy"  }
+embassy-executor = { path = "../../embassy/embassy-executor" }
+# although we don't plan to use "dhcpv4" feature we define it
+# since it products less code in icmp and udp because we can implement only "icmp echo" 
+embassy-net = { path =  "../../embassy/embassy-net", features = ["udp", "dhcpv4"]}
+embassy-time = { path = "../../embassy/embassy-time" }
+
+esp-wifi = { path = "../../esp-hal/esp-wifi", features = ["wifi"] }
+
+[dependencies.esp-backtrace]
+    version = "0.16.0"
+    features = ["panic-handler", "exception-handler"]
+    path = "../../esp-hal/esp-backtrace"
+    optional = true
+
+[features]
+default = [
+    "esp32c3",
+    "console/jtag_serial",
+    "defmt",
+]
+
+esp32c3 = [
+    "esp-hal/esp32c3",
+    "esp-hal-embassy/esp32c3",
+    "embassy-executor/nightly",     # for 'task' embassy-executor-macro
+    "esp-wifi/esp32c3",
+]
+
+defmt = [
+    "dep:defmt",
+    "console/defmt",
+    "esp-hal/defmt",
+    "esp-hal-embassy/defmt",
+    "esp-hal-embassy/defmt",
+    "embassy-executor/defmt",
+    "embassy-time/defmt",
+    "embassy-time/defmt-timestamp-uptime",
+    "esp-wifi/defmt",
+    "embassy-net/defmt",
+]
+
+backtrace = ["dep:esp-backtrace"]       # needs "-C", "force-frame-pointers" rustflag in config.toml
+                                        # needs to comment build-std-features = ["panic_immediate_abort"] out

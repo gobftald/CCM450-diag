@@ -1,0 +1,241 @@
+// TimerQueue::new() called from SyncExecutor::new(...)
+
+// in embassy-executor/raw/timer_queue.rs
+
+use core::cmp::min;
+use super::TaskRef;
+use crate::raw::util::SyncUnsafeCell;
+
+// This is a simple single linked list, all items has only a ptr to the next.
+// Puting a TaskRef (a ptr to the next task in the queue) into our run_queue_item
+// varibale inserts us into the queue.
+pub(crate) struct TimerQueueItem {
+    next: SyncUnsafeCell<Option<TaskRef>>,
+}
+// SyncUnsafeCell has interrior mutability, so we don't need to use Cell as run_queue.
+
+impl TimerQueueItem {
+    pub const fn new() -> Self {
+        Self {
+            next: SyncUnsafeCell::new(None),
+        }
+    }
+}
+
+// For a working single linked queue, we need only a starting point (head) of the 'queue'.
+pub(crate) struct TimerQueue {
+    head: SyncUnsafeCell<Option<TaskRef>>,
+}
+
+impl TimerQueue {
+    pub const fn new() -> Self {
+        Self {
+            head: SyncUnsafeCell::new(None),
+        }
+    }
+
+    // 'head contains the TaskRef of the lastly inserted task, if any.
+    // Inserting our task into the queue is simply inserting what we've
+    // found (TaskRef) in 'head' into our run_queue_item's next field,
+    // and inserting our own TaskRef into 'head'.
+    //
+    // This update function check for a valid expirtion,
+    // anf if it is valid insert task into the timer_queue.
+    pub(crate) unsafe fn update(&self, p: TaskRef) {
+        // get task header
+        let task = p.header();
+
+        // we know that there is a living timer with valid expires if this is not set to u64::MAX
+        // 'expires_at' is reset/clear expires_at in two places:
+        // in TaskStorage::poll (in the 4th loweset poll layer) when future is Poll::Ready
+        // e.g. when task's future is Ready
+        // in SyncExecutor::poll (in the 3rd poll layer) when/after run_queue.dequeue_all
+        // e.g. when task's was put in timer_queue because of timer_event/Alarm, and that
+        // task is dequeued from that run_queue to do what is waiting for after timer expire
+        if task.expires_at.get() != u64::MAX {
+            // Mark the task as timer-queued. Return whether it was newly queued (i.e. not queued before)
+            if task.state.timer_enqueue() {
+                // put what we got from 'head' into our timer_queue_item.next
+                task.timer_queue_item.next.set(self.head.get());
+                // put our TaskRef into 'head'
+                self.head.set(Some(p));
+            }
+        }
+    }
+
+    // Walk through the timer_queue and get the smallest
+    // expires value of run_queue member tasks.
+    // This has some type of house-keeping activity, retaining only, valid§
+    // tasks, with running timer (expires_at != u64::MAX) in the queue.
+    // Task's expires_at are cleared (set to u64::MAX) in two cases.
+    // See description at 'update' several lines above.
+    pub(crate) unsafe fn next_expiration(&self) -> u64 {
+        let mut res = u64::MAX;
+        self.retain(|p| {
+            let task = p.header();
+            let expires = task.expires_at.get();
+            res = min(res, expires);
+            expires != u64::MAX
+        });
+        res
+    }
+    
+    // Walk through the timer_queue, calls on_task (which is wake_task_no_pend)
+    // for every task which has en expired timer.
+    // These tasks are also removed from timer_queue.
+    pub(crate) unsafe fn dequeue_expired(&self, now: u64, on_task: impl Fn(TaskRef)) {
+        self.retain(|p| {
+            let task = p.header();
+            if task.expires_at.get() <= now {
+                on_task(p);
+                false
+            } else {
+                true
+            }
+        });
+    }
+
+    /// Walk through the timer_queue. If the given function returns false,
+    /// remove task from run_queue and clear STATE_TIMER_QUEUED from its state.
+    pub(crate) unsafe fn retain(&self, mut f: impl FnMut(TaskRef) -> bool) {
+        let mut prev = &self.head;
+        while let Some(p) = prev.get() {
+            let task = p.header();
+            if f(p) {
+                // Skip to next
+                prev = &task.timer_queue_item.next;
+            } else {
+                // Remove it
+                prev.set(task.timer_queue_item.next.get());
+                task.state.timer_dequeue();
+            }
+        }
+    }
+}
+
+
+
+
+
+// RunQueue::new() called from SyncExecutor::new(...)
+
+// in embassy-executor/raw/run_queue_critical_section.rs
+// there are two version of run_queue implementation based on how it
+// manage shared so atomic access to run_queue>
+// if chip support AtomicPtr run_queue is implemented in embassy-executor/raw/run_queue_critical_section.rs
+// If other case, e.g. with esp32c3, which has no AtomicPtr we should emulate atomics with 'critical section'
+// as a basic primitive to control concurrency. This case run_queue is implemented in
+// embassy-executor/raw/run_queue_critical_section.rs
+// see atomic related stuff in atomic.txt
+
+//in embassy-executor/raw/mod.rs
+#[cfg_attr(target_has_atomic = "ptr", path = "run_queue_atomics.rs")]
+#[cfg_attr(not(target_has_atomic = "ptr"), path = "run_queue_critical_section.rs")]
+mod run_queue_critical_section;
+
+// config parameters can be list with 'cargo rustc -- --print cfg' - e.g. from esp-hal folder
+debug_assertions
+esp32c3
+interrupt_core0
+overflow_checks
+panic="abort"
+relocation_model="static"
+riscv
+rtc_cntl
+single_core
+system
+target_abi=""
+target_arch="riscv32"
+target_endian="little"
+target_env=""
+target_feature="c"
+target_feature="m"
+target_has_atomic_equal_alignment="16"
+target_has_atomic_equal_alignment="32"
+target_has_atomic_equal_alignment="8"
+target_has_atomic_equal_alignment="ptr"
+target_has_atomic_load_store
+target_has_atomic_load_store="16"
+target_has_atomic_load_store="32"
+target_has_atomic_load_store="8"
+target_has_atomic_load_store="ptr"
+target_os="none"
+target_pointer_width="32"
+target_vendor="unknown"
+timg0
+
+// based on this: not(target_has_atomic = "ptr") -> mod run_queue_critical_section;
+
+// in embassy-executor/raw/run_queue_critical_section.rs
+use core::cell::Cell;
+use critical_section::{CriticalSection, Mutex};
+use super::TaskRef;
+
+// This is a simple single linked list, all items has only a ptr to the next.
+// Puting a TaskRef (a ptr to the next task in the queue) into our run_queue_item
+// varibale inserts us into the queue.
+pub(crate) struct RunQueueItem {
+    next: Mutex<Cell<Option<TaskRef>>>,
+}
+// Despite of std::sync::Mutex critical_section::Mutex has no interior mutability. This was a conscious design choice.
+// It is possible to create multiple CriticalSection tokens, either by nesting critical sections or Copying an existing token.
+// As a result, it would not be sound for Mutex::borrow to return &mut T, because there would be nothing to prevent calling
+// borrow multiple times to create aliased &mut T references. 
+// The solution is to include a runtime check to ensure that each resource is borrowed only once. This is what
+// std::sync::Mutex does. However, this is a runtime cost that may not be required in all circumstances. For instance, 
+// Mutex<Cell<T>> never needs to create &mut T or equivalent.
+// It is why we need to use Cell, which contains an Option<TaskRef>
+
+impl RunQueueItem {
+    pub const fn new() -> Self {
+        Self {
+            next: Mutex::new(Cell::new(None)),
+        }
+    }
+}
+
+// For a working single linked queue, we need only a starting point (head) of the 'queue'.
+pub(crate) struct RunQueue {
+    head: Mutex<Cell<Option<TaskRef>>>,
+}
+
+impl RunQueue {
+    pub const fn new() -> Self {
+        Self {
+            head: Mutex::new(Cell::new(None)),
+        }
+    }
+
+    // 'head contains the TaskRef of the lastly inserted task, if any.
+    // Inserting our task into the queue is simply inserting what we've
+    // found (TaskRef) in 'head' into our run_queue_item's next field.
+    // Then inserting our own TaskRef into 'head'.
+    #[inline(always)]
+    pub(crate) unsafe fn enqueue(&self, task: TaskRef) -> bool {
+        critical_section::with(|cs| {
+            let prev = self.head.borrow(cs).replace(Some(task));
+            task.header().run_queue_item.next.borrow(cs).set(prev);
+
+            prev.is_none()
+        })
+    }
+
+    // walk through all tasks in the run_queue and call the closure in arg
+    // in its very first step it automaticaly makes the queue empty
+    pub(crate) fn dequeue_all(&self, on_task: impl Fn(TaskRef)) {
+        // atomically empty the queue.
+        let mut next = critical_section::with(|cs| self.head.borrow(cs).take());
+
+        // iterate over the linked list of tasks in the queue.
+        while let Some(task) = next {
+            // If the task re-enqueues itself, the `next` pointer will get overwritten.
+            // Therefore, first read the next pointer, and only then process the task.
+
+            // safety: we know if the task is enqueued, no one else will touch the `next` pointer.
+            let cs = unsafe { CriticalSection::new() };
+            next = task.header().run_queue_item.next.borrow(cs).get();
+
+            on_task(task);
+        }
+    }
+}

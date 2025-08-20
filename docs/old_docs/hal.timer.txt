@@ -1,0 +1,402 @@
+// in esp-hal/timer.rs
+
+//! # General-purpose timers
+//!
+//! ## Overview
+//! The `general-purpose timer` peripheral consists of a timer group, which can
+//! have up to two timers (depending on the chip) and a watchdog timer. The
+//! timer group allows for the management of multiple timers and synchronization
+//! between them.
+//!
+//! This peripheral can be used to perform a variety of
+//! tasks, such as triggering an interrupt after a particular interval
+//! (periodically and aperiodically), precisely time an interval, act as a
+//! hardware clock and so on.
+//!
+//! Each timer group consists of two general purpose timers and one Main System
+//! Watchdog Timer(MSWDT). All general purpose timers are based on 16-bit
+//! prescalers and 54-bit auto-reload-capable up-down counters.
+
+use core::{
+    marker::PhantomData,
+    ops::{Deref, DerefMut},
+};
+
+use fugit::HertzU32;
+
+
+// built on TIMG0 and PeripheralClockControl
+use crate::{
+    clock::Clocks,
+    peripheral::{Peripheral, PeripheralRef},
+    peripherals::{timg0::RegisterBlock, TIMG0},
+    system::PeripheralClockControl,
+};
+
+// A logical timergroup consisting of up to 2 timers (chip dependent)
+// and a watchdog timer
+pub struct TimerGroup<'d, T>
+where
+    T: TimerGroupInstance,              // It's tricky, since T already represents a real 'timer_group'
+                                        // which brings all 'timer group', 'timer' and 'watchdog timer'
+                                        // operations on its own via its registers access and operations.
+                                        // trait TimerGroupInstance represent addtional 'timer group' only
+                                        // logical functions based on those inherently owned functions.
+{
+    _timer_group: PeripheralRef<'d, T>,
+    pub timer0: Timer<Timer0<T>>,
+    #[cfg(not(any(esp32c2, esp32c3, esp32c6, esp32h2)))]
+    pub timer1: Timer<Timer1<T>>,
+    pub wdt: Wdt<T>,
+}
+
+// initial setup/configuration of a 'timer group'
+// these methods are only for mananaging the whole 'timer group'
+// and not the individual 'timer' or 'watcdog timer'
+// those individual operations implemented in Timg0 and Wdt
+pub trait TimerGroupInstance {
+    fn register_block() -> *const RegisterBlock;
+    fn configure_src_clk();
+    fn configure_wdt_src_clk();
+}
+
+// initial setup/configuration of TIMG0 'timer group'
+impl TimerGroupInstance for TIMG0 {
+    #[inline(always)]
+    fn register_block() -> *const RegisterBlock {
+        // get base address of TIMG0 register block
+        crate::peripherals::TIMG0::PTR
+    }
+
+    #[inline(always)]
+    #[cfg(any(esp32c2, esp32c3, esp32s2, esp32s3))]
+    fn configure_src_clk() {
+        unsafe {
+            (*Self::register_block())
+                .t0config()
+                // Use APB_CLK as the source clock of timer
+                .modify(|_, w| w.use_xtal().clear_bit())
+        }
+    }
+
+    #[inline(always)]
+    #[cfg(any(esp32c2, esp32c3))]
+    fn configure_wdt_src_clk() {
+        unsafe {
+            (*Self::register_block())
+                .wdtconfig0()
+                // Use APB_CLK as the source clock of watdhdog
+                .modify(|_, w| w.wdt_use_xtal().clear_bit())
+        }
+    }
+}
+
+impl<'d, T> TimerGroup<'d, T>
+where
+    T: TimerGroupInstance,
+{
+    pub fn new(timer_group: impl Peripheral<P = T> + 'd, clocks: &Clocks) -> Self {
+        crate::into_ref!(timer_group);
+        // let mut timer_group = timer_group.into_ref();
+        // let mut timer_group = TIMG0.into_ref();
+        // let mut timer_group = PeripheralRef::new(unsafe { TIMG0::clone_unchecked() })
+
+        T::configure_src_clk();             // TIMG0::configure_src_clk() -- implemented above
+
+        let timer0 = Timer::new(            // logical timer holding physical 'timer'
+                                            // and 'apb frequency' for initital configuration
+            Timer0 {                        // represetation of the physical timer holding
+                                            // the functions to access only to the physical timer
+                phantom: PhantomData,
+            },
+            clocks.apb_clock,               // 'apb frequency'
+        );
+
+        Self {
+            _timer_group: timer_group,      // owning a TIMG0 PeripheralRef
+                                            // we've already used, no more needed
+            timer0,                         // logical timer holding physical 'timer' (Timer0)
+            #[cfg(not(any(esp32c2, esp32c3, esp32c6, esp32h2)))]
+            timer1,
+            wdt: Wdt::new(),                // a logical watchdog timer
+                                            // T for Wdt<T> for using TIMG0 in 'Wdt::new' comes from
+                                            // 'pub struct TimerGroup<'d, T>' definition.
+                                            // There is a call in 'Wdt::new' of the other TimerGroupInstance method:
+                                            // TIMG0::configure_wdt_src_clk();
+                                            // so it's true again that _timer_group are already used, no more needed
+        }
+    }
+}
+
+// a logical timer which includes the physical timer
+// interface to the physical timer only (not the 'timer_group')
+pub struct Timer<T> {
+    timg: T,                        // T representing a physical timer.
+                                    // It's called timg ('timer group') since its generic paramter (TG)
+                                    // holds the real physical 'timer group' (TIMG0) which needs to
+                                    // access to the physical address.
+                                    // But it implements only functions to access to not the physical
+                                    // 'timer group' as a whole, but only to the individual physical timer
+                                    // It's why I refer it as 'physical timer'
+    apb_clk_freq: HertzU32,         // apb (Advanced Peripheral Bus)
+}
+
+impl<T> Timer<T>
+where
+    // 
+    T: Instance,                    // T (Timer0) representing access to the physical timer in a 'timer group'
+{
+    pub fn new(timg: T, apb_clk_freq: HertzU32) -> Self {
+        // TODO: this currently assumes APB_CLK is being used, as we don't yet have a
+        //       way to select the XTAL_CLK.
+
+        timg.enable_peripheral();
+
+        Self { timg, apb_clk_freq }
+    }
+}
+
+// *Timer -> timg
+impl<T> Deref for Timer<T>
+where
+    T: Instance,
+{
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.timg
+    }
+}
+
+impl<T> DerefMut for Timer<T>
+where
+    T: Instance,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.timg
+    }
+}
+
+/// Timer peripheral instance
+pub trait Instance {                // interface using pac -- see pac.TIMG0.txt
+    fn set_counter_active(&mut self, state: bool);
+    fn set_counter_decrementing(&mut self, decrementing: bool);
+    fn set_auto_reload(&mut self, auto_reload: bool);
+    fn set_alarm_active(&mut self, state: bool);
+    fn load_alarm_value(&mut self, value: u64);
+    fn listen(&mut self);
+    fn clear_interrupt(&mut self);
+    fn now(&self) -> u64;
+    fn set_divider(&mut self, divider: u16);
+    fn enable_peripheral(&self);
+}
+
+// represetation of the physical timer
+pub struct Timer0<TG> {
+    phantom: PhantomData<TG>,
+}
+
+impl<TG> Timer0<TG>
+where
+    // We need TG (a physical 'timer group' [TIMG0]) since it provides
+    // access to the physical periheral.
+    // as we discussed in the beginning TimerGroupInstance brings TIMG) 
+    // which implements not only TimerGroupInstance but all other
+    // 'capability' to access the physical registers and operations.
+    TG: TimerGroupInstance,
+{
+    //  a zero sized type's direct get
+    // its creation/instantiation comes from 'TimerGroup::new'
+    // and 'pub strunct TimerGroup' definition
+    pub(crate) unsafe fn steal() -> Self {
+        Self {
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<TG> Instance for Timer0<TG>
+where
+    TG: TimerGroupInstance,
+{
+    fn set_counter_active(&mut self, state: bool) {
+        let reg_block = unsafe { &*TG::register_block() };
+
+        // 'en' - When set, the Timer 0 time-base counter is enabled.
+        reg_block.t0config().modify(|_, w| w.en().bit(state));   
+    }
+
+    fn set_counter_decrementing(&mut self, decrementing: bool) {
+        let reg_block = unsafe { &*TG::register_block() };
+
+        // 'increase' - When set, the Timer 0 time-base counter will increment every clock tick.
+        reg_block
+            .t0config()
+            .modify(|_, w| w.increase().bit(!decrementing));
+    }
+
+    fn set_auto_reload(&mut self, auto_reload: bool) {
+        let reg_block = unsafe { &*TG::register_block() };
+
+        // 'autoreload' - When set, Timer 0 auto-reload at alarm is enabled.
+        reg_block
+            .t0config()
+            .modify(|_, w| w.autoreload().bit(auto_reload));
+    }
+
+    fn set_alarm_active(&mut self, state: bool) {
+        let reg_block = unsafe { &*TG::register_block() };
+
+        // 'alarm_en' - /// When set, the alarm is enabled.
+        // This bit is automatically cleared once an alarm occurs.
+        reg_block.t0config().modify(|_, w| w.alarm_en().bit(state));
+    }
+
+    fn load_alarm_value(&mut self, value: u64) {
+        let value = value & 0x3F_FFFF_FFFF_FFFF;                // 54 bit
+        let high = (value >> 32) as u32;                        // masked for alarm_hi
+        let low = (value & 0xFFFF_FFFF) as u32;                 // masked for alarm_lo
+
+        let reg_block = unsafe { &*TG::register_block() };
+
+        reg_block
+            .t0alarmlo()
+            // alarm_lo - Timer 0 alarm trigger time-base counter value, low 32 bits.
+            .write(|w| unsafe { w.alarm_lo().bits(low) });
+
+        reg_block
+            .t0alarmhi()
+            // alarm_hi - Timer 0 alarm trigger time-base counter value, high 22 bits.
+            .write(|w| unsafe { w.alarm_hi().bits(high) });
+    }
+
+    /// enable interrupt
+    fn listen(&mut self) {
+        let reg_block = unsafe { &*TG::register_block() };
+
+        reg_block
+            .int_ena_timers()
+            // t0_int_ena - The interrupt enable bit for the TIMG_T0_INT interrupt.
+            .modify(|_, w| w.t0_int_ena().set_bit());
+    }
+
+    fn clear_interrupt(&mut self) {
+        let reg_block = unsafe { &*TG::register_block() };
+
+        reg_block
+            .int_clr_timers()
+            //t0_int_clr - Set this bit to clear the TIMG_T0_INT interrupt.
+            .write(|w| w.t0_int_clr().set_bit());
+    }
+
+    fn now(&self) -> u64 {
+        let reg_block = unsafe { &*TG::register_block() };
+
+        // t0update = After writing 0 or 1 the counter value
+        // is latched to t0lo and t0hi
+        reg_block.t0update().write(|w| unsafe { w.bits(0) });
+
+        // Timer 0 alarm value, low 32 bits
+        let value_lo = reg_block.t0lo().read().bits() as u64;
+        // Timer 0 alarm value, high bits
+        let value_hi = (reg_block.t0hi().read().bits() as u64) << 32;
+
+        value_lo | value_hi
+    }
+
+    fn set_divider(&mut self, divider: u16) {
+        let reg_block = unsafe { &*TG::register_block() };
+
+        reg_block
+            .t0config()
+            // divider - Timer 0 clock (T0_clk) prescaler value.
+            .modify(|_, w| unsafe { w.divider().bits(divider) })
+    }
+
+    fn enable_peripheral(&self) {
+        // Enables and resets the given peripheral
+        PeripheralClockControl::enable(crate::system::Peripheral::Timg0);
+    }
+}
+
+// Watchdog timer
+pub struct Wdt<TG> {
+    phantom: PhantomData<TG>,
+}
+
+/// Watchdog driver
+impl<TG> Wdt<TG>
+where
+    TG: TimerGroupInstance,
+{
+    /// Create a new watchdog timer instance
+    pub fn new() -> Self {
+        TG::configure_wdt_src_clk();
+
+        Self {
+            phantom: PhantomData,
+        }
+    }
+
+    /// Forcibly enable or disable the watchdog timer
+    ///
+    /// This bypasses the usual ownership rules for the peripheral, so users
+    /// must take care to ensure that no driver instance is active for the
+    /// timer.
+    pub unsafe fn set_wdt_enabled(enabled: bool) {
+        let reg_block = unsafe { &*TG::register_block() };
+
+        reg_block
+            .wdtwprotect()
+            // wdt_wkey - If the register configurations a different value
+            // than its reset value, write protection is enabled.
+            .write(|w| unsafe { w.wdt_wkey().bits(0x50D8_3AA1u32) });   // write protection off
+
+        if !enabled {
+            // write the 'reset value' (0x0004_c000) to wdtconfig0
+            reg_block.wdtconfig0().write(|w| unsafe { w.bits(0) });
+        } else {
+            // wdt_en - When set, MWDT is enabled
+            reg_block.wdtconfig0().write(|w| w.wdt_en().bit(true));
+        }
+
+        reg_block
+            .wdtwprotect()
+            // wdt_wkey - If the register configurations a different value
+            // than its reset value, write protection is enabled.
+            .write(|w| unsafe { w.wdt_wkey().bits(0u32) }); // write protection off
+    }
+}
+
+// built on TIMG0 and PeripheralClockControl -- see pac.TIMG0.txt and hal.SYSTEM.txt
+// providing inteface/control:
+TimerGroup
+    _timer_group: PeripheralRef                         // TIMG0 used only in configuration
+                                                        // later 'pac' functions called only via Timer0
+        fn register_block() -> *const RegisterBlock
+        fn configure_src_clk()
+        fn configure_wdt_src_clk()
+    pub timer0: Timer<Timer0<T>>,                       // lgical timer, which includes physical timer
+        (Timer)                                         // logical timer
+        timg                                            // representing a physical timer.
+        apb_clk_freq                                    // apb (Advanced Peripheral Bus)
+        pub fn new(timg: T, apb_clk_freq: HertzU32) -> Self
+            (Timer0)                                    // physical timer
+            pub(crate) unsafe fn steal() -> Self
+            fn set_counter_active(&mut self, state: bool);
+            fn set_counter_decrementing(&mut self, decrementing: bool);
+            fn set_auto_reload(&mut self, auto_reload: bool);
+            fn set_alarm_active(&mut self, state: bool);
+            fn load_alarm_value(&mut self, value: u64);
+            fn listen(&mut self);
+            fn clear_interrupt(&mut self);
+            fn now(&self) -> u64;
+            fn set_divider(&mut self, divider: u16);
+            fn enable_peripheral(&self);            
+    pub wdt: Wdt,                                       // logical watcdog timer
+        pub fn new() -> Self
+        pub unsafe fn set_wdt_enabled(enabled: bool)
+    pub fn new(timer_group: impl Peripheral<P = T> + 'd, clocks: &Clocks) -> Self
+
+    
+

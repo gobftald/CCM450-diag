@@ -1,0 +1,217 @@
+// state
+
+// There are two version of state management for a task, depending on
+// whether its state can be implemented as AtomicBool or not.
+// esp32c3 has no AtomicBool, so we implement in Mutex<Cell<u32>>.
+
+// Despite of std::sync::Mutex critical_section::Mutex has no interior mutability. This was a conscious design choice.
+// It is possible to create multiple CriticalSection tokens, either by nesting critical sections or Copying an existing token.
+// As a result, it would not be sound for Mutex::borrow to return &mut T, because there would be nothing to prevent calling
+// borrow multiple times to create aliased &mut T references. 
+// The solution is to include a runtime check to ensure that each resource is borrowed only once. This is what
+// std::sync::Mutex does. However, this is a runtime cost that may not be required in all circumstances. For instance, 
+// Mutex<Cell<T>> never needs to create &mut T or equivalent.
+// It is why we need to use Cell, which contains an u32, encoding the task possible state
+
+// in embassy-executor/raw/mod.rs
+#[cfg_attr(all(cortex_m, target_has_atomic = "8"), path = "state_atomics_arm.rs")]  // no coretex -> not relevant
+#[cfg_attr(all(not(cortex_m), target_has_atomic = "8"), path = "state_atomics.rs")] // no atomic -> not relevant
+#[cfg_attr(not(target_has_atomic = "8"), path = "state_critical_section.rs")]   // no atomic -> relevant
+mod state;
+
+use core::cell::Cell;
+use critical_section::Mutex;
+
+/// Task is spawned (has a future)
+pub(crate) const STATE_SPAWNED: u32 = 1 << 0;
+/// Task is in the executor run queue
+pub(crate) const STATE_RUN_QUEUED: u32 = 1 << 1;
+#[cfg(feature = "integrated-timers")]
+pub(crate) const STATE_TIMER_QUEUED: u32 = 1 << 2;
+
+pub(crate) struct State {
+    state: Mutex<Cell<u32>>,
+}
+
+impl State {
+    pub const fn new() -> State {
+        Self {
+            state: Mutex::new(Cell::new(0)),
+        }
+    }
+
+    // Get 'state', then run closure with this as mutable arg.
+    // Then sets this potentially mutated value back to state.
+    // Returns wit the result of called closure.
+    fn update<R>(&self, f: impl FnOnce(&mut u32) -> R) -> R {
+        critical_section::with(|cs| {
+            let s = self.state.borrow(cs);
+            let mut val = s.get();
+            let r = f(&mut val);
+            s.set(val);
+            r
+        })
+    }
+
+    /// If task is idle, mark it as spawned + run_queued and return true.
+    #[inline(always)]
+    pub fn spawn(&self) -> bool {
+        self.update(|s| {
+            if *s == 0 {
+state_critical_section/State/spawn");
+                *s = STATE_SPAWNED | STATE_RUN_QUEUED;
+                true
+            } else {
+                false
+            }
+        })
+    }
+
+    /// Unmark the task as spawned.
+    #[inline(always)]
+    pub fn despawn(&self) {
+        self.update(|s| *s &= !STATE_SPAWNED);
+    }
+
+    /// Mark the task as run-queued if it's spawned and isn't already run-queued. Return true on success.
+    #[inline(always)]
+    pub fn run_enqueue(&self) -> bool {
+        self.update(|s| {
+            if (*s & STATE_RUN_QUEUED != 0) || (*s & STATE_SPAWNED == 0) {
+                false
+            } else {
+                *s |= STATE_RUN_QUEUED;
+                true
+            }
+        })
+    }
+
+    /// Unmark the task as run-queued. Return whether the task is spawned.
+    #[inline(always)]
+    pub fn run_dequeue(&self) -> bool {
+        self.update(|s| {
+            let ok = *s & STATE_SPAWNED != 0;
+            *s &= !STATE_RUN_QUEUED;
+            ok
+        })
+    }
+
+    /// Mark the task as timer-queued. Return whether it was newly queued (i.e. not queued before)
+    #[cfg(feature = "integrated-timers")]
+    #[inline(always)]
+    pub fn timer_enqueue(&self) -> bool {
+        self.update(|s| {
+            let ok = *s & STATE_TIMER_QUEUED == 0;
+            *s |= STATE_TIMER_QUEUED;
+            ok
+        })
+    }
+
+    /// Unmark the task as timer-queued.
+    #[cfg(feature = "integrated-timers")]
+    #[inline(always)]
+    pub fn timer_dequeue(&self) {
+        self.update(|s| *s &= !STATE_TIMER_QUEUED);
+    }
+}
+
+
+
+// token
+used first in _spawn_async_fn(move || ____embassy_main_task(spawner))
+
+// in embassy-executor/spawner.rs
+use core::marker::PhantomData;
+use core::mem;
+
+use super::raw;
+
+// Token to spawn a newly-created task in an executor.
+//
+// When calling a task function (like `#[embassy_executor::task] async fn my_task() { ... }`), the returned
+// value is a `SpawnToken` that represents an instance of the task, ready to spawn. You must
+// then spawn it into an executor, typically with [`Spawner::spawn()`].
+//
+// The generic parameter `S` determines whether the task can be spawned in executors
+// in other threads or not. If `S: Send`, it can, which allows spawning it into a [`SendSpawner`].
+// If not, it can't, so it can only be spawned into the current thread's executor, with [`Spawner`].
+//
+// Dropping a SpawnToken instance panics. You may not "abort" spawning a task in this way.
+// Once you've invoked a task function and obtained a SpawnToken, you *must* spawn it.
+pub struct SpawnToken<S> {
+    raw_task: Option<raw::TaskRef>,
+    phantom: PhantomData<*mut S>,
+}
+
+impl<S> SpawnToken<S> {
+    pub(crate) unsafe fn new(raw_task: raw::TaskRef) -> Self {
+        Self {
+            raw_task: Some(raw_task),
+            phantom: PhantomData,
+        }
+    }
+
+    pub fn new_failed() -> Self {
+        Self {
+            raw_task: None,
+            phantom: PhantomData,
+        }
+    }
+}
+
+
+
+
+// spawn
+// in embassy-executor/spawner.rs
+pub enum SpawnError {
+    /// Too many instances of this task are already running.
+    ///
+    /// By default, a task marked with `#[embassy_executor::task]` can only have one instance
+    /// running at a time. You may allow multiple instances to run in parallel with
+    /// `#[embassy_executor::task(pool_size = 4)]`, at the cost of higher RAM usage.
+    Busy,
+}
+
+// Handle to spawn tasks into an executor.
+pub struct Spawner {
+    executor: &'static raw::Executor,
+    not_send: PhantomData<*mut ()>,
+}
+
+// it simple stores the pointer to the Executor for which it spawns
+impl Spawner {
+    pub(crate) fn new(executor: &'static raw::Executor) -> Self {
+        Self {
+            executor,                   // raw Executor
+            not_send: PhantomData,
+        }
+    }
+
+    /// Spawn a task into an executor.
+    ///
+    /// You obtain the `token` by calling a task function (i.e. one marked with `#[embassy_executor::task]`).
+    /// and this spawn called from that 'task'
+    pub fn spawn<S>(&self, token: SpawnToken<S>) -> Result<(), SpawnError> {
+        let task = token.raw_task;
+        // SpawnToken can be used only once
+        mem::forget(token);
+
+        match task {
+            Some(task) => {
+                unsafe { self.executor.spawn(task) };   // raw Executor
+                Ok(())
+            }
+            None => Err(SpawnError::Busy),
+        }
+    }
+
+    // Used by the `embassy_macros::main!` macro to throw an error when spawn
+    // fails. This is here to allow conditional use of `defmt::unwrap!`
+    // without introducing a `defmt` feature in the `embassy_macros` package,
+    // which would require use of `-Z namespaced-features`.
+    // Spawn a task into an executor, panicking on failure.
+    pub fn must_spawn<S>(&self, token: SpawnToken<S>) {
+        unwrap!(self.spawn(token));
+    }
+}

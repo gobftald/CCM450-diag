@@ -1,0 +1,770 @@
+// in embassy-executor/raw/mod.rs
+
+// begin with two calls from #[main] and #[task] attribute macros
+embassy_executor::raw::TaskPool::new() is called from #[main/task] macros
+POOL._spawn_async_fn(move || ____embassy_main_task(spawner)) is also called from #[main/task] macros
+
+// TaskPool
+// Raw storage that can hold up to N tasks of the same type.
+// This is essentially a `[TaskStorage<F>; N]`
+// static Future (which is the task's async function) e.g. which decorated with #[main] and #[task]
+// will goes to TaskStorage<F>, this will be called by TaskStorage::poll as 'task'
+//
+// as we learned from AvailableTask::initialize_impl (see below) F is not the type of future
+// but the return type of feature (SpawnToken has the generic referring the type of future (func))
+pub struct TaskPool<F: Future + 'static, const N: usize> {
+    pool: [TaskStorage<F>; N],
+}
+
+// repr(C) is needed to guarantee that the Task is located at offset 0
+// This makes it safe to cast between TaskHeader and TaskStorage pointers.
+#[repr(C)]
+pub struct TaskStorage<F: Future + 'static> {
+    raw: TaskHeader,
+    future: UninitCell<F>, // Valid if STATE_SPAWNED
+                           //
+                           // in other places we use SyncUnsafeCell,
+                           // here we use this type (maybe) for performance reasons
+}
+
+// this is the main structure to control 'task'
+// state: is trivial -- see below and in embassy-executor/src/raw/state_critical_section.rs
+//
+// run_queue_item: used for insert task into run_queue, this type contains the nex 'item'
+// providing a single linked queue, the head of this queue in RunQueue
+// if task needs to run, so its state is STATE_RUN_QUEUED, it should be placed into this queue
+//
+// executor: this is the way a task can assign to a specific Executor
+//
+// poll_fn: it is TaskStorage::poll function ptr, which polls calls tak's future's poll
+//
+// if we have timers:
+// expires_at: contains task's exiraton in ticks, when task run/sitting/awaiting in a 'Timer'
+// and in this case the task should be in a timer_queue
+//
+// timer_queue_item: used for insert task into timer_queue, this type contains the nex 'item'
+// providing a single linked queue, the head of this queue in TimerQueue
+// if task awaiting in a Timer future, so its state is STATE_TIMER_QUEUED, it sholud be
+// insert/chain into this queue
+pub(crate) struct TaskHeader {
+    pub(crate) state: State,
+    run_queue_item: RunQueueItem, // SyncUnsafeCell<Option<TaskRef>>
+    executor: SyncUnsafeCell<Option<&'static SyncExecutor>>,
+    poll_fn: SyncUnsafeCell<Option<unsafe fn(TaskRef)>>,
+
+    #[cfg(feature = "integrated-timers")]
+    pub(crate) expires_at: SyncUnsafeCell<u64>,
+    #[cfg(feature = "integrated-timers")]
+    pub(crate) timer_queue_item: timer_queue::TimerQueueItem,   
+}
+
+// see State in StateSpawnToken.txt
+// see run_queue_item in run_queue_item.txt
+// see timer_queue_item in timer_queue_item.txt
+
+// TaskHeader has no method so this is EOF TaskHeader
+
+impl<F: Future + 'static> TaskStorage<F> {
+    // this trick will create an instance without calling new
+    const NEW: Self = Self::new();
+
+    /// Create a new TaskStorage, in not-spawned state.
+    pub const fn new() -> Self {
+        // SyncUnsafeCell type defined in embassy-executor/src/raw/util.rs
+        // pub struct SyncUnsafeCell<T> {
+        //     value: UnsafeCell<T>,
+        // }
+        // unsafe impl<T: Sync> Sync for SyncUnsafeCell<T> {}
+        Self {
+            raw: TaskHeader {
+                state: State::new(),
+                run_queue_item: RunQueueItem::new(),
+                executor: SyncUnsafeCell::new(None),
+                poll_fn: SyncUnsafeCell::new(None),
+                #[cfg(feature = "integrated-timers")]
+                expires_at: SyncUnsafeCell::new(0),
+                #[cfg(feature = "integrated-timers")]
+                timer_queue_item: timer_queue::TimerQueueItem::new(),
+            },
+            future: UninitCell::uninit(),
+        }
+    }
+
+    // called by/via tak's poll_fn when SyncExecutor polls/runs its task's future,
+    // calling/polling task's future gives the control to the compiler/state machine
+    // to poll the appropriate/current 'awaiting' future in the state machine's tree
+    unsafe fn poll(p: TaskRef) {
+        // convert/get TaskStorage from TaskRef based on their identical
+        // struct memory representation at their beginning section
+        // see TaskRef and its methods below
+        let this = &*(p.as_ptr() as *const TaskStorage<F>);
+
+        // !important: this is the original (not hand made) task's future set by _spawn_async_fn
+        // then spawn_impl::<FutFn>(future) then initialize_impl<S>(&self, future: impl FnOnce() -> F)
+        let future = Pin::new_unchecked(this.future.as_mut());
+
+        // here we hack/emulate the compiler logic providing/inserting our own waker to get the
+        // control back here via the top and raw Executors' polls which sends our TaskRef as an 
+        // arg to this poll
+        //
+        // waker::from_task build a RawWaker for the compiler
+        // pub(crate) unsafe fn from_task(p: TaskRef) -> Waker {
+        //     Waker::from_raw(RawWaker::new(p.as_ptr() as _, &VTABLE))
+        // }
+        let waker = waker::from_task(p);        // see embassy-executor/src/raw/waker.rs
+
+        // then we build the final context from waker
+        let mut cx = Context::from_waker(&waker);
+
+        // call the taks's future's poll giving context as paramterer
+        // this poll is not hand made implemented but constructed by compiler
+        match future.poll(&mut cx) {
+            Poll::Ready(_) => {
+                // drop the future's ptr after it finished
+                this.future.drop_in_place();
+                
+                // Unmark the task as spawned - clear STATE_SPAWNED from its status
+                this.raw.state.despawn();
+
+                // set tak's expire time to a theoretical maximum, which never happens
+                #[cfg(feature = "integrated-timers")]
+                this.raw.expires_at.set(u64::MAX);
+            }
+            // future stayed in Pending state
+            // give back the control to the raw Executor, to manage our task
+            Poll::Pending => {}
+        }
+    }
+} EOF TaskStorage and impl TaskStorage
+
+// before we return back to TaskPool we document TaskRef and AvailableTask
+
+// This is essentially a `&'static TaskStorage<F>` where the type of the future has been erased.
+/// because of the memory struct of TaskStorage and TaskHeader it can be converted into &'static TaskStorage<F>
+#[derive(Clone, Copy)]
+pub struct TaskRef {
+    ptr: NonNull<TaskHeader>,
+}
+// TaskRef is send and sync, can be used anywhere freely among thread and calls
+unsafe impl Send for TaskRef where &'static TaskHeader: Send {}
+unsafe impl Sync for TaskRef where &'static TaskHeader: Sync {}
+
+impl TaskRef {
+    fn new<F: Future + 'static>(task: &'static TaskStorage<F>) -> Self {
+        Self {
+            // casting &'static TaskStorage<F> into TaskRef ptr
+            ptr: NonNull::from(task).cast(),
+        }
+    }
+
+    // it can also created from *const TaskHeader
+    // Safety: The pointer must have been obtained with `Task::as_ptr`
+    pub(crate) unsafe fn from_ptr(ptr: *const TaskHeader) -> Self {
+        Self {
+            ptr: NonNull::new_unchecked(ptr as *mut TaskHeader),
+        }
+    }
+
+    // The returned pointer is valid for the entire TaskStorage.
+    pub(crate) fn as_ptr(&self) -> *const TaskHeader {
+        self.ptr.as_ptr()
+    }
+
+    // conversion into not ptr but reference to TaskHeader
+    pub(crate) fn header(self) -> &'static TaskHeader {
+        unsafe { self.ptr.as_ref() }
+    }
+} EOF TaskRef and impl TaskRef
+
+/// An uninitialized [`TaskStorage`] used temporary
+pub struct AvailableTask<F: Future + 'static> {
+    task: &'static TaskStorage<F>,
+}
+
+impl<F: Future + 'static> AvailableTask<F> {
+    /// Try to claim a [`TaskStorage`].
+    ///
+    /// This function returns `None` if a task has already been spawned and has not finished running.
+    pub fn claim(task: &'static TaskStorage<F>) -> Option<Self> {
+        // if task is idle, spawn() marks it as spawned + run_queued and return true.
+        task.raw.state.spawn().then(|| Self { task })
+    }
+
+    // Called from/through _spawn_async_fn<FutFn> or spawn -> spawn_impl<FutFn> ->
+    // -> find_map(AvailableTask::claim) -> initialize_impl<FutFn>.
+    // `S` which is FutFN determines whether the task can be spawned in
+    // executors in other threads or not.
+    //
+    // But the type of TaskStorage<F> and hence back to AvailableTask<F>
+    // is not the type of future but the type of its return value
+    //
+    // it sets poll_fn and future of task, then returns with a SpawnToken
+    // for a task that can be setup further during the spawn
+    fn initialize_impl<S>(&self, future: impl FnOnce() -> F) -> SpawnToken<S> {
+        // set TaskStorage::<F>::poll as the poll function of task,
+        // so when during our internal task management there is point when 
+        // we call/poll tak's future itself, this is the function which
+        // implements that future (the 4th layer of polls below the 3 Executor
+        // layers) calling/polling
+        self.task.raw.poll_fn.set(Some(TaskStorage::<F>::poll));
+
+        // set/store the future for the task
+        self.task.future.write_in_place(future);
+
+        // generate a TaskRef
+        let task = TaskRef::new(self.task);
+
+        // return with a SpawnToken representing an instance of the task, ready to spawn.
+        SpawnToken::new(task)
+    }
+} EOF AvailableTask and impl AvailableTask
+
+// now we can document the original TaskPool implementation
+
+// repeat TaskPool from above
+// Raw storage that can hold up to N tasks of the same type.
+// This is essentially a `[TaskStorage<F>; N]`
+// static Future (which is the task's async function) e.g. which decorated with #[main] and #[task]
+// will goes to TaskStorage<F>, this will be called by TaskStorage::poll as 'task'
+//
+// as we learned from AvailableTask::initialize_impl (see below) F is not the type of future
+// but the return type of feature (SpawnToken has the generic referring the type of future (func))
+pub struct TaskPool<F: Future + 'static, const N: usize> {
+    pool: [TaskStorage<F>; N],
+}
+
+impl<F: Future + 'static, const N: usize> TaskPool<F, N> {
+    // N is the potential parameter of #[task]
+    // TaskPool is created and put into POOL static variable in #[task] macro
+    //
+    // fn run() -> ::embassy_executor::SpawnToken<impl Sized> {
+    //    type Fut = impl ::core::future::Future + 'static;
+    //    const POOL_SIZE: usize = 1;
+    //    static POOL: ::embassy_executor::raw::TaskPool<Fut, POOL_SIZE> =
+    //        ::embassy_executor::raw::TaskPool::new();
+    //    unsafe { POOL._spawn_async_fn(move || __run_task()) }
+    }
+    pub const fn new() -> Self {
+        Self {
+            pool: [TaskStorage::NEW; N],
+        }
+    }
+
+    // called from/through _spawn_async_fn or spawn
+    // returned SpawnToken<T>'s type comes from
+    // _spawn_async_fn<FutFn>(&'static self, future: FutFn) -> SpawnToken<FutFn> or
+    // spawn(&'static self, future: impl FnOnce() -> F) -> SpawnToken<F>
+    // FutFn or Fut decides whether taks can be spawned in executors in other threads or not
+    //
+    // it's only call task.initialize_impl::<T>(future) for available tasks in the pool
+    fn spawn_impl<T>(&'static self, future: impl FnOnce() -> F) -> SpawnToken<T> {
+        // AvailableTask::claim returns `None` if a task has already been spawned and has not finished running.
+        match self.pool.iter().find_map(AvailableTask::claim) {
+            Some(task) => task.initialize_impl::<T>(future),
+            None => SpawnToken::new_failed(),
+        }
+    }
+
+    // I cannot find any (direct) reference/call to this function
+    pub fn spawn(&'static self, future: impl FnOnce() -> F) -> SpawnToken<F> {
+        self.spawn_impl::<F>(future)
+    }
+
+    /// Like spawn(), but allows the task to be send-spawned if the args are Send even if
+    /// the future is !Send.
+    ///
+    /// Not covered by semver guarantees. DO NOT call this directly. Intended to be used
+    /// by the Embassy macros ONLY.
+    pub unsafe fn _spawn_async_fn<FutFn>(&'static self, future: FutFn) -> SpawnToken<FutFn>
+    where
+        FutFn: FnOnce() -> F,
+    {
+        // See the comment in AvailableTask::__initialize_async_fn for explanation.
+        self.spawn_impl::<FutFn>(future)
+    }
+}
+
+// Pender
+// a type used for signal top level Executor to run/poll
+#[derive(Clone, Copy)]
+pub(crate) struct Pender(*mut ());
+
+/// it can be used from any thread to call Executor in another thread
+unsafe impl Send for Pender {}
+unsafe impl Sync for Pender {}
+
+impl Pender {
+    // signal a top level Executor to run/poll
+    // Rust external, defined for top level Executor
+    pub(crate) fn pend(self) {
+        extern "Rust" {
+            // __pender and top Executor for which pender signals should be defined either
+            // in embassy (e.g. in embassy-executor/arch)
+            // or in hal (e.g. in esp-hal/embassy/executor/mod.rs and thread.rs)
+            fn __pender(context: *mut ());
+        }
+        unsafe { __pender(self.0) };
+    }
+} EOF Pender and impl Pender
+
+// in esp32c3-hal/Cargo.toml
+[features]
+embassy-executor-thread = ["esp-hal/embassy-executor-thread"]
+[dependencies]
+esp-hal = { version = "0.15.0", path = "../esp-hal", features = ["esp32c3"] }
+
+// in esp-hal/Cargo.toml
+[features]
+embassy-executor-thread   = ["embassy", "embassy-executor"]
+[dependencies]
+embassy-executor    = { version = "0.5.0", path = "../embassy-executor", optional = true }
+// in esp-hal/lib.rs
+#[cfg(feature = "embassy")]
+pub mod embassy;
+// in esp-hal/embassy/mod.rs
+#[cfg(any(
+    feature = "embassy-executor-interrupt",
+    feature = "embassy-executor-thread"
+))]
+pub mod executor;
+// in esp-hal/embassy/executor/mod.rs
+#[cfg(feature = "embassy-executor-thread")]
+pub mod thread;
+#[cfg(feature = "embassy-executor-thread")]
+use thread::pend_thread_mode;
+#[cfg(feature = "embassy-executor-thread")]
+pub use thread::Executor;
+#[cfg(any(
+    feature = "embassy-executor-thread",
+    feature = "embassy-executor-interrupt",
+))]
+#[export_name = "__pender"]
+fn __pender(context: *mut ()) {
+    // becuse in impl of (top) Executor (see below) puts cpu core id,
+    // which is 0 for single core esp32c3, into the 2nd of 4 bytes of
+    // the context
+    let context = (context as usize).to_le_bytes();
+
+    // call implenentation specific pender with context
+    #[cfg(feature = "embassy-executor-thread")]
+    pend_thread_mode(context[1] as usize);
+}
+
+// in esp-hal/embassy/executor/thread.rs    
+
+/// global atomic used to keep track of whether there is work to do
+#[cfg(not(multi_core))]
+static SIGNAL_WORK_THREAD_MODE: [AtomicBool; 1] = [AtomicBool::new(false)];
+
+pub(crate) fn pend_thread_mode(core: usize) {
+    // Signal that there is work to be done.
+    SIGNAL_WORK_THREAD_MODE[core].store(true, Ordering::SeqCst);
+}
+
+// this is the (hal's) top Executor created through #[main] attributes macro
+//
+// this should be defined -- and this is the role of this Executor and __pender
+// pair -- where we implement the signalling and the top pool/loop logics
+pub struct Executor {
+    inner: raw::Executor,               // embassy's 2mnd level raw executor
+    not_send: PhantomData<*mut ()>,
+}
+
+impl Executor{
+    /// created through #[main] attributes macro
+    /// which expand to
+    /// fn __risc_v_rt__main() -> ! {
+    ///     let mut executor = esp32c3_hal::embassy::executor::Executor::new();
+    ///     ...
+    /// }
+    /// get_core gives 0 since we had only one core/cpu in esp32c3
+    pub fn new() -> Self {
+        Self {
+            inner: raw::Executor::new(usize::from_le_bytes([0, get_core() as u8, 0, 0]) as *mut ()),
+            not_send: PhantomData,
+        }
+    }
+
+    // Run the executor.
+    //
+    // The `init` closure is called with a [`Spawner`] that spawns tasks on
+    // this executor. Use it to spawn the initial task(s). After `init`
+    // returns, the executor starts running the tasks.
+    //
+    // This function never returns.
+    //
+    // in fn __risc_v_rt__main() -> ! {
+    //     ...
+    //     executor.run(|spawner| {spawner.must_spawn(__embassy_main(spawner));})
+    // }
+    pub fn run(&'static mut self, init: impl FnOnce(Spawner)) -> ! {
+        // asks spawner from raw Executor then call closure with it
+        // init does everything: create TaskPool, setup task with 'future', which
+        // is future function with the content of #[main] or #[task] function
+        // then spawn the task
+        init(self.inner.spawner());     
+
+        // get cpu core id, which is 0 for esp32c3
+        let cpu = get_core() as usize;
+
+        loop {
+            // calls/pools second level (raw) Executor)
+            self.inner.poll();
+
+            // When we are here there then all awaiting function is Pending
+            // and we have not got any signal from any pender.
+            // Check for signal, and if not received wait for interrupt in low poer mode
+            Self::wait_impl(cpu);
+        }                                    
+    }
+
+    /// waits for signals of Penders
+    /// if there is no more signal it sits in asm!("wfi") wait-for-interrupt
+    /// in a low power state and gets out from this only after interrupt
+    #[cfg(riscv)]
+    pub fn wait_impl(cpu: usize) {
+        // we do not care about race conditions between the load and store operations,
+        // interrupts will only set this value to true.
+        critical_section::with(|_| {
+            // if there is work to do, loop back to polling
+            // TODO can we relax this?
+            if SIGNAL_WORK_THREAD_MODE[cpu].load(Ordering::SeqCst) {
+                SIGNAL_WORK_THREAD_MODE[cpu].store(false, Ordering::SeqCst);
+            }
+            // if not, wait for interrupt
+            else {
+                unsafe { core::arch::asm!("wfi") };
+            }
+        });
+        // if an interrupt occurred while waiting, it will be serviced
+        // here
+    }
+}
+
+// back to raw executor in embassy-executor/raw/mod.rs
+
+/// raw Executor - created and called from hals's or embassy's top Executor
+/// like esp32c3_hal::embassy::executor::Executor::new()
+/// which is esp_hal::embassy::executor::Executor::new()
+///
+/// this is only a shim between top Executor and SyncExecutor
+#[repr(transparent)]
+pub struct Executor {
+    pub(crate) inner: SyncExecutor,     // see below
+    _not_sync: PhantomData<*mut ()>,
+}
+
+impl Executor {
+    // called from hal's top Executor
+    // from esp_hal::embassy::executor::Executor::new() or
+    // embassy_executor::arch::riscv32::Executor::new()
+    //
+    // context comes from the top executor since Pender will signal that Executor
+    // it is a core/cpu id, so it is '0:u32 as *mut ()' for esp32c3
+    pub fn new(context: *mut ()) -> Self {
+        Self {
+            inner: SyncExecutor::new(Pender(context)),
+            _not_sync: PhantomData,
+        }
+    }
+
+    /// Spawn a task in this executor.
+    ///
+    /// # Safety
+    ///
+    /// `task` must be a valid pointer to an initialized but not-already-spawned task.
+    ///
+    /// It is OK to use `unsafe` to call this from a thread that's not the executor thread.
+    /// In this case, the task's Future must be Send. This is because this is effectively
+    /// sending the task to the executor thread.
+    pub(super) unsafe fn spawn(&'static self, task: TaskRef) {
+        // simply calls the layer below
+        self.inner.spawn(task)
+    }
+
+    pub unsafe fn poll(&'static self) {
+        // simply calls the layer below
+        self.inner.poll();
+    }
+
+    /// Get a spawner that spawns tasks in this executor.
+    ///
+    /// It is OK to call this method multiple times to obtain multiple
+    /// `Spawner`s. You may also copy `Spawner`s.
+    pub fn spawner(&'static self) -> super::Spawner {
+        // pub struct Spawner {
+        //     executor: &'static raw::Executor,
+        //     not_send: PhantomData<*mut ()>,
+        // }
+        // impl Spawner {
+        //     pub(crate) fn new(executor: &'static raw::Executor) -> Self {
+        //         Self {
+        //             executor,
+        //             not_send: PhantomData,
+        //         }
+        //     }
+        // }
+        // Spawner simply stores a reference to this raw Executor
+        super::Spawner::new(self)       // see SpawNerToken.txt
+    }
+}
+
+// SyncExecutor
+// it is the (task) Executor, the third layer below hal's or embassy's top Executor
+// then embassy's raw Executor
+// its poll manage the tasks which (if spawned) can be either in RunQueue or in TimerQueue
+// or if it idle in its own TaskPool
+// because of its pender is also sync, can be moved and share between threads
+pub(crate) struct SyncExecutor {
+    run_queue: RunQueue,
+    pender: Pender,
+
+    #[cfg(feature = "integrated-timers")]
+    pub(crate) timer_queue: timer_queue::TimerQueue,
+    #[cfg(feature = "integrated-timers")]
+    alarm: AlarmHandle,
+}
+
+impl SyncExecutor {
+    /// creating RunQueue, TimerQueue and also storing a Pender
+    /// which signals via __pender to the top Executor
+    /// allocate AlarmHandle through embassy_time_driver - see time.txt
+    pub(crate) fn new(pender: Pender) -> Self {
+        #[cfg(feature = "integrated-timers")]
+        let alarm = unsafe { unwrap!(embassy_time_driver::allocate_alarm()) };
+
+        Self {
+            run_queue: RunQueue::new(),
+            pender,
+
+            #[cfg(feature = "integrated-timers")]
+            timer_queue: timer_queue::TimerQueue::new(),
+            #[cfg(feature = "integrated-timers")]
+            alarm,
+        }
+    }
+
+    /// Enqueue a task in the task queue
+    ///
+    /// # Safety
+    /// - `task` must be a valid pointer to a spawned task.
+    /// - `task` must be set up to run in this executor.
+    /// - `task` must NOT be already enqueued (in this executor or another one).
+    ///
+    /// insert/chain task into run_queue by managing its run_queue_item
+    /// then signals top Executor
+    #[inline(always)]
+    unsafe fn enqueue(&self, task: TaskRef) {
+        // insert task into the run_queue
+        if self.run_queue.enqueue(task) {       // see queues.txt
+            self.pender.pend();                 // signal top Executor
+        }
+    }
+
+    // called from embassy_time_driver, practicaly from the interrupt handler
+    // ctx is the untyped &SyncExecutor -> this
+    // the only function of callback is signalling the top Executor
+    #[cfg(feature = "integrated-timers")]
+    fn alarm_callback(ctx: *mut ()) {
+        let this: &Self = unsafe { &*(ctx as *const Self) };
+        this.pender.pend();
+    }
+
+    /// Task's state, and poll_fn were set earlier in _spawn_async_fn.
+    /// Setting the executor assigns the task to this specific executor instance.
+    /// enqueue inserts task into run_queue then signal the top Executor
+    pub(super) unsafe fn spawn(&'static self, task: TaskRef) {
+        task.header().executor.set(Some(self));
+
+        self.enqueue(task);
+    }
+
+    // this is the third layer of Executors's poll
+    // it  manages the run_queue and timer_queue
+    // if task is in run_queue it calls the fourth layer of poll, polling task's future
+    // if task is in timer_queue it starts alarm
+    // ..........
+    pub(crate) unsafe fn poll(&'static self) {
+        #[cfg(feature = "integrated-timers")]
+        // Based on allocated AlarmHandle, store alarm_callback function and
+        // self (as &'static SyncExecutor instance) as its untyped argument.
+        // Based on this arg callback will reconstruct any method function call
+        // in our case it will be 'self.pender.pend()'.
+        //
+        // it is called in every poll, despit of the fact that the calls ags is
+        // quite stabel, I asked Dirbaio (Dario Nieuwenhuis), the developer of embassy
+        // as it turns out, SyncExecutor is moved after new (see main&task_macros.txt)
+        // and then even the user can move it as well, so self as *const _ as *mut (),
+        // cannot be get one (e.g. in new) then put into a oncely called set_alarm_callback
+        embassy_time_driver::set_alarm_callback(
+            self.alarm,
+            Self::alarm_callback,
+            self as *const _ as *mut (),
+        );
+
+        loop {
+            // Walk through the timer_queue, calls 'on_task' (which is wake_task_no_pend)
+            // for every task which has expired timer.
+            // These tasks are removed from timer_queue, but wake_task_no_pend marks task
+            // run_queue (scheduled) than put it into run_queue.
+            #[cfg(feature = "integrated-timers")]
+            self.timer_queue
+                .dequeue_expired(embassy_time_driver::now(), wake_task_no_pend);
+
+            // Walk through all tasks in the run_queue and call the closure in arg.
+            // It automaticaly makes the queue empty, clear 'head'
+            //
+            // Task was put into run_queue in two cases:
+            // 1. task was spawned
+            // 2. task was in timer_queue, expired, hence the previous 'timer_queue.dequeue_expired'
+            // (see some lines above) dequeued it from timer_queue and inserted it into run_queue.
+            self.run_queue.dequeue_all(|p| {
+                let task = p.header();
+
+                // If task is in run_queue from any case (spawned or expired) its expires_at is cleared.
+                #[cfg(feature = "integrated-timers")]
+                task.expires_at.set(u64::MAX);            });
+            
+                // Unmark the task as run-queued.
+                // Checking for that task state was not STATE_SPAWNED
+                if !task.state.run_dequeue() {
+                    // If task is not running, ignore it. This can happen in the following scenario:
+                    //   - Task gets dequeued, poll starts
+                    //   - While task is being polled, it gets woken. It gets placed in the queue.
+                    //   - Task poll finishes, returning done=true
+                    //   - RUNNING bit is cleared, but the task is already in the queue.
+                    // I don't fully understand all of these cases above,
+                    // why this drastic return needed, potentially dequeuing other innocent tasks
+                    return;
+                    // Return to top Executor's run loop, practically to wait_impl(cpu).
+                    // Although first it checks SIGNAL_WORK_THREAD_MODE,
+                    // and if no SIGNAL_... then core::arch::asm!("wfi").
+                }
+
+                // Run tasks - call TaskStorage::poll,
+                // which calls the tasks' future's poll (4th layer of polls)
+                // This call is here, if previous poll
+                // It's the fourth, lowest layer of polls.
+                task.poll_fn.get().unwrap_unchecked()(p);
+
+                // Update task's state to STATE_TIMER_QUEUED
+                // and if it was not queued, put it to timer_queue.
+                //
+                // It needs to handle the situation if during task
+                // run a timer was initiated
+                #[cfg(feature = "integrated-timers")]
+                self.timer_queue.update(p);
+            });
+
+            #[cfg(feature = "integrated-timers")]
+            {
+                // get the smallest expiration value of tasks in timer_queue
+                let next_expiration = self.timer_queue.next_expiration();
+
+                // If this is already in the past, set_alarm might return false
+                // In that case do another poll loop iteration.
+                if embassy_time_driver::set_alarm(self.alarm, next_expiration) {
+                    break;
+                    // in case of esp32c3 this break never happens, since set_alarm always returns with true
+                    // the hardware fires the alarm even if timestamp is lower than the current
+                    // time. In this case the interrupt handler will pend a wakeup when set_alarm exit its
+                    // critical section.
+                }
+            }
+        }
+    }
+}
+
+// Wake a task by `TaskRef` without calling pend.
+//
+// You can obtain a `TaskRef` from a `Waker` using [`task_from_waker`].
+// called from SyncExecutor::poll, when dequeue expired task from timer_queue
+// we transfer task from timer_queue to run_queue, but not need to signal to run
+// since it will started later in this poll() run
+pub fn wake_task_no_pend(task: TaskRef) {
+    let header = task.header();
+    if header.state.run_enqueue() {
+        // We have just marked the task as scheduled, so enqueue it.
+        unsafe {
+            let executor = header.executor.get().unwrap_unchecked();
+            executor.run_queue.enqueue(task);
+        }
+    }
+}
+
+// the last not documented function in embassy-executor/raw/mod.rs
+
+// Wake a task by `TaskRef`.
+//
+// You can obtain a `TaskRef` from a `Waker` using [`task_from_waker`].
+// enqueues task wich calls pender as well
+pub fn wake_task(task: TaskRef) {
+    let header = task.header();
+    if header.state.run_enqueue() {
+        // We have just marked the task as scheduled, so enqueue it.
+        unsafe {
+            let executor = header.executor.get().unwrap_unchecked();
+            // this calls pender as well
+            executor.enqueue(task);
+        }
+    }
+}
+// this is called from waker module - embassy-executor/raw/waker.rs
+// so let document waker module
+
+use core::task::{RawWaker, RawWakerVTable, Waker};
+
+use super::{wake_task, TaskHeader, TaskRef};
+
+static VTABLE: RawWakerVTable = RawWakerVTable::new(clone, wake, wake, drop);
+
+unsafe fn clone(p: *const ()) -> RawWaker {
+    RawWaker::new(p, &VTABLE)
+}
+
+unsafe fn wake(p: *const ()) {
+    // in embassy-executor/raw/mod.rs
+    // enqueue taks wich calls pender as well
+    wake_task(TaskRef::from_ptr(p as *const TaskHeader))
+}
+
+unsafe fn drop(_: *const ()) {
+    // nop
+}
+
+// called from the 4th layer poll, to construct waker
+// then ctx for a future polled by us
+pub(crate) unsafe fn from_task(p: TaskRef) -> Waker {
+    Waker::from_raw(RawWaker::new(p.as_ptr() as _, &VTABLE))
+}
+// this shows how task_from_waker can/will get task back
+
+/// Get a task pointer from a waker.
+///
+/// This can be used as an optimization in wait queues to store task pointers
+/// (1 word) instead of full Wakers (2 words). This saves a bit of RAM and helps
+/// avoid dynamic dispatch.
+///
+/// You can use the returned task pointer to wake the task with [`wake_task`](super::wake_task).
+///
+/// # Panics
+///
+/// Panics if the waker is not created by the Embassy executor.
+pub fn task_from_waker(waker: &Waker) -> TaskRef {
+    // safety: OK because WakerHack has the same layout as Waker (see below).
+    // This is not really guaranteed because the structs are `repr(Rust)`, it is
+    // indeed the case in the current implementation.
+    // TODO use waker_getters when stable. https://github.com/rust-lang/rust/issues/96992
+    let hack: &WakerHack = unsafe { core::mem::transmute(waker) };
+    if hack.vtable != &VTABLE {
+        panic!("Found waker not created by the Embassy executor. `embassy_time::Timer` only works with the Embassy executor.")
+    }
+
+    // safety: our wakers are always created with `TaskRef::as_ptr`
+    unsafe { TaskRef::from_ptr(hack.data as *const TaskHeader) }
+}
+
+struct WakerHack {
+    data: *const (),
+    vtable: &'static RawWakerVTable,
+}

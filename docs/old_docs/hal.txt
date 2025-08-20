@@ -1,0 +1,635 @@
+init and device specific function in EmbassyTimer in
+    esp-hal/embassy/mod.rs and
+    esp-hal/embassy/time_driver_timg.rs
+
+// in esp-hal/Cargo.toml
+[features]
+default = ["rt", "vectored"]
+
+## Enable runtime support.
+rt = [
+    "dep:esp-riscv-rt",
+    "esp32c3?/rt",
+]
+
+## Enable interrupt vectoring
+#  - Use vectored interrupts (calling the handlers defined in the PAC)
+vectored  = ["procmacros/interrupt"]
+
+## Chip Support Feature Flags
+## Target the ESP32-C3.
+esp32c3 = [
+    "dep:esp32c3", "riscv",
+    "embassy-executor?/arch-riscv32",
+    "portable-atomic/unsafe-assume-single-core"]
+
+
+riscv  = ["dep:riscv", "critical-section/restore-state-u8", "esp-riscv-rt?/zero-bss" ]
+...
+
+
+ 'esp-riscv-rt'
+
+// in esp-riscv-rt/lib.rs
+/// Rust entry point (_start_rust)
+///
+/// Zeros bss section, initializes data section and calls main. This function
+/// never returns.
+///
+/// # Safety
+///
+/// This function should not be called directly by the user, and should instead
+/// be invoked by the runtime implicitly.
+#[link_section = ".init.rust"]
+#[export_name = "_start_rust"]
+pub unsafe extern "C" fn start_rust(a0: usize, a1: usize, a2: usize) -> ! {
+    extern "Rust" {
+        // This symbol calls the external 'fn main' provided by the user via `#[entry]`
+        fn hal_main(a0: usize, a1: usize, a2: usize) -> !; // implemented in esp-hal/lib.rs
+
+        fn __post_init(); // implemented in esp-hal/soc/esp32c3/mod.rs
+
+        fn _setup_interrupts(); // implemented in esp-hal/interrupt/riscv.rs
+
+    }
+
+    __post_init();
+
+    _setup_interrupts();
+
+    hal_main(a0, a1, a2);
+}
+
+/// Parse cfg attributes inside a global_asm call.
+macro_rules! cfg_global_asm {
+    {@inner, [$($x:tt)*], } => {
+        global_asm!{$($x)*}
+    };
+    (@inner, [$($x:tt)*], #[cfg($meta:meta)] $asm:literal, $($rest:tt)*) => {
+        #[cfg($meta)]
+        cfg_global_asm!{@inner, [$($x)* $asm,], $($rest)*}
+        #[cfg(not($meta))]
+        cfg_global_asm!{@inner, [$($x)*], $($rest)*}
+    };
+    {@inner, [$($x:tt)*], $asm:literal, $($rest:tt)*} => {
+        cfg_global_asm!{@inner, [$($x)* $asm,], $($rest)*}
+    };
+    {$($asms:tt)*} => {
+        cfg_global_asm!{@inner, [], $($asms)*}
+    };
+}
+
+cfg_global_asm! {
+    r#"
+/*
+    Entry point of all programs (_start).       // in esp-hal/ld/esp32c3/esp32c3.x:  ENTRY(_start)
+
+    It initializes DWARF call frame information, the stack pointer, the
+    frame pointer (needed for closures to work in start_rust) and the global
+    pointer. Then it calls _start_rust.
+*/
+
+.section .init, "ax"
+.global _start
+
+_start:
+    /* Jump to the absolute address defined by the linker script. */
+    lui ra, %hi(_abs_start)
+    jr %lo(_abs_start)(ra)
+
+    _abs_start:
+    .option norelax
+    .cfi_startproc
+    .cfi_undefined ra
+
+"#,
+#[cfg(feature = "zero-bss")]
+    r#"
+    la a0, _bss_start
+    la a1, _bss_end
+    bge a0, a1, 2f
+    mv a3, x0
+    1:
+    sw a3, 0(a0)
+    addi a0, a0, 4
+    blt a0, a1, 1b
+    2:
+"#,
+
+    r#"
+    li  x1, 0
+    li  x2, 0
+    li  x3, 0
+    li  x4, 0
+    li  x5, 0
+    li  x6, 0
+    li  x7, 0
+    li  x8, 0
+    li  x9, 0
+    li  x10,0
+    li  x11,0
+    li  x12,0
+    li  x13,0
+    li  x14,0
+    li  x15,0
+    li  x16,0
+    li  x17,0
+    li  x18,0
+    li  x19,0
+    li  x20,0
+    li  x21,0
+    li  x22,0
+    li  x23,0
+    li  x24,0
+    li  x25,0
+    li  x26,0
+    li  x27,0
+    li  x28,0
+    li  x29,0
+    li  x30,0
+    li  x31,0
+
+    .option push
+    .option norelax
+    la gp, __global_pointer$
+    .option pop
+
+    // Check hart ID
+    csrr t2, mhartid
+    lui t0, %hi(_max_hart_id)
+    add t0, t0, %lo(_max_hart_id)
+    bgtu t2, t0, abort
+
+    // Allocate stack
+    la sp, _stack_start
+    li t0, 4 // make sure stack start is in RAM
+    sub sp, sp, t0
+    andi sp, sp, -16 // Force 16-byte alignment
+
+    // Set frame pointer
+    add s0, sp, zero
+
+    jal zero, _start_rust
+
+    .cfi_endproc        // EOF _start
+
+    /*
+    Trap entry points (_start_trap, _start_trapN for N in 1..=31)
+
+    The default implementation saves all registers to the stack and calls
+    _start_trap_rust, then restores all saved registers before `mret`
+*/
+
+.section .trap, "ax"        // 0x40380000   -- see .section .init, "ax" above
+// weak for the case if these will not be defined
+.weak _start_trap           // 0x40380000   SRAM
+.weak _start_trap1          // 0x40380000
+.weak _start_trap2          // 0x40380000
+...
+.weak _start_trap30         // 0x40380000  
+.weak _start_trap31         // 0x40380000
+"#,
+
+#[cfg(not(feature="direct-vectoring"))]     // true -- see in esp-riscv-rt/Cargo.toml
+                                            // ## Enable direct interrupt vectoring.
+                                            // direct-vectoring = []   # esp32c3 has no direct vectoring
+r#"
+// esp32c3 defines them
+_start_trap1:                           // 0x40380000  SRAM
+_start_trap2:
+...
+_start_trap30:
+_start_trap31:
+"#,
+
+r#"
+_start_trap:        // 0x40380000  SRAM
+                    // the beginning of Interrupt Trap­Vector Addresses
+                    // this 0th slot is for exceptions
+                    // but anyway, in case of not direct vectoring all _strart_trapXX points to this (same) address
+"#,
+
+r#"
+    addi sp, sp, -40*4
+    sw ra, 0*4(sp)
+"#,
+
+r#"
+    sw t0, 1*4(sp)
+    sw t1, 2*4(sp)
+    sw t2, 3*4(sp)
+    sw t3, 4*4(sp)
+    sw t4, 5*4(sp)
+    sw t5, 6*4(sp)
+    sw t6, 7*4(sp)
+    sw a0, 8*4(sp)
+    sw a1, 9*4(sp)
+    sw a2, 10*4(sp)
+    sw a3, 11*4(sp)
+    sw a4, 12*4(sp)
+    sw a5, 13*4(sp)
+    sw a6, 14*4(sp)
+    sw a7, 15*4(sp)
+    sw s0, 16*4(sp)
+    sw s1, 17*4(sp)
+    sw s2, 18*4(sp)
+    sw s3, 19*4(sp)
+    sw s4, 20*4(sp)
+    sw s5, 21*4(sp)
+    sw s6, 22*4(sp)
+    sw s7, 23*4(sp)
+    sw s8, 24*4(sp)
+    sw s9, 25*4(sp)
+    sw s10, 26*4(sp)
+    sw s11, 27*4(sp)
+    sw gp, 28*4(sp)
+    sw tp, 29*4(sp)
+    csrrs t1, mepc, x0
+    sw t1, 31*4(sp)
+    csrrs t1, mstatus, x0
+    sw t1, 32*4(sp)
+    csrrs t1, mcause, x0
+    sw t1, 33*4(sp)
+    csrrs t1, mtval, x0
+    sw t1, 34*4(sp)
+
+    addi s0, sp, 40*4
+    sw s0, 30*4(sp)
+
+    add a0, sp, zero
+    "#,
+
+    #[cfg(not(feature="direct-vectoring"))]     // jump to HAL handler
+    r#"
+    jal ra, _start_trap_rust_hal                // esp-hal/interrupt/riscv.rs
+                                                // see below
+                                                // #[link_section = ".trap.rust"]
+                                                // after .trap -> after _vector_table -> 0x40380180  SRAM
+    "#,
+
+    r#"
+    lw t1, 31*4(sp)
+    csrrw x0, mepc, t1
+
+    lw t1, 32*4(sp)
+    csrrw x0, mstatus, t1
+
+    lw ra, 0*4(sp)
+    lw t0, 1*4(sp)
+    lw t1, 2*4(sp)
+    lw t2, 3*4(sp)
+    lw t3, 4*4(sp)
+    lw t4, 5*4(sp)
+    lw t5, 6*4(sp)
+    lw t6, 7*4(sp)
+    lw a0, 8*4(sp)
+    lw a1, 9*4(sp)
+    lw a2, 10*4(sp)
+    lw a3, 11*4(sp)
+    lw a4, 12*4(sp)
+    lw a5, 13*4(sp)
+    lw a6, 14*4(sp)
+    lw a7, 15*4(sp)
+    lw s0, 16*4(sp)
+    lw s1, 17*4(sp)
+    lw s2, 18*4(sp)
+    lw s3, 19*4(sp)
+    lw s4, 20*4(sp)
+    lw s5, 21*4(sp)
+    lw s6, 22*4(sp)
+    lw s7, 23*4(sp)
+    lw s8, 24*4(sp)
+    lw s9, 25*4(sp)
+    lw s10, 26*4(sp)
+    lw s11, 27*4(sp)
+    lw gp, 28*4(sp)
+    lw tp, 29*4(sp)
+    lw sp, 30*4(sp)
+
+    # SP was restored from the original SP
+    mret
+
+/* Make sure there is an abort when linking */
+.section .text.abort
+.globl abort
+abort:
+    j abort
+
+/*
+    Interrupt vector table (_vector_table)
+*/
+.section .trap, "ax"
+.weak _vector_table
+.type _vector_table, @function
+
+.option push
+.balign 0x100               // 0x40380100  SRAM
+.option norelax
+.option norvc
+
+_vector_table:              // 0x40380100  SRAM
+    j _start_trap           // 0x40380000  SRAM
+    j _start_trap1          // 0x40380000
+    j _start_trap2          // 0x40380000
+    ...
+    j _start_trap30         // 0x40380000
+    j _start_trap31         // 0x40380000
+                            // EOF _vector_table: 0x40380180
+.option pop
+"#,
+}
+EOF esp-riscv-rt/lib.rs
+// esp-riscv-rt is only these code in lib.rs, so its dependencies:
+// 1 calls fn hal_main(a0: usize, a1: usize, a2: usize) -> !; // implemented in esp-hal/lib.rs
+// 2 fn __post_init(); // implemented in esp-hal/src/soc/esp32c3/mod.rs
+// 3 fn _setup_interrupts(); // implemented in esp-hal/interrupt/riscv.rs
+// 4 _vector_table:              // 0x40380100
+//       j _start_trap           // 0x40380000
+// 5 _start_trap:
+//       jal ra, _start_trap_rust_hal  // implemented in esp-hal/interrupt/riscv.rs
+
+
+//##// fn hal_main
+// in esp-hal/lib.rs
+#[cfg(riscv)]
+#[export_name = "hal_main"]
+fn hal_main(a0: usize, a1: usize, a2: usize) -> ! {
+    extern "Rust" {
+        // This symbol will be provided by the user via `#[entry]`
+        fn main(a0: usize, a1: usize, a2: usize) -> !;
+    }
+
+    extern "C" {
+        static mut __stack_chk_guard: u32;
+    }
+
+    unsafe {
+        let stack_chk_guard = core::ptr::addr_of_mut!(__stack_chk_guard);
+        // we _should_ use a random value but we don't have a good source for random
+        // numbers here
+        stack_chk_guard.write_volatile(0xdeadbabe);
+
+        main(a0, a1, a2);
+    }
+}
+// dependencies:
+extern "Rust" {
+    // This symbol will be provided by the user via `#[entry]`
+    fn main(a0: usize, a1: usize, a2: usize) -> !;
+}
+// BTW: #[main] is an old, unstable attribute that was mostly removed from the language in 1.53.0.
+// Before it was removed, the unstable #[main] was used to specify the entry point of a program.
+// Now we have #[entry] for this purpose
+
+
+//##// #[entry] defined in riscv-rt-macros/src/lib.rs
+// in riscv-rt-macros/src/lib.rs
+#[proc_macro_attribute]
+pub fn entry(args: TokenStream, input: TokenStream) -> TokenStream {
+    let f = parse_macro_input!(input as ItemFn);
+
+    if !args.is_empty() {
+        return parse::Error::new(Span::call_site(), "This attribute accepts no arguments")
+            .to_compile_error()
+            .into();
+    }
+
+    // XXX should we blacklist other attributes?
+    let attrs = f.attrs;
+    let unsafety = f.sig.unsafety;
+    let args = f.sig.inputs;
+    let stmts = f.block.stmts;
+
+    quote!(
+        #[allow(non_snake_case)]
+        #[export_name = "main"]
+        #(#attrs)*
+        pub #unsafety fn __risc_v_rt__main(#args) -> ! {
+            #(#stmts)*
+        }
+    )
+    .into()
+}
+// it is published in esp-riscv-rt/lib.rs
+pub use riscv_rt_macros::entry; // #[entry] from riscv_rt_macros
+// it is published in esp-hal/lib.rs
+#[cfg(all(riscv, feature = "rt"))]
+pub use esp_riscv_rt::entry;
+// it is published in esp-hal/prelude.rs
+#[cfg(feature = "rt")]
+pub use crate::entry;
+pub use crate::macros::{interrupt, main};
+// all these publishings are necessary, because #[main] in the main app (e.g. tests/riscv32/bin/minimal.rs)
+// imports prelude
+use esp_hal::{..., prelude::*};
+// so when #[main] expanded in the min app it can calls/refers to #[entry]
+
+// #[main] defined esp-hal-procmacros/embassy.rs
+// in esp-hal-procmacros/embassy.rs
+pub(crate) mod main {
+    struct Args {}
+
+    pub fn run(...) -> Result<TokenStream, TokenStream> {...}
+
+    pub struct Ctxt {...}
+
+    impl Ctxt {...}
+
+    fn to_compile_errors(...) {...}
+
+    impl Drop for Ctxt {...}
+
+    pub fn main() -> TokenStream {
+        let hal_crate = if cfg!(any(feature = "is-lp-core", feature = "is-ulp-core")) {
+            crate_name("esp-lp-hal")
+        } else {
+            crate_name("esp-hal")
+        };
+
+        let executor = if let Ok(FoundCrate::Name(ref name)) = hal_crate {
+            let ident = Ident::new(&name, Span::call_site().into());
+            quote!( #ident::embassy::executor::Executor )
+        } else {
+            quote!(crate::embassy::executor::Executor)
+        };
+
+        quote! {
+            #[entry]
+            fn main() -> ! {
+                let mut executor = #executor::new();
+                let executor = unsafe { __make_static(&mut executor) };
+                executor.run(|spawner| {
+                    spawner.must_spawn(__embassy_main(spawner));
+                })
+            }
+        }
+    }
+}
+
+// the two macros (#[main] and #[entry]) finally expands to
+async fn ____embassy_main_task(spawner: Spawner) {
+    {
+        let peripherals = Peripherals::take();
+        let system = peripherals.SYSTEM.split();
+        let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
+
+        embassy::init(
+            &clocks,
+            esp_hal::timer::TimerGroup::new(peripherals.TIMG0, &clocks),
+        );
+
+        // this is the run() generated by #[embassy_executor::task] async fn run()
+        // which creates, spawn and run 'run()' task
+        spawner.spawn(run()).ok();
+
+        loop {
+            Timer::after(Duration::from_millis(5_000)).await;
+        }
+    }
+}
+
+fn __embassy_main(spawner: Spawner) -> ::embassy_executor::SpawnToken<impl Sized> {
+    type Fut = impl ::core::future::Future + 'static;
+    const POOL_SIZE: usize = 1;
+    static POOL: ::embassy_executor::raw::TaskPool<Fut, POOL_SIZE> =
+        ::embassy_executor::raw::TaskPool::new();
+    unsafe { POOL._spawn_async_fn(move || ____embassy_main_task(spawner)) }
+}
+
+unsafe fn __make_static<T>(t: &mut T) -> &'static mut T {
+    ::core::mem::transmute(t)
+}
+
+// populated via the riscv-rt-macros::entry -> esp-riscv-rt -> esp-hal path
+//use esp_hal::entry;
+
+#[allow(non_snake_case)]
+#[export_name = "main"]
+pub fn __risc_v_rt__main() -> ! {
+    let mut executor = esp_hal::embassy::executor::Executor::new();
+    let executor = unsafe { __make_static(&mut executor) };
+    executor.run(|spawner| {
+        spawner.must_spawn(__embassy_main(spawner));
+    })
+}
+// executor.run(|spawner| {
+//     spawner.must_spawn(__embassy_main(spawner));
+// })   -- see in Executor&Task.txt
+// so the external 'main' function (decorated by #[entry]), called by 'hal_main' is '__risc_v_rt__main'
+
+
+//##// __post_init()
+// in esp-hal/src/lib.rs
+// The `soc` module contains chip-specific implementation details and should not
+// be directly exposed.
+mod soc;
+// in esp-hal/soc/mod.rs
+pub use self::implementation::*;
+#[cfg_attr(esp32c3, path = "esp32c3/mod.rs")]
+mod implementation;
+// in esp-hal/soc/esp32c3/mod.rs
+pub mod peripherals;
+use self::peripherals::{LPWR, TIMG0};
+use crate::{timer::Wdt, Rtc};
+#[export_name = "__post_init"]
+unsafe fn post_init() {
+    // RTC domain must be enabled before we try to disable
+    let mut rtc = Rtc::new(LPWR::steal());
+    rtc.swd.disable();
+    rtc.rwdt.disable();
+
+    Wdt::<TIMG0>::set_wdt_enabled(false);
+    //Wdt::<TIMG1>::set_wdt_enabled(false);
+}
+// see it in hal.peripherals.txt
+
+
+//##//_setup_interrupts, _start_trap:, _vector_table:
+// in esp-hal/interrupt/riscv.rs
+// see it in hal.interrupt.txt
+
+
+//##// critical_section_impl
+// critical-section used many places around the code (not only, but most relevantly in portable-atomic) need
+// a chipo specific implementation, this is here in hal
+// in esp-hal/lib.rs
+mod critical_section_impl {
+    struct CriticalSection;
+
+    critical_section::set_impl!(CriticalSection);           // export implemantation ('acquire', 'release')
+                                                            // expansion in the following comments
+    // #[no_mangle]
+    // fn _critical_section_1_0_acquire() -> ::critical_section::RawRestoreState {
+    //     <CriticalSection as ::critical_section::Impl>::acquire()
+    // }
+    // #[no_mangle]
+    // unsafe fn _critical_section_1_0_release(
+    //     restore_state: ::critical_section::RawRestoreState,
+    // ) {
+           <CriticalSection as ::critical_section::Impl>::release(restore_state)
+    // }
+
+    #[cfg(riscv)]
+    mod riscv {
+        unsafe impl critical_section::Impl for super::CriticalSection {
+            unsafe fn acquire() -> critical_section::RawRestoreState {
+                let mut mstatus = 0u32;
+                core::arch::asm!("csrrci {0}, mstatus, 8", inout(reg) mstatus);
+                let tkn = ((mstatus & 0b1000) != 0) as critical_section::RawRestoreState;
+                tkn
+            }
+
+            unsafe fn release(token: critical_section::RawRestoreState) {
+                if token != 0 {
+                    riscv::interrupt::enable();
+                }
+            }
+        }
+    }
+}
+
+//##// get_core
+// esp32c3 is single core, so this function always retunrs with 0
+#[repr(C)]
+pub enum Cpu {
+    /// The first core
+    ProCpu = 0,
+    /// The second core
+    #[cfg(multi_core)]
+    AppCpu = 1,
+}
+
+/// Which core the application is currently executing on
+/// on esp32c3 (single core) it gives 0
+pub fn get_core() -> Cpu {
+    // This works for both RISCV and Xtensa because both
+    // get_raw_core functions return zero, _or_ something
+    // greater than zero; 1 in the case of RISCV and 0x2000
+    // in the case of Xtensa.
+    match get_raw_core() {
+        0 => Cpu::ProCpu,
+        #[cfg(all(multi_core, riscv))]
+        1 => Cpu::AppCpu,
+        #[cfg(all(multi_core, xtensa))]
+        0x2000 => Cpu::AppCpu,
+        _ => unreachable!(),
+    }
+}
+
+/// Returns the raw value of the mhartid register.
+///
+/// Safety: This method should never return UNUSED_THREAD_ID_VALUE
+#[cfg(riscv)]
+fn get_raw_core() -> usize {
+    riscv::register::mhartid::read()        // in riscv is the genaral riscv registers' implementations
+}
+
+//##// there are many other 'dirver', 'control', 'support', 'access', 'manegement' modules in hal:
+// see them in tha appropriate documentation>
+// hal.clock.txt
+// hal.embassy.txt
+// hal.interrupt.txt
+// hal.peripehrals.txt (pac.INTRRPT_CR0.txt, pac.LPWR.txt, pac.SYSTEM.txt, pac.TIMG0.txt)
+// hal.rtc_cntl.txt
+// hal.system.txt
+// hal.timer.txt

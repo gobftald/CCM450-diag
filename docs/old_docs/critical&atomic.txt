@@ -1,0 +1,43 @@
+Wait_impl in 'esp-hal/src/embassy/executor/thread.rs' i.e. in thread mode, which means it does not use
+'InterruptExecutor', is wait_impl uses critical_section for static 'SIGNAL_WORK_THREAD_MODE: [AtomicBool; 1].
+Furthermore inside critical_section there is AtomicBool as well. Why is this necessary?
+
+In single core, critical_section implementation disable MIE (Global machine mode interrupt). It means that an
+ISR can not modify SIGNAL_WORK_THREAD_MODE flag. wfi waits for interrupt events even when MIE disabled. It is
+why we can use wfi in critical_section. So we got to wfi only if all polled task are 'await' and no
+SIGNAL_WORK_THREAD_MODE flag was set by an earlier interrupt via pend(). There should be some interrupt (either
+SW or periheral) occur to roll over the executor, so to get out from wfi and polling again. Practically the
+pending interrupt, or interrupts are started when critical_section's 'release' enable irq in 'drop_in_place' of
+'drop' for Guard. So when we finishing critical section, at the very end of critical_section, so before we loop
+for the next 'poll' every pending IRQ was run.
+
+SIGNAL_WORK_THREAD_MODE flag is set only in pend_thread_mode(core: usize) which os called only in ISR. But as we
+see above ISR(s) can run only outside of critical_section. So in single core critical_section does not really
+needed. But this code is general for multicore architecture as well.
+
+In multicore the other core's can modify SIGNAL_WORK_THREAD_MODE flag with pend() either in as ISR already running
+when the original core enters into critical_section, or by any code fragments running on the other core when it is
+not in ISR. Although the other core generally modify its own SIGNAL_WORK_THREAD_MODE[core] in [AtomicBool; 2], but
+it can can modify the SIGNAL_WORK_THREAD_MODE of the original core as well.
+
+It is a 'minor' motivation for using Atomic for this flag. But there is a comment that these 'race condition'
+between the load in critical_section and a store in another threas (e.g. in the other core) is not a problem,
+since ISR, or any other code of the other core will only set this flag to true. If the other core will set
+that flag after it is celared in critical_section, the next wait_impl after the poll will trigger an unnecessary
+poll again.
+
+In this later scanario when one core modify the queues (and SIGNAL_WORK_THREAD_MODE flag) of the other core, there
+is much more relevant when we use Mutex for managing those queues.
+
+Critical_sections and the locking between them is also relevant in multicore scenario. One core should be blocked
+when the other core manipulate SIGNAL_WORK_THREAD_MODE (possibe 'this' other one).  You can argue that in this case
+MIE disables both core's IRQs, but when IRQ comming for either core, the existing critical_section will finsihed,
+so the other blocked core's critical_section is unblocked immediately.
+
+In multicore mode the pend() -> pend_thread_mode() uses a FROM_CPU_INTR0 SW interrupt to always wake up the other
+core as well. The ISR of this interrupt will only clear this interrupt. The only purpose of this SW interrupt to
+kick off 'wfi' if it is pending in any core.
+
+
+
+

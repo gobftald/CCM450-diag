@@ -1,0 +1,151 @@
+// in esp-hal/system.rs
+
+//! # System Control
+//!
+//! ## Overview
+//! This `system` driver provides an interface to control and configure various
+//! system-related features and peripherals on ESP chips. It includes
+//! functionality to control peripheral clocks, manage software interrupts,
+//! configure chip clocks, and control radio peripherals.
+//!
+//! ### Software Interrupts
+//! The `SoftwareInterrupt` enum represents the available software interrupt
+//! sources.
+//!
+//! The SoftwareInterruptControl struct allows raising or resetting software
+//! interrupts using the `raise()` and `reset()` methods. The behavior of these
+//! methods depends on the specific chip variant.
+//!
+//! ### Peripheral Clock Control
+//! The `PeripheralClockControl` struct controls the enablement of peripheral
+//! clocks.
+//!
+//! It provides an `enable()` method to enable and reset specific peripherals.
+//! The available peripherals are represented by the `Peripheral` enum
+
+// build on SYSTEM peripheral -- see pac.SYSTEM.txt
+use crate::{peripheral::PeripheralRef, peripherals::SYSTEM};
+
+/// Peripherals which can be enabled via `PeripheralClockControl`
+// currently we have only one, we call it Timg0 (referring TIMG0)
+pub enum Peripheral {
+    #[cfg(timg0)]
+    Timg0,
+}
+
+// We use PeripheralClockControl directly, importing from this module (i.e. in esp-hal/timer.rs)
+// and not via 'ClockControl' -- see later
+#[cfg(not(any(esp32c6, esp32h2, esp32p4)))]
+impl PeripheralClockControl {
+    /// Enables and resets the given peripheral
+    pub(crate) fn enable(peripheral: Peripheral) {
+        // get SYSTEM ptr directly for temporary usage
+        let system = unsafe { &*SYSTEM::PTR };
+
+        #[cfg(not(any(esp32, esp32p4)))]
+        let (perip_clk_en0, perip_rst_en0) = { (&system.perip_clk_en0(), &system.perip_rst_en0()) };
+
+        critical_section::with(|_cs| match peripheral {
+            #[cfg(timg0)]
+            Peripheral::Timg0 => {
+                #[cfg(any(esp32c3, esp32s2, esp32s3))]
+                // enable TIMERS clock
+                perip_clk_en0.modify(|_, w| w.timers_clk_en().set_bit());
+                // enable TIMER GROUP (TIMG0) clock
+                perip_clk_en0.modify(|_, w| w.timergroup_clk_en().set_bit());
+
+                #[cfg(any(esp32c3, esp32s2, esp32s3))]
+                // reset TIMERS
+                perip_rst_en0.modify(|_, w| w.timers_rst().clear_bit());
+                // reset TIMERGROUP. TIMG0
+                perip_rst_en0.modify(|_, w| w.timergroup_rst().clear_bit());
+            }
+        });
+    }
+}
+
+// I don't understand how this structure controls anything
+// there is no any implementation for it,
+// it only gives further and further for including several "clock" structure
+// the clock sources which are set/managed when using this structure are:
+// cpu_clock, apb_clock, xtal_clock
+// pub struct Clocks<'d> {
+//     _private: PeripheralRef<'d, SystemClockControl>,
+//     pub cpu_clock: HertzU32,
+//     pub apb_clock: HertzU32,
+//     pub xtal_clock: HertzU32,
+// }
+/// Controls the configuration of the chip's clocks.
+pub struct SystemClockControl {
+    _private: (),
+}
+
+
+// managing that SYSTEM controls several different logical parts
+// peripheral clocks, software interrupts, chip clocks and controlling radio peripherals
+
+/// The SYSTEM/DPORT splitted into it's different logical parts.
+pub struct SystemParts<'d> {
+    _private: PeripheralRef<'d, SYSTEM>,
+    pub clock_control: SystemClockControl,
+    /*
+    pub cpu_control: CpuControl,
+    pub radio_clock_control: RadioClockControl,
+    pub software_interrupt_control: SoftwareInterruptControl,
+    */
+}
+
+/// Extension trait to split a SYSTEM/DPORT peripheral in 
+/// independent logical parts
+pub trait SystemExt<'d> {
+    type Parts;
+
+    /// Splits the SYSTEM/DPORT peripheral into it's parts.
+    fn split(self) -> Self::Parts;
+}
+
+impl<'d, T: crate::peripheral::Peripheral<P = SYSTEM> + 'd> SystemExt<'d> for T {
+    type Parts = SystemParts<'d>;
+
+    fn split(self) -> Self::Parts {
+        Self::Parts {
+            _private: self.into_ref(),
+            clock_control: SystemClockControl { _private: () },
+            /*
+            cpu_control: CpuControl { _private: () },
+            radio_clock_control: RadioClockControl { _private: () },
+            software_interrupt_control: SoftwareInterruptControl { _private: () },
+            */
+        }
+    }
+}
+
+// I don't know why, but SystemClockControl is even made as Peripheral
+impl crate::peripheral::Peripheral for SystemClockControl {
+    type P = SystemClockControl;
+
+    #[inline]
+    unsafe fn clone_unchecked(&mut self) -> Self::P {
+        SystemClockControl { _private: () }
+    }
+}
+
+impl crate::private::Sealed for SystemClockControl {}
+
+// built on SYSTEM peripheral -- see pac.SYSTEM.txt
+// providing inteface/control:
+
+PeripheralClockControl
+    pub(crate) fn enable(peripheral: Peripheral)
+SystemClockControl                      // ???
+#CpuControl                             // ???
+#RadioClockControl                      // with trait RadioClockController
+                                        // implementation in esp-hal/soc/esp32c3/radio_clocks.rs
+#SoftwareInterruptControl               // pub fn raise(&mut self, interrupt: SoftwareInterrupt) and
+                                        // pub fn reset(&mut self, interrupt: SoftwareInterrupt)
+                                        // methods
+SystemParts
+    SystemClockControl   (Peripheral)
+    #CpuControl
+    #RadioClockControl
+    #SoftwareInterruptControl

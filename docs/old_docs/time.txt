@@ -1,0 +1,498 @@
+// first apropos: embassy_time_driver::allocate_alarm() called from SyncExecutor::new(...)
+
+// there are six layers:
+0 (hal): periheral/device programming layer, manipulating HW registers
+    (e.g esp-hal/timer.rs for esp's timg0 & timg1 or esp-hal/systimer.rs for SystemTimer)
+1 (hal): plugable 'HAL Embassy driver', implementing 'embassy Driver'>
+    embassy related (esp-hal/embassy/mod.rs) 'struct AlarmState' and impl 'Driver' for EmbassyTimer 
+    device related (esp-hal/embassy/time_driver_timg.rs) 'struct EmbassyTimer' plugged/linked to 'embassy Driver'
+        (or for the other device -> esp-hal/src/embassy/time_driver_systimer.rs) 
+2 ('embassy Driver'): general timer API for embassy application (embassy-time-driver crate)
+3 'embassy Driver' API used in SyncExecutor (embassy-executor/raw/mod.rs) to 'allocate_alarm', set_alarm_callback,
+    call now() for comparison of 'expires_at', then set_alarm if expiration happens - see Executor&Task.txt
+4 embassy has two implementations of TimerQueue:
+    integrated into SyncExecutor, switched on by feature = "integrated-timers"
+    implemented by embassy-time/queue_generic.rs
+    Both implementation needs to implement TimerQueue trait and calling timer_queue_impl! macro. These two pieces
+    are found in embassy_time_queue_driver crate. And this crate is only about these codes. The trait and the macro, so the whole API of TimerQueue consists of only one function: n schedule_wake(&'static self, at: u64, waker: &core::task::Waker).
+
+    We use "integrated-timers", which means that timer_queue is not in a separate module, it deelpy integrated into SyncExecutor. So the implementations TimerQueur's trait and macro are close to SyncExecutor (embassy-executor/raw/mod.rs).
+    See details far below (4). The machanism is very similar to what we do with embassy-time-driver
+    in esp-hal/embassy/time_driver_timg.rs.    
+5 at the top level the timer module (embassy-time/timer.rs) can be found, defining Timer and Ticker structs. See far below (5)
+
+2)
+// let's begin with embassy Driver
+// in embassy-time-driver/Cargo.toml
+[features]
+## 1.0MHz Tick Rate
+tick-hz-1_000_000 = []
+// in embassy-time-driver/src/tick.rs
+#[cfg(feature = "tick-hz-1_000_000")]
+pub const TICK_HZ: u64 = 1_000_000;
+
+// embassy-time-driver/src/lib.rs
+
+// Alarm handle, assigned by the driver
+// Alarm itself is managed on the "plugable" implementation side, 
+// we can only geta callback with a provided context from there.
+// This is only a new type solution, wrapping a u8.
+#[derive(Clone, Copy)]
+pub struct AlarmHandle {
+    id: u8,
+}
+
+impl AlarmHandle {
+    /// Create an AlarmHandle
+    pub unsafe fn new(id: u8) -> Self {
+        Self { id }
+    }
+
+    /// Get the ID of the AlarmHandle.
+    pub fn id(&self) -> u8 {
+        self.id
+    }
+}
+
+// Time driver
+// trait for establishing API for a "plugable" implementation
+pub trait Driver: Send + Sync + 'static {
+    /// Return the current timestamp in ticks.
+    ///
+    /// Implementations MUST ensure that:
+    /// - This is guaranteed to be monotonic, i.e. a call to now() will always return
+    ///   a greater or equal value than earler calls. Time can't "roll backwards".
+    /// - It "never" overflows.
+    fn now(&self) -> u64;
+
+    /// Sets the callback function and 'ctx' to be called when the alarm triggers.
+    /// The callback may be called from any context (interrupt or thread mode).
+    ///
+    /// 'ctx' is -- in our case -- a *mut () to an SyncExecutor
+    /// so callback function can act as a particular SyncExecutor,
+    /// in our case its simply use it pender and send a signal to the top Executor
+    fn set_alarm_callback(&self, alarm: AlarmHandle, callback: fn(*mut ()), ctx: *mut ());
+
+    /// Sets an alarm at the given timestamp. When the current timestamp reaches the alarm
+    /// timestamp, the provided callback function will be called.
+    fn set_alarm(&self, alarm: AlarmHandle, timestamp: u64) -> bool;
+}
+
+// Links to an even non existing ("plugable") implementation.
+// After implementing Driver trait, we should somewhow refer to that implementation.
+// providing a macro (see later) and these links eliminates this problem.
+// So we can even implement Driver trait in the future, via these links we can
+// connect to that "plugin" implementation
+extern "Rust" {
+    fn _embassy_time_now() -> u64;
+    fn _embassy_time_allocate_alarm() -> Option<AlarmHandle>;
+    fn _embassy_time_set_alarm_callback(alarm: AlarmHandle, callback: fn(*mut ()), ctx: *mut ());
+    fn _embassy_time_set_alarm(alarm: AlarmHandle, timestamp: u64) -> bool;
+}
+
+// define API for embassy application, which calls appropriate linke 
+
+/// See [`Driver::now`]
+pub fn now() -> u64 {
+    unsafe { _embassy_time_now() }
+}
+
+/// See [`Driver::allocate_alarm`]
+///
+/// Safety: it is UB to make the alarm fire before setting a callback.
+pub unsafe fn allocate_alarm() -> Option<AlarmHandle> {
+    _embassy_time_allocate_alarm()
+}
+
+/// See [`Driver::set_alarm_callback`]
+pub fn set_alarm_callback(alarm: AlarmHandle, callback: fn(*mut ()), ctx: *mut ()) {
+    unsafe { _embassy_time_set_alarm_callback(alarm, callback, ctx) }
+}
+
+/// See [`Driver::set_alarm`]
+pub fn set_alarm(alarm: AlarmHandle, timestamp: u64) -> bool {
+    unsafe { _embassy_time_set_alarm(alarm, timestamp) }
+}
+
+// macro for a "plugable" 'Driver' implementation which
+// defines those linkable files
+//
+// this macro will be called in plugable 'HAL Embassy driver'
+// in case of esp32c3 it is in esp-hal/embassy/time_driver_timg.rs
+// Driver trait implementation is in the other part of 'HAL Embassy driver'
+// in case of esp32c3 it is in esp-hal/embassy/mod.rs
+
+// in esp-hal/embassy/time_driver_timg.rs
+// only one alarm per HW timer
+pub const ALARM_COUNT: usize = 1;
+
+// 'HAL Embassy driver' structure implementing Alarms
+pub struct EmbassyTimer {
+    pub(crate) alarms: Mutex<[AlarmState; ALARM_COUNT]>,
+}
+
+// in esp-hal/embassy/mod.rs
+// storing callback and allication info
+pub struct AlarmState {
+    pub callback: Cell<Option<(fn(*mut ()), *mut ())>>,
+    pub allocated: Cell<bool>,
+}
+
+unsafe impl Send for AlarmState {}
+
+// implement only a new method
+impl AlarmState {
+    pub const fn new() -> Self {
+        Self {
+            callback: Cell::new(None),
+            allocated: Cell::new(false),
+        }
+    }
+} EOF AlarmState and impl AlarmState
+
+1)
+// back to esp-hal/embassy/time_driver_timg.rs
+const ALARM_STATE_NONE: AlarmState = AlarmState::new();
+
+// Calling time_driver_impl macro.
+//
+// Creating a local static EmbassyTimer instance called DRIVER.
+// Then during the macro we "connect/assign" the original Driver trait
+// to this EmbassyTimer instance. Then setup the externally linked
+// functions needed to connect to 'embassy Driver' which call
+// the embassy 'Driver' trait implementations in the other part of this
+// plugable 'HAL Embassy driver', namely in esp-hal/embassy/mod.rs
+embassy_time_driver::time_driver_impl!(static DRIVER: EmbassyTimer = EmbassyTimer {
+    alarms: Mutex::new([ALARM_STATE_NONE; ALARM_COUNT]),
+});
+
+// back to embassy-time-driver/lib.rs
+// macro expansion inserted in comments
+#[macro_export]
+macro_rules! time_driver_impl {
+    (static $name:ident: $t: ty = $val:expr) => {
+        // creating static EmbassyTimer called DRIVER
+        static $name: $t = $val;
+        // static DRIVER: EmbassyTimer = EmbassyTimer {
+        //     alarms: Mutex::new([ALARM_STATE_NONE; ALARM_COUNT]),
+        // };
+
+        // Casting Driver trait to EmbassyTimer, then the linkable function
+        // calls the Driver's implementation with 'fabricated' method calls,
+        // which is implemented in esp-hal/embassy/mod.rs, see below
+        #[no_mangle]
+        fn _embassy_time_now() -> u64 {
+            <$t as $crate::Driver>::now(&$name)
+        }
+        // fn _embassy_time_now() -> u64 {
+        //     <EmbassyTimer as ::embassy_time_driver::Driver>::now(&DRIVER)
+        // }
+
+        #[no_mangle]
+        unsafe fn _embassy_time_allocate_alarm() -> Option<$crate::AlarmHandle> {
+             <$t as $crate::Driver>::allocate_alarm(&$name)
+        }
+        // unsafe fn _embassy_time_allocate_alarm() -> Option<::embassy_time_driver::AlarmHandle,> {
+        //     <EmbassyTimer as ::embassy_time_driver::Driver>::allocate_alarm(&DRIVER)
+        // }
+
+        #[no_mangle]
+        fn _embassy_time_set_alarm_callback(
+            alarm: $crate::AlarmHandle,
+            callback: fn(*mut ()),
+            ctx: *mut (),
+        ) {
+            <$t as $crate::Driver>::set_alarm_callback(&$name, alarm, callback, ctx)
+        }
+        // fn _embassy_time_set_alarm_callback(
+        //     alarm: ::embassy_time_driver::AlarmHandle,
+        //     callback: fn(*mut ()),
+        //     ctx: *mut (),
+        // ) {
+        //     <EmbassyTimer as ::embassy_time_driver::Driver>::set_alarm_callback(
+        //         &DRIVER,
+        //         alarm,
+        //         callback,
+        //         ctx,
+        //     )
+        // }
+
+        #[no_mangle]
+        fn _embassy_time_set_alarm(alarm: $crate::AlarmHandle, timestamp: u64) -> bool {
+            <$t as $crate::Driver>::set_alarm(&$name, alarm, timestamp)
+        }
+        // fn _embassy_time_set_alarm(
+        //     alarm: ::embassy_time_driver::AlarmHandle,
+        //     timestamp: u64,
+        // ) -> bool {
+        //     <EmbassyTimer as ::embassy_time_driver::Driver>::set_alarm(
+        //         &DRIVER,
+        //         alarm,
+        //         timestamp,
+        //     )
+        // }
+    };
+}
+
+// let's see the particular (embassy) Driver trait implementation
+// in esp-hal/src/embassy/mod.rs
+impl Driver for EmbassyTimer {
+    fn now(&self) -> u64 {
+        EmbassyTimer::now()     // calls device related part - esp-hal/src/embassy/time_driver_timg.rs
+    }
+
+    unsafe fn allocate_alarm(&self) -> Option<AlarmHandle> {
+        critical_section::with(|cs| {
+            // walk through alarms
+            for (i, alarm) in self.alarms.borrow(cs).iter().enumerate() {
+                // look for the first non allocated
+                if !alarm.allocated.get() {
+                    // set alarm so it is not overwritten
+                    alarm.allocated.set(true);
+                    // this function is currrently empty, see below
+                    self.on_alarm_allocated(i);
+                    // return with the handle of allocated alarm, which is
+                    // its AlarmHandle wrapped index in the 'alarms' array
+                    // AlarmHandle comes from embassy-time-driver
+                    return Some(AlarmHandle::new(i as u8));
+                }
+            }
+            None
+        })
+    }
+
+    fn set_alarm_callback(
+        &self,
+        alarm: AlarmHandle,
+        callback: fn(*mut ()),
+        ctx: *mut (),
+    ) {
+        // get alarm's indec from AlarmHandle
+        let n = alarm.id() as usize;
+        critical_section::with(|cs| {
+            // get alarm by index
+            let alarm = &self.alarms.borrow(cs)[n];
+            // save callback function
+            alarm.callback.set(Some((callback, ctx)));
+        })
+    }
+
+    fn set_alarm(&self, alarm: embassy_time_driver::AlarmHandle, timestamp: u64) -> bool {
+        // calls EmbassyTimer::set_alarm(&self, alarm, timestamp)
+        self.set_alarm(alarm, timestamp)
+    }
+} EOF impl Driver for EmbassyTimer 
+// there are some other embassy related function in esp-hal/src/embassy/mod.rs
+// not related to 'embasy Driver' implementation, but those are documented in hal.txt
+
+// back to the device related part of 'HAL Embassy driver'
+// in esp-hal/src/embassy/time_driver_timg.rs
+// there are those two (now() and set_alarm()) which were called from Driver implemenation (above)
+// the rest are related to interrupt handling
+//
+// these calls can call the lower, peripheral specific layer
+// in case of time_driver_timg.rs this is esp-hal/timer.rs, manipulating tim0 and timg1 registers
+// in case of time_driver_systimer.rs this is esp-hal/systimer.rs manipulating systimer
+
+use peripherals::TIMG0;                         // see hal.txt
+use timer::{Instance, Timer0, TimerGroup},      // see hal.txt
+impl EmbassyTimer {
+    pub(crate) fn now() -> u64 {
+        // create Timer0 from thin air, then call its now() function
+        unsafe { Timer0::<TIMG0>::steal() }.now()
+    }
+
+    // called from on_interrupt
+    fn trigger_alarm(&self, n: usize, cs: CriticalSection) {
+        let alarm = &self.alarms.borrow(cs)[n];
+
+        // get callback and ctx for callback argument
+        if let Some((f, ctx)) = alarm.callback.get() {
+            // calls callback function, which is 'fn alarm_callback(ctx: *mut ())'
+            // in 'impl SyncExecutor' in embassy-executor/src/mod.rs
+            f(ctx);
+        }
+    }
+
+    pub(super) fn on_alarm_allocated(&self, _n: usize) {}
+
+    fn on_interrupt<Timer: Instance>(&self, id: u8, mut timer: Timer) {
+        // I don't understand why critical section needed,
+        // since we are (called) 'in the interrupt'
+        critical_section::with(|cs| {
+            // first we clear the pending interrupt
+            timer.clear_interrupt();                    // see hal.interrupt.txt
+            // then trigger alarm by id, which is fized to 0
+            self.trigger_alarm(id as usize, cs);
+        });
+    }
+
+    // 'init' method is about initialisation of embassy related peripherals
+    // it is called from the 'main' function aftre all of its arguments/peripherals
+    // were created, this is ducomented in hal.txt
+    // here we talking about only the interrupt related part of this call
+    // which needs to complete our discussion about EmbassyTimer
+    // the background begind interrupt handling can be found in hal.interrupt.txt
+    pub fn init(clocks: &Clocks, mut timer: TimerType) {
+        use crate::{interrupt, interrupt::Priority};
+        ...
+        #[interrupt]
+        fn TG0_T0_LEVEL() {
+            // 'timer' created from thin air
+            let timer device = unsafe { Timer0::<TIMG0>::steal() };
+            // calls interrupt handler with alarm id = 0, and the created timer
+            // driver will be consumed
+            DRIVER.on_interrupt(0, timer);
+            // here alarm id is fixed to 0, although theoretically ALARM_COUNT
+            // can be > 1
+            // it is not so beautifull defining ALARM_COUNT, giving chance to
+            // define any number of alarms, but here hard-wiring only one, for
+            // this specific device
+        }
+        // timer consumed
+    }
+
+    pub(crate) fn set_alarm(
+        &self,
+        _alarm: embassy_time_driver::AlarmHandle,
+        timestamp: u64,
+    ) -> bool {
+        critical_section::with(|_cs| {
+            // The hardware fires the alarm even if timestamp is lower than the current
+            // time. In this case the interrupt handler will pend a wakeup when we exit the
+            // critical section.
+            // 'timer' created from thin air
+            let mut tg = unsafe { Timer0::<TIMG0>::steal() };
+            // call our own arm method with mutable reference to timer device and timestamp
+            Self::arm(&mut tg, timestamp);
+        });
+
+        true
+        // timer consumed
+    }
+
+0)
+    // call device specific functions
+    // see esp-hal/timer.rs and hal.txt
+    fn arm<Timer: Instance>(tg: &mut Timer, timestamp: u64) {
+        tg.load_alarm_value(timestamp);
+        tg.listen();
+        tg.set_counter_decrementing(false);
+        tg.set_auto_reload(false);
+        tg.set_alarm_active(true);
+    }
+} EOF EmbassyTimer and impl EmbassyTimer (related to support impl 'Driver' and interrupt)
+
+4)
+// in embassy-time-queue-driver/lib.rs
+use core::task::Waker;
+
+/// Timer queue
+pub trait TimerQueue {
+    /// Schedules a waker in the queue to be awoken at moment `at`.
+    /// If this moment is in the past, the waker might be awoken immediately.
+    fn schedule_wake(&'static self, at: u64, waker: &Waker);
+}
+
+extern "Rust" {
+    fn _embassy_time_schedule_wake(at: u64, waker: &Waker);
+}
+
+/// Schedule the given waker to be woken at `at`.
+pub fn schedule_wake(at: u64, waker: &Waker) {
+    unsafe { _embassy_time_schedule_wake(at, waker) }
+}
+
+/// Set the TimerQueue implementation.
+///
+/// See the module documentation for an example.
+#[macro_export]
+macro_rules! timer_queue_impl {
+    (static $name:ident: $t: ty = $val:expr) => {
+        static $name: $t = $val;
+
+        #[no_mangle]
+        fn _embassy_time_schedule_wake(at: u64, waker: &core::task::Waker) {
+            <$t as $crate::TimerQueue>::schedule_wake(&$name, at, waker);
+        }
+    };
+}
+// is is called in embassy-executor/src/raw/mod.rs
+#[cfg(feature = "integrated-timers")]
+struct TimerQueue;
+
+#[cfg(feature = "integrated-timers")]
+embassy_time_queue_driver::timer_queue_impl!(static TIMER_QUEUE: TimerQueue = TimerQueue);
+
+// which is expanded to:
+static TIMER_QUEUE: TimerQueue = TimerQueue;
+#[no_mangle]
+fn _embassy_time_schedule_wake(at: u64, waker: &core::task::Waker) {
+    // Casting TimerQueue trait to TimerQueue struct, then the linkable function
+    // calls the TimerQueue struct's implementation with 'fabricated' method calls,
+    <TimerQueue as ::embassy_time_queue_driver::TimerQueue>::schedule_wake(
+        &TIMER_QUEUE,
+        at,
+        waker,
+    );
+}
+
+#[cfg(feature = "integrated-timers")]
+impl embassy_time_queue_driver::TimerQueue for TimerQueue {
+    // get task from waker, then set task's expires if arg 'at' is less then current one
+    fn schedule_wake(&'static self, at: u64, waker: &core::task::Waker) {
+        let task = waker::task_from_waker(waker);   // embassy-executor/raw/waker.rs
+        let task = task.header();
+        unsafe {
+            let expires_at = task.expires_at.get();
+            task.expires_at.set(expires_at.min(at));
+        }
+    }
+}
+
+5)
+// in embassy-time/timer.rs
+// Timer struct is a future that completes at a specified Instant.
+// Ticker struct is an ssynchronous stream that yields every Duration (at uniform intervals), even if blocking work is
+// performed between ticks
+
+// We only implement Timer's after function?
+
+use core::future::Future;
+use core::pin::Pin;
+use core::task::{Context, Poll};
+
+use crate::{Duration, Instant};
+
+pub struct Timer {
+    expires_at: Instant,
+    yielded_once: bool,
+}
+
+impl Timer {
+    pub fn after(duration: Duration) -> Self {
+        // creates a new Timer with now + duration
+        Self {
+            expires_at: Instant::now() + duration,
+            // the first run will be used for 'enqueuing a timer'
+            // e.g. calling embassy_time_queue_driver::schedule_wake, see below
+            yielded_once: false,
+        }
+    }
+}
+
+// implementing our own future
+impl Future for Timer {
+    type Output = ();
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        // if expires return with Poll::Ready(())
+        if self.yielded_once && self.expires_at <= Instant::now() {
+            Poll::Ready(())
+        } else {
+            // in the first run call schedule_wake to set task's expire_at
+            embassy_time_queue_driver::schedule_wake(self.expires_at.as_ticks(), cx.waker());
+            self.yielded_once = true;
+            Poll::Pending
+        }
+    }
+}

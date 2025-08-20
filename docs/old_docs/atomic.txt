@@ -1,0 +1,852 @@
+// There was a version when I used AtomicPtr and AtomicU32 for embassy-executor/raw/run_queue_atomics.rs
+// and embassy-executor/raw/state_atomics.rs.
+// Because of their complexity and code size finally I returned back to embassy-executor/raw/state_critical_section.rs
+// and embassy-executor/raw/run_queue_critical_section.rs
+// So only esp-hal/embassy/executor/thread.rs and serial_jtag_printer use atomic operation for
+// static SIGNAL_WORK_THREAD_MODE: [AtomicBool; 1] = [AtomicBool::new(false)]; and
+// static TIMED_OUT: AtomicBool = AtomicBool::new(false);
+// Hence I stripped the implementation of AtomicPtr and AtomicU32 from portable-atomic but their explanation
+// below was not dopped from this file.
+
+// portable-atomic/Cargo.toml
+[features]
+default = ["fallback"]
+
+# (enabled by default) Enable fallback implementations.
+#
+# Disabling this allows only atomic types for which the platform natively supports atomic operations.
+fallback = []
+
+# Assume the target is single core, to enable implementations based on disabling interrupts.
+# IMPORTANT: This feature is unsafe. See the documentation for the safety contract:
+# https://github.com/taiki-e/portable-atomic#optional-features-unsafe-assume-single-core
+unsafe-assume-single-core = []
+
+// in embassy-executor/Cargo.toml
+[features]
+#! ### Architecture
+_arch = []              # signalling that some arch was chosen
+arch-riscv32 = ["_arch", "dep:portable-atomic"] // this imports portable-atomic dependecy
+# Enable using atomic in embassy-executor if portable-atomic is used
+portable-atomic = []    // this is an enabler in embassy-executor introduced by me
+[dependencies]
+portable-atomic = { path = "../portable-atomic", version = "1.6.0", optional = true }
+
+// in esp-hal/Cargo.toml
+[features]
+// "embassy-executor?/portable-atomic" is introduced by me
+esp32c3 = [..., "portable-atomic/unsafe-assume-single-core", "embassy-executor?/portable-atomic"]
+[dependencies]
+portable-atomic  = { path = "../portable-atomic", version = "1.6.0", optional = true, default-features = false }
+
+
+// in portable-atomic/cfgs.rs
+// portable_atomic_no_atomic_load_store=false
+// it comes or more precisely does not come from portable-atomic/build.rs
+// the original build.rs (we are at "rustc 1.78.0-nightly (256b6fb19 2024-02-06)"):
+...
+// all !version.probe(xx, xxxx, xx, xx) are failed
+...
+// all other if ..., conditions and config are false or not relevant 
+// the only relevant is:
+#[cfg(feature = "unsafe-assume-single-core")]
+println!("cargo:rustc-cfg=portable_atomic_unsafe_assume_single_core");
+
+// portable_atomic_no_atomic_load_store=false also comes from compiler default cfgs (cargo rustc --bin minimal -- --print cfg)
+// ...
+// target_has_atomic_load_store
+// target_has_atomic_load_store="16"
+// target_has_atomic_load_store="32"
+// target_has_atomic_load_store="8"
+// target_has_atomic_load_store="ptr"
+...
+// target_pointer_width="32"
+
+// back to portable-atomic/cfgs.rs
+#[cfg(not(all(                              // true
+    portable_atomic_no_atomic_load_store,   // false
+    not(any(                                // false
+        target_arch = "avr",
+        target_arch = "msp430",
+        target_arch = "riscv32",
+        target_arch = "riscv64",
+        feature = "critical-section",
+    )),
+)))]
+#[macro_use]
+mod atomic_8_16_macros {
+    #[macro_export]
+    macro_rules! cfg_has_atomic_8 {
+        ($($tt:tt)*) => {
+            $($tt)*
+        };
+    }
+    #[macro_export]
+    macro_rules! cfg_no_atomic_8 {
+        ($($tt:tt)*) => {};
+    }
+}
+// it is only an enabler macro based on the previous configs
+
+#[cfg(all(
+    any(not(target_pointer_width = "16"), feature = "fallback"),     // both of them true
+    not(all(                                                         // true, see above
+        portable_atomic_no_atomic_load_store,
+        not(any(
+            target_arch = "avr",
+            target_arch = "msp430",
+            target_arch = "riscv32",
+            target_arch = "riscv64",
+            feature = "critical-section",
+        )),
+    )),
+))]
+#[macro_use]
+mod atomic_32_macros {
+    #[macro_export]
+    macro_rules! cfg_has_atomic_32 {
+        ($($tt:tt)*) => {
+            $($tt)*
+        };
+    }
+    #[macro_export]
+    macro_rules! cfg_no_atomic_32 {
+        ($($tt:tt)*) => {};
+    }
+}
+// it is only an enabler macro based on the previous configs
+
+
+
+// in portable-atomic/lib.rs
+#[cfg(target_pointer_width = "32")]
+pub use {cfg_has_atomic_32 as cfg_has_atomic_ptr, cfg_no_atomic_32 as cfg_no_atomic_ptr};
+...
+// at the end:
+cfg_has_atomic_8! {
+    // we need AtomicU8 for 'static SIGNAL_WORK_THREAD_MODE: AtomicBool = AtomicBool::new(false);'
+    // in embassy-executor/arch/riscv32.rs
+    // AtomicBool is based on AtomicU8 and defined together with AtomicU8 in this file
+    atomic_int!(AtomicU8, u8, 1);
+}
+
+cfg_has_atomic_32! {
+    // we need AtomicU32 for
+    // pub(crate) struct State {
+    //     state: AtomicU32,
+    // }
+    // in embassy-executor/raw/state_atomics.rs
+    // and AtomicPtr for
+    // pub(crate) struct RunQueue {
+    //     head: AtomicPtr<TaskHeader>,
+    // } in embassy-executor/raw/run_queue_atomics.rs 
+    // cfg_has_atomic_ptr is aliased from cfg_has_atomic_32
+    // so both AtomicU32 and AtomicPtr is defined in this file
+    atomic_int!(AtomicU32, u32, 4);
+}
+
+cfg_has_atomic_8! {
+    #[repr(C, align(1))]
+    pub struct AtomicBool {
+        v: core::cell::UnsafeCell<u8>,
+    }
+
+    // Send is implicitly implemented.
+    // SAFETY: any data races are prevented by disabling interrupts or
+    // atomic intrinsics (see module-level comments).
+    unsafe impl Sync for AtomicBool {}
+
+    // we implement only the used functions
+    impl AtomicBool {
+        #[inline]
+        #[must_use]
+        pub const fn new(v: bool) -> Self {
+            // see assert macros in portable-atomic/utils.rs
+            static_assert_layout!(AtomicBool, bool);
+            Self {
+                v: core::cell::UnsafeCell::new(v as u8),
+            }
+        }
+
+        #[inline]
+        #[cfg_attr(
+            any(all(debug_assertions, not(portable_atomic_no_track_caller)), miri),
+            track_caller
+        )]
+        pub fn load(&self, order: Ordering) -> bool {
+            // bool is u8
+            self.as_atomic_u8().load(order) != 0
+        }
+
+        #[inline]
+        #[cfg_attr(
+            any(all(debug_assertions, not(portable_atomic_no_track_caller)), miri),
+            track_caller
+        )]
+        pub fn store(&self, val: bool, order: Ordering) {
+            self.as_atomic_u8().store(val as u8, order);
+        }
+
+        #[inline]
+        fn as_atomic_u8(&self) -> &imp::AtomicU8 {
+            // SAFETY: AtomicBool and imp::AtomicU8 have the same layout,
+            // and both access data in the same way.
+            unsafe { &*(self as *const Self as *const imp::AtomicU8) }
+            // see imp::AtomicU8 later
+            //  so we need from imp::AtomicU8: load/store from imp::AtomicU8
+        }
+    }
+}
+
+cfg_has_atomic_ptr! {
+    #[cfg_attr(target_pointer_width = "32", repr(C, align(4)))]
+    pub struct AtomicPtr<T> {
+        // see imp::AtomicPtr<T> later
+        inner: imp::AtomicPtr<T>,
+    }
+
+    impl<T> AtomicPtr<T> {
+        #[inline]
+        #[must_use]
+        pub const fn new(p: *mut T) -> Self {
+            // see assert macros in portable-atomic/utils.rs
+            static_assert_layout!(AtomicPtr<()>, *mut ());
+            // see imp::AtomicPtr<T> later
+            Self { inner: imp::AtomicPtr::new(p) }
+        }
+        
+        #[inline]
+        #[cfg_attr(
+            any(all(debug_assertions, not(portable_atomic_no_track_caller)), miri),
+            track_caller
+        )]
+        pub fn load(&self, order: Ordering) -> *mut T {
+            self.inner.load(order)
+        }
+
+        #[inline]
+        #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
+        pub fn swap(&self, ptr: *mut T, order: Ordering) -> *mut T {
+            self.inner.swap(ptr, order)
+        }
+
+        #[inline]
+        #[cfg_attr(portable_atomic_doc_cfg, doc(alias = "compare_and_swap"))]
+        #[cfg_attr(
+            any(all(debug_assertions, not(portable_atomic_no_track_caller)), miri),
+            track_caller
+        )]
+        pub fn compare_exchange_weak(
+            &self,
+            current: *mut T,
+            new: *mut T,
+            success: Ordering,
+            failure: Ordering,
+        ) -> Result<*mut T, *mut T> {
+            self.inner.compare_exchange_weak(current, new, success, failure)
+        }
+
+        #[inline]
+        #[cfg_attr(
+            any(all(debug_assertions, not(portable_atomic_no_track_caller)), miri),
+            track_caller
+        )]
+        pub fn fetch_update<F>(
+            &self,
+            set_order: Ordering,
+            fetch_order: Ordering,
+            mut f: F,
+        ) -> Result<*mut T, *mut T>
+        where
+            F: FnMut(*mut T) -> Option<*mut T>,
+        {
+            let mut prev = self.load(fetch_order);
+            while let Some(next) = f(prev) {
+                match self.compare_exchange_weak(prev, next, set_order, fetch_order) {
+                    x @ Ok(_) => return x,
+                    Err(next_prev) => prev = next_prev,
+                }
+            }
+            Err(prev)
+        }
+        // so we need from imp::AtomicPtr<T>: load/swap/compare_exchange_weak/fetch_update
+    }
+}
+
+// for AtomicU8 and AtomicU32
+macro_rules! atomic_int {
+    ($atomic_type:ident, $int_type:ident, $align:literal) => {
+        // see  the next pattern: ($atomic_type:ident, $int_type:ident, $align:literal) =>
+        atomic_int!(int, $atomic_type, $int_type, $align);
+    };
+
+    // Atomic{I,U}* impls
+    (int, $atomic_type:ident, $int_type:ident, $align:literal) => {
+        #[repr(C, align($align))]
+        pub struct $atomic_type {
+            inner: imp::$atomic_type,
+        }
+
+        impl $atomic_type {
+            #[inline]
+            #[must_use]
+            pub const fn new(v: $int_type) -> Self {
+                // see assert macros in portable-atomic/utils.rs
+                static_assert_layout!($atomic_type, $int_type);
+                Self {
+                    // see imp::AtomicU32 later
+                    inner: imp::$atomic_type::new(v),
+                }
+            }
+
+            #[inline]
+            #[cfg_attr(
+                any(all(debug_assertions, not(portable_atomic_no_track_caller)), miri),
+                track_caller
+            )]
+            pub fn load(&self, order: Ordering) -> $int_type {
+                self.inner.load(order)
+            }
+
+            #[inline]
+            #[cfg_attr(portable_atomic_doc_cfg, doc(alias = "compare_and_swap"))]
+            #[cfg_attr(
+                any(all(debug_assertions, not(portable_atomic_no_track_caller)), miri),
+                track_caller
+            )]
+            pub fn compare_exchange(
+                &self,
+                current: $int_type,
+                new: $int_type,
+                success: Ordering,
+                failure: Ordering,
+            ) -> Result<$int_type, $int_type> {
+                self.inner.compare_exchange(current, new, success, failure)
+            }
+
+            #[inline]
+            #[cfg_attr(portable_atomic_doc_cfg, doc(alias = "compare_and_swap"))]
+            #[cfg_attr(
+                any(all(debug_assertions, not(portable_atomic_no_track_caller)), miri),
+                track_caller
+            )]
+            pub fn compare_exchange_weak(
+                &self,
+                current: $int_type,
+                new: $int_type,
+                success: Ordering,
+                failure: Ordering,
+            ) -> Result<$int_type, $int_type> {
+                self.inner
+                    .compare_exchange_weak(current, new, success, failure)
+            }
+
+            #[inline]
+            #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
+            pub fn fetch_and(&self, val: $int_type, order: Ordering) -> $int_type {
+                self.inner.fetch_and(val, order)
+            }
+
+            #[inline]
+            #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
+            pub fn fetch_or(&self, val: $int_type, order: Ordering) -> $int_type {
+                self.inner.fetch_or(val, order)
+            }
+
+            #[inline]
+            #[cfg_attr(
+                any(all(debug_assertions, not(portable_atomic_no_track_caller)), miri),
+                track_caller
+            )]
+            pub fn fetch_update<F>(
+                &self,
+                set_order: Ordering,
+                fetch_order: Ordering,
+                mut f: F,
+            ) -> Result<$int_type, $int_type>
+            where
+                F: FnMut($int_type) -> Option<$int_type>,
+            {
+                let mut prev = self.load(fetch_order);
+                while let Some(next) = f(prev) {
+                    match self.compare_exchange_weak(prev, next, set_order, fetch_order) {
+                        x @ Ok(_) => return x,
+                        Err(next_prev) => prev = next_prev,
+                    }
+                }
+                Err(prev)
+            }
+        }
+        // so we need from imp::AtomicU8 and imp::AtomicU32:
+        // load/compare_exchange/compare_exchange_weak/fetch_and/fetch_or/fetch_update
+    }
+}
+
+
+// in portable-atomic/imp/mod.rs
+
+// many cfg() and cfg_attrs() enabling:
+mod riscv;
+mod interrupt;
+// items macro is in portable-atomic/utils.rs
+items! {
+    pub(crate) use self::interrupt::{AtomicPtr, AtomicU8};
+    #[cfg(any(not(target_pointer_width = "16"), feature = "fallback"))]
+    pub(crate) use self::interrupt::AtomicU32;
+
+}
+
+// in portable-atomic/imp/interrupt/mod.rs
+#[cfg_attr(
+    any(target_arch = "riscv32", target_arch = "riscv64"),
+    path = "riscv.rs"
+)]
+mod arch;   // portable-atomic/imp/interrupt/riscv.rs
+
+//in portable-atomic/imp/interrupt/riscv.rs
+pub(super) use super::super::riscv as atomic; // portable-atomic/imp/riscv.rs
+
+// back to portable-atomic/imp/interrupt/mod.rs
+#[cfg(not(feature = "critical-section"))]
+#[inline]
+fn with<F, R>(f: F) -> R
+where
+    F: FnOnce() -> R,
+{
+    // Get current interrupt state and disable interrupts
+    let state = arch::disable();    // portable-atomic/imp/interrupt/riscv.rs
+
+    let r = f();
+
+    // Restore interrupt state
+    // SAFETY: the state was retrieved by the previous `disable`.
+    unsafe { arch::restore(state) }     // portable-atomic/imp/interrupt/riscv.rs
+
+    r
+}
+
+// in portable-atomic/imp/interrupt/riscv.rs
+// Status register
+#[cfg(not(portable_atomic_s_mode))]
+macro_rules! status {
+    () => {
+        "mstatus"
+    };
+}
+
+// MIE (Machine Interrupt Enable) bit (1 << 3)
+#[cfg(not(portable_atomic_s_mode))]
+const MASK: State = 0x8;
+#[cfg(not(portable_atomic_s_mode))]
+macro_rules! mask {
+    () => {
+        "0x8"
+    };
+}
+
+#[cfg(target_arch = "riscv32")]
+pub(super) type State = u32;
+
+/// Disables interrupts and returns the previous interrupt state.
+#[inline]
+pub(super) fn disable() -> State {
+    let r: State;
+    // SAFETY: reading mstatus and disabling interrupts is safe.
+    // (see module-level comments of interrupt/mod.rs on the safety of using privileged instructions)
+    unsafe {
+        // Do not use `nomem` and `readonly` because prevent subsequent memory accesses from being reordered before interrupts are disabled.
+        asm!(concat!("csrrci {0}, ", status!(), ", ", mask!()), out(reg) r, options(nostack, preserves_flags));
+    }
+    r
+}
+
+/// Restores the previous interrupt state.
+///
+/// # Safety
+///
+/// The state must be the one retrieved by the previous `disable`.
+#[inline]
+pub(super) unsafe fn restore(r: State) {
+    if r & MASK != 0 {
+        // SAFETY: the caller must guarantee that the state was retrieved by the previous `disable`,
+        // and we've checked that interrupts were enabled before disabling interrupts.
+        unsafe {
+            // Do not use `nomem` and `readonly` because prevent preceding memory accesses from being reordered after interrupts are enabled.
+            asm!(
+                concat!("csrsi ", status!(), ", ", mask!()),
+                options(nostack, preserves_flags)
+            );
+        }
+    }
+}
+
+// back to portable-atomic/imp/interrupt/mod.rs
+// AtomicPtr is defined without macro
+
+#[cfg_attr(target_pointer_width = "32", repr(C, align(4)))]
+pub(crate) struct AtomicPtr<T> {
+    p: UnsafeCell<*mut T>,
+}
+
+// SAFETY: any data races are prevented by disabling interrupts or
+// atomic intrinsics (see module-level comments).
+unsafe impl<T> Send for AtomicPtr<T> {}
+// SAFETY: any data races are prevented by disabling interrupts or
+// atomic intrinsics (see module-level comments).
+unsafe impl<T> Sync for AtomicPtr<T> {}
+
+impl<T> AtomicPtr<T> {
+    `#[inline]
+    pub(crate) const fn new(p: *mut T) -> Self {
+        Self {
+            p: UnsafeCell::new(p),
+        }
+    }
+
+    #[inline]
+    #[cfg_attr(
+        all(debug_assertions, not(portable_atomic_no_track_caller)),
+        track_caller
+    )]
+    pub(crate) fn load(&self, order: Ordering) -> *mut T {
+        crate::utils::assert_load_ordering(order);
+        #[cfg(not(any(target_arch = "avr", feature = "critical-section")))]
+        {
+            self.as_native().load(order)
+        }
+    }
+
+    #[inline]
+    pub(crate) fn swap(&self, ptr: *mut T, order: Ordering) -> *mut T {
+        let _ = order;
+        #[cfg(not(portable_atomic_force_amo))]
+        // SAFETY: any data races are prevented by disabling interrupts (see
+        // module-level comments) and the raw pointer is valid because we got it
+        // from a reference.
+        with(|| unsafe {
+            let prev = self.p.get().read();
+            self.p.get().write(ptr);
+            prev
+        })
+    }
+
+    #[inline]
+    #[cfg_attr(
+        all(debug_assertions, not(portable_atomic_no_track_caller)),
+        track_caller
+    )]
+    pub(crate) fn compare_exchange(
+        &self,
+        current: *mut T,
+        new: *mut T,
+        success: Ordering,
+        failure: Ordering,
+    ) -> Result<*mut T, *mut T> {
+        crate::utils::assert_compare_exchange_ordering(success, failure);
+        // SAFETY: any data races are prevented by disabling interrupts (see
+        // module-level comments) and the raw pointer is valid because we got it
+        // from a reference.
+        with(|| unsafe {
+            let prev = self.p.get().read();
+            if prev == current {
+                self.p.get().write(new);
+                Ok(prev)
+            } else {
+                Err(prev)
+            }
+        })
+    }
+
+    #[inline]
+    #[cfg_attr(
+        all(debug_assertions, not(portable_atomic_no_track_caller)),
+        track_caller
+    )]
+    pub(crate) fn compare_exchange_weak(
+        &self,
+        current: *mut T,
+        new: *mut T,
+        success: Ordering,
+        failure: Ordering,
+    ) -> Result<*mut T, *mut T> {
+        self.compare_exchange(current, new, success, failure)
+    }
+
+    #[cfg(not(any(target_arch = "avr", feature = "critical-section")))]
+    #[inline]
+    fn as_native(&self) -> &atomic::AtomicPtr<T> {
+        // SAFETY: AtomicPtr and atomic::AtomicPtr have the same layout and
+        // guarantee atomicity in a compatible way. (see module-level comments)
+        unsafe { &*(self as *const Self as *const atomic::AtomicPtr<T>) }
+    }
+}
+// *const atomic::AtomicPtr<T> triggers implementation in portable-atomic/imp/riscv.rs
+// it is not a separate instance but only a type which physically casted to the original AtomicPtr place/memory
+// so we use those atomic::AtomicPtr<T>'s load and store methods
+
+// in portable-atomic/imp/riscv.rs
+...
+// at the end of the file:
+#[cfg(target_pointer_width = "32")]
+atomic_ptr!([T] AtomicPtr, *mut T, "w");
+
+macro_rules! atomic_ptr {
+    ($([$($generics:tt)*])? $atomic_type:ident, $value_type:ty, $asm_suffix:tt) => {
+        atomic_load_store!($([$($generics)*])? $atomic_type, $value_type, $asm_suffix);
+
+    };
+}
+
+macro_rules! atomic_load_store {
+    ($([$($generics:tt)*])? $atomic_type:ident, $value_type:ty, $asm_suffix:tt) => {
+        #[repr(transparent)]
+        pub(crate) struct $atomic_type $(<$($generics)*>)? {
+            v: UnsafeCell<$value_type>,
+        }
+
+        // Send is implicitly implemented for atomic integers, but not for atomic pointers.
+        // SAFETY: any data races are prevented by atomic operations.
+        unsafe impl $(<$($generics)*>)? Send for $atomic_type $(<$($generics)*>)? {}
+        // SAFETY: any data races are prevented by atomic operations.
+        unsafe impl $(<$($generics)*>)? Sync for $atomic_type $(<$($generics)*>)? {}
+
+        impl $(<$($generics)*>)? $atomic_type $(<$($generics)*>)? {
+            #[inline]
+            #[cfg_attr(all(debug_assertions, not(portable_atomic_no_track_caller)), track_caller)]
+            pub(crate) fn load(&self, order: Ordering) -> $value_type {
+                crate::utils::assert_load_ordering(order);
+                let src = self.v.get();
+                // SAFETY: any data races are prevented by atomic intrinsics and the raw
+                // pointer passed in is valid because we got it from a reference.
+                unsafe {
+                    let out;
+                    match order {
+                        Ordering::Relaxed => {
+                            asm!(
+                                concat!("l", $asm_suffix, " {out}, 0({src})"),
+                                src = in(reg) ptr_reg!(src),
+                                out = lateout(reg) out,
+                                options(nostack, preserves_flags, readonly),
+                            );
+                        }
+                        Ordering::Acquire => {
+                            asm!(
+                                concat!("l", $asm_suffix, " {out}, 0({src})"),
+                                "fence r, rw",
+                                src = in(reg) ptr_reg!(src),
+                                out = lateout(reg) out,
+                                options(nostack, preserves_flags),
+                            );
+                        }
+                            asm!(
+                                "fence rw, rw",
+                                concat!("l", $asm_suffix, " {out}, 0({src})"),
+                                "fence r, rw",
+                                src = in(reg) ptr_reg!(src),
+                                out = lateout(reg) out,
+                                options(nostack, preserves_flags),
+                            );
+                        }
+                        _ => unreachable!(),
+                    }
+                    out
+                }
+            }
+        }
+
+        #[allow(dead_code)]     // temporary
+        #[inline]
+        #[cfg_attr(all(debug_assertions, not(portable_atomic_no_track_caller)), track_caller)]
+        pub(crate) fn store(&self, val: $value_type, order: Ordering) {
+            crate::utils::assert_store_ordering(order);
+            let dst = self.v.get();
+            // SAFETY: any data races are prevented by atomic intrinsics and the raw
+            // pointer passed in is valid because we got it from a reference.
+            unsafe {
+                match order {
+                    Ordering::Relaxed => {
+                        asm!(
+                            concat!("s", $asm_suffix, " {val}, 0({dst})"),
+                            dst = in(reg) ptr_reg!(dst),
+                            val = in(reg) val,
+                            options(nostack, preserves_flags),
+                        );
+                    }
+                    // Release and SeqCst stores are equivalent.
+                    Ordering::Release | Ordering::SeqCst => {
+                        asm!(
+                            "fence rw, w",
+                            concat!("s", $asm_suffix, " {val}, 0({dst})"),
+                            dst = in(reg) ptr_reg!(dst),
+                            val = in(reg) val,
+                            options(nostack, preserves_flags),
+                        );
+                    }
+                    _ => unreachable!(),
+                }
+            }
+        }`        
+    }
+}
+
+
+// back to portable-atomic/imp/interrupt/mod.rs
+// continue with AtomicU8 and AtomicU32 
+...
+// at the and of the file
+// for AtomicU8
+atomic_int!(load_store_atomic[sub_word], AtomicU8, u8, 1);
+// for AtomicU32
+#[cfg(not(target_pointer_width = "16"))]                // in our case target_pointer_width = "32"
+atomic_int!(load_store_atomic, AtomicU32, u32, 4);
+
+macro_rules! atomic_int{
+    (base, $atomic_type:ident, $int_type:ident, $align:literal) => {
+        #[repr(C, align($align))]
+        pub(crate) struct $atomic_type {
+            v: UnsafeCell<$int_type>,
+        }
+
+        // Send is implicitly implemented.
+        // SAFETY: any data races are prevented by disabling interrupts or
+        // atomic intrinsics (see module-level comments).
+        unsafe impl Sync for $atomic_type {}
+
+        impl $atomic_type {
+            #[inline]
+            pub(crate) const fn new(v: $int_type) -> Self {
+                Self {
+                    v: UnsafeCell::new(v),
+                }
+            }
+        }
+    }
+
+    // the only different between AtomicU8 and AtomicU32 is '[sub_word]' in 'load_store_atomic'
+    // but the only place in 'load_store_atomic' where $kind is used in not relevant for me
+    (load_store_atomic $([$kind:ident])?, $atomic_type:ident, $int_type:ident, $align:literal) => {
+        atomic_int!(base, $atomic_type, $int_type, $align);
+        #[cfg(not(portable_atomic_force_amo))]
+        atomic_int!(cas[emulate], $atomic_type, $int_type);
+        //#[cfg(portable_atomic_force_amo)]                   
+        //atomic_int!(cas $([$kind])?, $atomic_type, $int_type);
+
+        impl $atomic_type {
+            #[inline]
+            #[cfg_attr(
+                all(debug_assertions, not(portable_atomic_no_track_caller)),
+                track_caller
+            )]
+            pub(crate) fn load(&self, order: Ordering) -> $int_type {
+                crate::utils::assert_load_ordering(order);
+                #[cfg(not(any(target_arch = "avr", feature = "critical-section")))]
+                {
+                    self.as_native().load(order)
+                }
+            }
+
+            #[allow(dead_code)] // called but not seen from where
+            #[inline]
+            #[cfg_attr(
+                all(debug_assertions, not(portable_atomic_no_track_caller)),
+                track_caller
+            )]
+            pub(crate) fn store(&self, val: $int_type, order: Ordering) {
+                crate::utils::assert_store_ordering(order);
+                #[cfg(not(any(target_arch = "avr", feature = "critical-section")))]
+                {
+                    self.as_native().store(val, order);
+                }
+            }
+
+            #[cfg(not(any(target_arch = "avr", feature = "critical-section")))]
+            #[inline]
+            fn as_native(&self) -> &atomic::$atomic_type {
+                // SAFETY: $atomic_type and atomic::$atomic_type have the same layout and
+                // guarantee atomicity in a compatible way. (see module-level comments)
+                unsafe { &*(self as *const Self as *const atomic::$atomic_type) }
+            }
+        }
+    }
+
+    (load_store_critical_session, $atomic_type:ident, $int_type:ident, $align:literal) => {};
+
+    (cas[emulate], $atomic_type:ident, $int_type:ident) => {
+        impl $atomic_type {
+            #[inline]
+            #[cfg_attr(
+                all(debug_assertions, not(portable_atomic_no_track_caller)),
+                track_caller
+            )]
+            pub(crate) fn compare_exchange(
+                &self,
+                current: $int_type,
+                new: $int_type,
+                success: Ordering,
+                failure: Ordering,
+            ) -> Result<$int_type, $int_type> {
+                crate::utils::assert_compare_exchange_ordering(success, failure);
+                // SAFETY: any data races are prevented by disabling interrupts (see
+                // module-level comments) and the raw pointer is valid because we got it
+                // from a reference.
+                with(|| unsafe {
+                    let prev = self.v.get().read();
+                    if prev == current {
+                        self.v.get().write(new);
+                        Ok(prev)
+                    } else {
+                        Err(prev)
+                    }
+                })
+            }
+
+            #[inline]
+            #[cfg_attr(
+                all(debug_assertions, not(portable_atomic_no_track_caller)),
+                track_caller
+            )]
+            pub(crate) fn compare_exchange_weak(
+                &self,
+                current: $int_type,
+                new: $int_type,
+                success: Ordering,
+                failure: Ordering,
+            ) -> Result<$int_type, $int_type> {
+                self.compare_exchange(current, new, success, failure)
+            }
+
+            #[inline]
+            pub(crate) fn fetch_and(&self, val: $int_type, _order: Ordering) -> $int_type {
+                // SAFETY: any data races are prevented by disabling interrupts (see
+                // module-level comments) and the raw pointer is valid because we got it
+                // from a reference.
+                with(|| unsafe {
+                    let prev = self.v.get().read();
+                    self.v.get().write(prev & val);
+                    prev
+                })
+            }
+
+            #[inline]
+            pub(crate) fn fetch_or(&self, val: $int_type, _order: Ordering) -> $int_type {
+                // SAFETY: any data races are prevented by disabling interrupts (see
+                // module-level comments) and the raw pointer is valid because we got it
+                // from a reference.
+                with(|| unsafe {
+                    let prev = self.v.get().read();
+                    self.v.get().write(prev | val);
+                    prev
+                })
+            }
+        }
+    }
+
+    // cfg(portable_atomic_force_amo) 32-bit(RV32)/{32,64}-bit(RV64) RMW
+    (cas, $atomic_type:ident, $int_type:ident) => {};
+
+    // cfg(portable_atomic_force_amo) {8,16}-bit RMW
+    (cas[sub_word], $atomic_type:ident, $int_type:ident) => {};
+}
+
+// unsafe { &*(self as *const Self as *const atomic::$atomic_type) } goes back to
+// portable-atomic/imp/riscv.rs to implement load and store --- se above
