@@ -1,6 +1,11 @@
 use embassy_net::udp::{PacketMetadata, UdpSocket};
-use embassy_sync::zerocopy_channel::{Receiver, Sender};
-use esp_hal::sync::RawMutex;
+use embassy_sync::{
+    blocking_mutex::raw::NoopRawMutex,
+    zerocopy_channel::{Receiver, Sender},
+};
+// we can use NoopRawMutex since we use channel between two tasks in the same executor,
+// in single core environment and not using from interrupt
+//use esp_hal::sync::RawMutex;
 
 use crate::ChannelItem;
 
@@ -11,8 +16,8 @@ const UDP_PACKET_MAX: usize = 4;
 pub async fn server(
     mut controller: esp_wifi::wifi::WifiController<'static>,
     ap_stack: embassy_net::Stack<'static>,
-    mut sender: Sender<'static, RawMutex, ChannelItem>,
-    mut receiver: Receiver<'static, RawMutex, ChannelItem>,
+    mut sender: Sender<'static, NoopRawMutex, ChannelItem>,
+    mut receiver: Receiver<'static, NoopRawMutex, ChannelItem>,
 ) {
     let client_config =
         esp_wifi::wifi::Configuration::AccessPoint(esp_wifi::wifi::AccessPointConfiguration {

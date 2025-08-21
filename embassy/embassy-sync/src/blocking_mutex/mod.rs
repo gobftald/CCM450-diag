@@ -25,7 +25,7 @@ use self::raw::RawMutex;
 /// In all cases, the blocking mutex is intended to be short lived and not held across await points.
 /// Use the async [`Mutex`](crate::mutex::Mutex) if you need a lock that is held across await points.
 ///
-/// We use a smart/reentrant CriticalSectionMutex like RawMutex implementing in  esp_hal::sync::RawMutex
+/// We can also use a smart/reentrant CriticalSectionMutex like RawMutex implementing in  esp_hal::sync::RawMutex
 
 #[derive(Debug)]
 // 26

@@ -1,14 +1,19 @@
 use core::ptr::copy_nonoverlapping;
 
-use embassy_sync::zerocopy_channel::{Receiver, Sender};
-use esp_hal::sync::RawMutex;
+use embassy_sync::{
+    blocking_mutex::raw::NoopRawMutex,
+    zerocopy_channel::{Receiver, Sender},
+};
+// we can use NoopRawMutex since we use channel between two tasks in the same executor,
+// in single core environment and not using from interrupt
+//use esp_hal::sync::RawMutex;
 
 use crate::ChannelItem;
 
 #[embassy_executor::task()]
 pub async fn client(
-    mut sender: Sender<'static, RawMutex, ChannelItem>,
-    mut receiver: Receiver<'static, RawMutex, ChannelItem>,
+    mut sender: Sender<'static, NoopRawMutex, ChannelItem>,
+    mut receiver: Receiver<'static, NoopRawMutex, ChannelItem>,
 ) {
     loop {
         let received_item = receiver.receive().await;

@@ -1,6 +1,7 @@
 //! Mutex primitives.
 //!
 //! This module provides a trait for mutexes that can be used in different contexts.
+use core::marker::PhantomData;
 
 /// Raw mutex trait.
 ///
@@ -32,5 +33,39 @@ pub unsafe trait RawMutex {
     fn lock<R>(&self, f: impl FnOnce() -> R) -> R;
 }
 
-// we will use esp_hal::sync::RawMutex
-// so we imlement this trait there
+// we cen use esp_hal::sync::RawMutex (critical section, but reentrant)
+// so we imlement this trait there as well
+
+// ================
+
+/// A mutex that allows borrowing data in the context of a single executor.
+///
+/// # Safety
+///
+/// **This Mutex is only safe within a single executor.**
+#[derive(Debug)]
+// 70
+pub struct NoopRawMutex {
+    _phantom: PhantomData<*mut ()>,
+}
+
+// 74
+unsafe impl Send for NoopRawMutex {}
+
+// 76
+impl NoopRawMutex {
+    /// Create a new `NoopRawMutex`.
+    pub const fn new() -> Self {
+        Self {
+            _phantom: PhantomData,
+        }
+    }
+}
+
+// 83
+unsafe impl RawMutex for NoopRawMutex {
+    const INIT: Self = Self::new();
+    fn lock<R>(&self, f: impl FnOnce() -> R) -> R {
+        f()
+    }
+}

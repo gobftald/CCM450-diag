@@ -15,8 +15,10 @@ use core::cell::OnceCell;
 use core::net::Ipv4Addr;
 
 use embassy_net::StackResources;
-use embassy_sync::zerocopy_channel::Channel;
-use esp_hal::sync::RawMutex;
+use embassy_sync::{blocking_mutex::raw::NoopRawMutex, zerocopy_channel::Channel};
+// we can use NoopRawMutex since we use channel between two tasks in the same executor,
+// in single core environment and not using from interrupt
+//use esp_hal::sync::RawMutex;
 
 mod uart;
 mod udp;
@@ -90,7 +92,7 @@ async fn main(spawner: embassy_executor::Spawner) {
         [ChannelItem::empty(); CHANNEL_ITEMS_MAX]
     );
     let udp2uart_channel = mk_static!(
-        Channel<'_, RawMutex, ChannelItem>,
+        Channel<'_, NoopRawMutex, ChannelItem>,
         Channel::new(udp2uart_buffer)
     );
     let (udp_sender, uart_receiver) = udp2uart_channel.split();
@@ -100,7 +102,7 @@ async fn main(spawner: embassy_executor::Spawner) {
         [ChannelItem::empty(); CHANNEL_ITEMS_MAX]
     );
     let uart2udp_channel = mk_static!(
-        Channel<'_, RawMutex, ChannelItem>,
+        Channel<'_, NoopRawMutex, ChannelItem>,
         Channel::new(uart2udp_buffer)
     );
     let (uart_sender, udp_receiver) = uart2udp_channel.split();
