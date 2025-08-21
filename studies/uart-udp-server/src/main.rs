@@ -15,14 +15,35 @@ use core::cell::OnceCell;
 use core::net::Ipv4Addr;
 
 use embassy_net::StackResources;
+use embassy_sync::zerocopy_channel::Channel;
+use esp_hal::sync::RawMutex;
 
+mod uart;
 mod udp;
+
+pub const CHANNEL_ITEM_SIZE: usize = 64;
+pub const CHANNEL_ITEMS_MAX: usize = 1;
 
 macro_rules! mk_static {
     ($t:ty,$val:expr) => {{
         static mut STATIC_CELL: OnceCell<$t> = OnceCell::new();
         unsafe { STATIC_CELL.get_mut_or_init(|| $val) }
     }};
+}
+
+#[derive(Clone, Copy)]
+pub struct ChannelItem {
+    size: u8,
+    data: [u8; CHANNEL_ITEM_SIZE - size_of::<u8>()],
+}
+
+impl ChannelItem {
+    const fn empty() -> Self {
+        Self {
+            size: 0,
+            data: [0; CHANNEL_ITEM_SIZE - size_of::<u8>()],
+        }
+    }
 }
 
 #[esp_hal_embassy::main]
@@ -63,8 +84,32 @@ async fn main(spawner: embassy_executor::Spawner) {
         seed,
     );
 
-    spawner.spawn(udp::server(controller, ap_stack)).ok();
-    spawner.spawn(udp::net_task(ap_runner)).ok();
+    // Init communication back and forth channel between udp and uart task
+    let udp2uart_buffer = mk_static!(
+        [ChannelItem; CHANNEL_ITEMS_MAX],
+        [ChannelItem::empty(); CHANNEL_ITEMS_MAX]
+    );
+    let udp2uart_channel = mk_static!(
+        Channel<'_, RawMutex, ChannelItem>,
+        Channel::new(udp2uart_buffer)
+    );
+    let (udp_sender, uart_receiver) = udp2uart_channel.split();
+
+    let uart2udp_buffer = mk_static!(
+        [ChannelItem; CHANNEL_ITEMS_MAX],
+        [ChannelItem::empty(); CHANNEL_ITEMS_MAX]
+    );
+    let uart2udp_channel = mk_static!(
+        Channel<'_, RawMutex, ChannelItem>,
+        Channel::new(uart2udp_buffer)
+    );
+    let (uart_sender, udp_receiver) = uart2udp_channel.split();
+
+    spawner
+        .spawn(udp::server(controller, ap_stack, udp_sender, udp_receiver))
+        .ok();
+    spawner.spawn(uart::client(uart_sender, uart_receiver)).ok();
+    spawner.spawn(net_task(ap_runner)).ok();
     spawner.spawn(run()).ok();
 }
 
@@ -76,4 +121,11 @@ async fn run() {
         core_println!("0");
         embassy_time::Timer::after(embassy_time::Duration::from_millis(1_000)).await;
     }
+}
+
+#[embassy_executor::task()]
+pub async fn net_task(
+    mut runner: embassy_net::Runner<'static, esp_wifi::wifi::WifiDevice<'static>>,
+) {
+    runner.run().await
 }

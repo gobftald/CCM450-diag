@@ -15,6 +15,7 @@ embassy-executor = { path = "../../embassy/embassy-executor" }
 # since it products less code in icmp and udp because we can implement only "icmp echo" 
 embassy-net = { path =  "../../embassy/embassy-net", features = ["udp", "dhcpv4"]}
 embassy-time = { path = "../../embassy/embassy-time" }
+embassy-sync = { path = "../../embassy/embassy-sync" }
 
 esp-wifi = { path = "../../esp-hal/esp-wifi", features = ["wifi"] }
 

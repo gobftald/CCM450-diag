@@ -1,9 +1,18 @@
 use embassy_net::udp::{PacketMetadata, UdpSocket};
+use embassy_sync::zerocopy_channel::{Receiver, Sender};
+use esp_hal::sync::RawMutex;
+
+use crate::ChannelItem;
+
+const UDP_BUFFER_SIZE: usize = crate::CHANNEL_ITEM_SIZE;
+const UDP_PACKET_MAX: usize = 4;
 
 #[embassy_executor::task()]
 pub async fn server(
     mut controller: esp_wifi::wifi::WifiController<'static>,
     ap_stack: embassy_net::Stack<'static>,
+    mut sender: Sender<'static, RawMutex, ChannelItem>,
+    mut receiver: Receiver<'static, RawMutex, ChannelItem>,
 ) {
     let client_config =
         esp_wifi::wifi::Configuration::AccessPoint(esp_wifi::wifi::AccessPointConfiguration {
@@ -16,11 +25,10 @@ pub async fn server(
     unwrap!(controller.start_async().await);
     debug!("AP started");
 
-    let mut ap_udp_server_rx_meta = [PacketMetadata::EMPTY; 4];
-    let mut ap_udp_server_tx_meta = [PacketMetadata::EMPTY; 4];
-    let mut ap_udp_server_rx_buffer = [0; 64];
-    let mut ap_udp_server_tx_buffer = [0; 64];
-    let mut buf = [0; 64];
+    let mut ap_udp_server_rx_meta = [PacketMetadata::EMPTY; UDP_PACKET_MAX];
+    let mut ap_udp_server_tx_meta = [PacketMetadata::EMPTY; UDP_PACKET_MAX];
+    let mut ap_udp_server_rx_buffer = [0; UDP_BUFFER_SIZE * UDP_PACKET_MAX];
+    let mut ap_udp_server_tx_buffer = [0; UDP_BUFFER_SIZE * UDP_PACKET_MAX];
 
     let mut ap_udp_server_socket = UdpSocket::new(
         ap_stack,
@@ -33,13 +41,20 @@ pub async fn server(
     ap_udp_server_socket.bind(19924).unwrap();
 
     loop {
-        let (n, ep) = ap_udp_server_socket.recv_from(&mut buf).await.unwrap();
-        if let Ok(_s) = core::str::from_utf8(&buf[..n]) {
-            debug!("ECHO (to {}): {}", ep, _s);
-        } else {
-            debug!("ECHO (to {}): bytearray len {}", ep, n);
-        }
-        ap_udp_server_socket.send_to(&buf[..n], ep).await.unwrap();
+        let sending_item = sender.send().await;
+        let (n, ep) = ap_udp_server_socket
+            .recv_from(&mut sending_item.data)
+            .await
+            .unwrap();
+        sending_item.size = n as u8;
+        sender.send_done();
+
+        let received_item = receiver.receive().await;
+        ap_udp_server_socket
+            .send_to(&received_item.data[..received_item.size as usize], ep)
+            .await
+            .unwrap();
+        receiver.receive_done();
 
         /*
         //needs --features=esp-alloc/internal-heap-stats
@@ -48,11 +63,4 @@ pub async fn server(
         }
         */
     }
-}
-
-#[embassy_executor::task()]
-pub async fn net_task(
-    mut runner: embassy_net::Runner<'static, esp_wifi::wifi::WifiDevice<'static>>,
-) {
-    runner.run().await
 }

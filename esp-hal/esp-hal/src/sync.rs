@@ -229,7 +229,7 @@ pub(crate) fn lock<T>(lock: &RawMutex, f: impl FnOnce() -> T) -> T {
 ///
 /// This is largely equivalent to a `Mutex<RefCell<T>>`, but accessing the inner
 /// data doesn't hold a critical section on multi-core systems.
-/// But we don't implement multi-core
+/// Anyway we don't implement multi-core
 // 453
 pub struct Locked<T> {
     lock_state: RawMutex,
