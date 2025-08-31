@@ -7,11 +7,20 @@ pub type RXFIFO_FULL_W<'a, REG> = crate::BitWriter<'a, REG>;
 /// Field `TXFIFO_EMPTY` writer - This is the enable bit for txfifo_empty_int_st register.
 pub type TXFIFO_EMPTY_W<'a, REG> = crate::BitWriter<'a, REG>;
 
+/// Field `PARITY_ERR` writer - This is the enable bit for parity_err_int_st register.
+pub type PARITY_ERR_W<'a, REG> = crate::BitWriter<'a, REG>;
+
+/// Field `FRM_ERR` writer - This is the enable bit for frm_err_int_st register.
+pub type FRM_ERR_W<'a, REG> = crate::BitWriter<'a, REG>;
+
 /// Field `RXFIFO_OVF` writer - This is the enable bit for rxfifo_ovf_int_st register.
 pub type RXFIFO_OVF_W<'a, REG> = crate::BitWriter<'a, REG>;
 
 /// Field `RXFIFO_TOUT` writer - This is the enable bit for rxfifo_tout_int_st register.
 pub type RXFIFO_TOUT_W<'a, REG> = crate::BitWriter<'a, REG>;
+
+/// Field `GLITCH_DET` writer - This is the enable bit for glitch_det_int_st register.
+pub type GLITCH_DET_W<'a, REG> = crate::BitWriter<'a, REG>;
 
 /// Field `TX_BRK_DONE` writer - This is the enable bit for tx_brk_done_int_st register.
 pub type TX_BRK_DONE_W<'a, REG> = crate::BitWriter<'a, REG>;
@@ -38,6 +47,18 @@ impl W {
         TXFIFO_EMPTY_W::new(self, 1)
     }
 
+    /// Bit 2 - This is the enable bit for parity_err_int_st register.
+    #[inline(always)]
+    pub fn parity_err(&mut self) -> PARITY_ERR_W<INT_ENA_SPEC> {
+        PARITY_ERR_W::new(self, 2)
+    }
+
+    /// Bit 3 - This is the enable bit for frm_err_int_st register.
+    #[inline(always)]
+    pub fn frm_err(&mut self) -> FRM_ERR_W<INT_ENA_SPEC> {
+        FRM_ERR_W::new(self, 3)
+    }
+
     /// Bit 4 - This is the enable bit for rxfifo_ovf_int_st register.
     #[inline(always)]
     pub fn rxfifo_ovf(&mut self) -> RXFIFO_OVF_W<INT_ENA_SPEC> {
@@ -48,6 +69,12 @@ impl W {
     #[inline(always)]
     pub fn rxfifo_tout(&mut self) -> RXFIFO_TOUT_W<INT_ENA_SPEC> {
         RXFIFO_TOUT_W::new(self, 8)
+    }
+
+    /// Bit 11 - This is the enable bit for glitch_det_int_st register.
+    #[inline(always)]
+    pub fn glitch_det(&mut self) -> GLITCH_DET_W<INT_ENA_SPEC> {
+        GLITCH_DET_W::new(self, 11)
     }
 
     /// Bit 12 - This is the enable bit for tx_brk_done_int_st register.
@@ -62,7 +89,7 @@ impl W {
         TX_BRK_IDLE_DONE_W::new(self, 13)
     }
 
-    /// Bit 14 - This is the enable bit for tx_done_int_st register."]
+    /// Bit 14 - This is the enable bit for tx_done_int_st register.
     #[inline(always)]
     pub fn tx_done(&mut self) -> TX_DONE_W<INT_ENA_SPEC> {
         TX_DONE_W::new(self, 14)
@@ -79,6 +106,8 @@ pub struct INT_ENA_SPEC;
 impl crate::RegisterSpec for INT_ENA_SPEC {
     type Ux = u32;
 }
+
+impl crate::Readable for INT_ENA_SPEC {}
 
 impl crate::Writable for INT_ENA_SPEC {
     type Safety = crate::Unsafe;

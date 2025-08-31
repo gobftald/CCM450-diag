@@ -47,6 +47,15 @@ macro_rules! any_peripheral {
                         )*
                     }
                 }}
+
+                /// Creates a new peripheral reference with a shorter lifetime.
+                ///
+                /// Use this method if you would like to keep working with the peripheral after
+                /// you dropped the driver that consumes this.
+                #[inline]
+                pub fn reborrow(&mut self) -> $name<'_> {
+                    unsafe { self.clone_unchecked() }
+                }
             }
 
             $(#[$meta])*

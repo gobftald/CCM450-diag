@@ -13,6 +13,9 @@ pub type SCLK_DIV_NUM_W<'a, REG> = crate::FieldWriter<'a, REG, 8>;
 /// Field `SCLK_SEL` writer - UART clock source select. 1: 80Mhz, 2: 8Mhz, 3: XTAL.
 pub type SCLK_SEL_W<'a, REG> = crate::FieldWriter<'a, REG, 2>;
 
+/// Field `SCLK_EN` writer - Set this bit to enable UART Tx/Rx clock.
+pub type SCLK_EN_W<'a, REG> = crate::BitWriter<'a, REG>;
+
 /// Field `RST_CORE` writer - Write 1 then write 0 to this bit, reset UART Tx/Rx.
 pub type RST_CORE_W<'a, REG> = crate::BitWriter<'a, REG>;
 
@@ -39,6 +42,12 @@ impl W {
     #[inline(always)]
     pub fn sclk_sel(&mut self) -> SCLK_SEL_W<CLK_CONF_SPEC> {
         SCLK_SEL_W::new(self, 20)
+    }
+
+    /// Bit 22 - Set this bit to enable UART Tx/Rx clock.
+    #[inline(always)]
+    pub fn sclk_en(&mut self) -> SCLK_EN_W<CLK_CONF_SPEC> {
+        SCLK_EN_W::new(self, 22)
     }
 
     /// Bit 23 - Write 1 then write 0 to this bit, reset UART Tx/Rx.

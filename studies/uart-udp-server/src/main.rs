@@ -14,10 +14,8 @@ extern crate console;
 mod uart;
 mod udp;
 
-pub const CHANNEL_ITEM_SIZE: usize = 64;
-pub const CHANNEL_ITEMS_MAX: usize = 1;
-
 use core::cell::OnceCell;
+#[macro_export]
 macro_rules! mk_static {
     ($t:ty,$val:expr) => {{
         static mut STATIC_CELL: OnceCell<$t> = OnceCell::new();
@@ -25,27 +23,13 @@ macro_rules! mk_static {
     }};
 }
 
-#[derive(Clone, Copy)]
-pub struct ChannelItem {
-    size: u8,
-    data: [u8; CHANNEL_ITEM_SIZE - size_of::<u8>()],
-}
-
-impl ChannelItem {
-    const fn empty() -> Self {
-        Self {
-            size: 0,
-            data: [0; CHANNEL_ITEM_SIZE - size_of::<u8>()],
-        }
-    }
-}
-
 #[esp_hal_embassy::main]
 async fn main(spawner: embassy_executor::Spawner) {
     let config = esp_hal::Config::new_and_default(esp_hal::clock::CpuClock::max());
     let peripherals = esp_hal::init(config);
 
-    esp_alloc::heap_allocator!(size: 64 * 1024);
+    //esp_alloc::heap_allocator!(size: 64 * 1024);
+    esp_alloc::heap_allocator!(size: 96 * 1024);
 
     let systimer = esp_hal::timer::systimer::SystemTimer::new(peripherals.SYSTIMER);
     esp_hal_embassy::init(systimer.alarm0);
@@ -82,45 +66,17 @@ async fn main(spawner: embassy_executor::Spawner) {
     );
     // EOF WIFI setup
 
-    // Channel Setup for communication between UDP and UART
-    use embassy_sync::{blocking_mutex::raw::NoopRawMutex, zerocopy_channel::Channel};
-    // we can use NoopRawMutex since we use channel between two tasks in the same executor,
-    // in single core environment and not using from interrupt
-    //use esp_hal::sync::RawMutex;
-
-    let udp2uart_buffer = mk_static!(
-        [ChannelItem; CHANNEL_ITEMS_MAX],
-        [ChannelItem::empty(); CHANNEL_ITEMS_MAX]
-    );
-    let udp2uart_channel = mk_static!(
-        Channel<'_, NoopRawMutex, ChannelItem>,
-        Channel::new(udp2uart_buffer)
-    );
-    let (udp_sender, uart_receiver) = udp2uart_channel.split();
-
-    let uart2udp_buffer = mk_static!(
-        [ChannelItem; CHANNEL_ITEMS_MAX],
-        [ChannelItem::empty(); CHANNEL_ITEMS_MAX]
-    );
-    let uart2udp_channel = mk_static!(
-        Channel<'_, NoopRawMutex, ChannelItem>,
-        Channel::new(uart2udp_buffer)
-    );
-    let (uart_sender, udp_receiver) = uart2udp_channel.split();
-    // EOF Channel setup
-
     spawner
-        .spawn(udp::server(controller, ap_stack, udp_sender, udp_receiver))
-        .ok();
-    spawner
-        .spawn(uart::client(
-            uart_sender,
-            uart_receiver,
+        .spawn(udp::server(
+            spawner,
+            controller,
+            ap_stack,
             peripherals.UART0,
-            peripherals.GPIO20,
             peripherals.GPIO21,
+            peripherals.GPIO20,
         ))
         .ok();
+
     spawner.spawn(net_task(ap_runner)).ok();
     spawner.spawn(run()).ok();
 }

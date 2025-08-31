@@ -14,6 +14,7 @@ strum = { version = "0.27.1", default-features = false, features = ["derive"] }
 portable-atomic = { path = "../../portable-atomic", default-features = false }
 embassy-sync = { path = "../../embassy/embassy-sync" }
 bitflags = "2.9.0"
+enumset = "1.1.6"
 
 # for macros
 cfg-if = "1.0.0"
@@ -53,6 +54,7 @@ defmt   = [
     "esp-riscv-rt/defmt",
     "riscv/defmt",
     "esp32c3/defmt",
+    "enumset/defmt",
 ]
 
 ## Enables APIs that are not stable and thus come with no stability guarantees.

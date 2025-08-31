@@ -7,11 +7,20 @@ pub type RXFIFO_FULL_W<'a, REG> = crate::BitWriter1C<'a, REG>;
 /// Field `TXFIFO_EMPTY` writer - Set this bit to clear txfifo_empty_int_raw interrupt.
 pub type TXFIFO_EMPTY_W<'a, REG> = crate::BitWriter1C<'a, REG>;
 
+/// Field `PARITY_ERR` writer - Set this bit to clear parity_err_int_raw interrupt.
+pub type PARITY_ERR_W<'a, REG> = crate::BitWriter1C<'a, REG>;
+
+/// Field `FRM_ERR` writer - Set this bit to clear frm_err_int_raw interrupt.
+pub type FRM_ERR_W<'a, REG> = crate::BitWriter1C<'a, REG>;
+
 /// Field `RXFIFO_OVF` writer - Set this bit to clear rxfifo_ovf_int_raw interrupt.
 pub type RXFIFO_OVF_W<'a, REG> = crate::BitWriter1C<'a, REG>;
 
 /// Field `RXFIFO_TOUT` writer - Set this bit to clear the rxfifo_tout_int_raw interrupt.
 pub type RXFIFO_TOUT_W<'a, REG> = crate::BitWriter1C<'a, REG>;
+
+/// Field `GLITCH_DET` writer - Set this bit to clear the glitch_det_int_raw interrupt.
+pub type GLITCH_DET_W<'a, REG> = crate::BitWriter1C<'a, REG>;
 
 /// Field `TX_BRK_DONE` writer - Set this bit to clear the tx_brk_done_int_raw interrupt..
 pub type TX_BRK_DONE_W<'a, REG> = crate::BitWriter1C<'a, REG>;
@@ -38,6 +47,18 @@ impl W {
         TXFIFO_EMPTY_W::new(self, 1)
     }
 
+    /// Bit 2 - Set this bit to clear parity_err_int_raw interrupt.
+    #[inline(always)]
+    pub fn parity_err(&mut self) -> PARITY_ERR_W<INT_CLR_SPEC> {
+        PARITY_ERR_W::new(self, 2)
+    }
+
+    /// Bit 3 - Set this bit to clear frm_err_int_raw interrupt.
+    #[inline(always)]
+    pub fn frm_err(&mut self) -> FRM_ERR_W<INT_CLR_SPEC> {
+        FRM_ERR_W::new(self, 3)
+    }
+
     /// Bit 4 - Set this bit to clear rxfifo_ovf_int_raw interrupt.
     #[inline(always)]
     pub fn rxfifo_ovf(&mut self) -> RXFIFO_OVF_W<INT_CLR_SPEC> {
@@ -48,6 +69,12 @@ impl W {
     #[inline(always)]
     pub fn rxfifo_tout(&mut self) -> RXFIFO_TOUT_W<INT_CLR_SPEC> {
         RXFIFO_TOUT_W::new(self, 8)
+    }
+
+    /// Bit 11 - Set this bit to clear the glitch_det_int_raw interrupt.
+    #[inline(always)]
+    pub fn glitch_det(&mut self) -> GLITCH_DET_W<INT_CLR_SPEC> {
+        GLITCH_DET_W::new(self, 11)
     }
 
     /// Bit 12 - Set this bit to clear the tx_brk_done_int_raw interrupt..

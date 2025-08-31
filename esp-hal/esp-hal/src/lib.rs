@@ -111,7 +111,7 @@ pub mod uart;
 pub use procmacros::blocking_main as main;
 
 // 242
-pub use procmacros::ram;
+pub use procmacros::{handler, ram};
 
 // 287
 pub mod asynch;
@@ -151,13 +151,29 @@ pub mod trapframe {
 // 365
 mod soc;
 
-/*
 // 430
 pub(crate) mod private {
+    use core::mem::ManuallyDrop;
+
     // 433
-    pub trait Sealed {}
+    //pub trait Sealed {}
+
+    // 457
+    pub(crate) struct OnDrop<F: FnOnce()>(ManuallyDrop<F>);
+    // 458
+    impl<F: FnOnce()> OnDrop<F> {
+        pub fn new(cb: F) -> Self {
+            Self(ManuallyDrop::new(cb))
+        }
+    }
+
+    // 468
+    impl<F: FnOnce()> Drop for OnDrop<F> {
+        fn drop(&mut self) {
+            unsafe { (ManuallyDrop::take(&mut self.0))() }
+        }
+    }
 }
-*/
 
 // 508
 pub mod __macro_implementation {
