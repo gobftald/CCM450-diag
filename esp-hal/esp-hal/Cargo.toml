@@ -12,7 +12,8 @@ rand_core-09 = { package = "rand_core", path = "../../rand_core" }
 bytemuck = "1.22.0"
 strum = { version = "0.27.1", default-features = false, features = ["derive"] }
 portable-atomic = { path = "../../portable-atomic", default-features = false }
-embassy-sync ={ path = "../../embassy/embassy-sync" }
+embassy-sync = { path = "../../embassy/embassy-sync" }
+bitflags = "2.9.0"
 
 # for macros
 cfg-if = "1.0.0"
@@ -33,7 +34,10 @@ esp32   = []
 esp32c2 = []
 
 # Target the ESP32-C3.
-esp32c3 = ["dep:esp32c3", "portable-atomic/unsafe-assume-single-core"]
+esp32c3 = [
+    "dep:esp32c3",
+    "portable-atomic/unsafe-assume-single-core",
+]
 
 # Target the ESP32-C6.
 esp32c6 = []

@@ -81,9 +81,6 @@ pub use esp_riscv_rt::riscv;
 // 201
 pub use self::soc::efuse;
 
-// 203
-pub use procmacros::ram;
-
 // 206
 pub use self::soc::peripherals;
 pub(crate) use self::soc::peripherals::pac;
@@ -92,6 +89,10 @@ pub(crate) use self::soc::peripherals::pac;
 #[cfg(system)]
 pub mod clock;
 
+#[cfg(gpio)]
+// 219
+pub mod gpio;
+
 // 222
 pub mod peripheral;
 
@@ -99,18 +100,25 @@ pub mod peripheral;
 pub mod system;
 pub mod time;
 
-// 236
+// 232
 mod macros;
 
-// 232
+// 230
+#[cfg(uart0)]
+pub mod uart;
+
+// 234
 pub use procmacros::blocking_main as main;
 
-// 277
-pub mod sync;
+// 242
+pub use procmacros::ram;
 
 // 287
 pub mod asynch;
 pub mod config;
+
+// 294
+pub mod sync;
 
 #[cfg(interrupt_core0)]
 // 291

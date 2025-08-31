@@ -259,6 +259,25 @@ impl Deref for EFUSE {
 }
 pub mod efuse;
 
+/// General Purpose Input/Output
+// 624
+pub struct GPIO {
+    _marker: PhantomData<*const ()>,
+}
+unsafe impl Send for GPIO {}
+impl GPIO {
+    /// Pointer to the register block
+    pub const PTR: *const gpio::RegisterBlock = 0x6000_4000 as *const _;
+}
+impl Deref for GPIO {
+    type Target = gpio::RegisterBlock;
+    #[inline(always)]
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*Self::PTR }
+    }
+}
+pub mod gpio;
+
 /// Interrupt Controller (Core 0)
 // 855
 pub struct INTERRUPT_CORE0 {
@@ -277,6 +296,25 @@ impl Deref for INTERRUPT_CORE0 {
     }
 }
 pub mod interrupt_core0;
+
+/// Input/Output Multiplexer
+// 901
+pub struct IO_MUX {
+    _marker: PhantomData<*const ()>,
+}
+unsafe impl Send for IO_MUX {}
+impl IO_MUX {
+    #[doc = r"Pointer to the register block"]
+    pub const PTR: *const io_mux::RegisterBlock = 0x6000_9000 as *const _;
+}
+impl Deref for IO_MUX {
+    type Target = io_mux::RegisterBlock;
+    #[inline(always)]
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*Self::PTR }
+    }
+}
+pub mod io_mux;
 
 /// Hardware Random Number Generator
 // 1039
@@ -372,6 +410,24 @@ impl Deref for TIMG0 {
     }
 }
 pub mod timg0;
+
+/// UART (Universal Asynchronous Receiver-Transmitter) Controller 0
+pub struct UART0 {
+    _marker: PhantomData<*const ()>,
+}
+unsafe impl Send for UART0 {}
+impl UART0 {
+    /// Pointer to the register block
+    pub const PTR: *const uart0::RegisterBlock = 0x6000_0000 as *const _;
+}
+impl Deref for UART0 {
+    type Target = uart0::RegisterBlock;
+    #[inline(always)]
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*Self::PTR }
+    }
+}
+pub mod uart0;
 
 /// I2C_MST_ANA Peripheral
 // 2051

@@ -11,21 +11,13 @@ mod panic;
 #[macro_use(core_println, unwrap, debug)] // core_println for panic_handler in mod panic
 extern crate console;
 
-use core::cell::OnceCell;
-use core::net::Ipv4Addr;
-
-use embassy_net::StackResources;
-use embassy_sync::{blocking_mutex::raw::NoopRawMutex, zerocopy_channel::Channel};
-// we can use NoopRawMutex since we use channel between two tasks in the same executor,
-// in single core environment and not using from interrupt
-//use esp_hal::sync::RawMutex;
-
 mod uart;
 mod udp;
 
 pub const CHANNEL_ITEM_SIZE: usize = 64;
 pub const CHANNEL_ITEMS_MAX: usize = 1;
 
+use core::cell::OnceCell;
 macro_rules! mk_static {
     ($t:ty,$val:expr) => {{
         static mut STATIC_CELL: OnceCell<$t> = OnceCell::new();
@@ -55,6 +47,10 @@ async fn main(spawner: embassy_executor::Spawner) {
 
     esp_alloc::heap_allocator!(size: 64 * 1024);
 
+    let systimer = esp_hal::timer::systimer::SystemTimer::new(peripherals.SYSTIMER);
+    esp_hal_embassy::init(systimer.alarm0);
+
+    // WIFI setup
     let timg0 = esp_hal::timer::timg::TimerGroup::new(peripherals.TIMG0);
     let mut rng = esp_hal::rng::Rng::new(peripherals.RNG);
 
@@ -67,9 +63,7 @@ async fn main(spawner: embassy_executor::Spawner) {
 
     let wifi_ap_device = interfaces.ap;
 
-    let systimer = esp_hal::timer::systimer::SystemTimer::new(peripherals.SYSTIMER);
-    esp_hal_embassy::init(systimer.alarm0);
-
+    use core::net::Ipv4Addr;
     let ap_config = embassy_net::Config::ipv4_static(embassy_net::StaticConfigV4 {
         address: embassy_net::Ipv4Cidr::new(Ipv4Addr::new(192, 168, 3, 1), 24),
         gateway: Some(Ipv4Addr::new(192, 168, 3, 1)),
@@ -79,14 +73,21 @@ async fn main(spawner: embassy_executor::Spawner) {
     let seed = (rng.random() as u64) << 32 | rng.random() as u64;
 
     // Init network stack
+    use embassy_net::StackResources;
     let (ap_stack, ap_runner) = embassy_net::new(
         wifi_ap_device,
         ap_config,
         mk_static!(StackResources<3>, StackResources::<3>::new()),
         seed,
     );
+    // EOF WIFI setup
 
-    // Init communication back and forth channel between udp and uart task
+    // Channel Setup for communication between UDP and UART
+    use embassy_sync::{blocking_mutex::raw::NoopRawMutex, zerocopy_channel::Channel};
+    // we can use NoopRawMutex since we use channel between two tasks in the same executor,
+    // in single core environment and not using from interrupt
+    //use esp_hal::sync::RawMutex;
+
     let udp2uart_buffer = mk_static!(
         [ChannelItem; CHANNEL_ITEMS_MAX],
         [ChannelItem::empty(); CHANNEL_ITEMS_MAX]
@@ -106,11 +107,20 @@ async fn main(spawner: embassy_executor::Spawner) {
         Channel::new(uart2udp_buffer)
     );
     let (uart_sender, udp_receiver) = uart2udp_channel.split();
+    // EOF Channel setup
 
     spawner
         .spawn(udp::server(controller, ap_stack, udp_sender, udp_receiver))
         .ok();
-    spawner.spawn(uart::client(uart_sender, uart_receiver)).ok();
+    spawner
+        .spawn(uart::client(
+            uart_sender,
+            uart_receiver,
+            peripherals.UART0,
+            peripherals.GPIO20,
+            peripherals.GPIO21,
+        ))
+        .ok();
     spawner.spawn(net_task(ap_runner)).ok();
     spawner.spawn(run()).ok();
 }

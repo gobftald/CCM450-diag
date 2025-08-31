@@ -18,6 +18,12 @@ pub enum Peripheral {
     #[cfg(timg0)]
     // 77
     Timg0,
+
+    /// UART0 peripheral.
+    #[cfg(uart0)]
+    // 89
+    Uart0,
+
     /// Systimer peripheral.
     #[cfg(systimer)]
     // 119
@@ -27,6 +33,7 @@ pub enum Peripheral {
 // 125
 impl Peripheral {
     const KEEP_ENABLED: &[Peripheral] = &[
+        Peripheral::Uart0,
         #[cfg(systimer)]
         // 131
         Peripheral::Systimer,
@@ -39,6 +46,9 @@ impl Peripheral {
         #[cfg(timg0)]
         // 178
         Self::Timg0,
+        #[cfg(uart0)]
+        // 186
+        Self::Uart0,
         #[cfg(systimer)]
         // 206
         Self::Systimer,
@@ -90,6 +100,12 @@ impl PeripheralClockControl {
                 perip_clk_en0.modify(|_, w| w.timergroup_clk_en().bit(enable));
             }
 
+            #[cfg(uart0)]
+            // 444
+            Peripheral::Uart0 => {
+                perip_clk_en0.modify(|_, w| w.uart_clk_en().bit(enable));
+            }
+
             #[cfg(systimer)]
             // 483
             Peripheral::Systimer => {
@@ -120,6 +136,13 @@ impl PeripheralClockControl {
                 perip_rst_en0.modify(|_, w| w.timers_rst().clear_bit());
                 perip_rst_en0.modify(|_, w| w.timergroup_rst().clear_bit());
                 */
+            }
+
+            #[cfg(uart0)]
+            // 653
+            Peripheral::Uart0 => {
+                perip_rst_en0.modify(|_, w| w.uart_rst().set_bit());
+                perip_rst_en0.modify(|_, w| w.uart_rst().clear_bit());
             }
 
             #[cfg(systimer)]

@@ -43,6 +43,13 @@ impl Rate {
         Self(InnerRate::Hz(val))
     }
 
+    /// Shorthand for creating a rate which represents kilohertz.
+    #[inline]
+    // 58
+    pub const fn from_khz(val: u32) -> Self {
+        Self(InnerRate::kHz(val))
+    }
+
     /// Shorthand for creating a rate which represents megahertz.
     #[inline]
     // 64

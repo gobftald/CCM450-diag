@@ -12,7 +12,8 @@
 // 13
 pub mod efuse;
 
-// 17
+// 16
+pub mod gpio;
 pub mod peripherals;
 pub(crate) mod regi2c;
 
@@ -20,4 +21,13 @@ pub(crate) mod regi2c;
 // 36
 pub(crate) mod registers {
     pub const INTERRUPT_MAP_BASE: u32 = 0x600c2000;
+}
+
+// 41
+pub(crate) mod constants {
+    use crate::time::Rate;
+
+    /// RC FAST Clock value (Hertz).
+    // 59
+    pub const RC_FAST_CLK: Rate = Rate::from_khz(17500);
 }

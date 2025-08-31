@@ -31,6 +31,24 @@ macro_rules! any_peripheral {
             // 117
             $vis struct $name<'d>([< $name Inner >]<'d>);
 
+            // 119
+            impl $name<'_> {
+                /// Unsafely clone this peripheral reference.
+                ///
+                /// # Safety
+                ///
+                /// You must ensure that you're only using one instance of this type at a time.
+                #[inline]
+                pub unsafe fn clone_unchecked(&self) -> Self { unsafe {
+                    match &self.0 {
+                        $(
+                            $(#[cfg($variant_meta)])*
+                            [< $name Inner >]::$variant(inner) => $name([<$name Inner>]::$variant(inner.clone_unchecked())),
+                        )*
+                    }
+                }}
+            }
+
             $(#[$meta])*
             #[derive(Debug)]
             // 149

@@ -20,11 +20,17 @@ macro_rules! peripherals {
                     $name:ident <= $from_pac:tt $(($($interrupt:ident),*))?
                 ),* $(,)?
             ],
+            pins: [
+                $( ( $pin:literal, $($pin_tokens:tt)* ) )*
+            ]
         ) => {
             // 31
             paste::paste! {
                 $(
                     $crate::create_peripheral!($name <= $from_pac);
+                )*
+                $(
+                    $crate::create_peripheral!([< GPIO $pin >] <= virtual);
                 )*
 
                 /// The `Peripherals` struct provides access to all of the hardware peripherals on the chip.
@@ -34,6 +40,10 @@ macro_rules! peripherals {
                     $(
                         #[doc = concat!("The ", stringify!($name), " peripheral.")]
                         pub $name: $name<'static>,
+                    )*
+                    $(
+                        #[doc = concat!("GPIO", stringify!($pin))]
+                        pub [<GPIO $pin>]: [<GPIO $pin>]<'static>,
                     )*
                 }
 
@@ -69,9 +79,17 @@ macro_rules! peripherals {
                                 $(
                                     $name: $name::steal(),
                                 )*
+
+                                $(
+                                    [<GPIO $pin>]: [<GPIO $pin>]::steal(),
+                                )*
                             }
                         }
                     }
+                }
+
+                $crate::gpio! {
+                    $( ($pin, $($pin_tokens)* ) )*
                 }
             }
         };

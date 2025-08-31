@@ -29,14 +29,21 @@ crate::peripherals! {
     peripherals: [
         APB_CTRL <= APB_CTRL,
         EFUSE <= EFUSE,
+        GPIO <= GPIO,
         I2C_ANA_MST <= I2C_ANA_MST,
         INTERRUPT_CORE0 <= INTERRUPT_CORE0,
+        IO_MUX <= IO_MUX,
         LPWR <= RTC_CNTL,
         RADIO_CLK <= virtual,
         RNG <= RNG,
         SYSTEM <= SYSTEM,
         SYSTIMER <= SYSTIMER,
         TIMG0 <= TIMG0,
+        UART0 <= UART0,
         WIFI <= virtual,
     ],
+    pins: [
+        (20, [Input, Output] (0 => U0RXD) ())
+        (21, [Input, Output] () (0 => U0TXD))
+    ]
 }

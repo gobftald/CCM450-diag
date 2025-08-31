@@ -233,6 +233,22 @@ pub struct Timer<'d> {
 /// Timer peripheral instance
 // 374
 impl Timer<'_> {
+    /// Unsafely clone this peripheral reference.
+    ///
+    /// # Safety
+    ///
+    /// You must ensure that you're only using one instance of this type at a
+    /// time.
+    // 381
+    pub unsafe fn clone_unchecked(&self) -> Self {
+        Self {
+            register_block: self.register_block,
+            timer: self.timer,
+            tg: self.tg,
+            _lifetime: PhantomData,
+        }
+    }
+
     // 398
     pub(crate) fn set_interrupt_handler(&self, handler: InterruptHandler) {
         let interrupt = match (self.timer_group(), self.timer_number()) {

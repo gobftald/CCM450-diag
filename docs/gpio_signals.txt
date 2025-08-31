@@ -1,0 +1,234 @@
+
+# if we call connect_to for gpio::InputSignal
+
+impl gpio::InputSignal
+    pub fn connect_to<'a>(self, pin: &impl PeripheralSignal<'a>) {
+        // we call an object called 'pin', which can be anything who implements to connect ourselves
+        // since we are a gpio::InputSignal, which we call a general 'PeripheralSignal'
+        pin.connect_input_to_peripheral(self);
+    }
+
+// connects the 'object' to a gpio::InputSignal (which we called a general 'PeripheralSignal')
+pub trait PeripheralSignal<'d>: Sealed {
+    fn connect_input_to_peripheral(&self, signal: gpio::InputSignal);
+}
+
+// here we connect any object which implementt the Pin trait to a 'gpio::InputSignal'
+impl<'d, P: Pin + 'd> PeripheralSignal<'d> for P
+    fn connect_input_to_peripheral(&self, signal: gpio::InputSignal) {
+        let pin = unsafe { AnyPin::steal(self.number()) };
+        // here we move over our InputSignal
+        // create it from Pin, which is trasfered to it, then connect it to 'gpio::InputSignal'
+        InputSignal::new(pin).connect_input_to_peripheral(signal);
+    }
+
+pub struct InputSignal<'d> {
+    pin: Signal<'d>,
+    flags: InputFlags,
+}
+
+enum Signal<'d> {
+    Pin(AnyPin<'d>),
+    Level(Level),
+}
+
+// here we implement to connect our InputSignal to connec it to 'gpio::InputSignal'
+impl<'d> PeripheralSignal<'d> for InputSignal<'d>
+    fn connect_input_to_peripheral(&self, signal: gpio::InputSignal) {
+        // Since there can only be one input signal connected to a peripheral
+        // at a time, this function will disconnect any previously
+        // connected input signals.
+        //
+        // here we call the trait for self.pin which is our 'Signal'
+        // impl Signal's connect_to_peripheral_input will finally/physically
+        // connects to gpio::InputSignal to the pin
+        // etiher call pin.set_alternate_function() if it isnn't GPIO_FUNCTION
+        // then call func_in_sel_cfg
+        self.pin.connect_to_peripheral_input(
+            signal,
+            self.is_input_inverted(),
+            self.is_gpio_matrix_forced(),
+        );
+    }
+
+impl Signal<'_> 
+    fn connect_to_peripheral_input(
+        &self,
+        signal: gpio::InputSignal,
+        is_inverted: bool,
+        force_gpio: bool,
+    ) 
+        ...
+        pin.set_alternate_function(af);
+        ...
+        GPIO::regs()
+            .func_in_sel_cfg(signal as usize - FUNC_IN_SEL_OFFSET)
+        ...
+
+##############
+
+# if we call connect_to for gpio::OutputSignal
+
+impl gpio::OutputSignal
+    pub fn connect_to<'d>(self, pin: &impl PeripheralOutput<'d>) {
+        pin.connect_peripheral_to_output(self);
+    }
+
+    pub fn disconnect_from<'d>(self, pin: &impl PeripheralOutput<'d>) {
+        pin.disconnect_from_peripheral_output();
+    }
+
+pub trait PeripheralOutput<'d>: Into<OutputSignal<'d>> + PeripheralSignal<'d> {
+    fn connect_peripheral_to_output(&self, signal: gpio::OutputSignal);
+    fn disconnect_from_peripheral_output(&self);
+}
+
+// so we need to implement both PeripheralOutput and PeripheralSignal when we implement PeripheralOutput
+
+pub trait PeripheralSignal<'d>: Sealed // see above
+    fn connect_input_to_peripheral(&self, signal: gpio::InputSignal);
+    
+// we start these implementation for P which means it is an object that implements Pin
+impl<'d, P: Pin + 'd,> PeripheralSignal<'d> for P    // see above
+
+// this implementation (with this trait bound) is for only those P which implement OutputPin trait
+impl<'d, P: OutputPin + 'd> PeripheralOutput<'d> for P
+    fn connect_peripheral_to_output(&self, signal: gpio::OutputSignal) {
+        let pin = unsafe { AnyPin::steal(self.number()) };
+        // here we crate an own (not coming from gpio) OutputSignal
+        // and call function which was defined by PeripheralOutput trait
+        // this is why we decide to implement PeripheralOutput trait for OutputSignal as well
+        OutputSignal::new(pin).connect_peripheral_to_output(signal);
+    }
+    fn disconnect_from_peripheral_output(&self) {
+        let pin = unsafe { AnyPin::steal(self.number()) };
+        // here we crate an own (not coming from gpio) OutputSignal
+        // and call function which was defined by PeripheralOutput trait
+        // this is why we decide to implement PeripheralOutput trait for OutputSignal as well
+        OutputSignal::new(pin).disconnect_from_peripheral_output();
+    }
+
+// here is the implementation we mentioned several lines abive
+impl<'d> PeripheralOutput<'d> for OutputSignal<'d>
+    fn connect_peripheral_to_output(&self, signal: gpio::OutputSignal) {
+        self.pin.connect_peripheral_to_output(
+            signal,
+            self.is_output_inverted(),
+            self.is_gpio_matrix_forced(),
+            true,
+            false,
+        );
+    }
+    fn disconnect_from_peripheral_output(&self) {
+        self.pin.disconnect_from_peripheral_output();
+    }
+
+// but since we decided, that we implement PeripheralOutput<'d> for OutputSignal
+// we also need to implement PeripheralSignal for OutputSignal, for our OutputSignal
+// here is where OutputSignal implements trait for gpio::InputSignal
+
+impl<'d> PeripheralSignal<'d> for OutputSignal<'d> {
+    fn connect_input_to_peripheral(&self, signal: gpio::InputSignal) {
+
+        self.pin.connect_to_peripheral_input(
+            signal,
+            self.is_input_inverted(),
+            self.is_gpio_matrix_forced(),
+        );
+    }
+
+// but out OutputSignal introduce and calls Signal into the picture 
+// and call its connect_to_peripheral_input function
+// but in order that Signal has this function, Signal does not implement
+// the whole PeripheralOutput trait but only implement this function in its native implementation
+pub struct OutputSignal<'d> {
+    pin: Signal<'d>,
+    flags: OutputFlags,
+}
+
+impl Signal<'_>
+    fn connect_peripheral_to_output
+        ...
+        pin.set_alternate_function(af);
+        ...
+        GPIO::regs
+            .func_out_sel_cfg(pin.number() as usize)
+            .write(|w| unsafe {
+                if use_gpio_matrix 
+                    w.out_sel().bits(signal as _);
+                    w.inv_sel().bit(is_inverted);
+            w.oen_sel().bit(!peripheral_control_output_enable);
+            w.oen_inv_sel().bit(invert_output_enable)
+
+#########
+
+
+
+
+
+impl<'d> PeripheralSignal<'d> for Input<'d>
+    fn connect_input_to_peripheral(&self, signal: gpio::InputSignal) {
+        self.pin.connect_input_to_peripheral(signal);
+    }
+
+impl<'d> PeripheralSignal<'d> for Output<'d> 
+    fn connect_input_to_peripheral(&self, signal: gpio::InputSignal) {
+        self.pin.connect_input_to_peripheral(signal);
+    }
+
+impl PeripheralSignal<'_> for Level
+    fn connect_input_to_peripheral(&self, signal: gpio::InputSignal) {
+        Signal::Level(*self).connect_to_peripheral_input(signal, false, true);
+    }
+
+
+impl<'d> PeripheralSignal<'d> for OutputSignal<'d>
+    fn connect_input_to_peripheral(&self, signal: gpio::InputSignal) {
+        self.pin.connect_to_peripheral_input(
+            signal,
+            self.is_input_inverted(),
+            self.is_gpio_matrix_forced(),
+        );
+    }
+
+impl<'d, P: OutputPin + 'd,> PeripheralOutput<'d> for P
+    fn connect_peripheral_to_output(&self, signal: gpio::OutputSignal) {
+        let pin = unsafe { AnyPin::steal(self.number()) };
+        OutputSignal::new(pin).connect_peripheral_to_output(signal);
+    }
+    fn disconnect_from_peripheral_output(&self) {
+        let pin = unsafe { AnyPin::steal(self.number()) };
+        OutputSignal::new(pin).disconnect_from_peripheral_output();
+    }
+
+impl<'d> PeripheralOutput<'d> for Output<'d>
+    fn connect_peripheral_to_output(&self, signal: gpio::OutputSignal) [
+        self.pin.connect_peripheral_to_output(signal);
+    ]
+    fn disconnect_from_peripheral_output(&self) {
+        self.pin.disconnect_from_peripheral_output();
+    }
+
+impl PeripheralOutput<'_> for Level 
+    fn connect_peripheral_to_output(&self, _: gpio::OutputSignal) {
+        // There is no such thing as a constant-high level peripheral output,
+        // the implementation just exists for convenience.
+    }
+    fn disconnect_from_peripheral_output(&self) {
+        // There is no such thing as a constant-high level peripheral output,
+        // the implementation just exists for convenience.
+    }
+
+impl<'d> PeripheralOutput<'d> for OutputSignal<'d>
+    fn connect_peripheral_to_output(&self, signal: gpio::OutputSignal) {
+        self.pin.connect_peripheral_to_output(
+            signal,
+            self.is_output_inverted(),
+            self.is_gpio_matrix_forced(),
+            true,
+            false,
+        );
+    }
+    fn disconnect_from_peripheral_output(&self) {
+        self.pin.disconnect_from_peripheral_output();
+    }

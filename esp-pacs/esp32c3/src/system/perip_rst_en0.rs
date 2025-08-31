@@ -1,10 +1,19 @@
 /// Register `PERIP_RST_EN0` writer
 pub type W = crate::W<PERIP_RST_EN0_SPEC>;
 
+/// Field `UART_RST` writer - reg_uart_rst"]
+pub type UART_RST_W<'a, REG> = crate::BitWriter<'a, REG>;
+
 /// Field `SYSTIMER_RST` writer - reg_systimer_rst
 pub type SYSTIMER_RST_W<'a, REG> = crate::BitWriter<'a, REG>;
 
 impl W {
+    /// Bit 2 - reg_uart_rst"]
+    #[inline(always)]
+    pub fn uart_rst(&mut self) -> UART_RST_W<PERIP_RST_EN0_SPEC> {
+        UART_RST_W::new(self, 2)
+    }
+
     /// Bit 29 - reg_systimer_rst
     #[inline(always)]
     pub fn systimer_rst(&mut self) -> SYSTIMER_RST_W<PERIP_RST_EN0_SPEC> {
