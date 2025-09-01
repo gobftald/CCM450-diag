@@ -1,3 +1,6 @@
+use embassy_futures::select::{Either, select};
+use embassy_net::udp::UdpMetadata;
+
 // we can use NoopRawMutex since we use channel between two tasks in the same executor,
 // in single core environment and not using from interrupt
 //use esp_hal::sync::RawMutex;
@@ -88,27 +91,48 @@ pub async fn server(
     spawner.spawn(crate::uart::client(rx, sender)).ok();
 
     let mut buf: [u8; UDP_BUFFER_SIZE] = [0; UDP_BUFFER_SIZE];
+    let mut end_point: Option<UdpMetadata> = None;
+
     loop {
-        // waiting for request
-        let (n, ep) = ap_udp_server_socket.recv_from(&mut buf).await.unwrap();
+        // waiting for request or response
+        match select(ap_udp_server_socket.recv_from(&mut buf), receiver.receive()).await {
+            // UDP request arrived
+            Either::First(result) => {
+                debug!("#### Either::First");
+                let (size, ep) = result.unwrap();
 
-        unwrap!(tx.write_async(&buf[..n]).await);
-        unwrap!(tx.flush_async().await);
+                // Forward request via Uart
+                unwrap!(tx.write_async(&buf[..size]).await);
+                unwrap!(tx.flush_async().await);
+                debug!("uart sent");
 
-        // waiting for uart response
-        let received_item = receiver.receive().await;
+                // save end point
+                end_point = Some(ep);
+            }
 
-        // sending response
-        ap_udp_server_socket
-            .send_to(&received_item.data[..received_item.size as usize], ep)
-            .await
-            .unwrap();
+            // Uart answer arrived
+            Either::Second(received_item) => {
+                debug!("#### Either::Second");
+                // forward response via UDP
+                if let Some(end_point) = end_point {
+                    ap_udp_server_socket
+                        .send_to(
+                            &received_item.data[..received_item.size as usize],
+                            end_point,
+                        )
+                        .await
+                        .unwrap();
+                }
+                debug!("#### udp sent");
+                receiver.receive_done();
+            }
+        };
 
-        receiver.receive_done();
-
+        /*
         //needs --features=esp-alloc/internal-heap-stats
         unsafe {
             debug!("{}", esp_alloc::HEAP.stats());
         }
+        */
     }
 }

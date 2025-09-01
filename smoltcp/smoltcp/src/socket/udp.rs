@@ -207,12 +207,14 @@ impl<'a> Socket<'a> {
             .enqueue(size, meta)
             .map_err(|_| SendError::BufferFull)?;
 
+        /*
         net_trace!(
             "udp:{}:{}: buffer to send {} octets",
             self.endpoint,
             meta.endpoint,
             size
         );
+        */
         Ok(payload_buf)
     }
 
@@ -355,12 +357,14 @@ impl<'a> Socket<'a> {
                 }
             };
 
+            /*
             net_trace!(
                 "udp:{}:{}: sending {} octets",
                 endpoint,
                 packet_meta.endpoint,
                 payload_buf.len()
             );
+            */
 
             let repr = UdpRepr {
                 src_port: endpoint.port,

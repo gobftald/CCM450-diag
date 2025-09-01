@@ -16,6 +16,7 @@ embassy-executor = { path = "../../embassy/embassy-executor" }
 embassy-net = { path =  "../../embassy/embassy-net", features = ["udp", "dhcpv4"]}
 embassy-time = { path = "../../embassy/embassy-time" }
 embassy-sync = { path = "../../embassy/embassy-sync" }
+embassy-futures = { path = "../../embassy/embassy-futures" }
 
 esp-wifi = { path = "../../esp-hal/esp-wifi", features = ["wifi"] }
 
@@ -50,6 +51,7 @@ defmt = [
     "embassy-time/defmt-timestamp-uptime",
     "esp-wifi/defmt",
     "embassy-net/defmt",
+    "embassy-futures/defmt",
 ]
 
 backtrace = ["dep:esp-backtrace"]       # needs "-C", "force-frame-pointers" rustflag in config.toml

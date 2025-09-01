@@ -107,11 +107,13 @@ impl<'a> Socket<'a> {
     {
         let hop_limit = self.hop_limit.unwrap_or(64);
         let res = self.tx_buffer.dequeue_with(|remote_endpoint, packet_buf| {
+            /*
             net_trace!(
                 "icmp:{}: sending {} octets",
                 remote_endpoint,
                 packet_buf.len()
             );
+            */
             match *remote_endpoint {
                 #[cfg(feature = "proto-ipv4")]
                 IpAddress::Ipv4(dst_addr) => {
