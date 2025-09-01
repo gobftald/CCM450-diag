@@ -14,6 +14,29 @@ extern crate console;
 mod uart;
 mod udp;
 
+// we can use NoopRawMutex since we use channel between two tasks in the same executor,
+// in single core environment and not using from interrupt
+//use esp_hal::sync::RawMutex;
+use embassy_sync::{blocking_mutex::raw::NoopRawMutex, zerocopy_channel::Channel};
+
+const CHANNEL_ITEM_SIZE: usize = 64;
+const CHANNEL_ITEMS_MAX: usize = 1;
+
+#[derive(Clone, Copy)]
+pub struct ChannelItem {
+    pub size: usize,
+    pub data: [u8; CHANNEL_ITEM_SIZE - size_of::<usize>()],
+}
+
+impl ChannelItem {
+    const fn empty() -> Self {
+        Self {
+            size: 0,
+            data: [0; CHANNEL_ITEM_SIZE - size_of::<usize>()],
+        }
+    }
+}
+
 use core::cell::OnceCell;
 #[macro_export]
 macro_rules! mk_static {
@@ -56,7 +79,7 @@ async fn main(spawner: embassy_executor::Spawner) {
 
     let seed = (rng.random() as u64) << 32 | rng.random() as u64;
 
-    // Init network stack
+    // Init AP network stack
     use embassy_net::StackResources;
     let (ap_stack, ap_runner) = embassy_net::new(
         wifi_ap_device,
@@ -66,11 +89,36 @@ async fn main(spawner: embassy_executor::Spawner) {
     );
     // EOF WIFI setup
 
+    // Init communication back and forth channel between udp and uart task
+    let udp2uart_buffer = mk_static!(
+        [ChannelItem; CHANNEL_ITEMS_MAX],
+        [ChannelItem::empty(); CHANNEL_ITEMS_MAX]
+    );
+    let udp2uart_channel = mk_static!(
+        Channel<'_, NoopRawMutex, ChannelItem>,
+        Channel::new(udp2uart_buffer)
+    );
+    let (udp_sender, uart_receiver) = udp2uart_channel.split();
+
+    let uart2udp_buffer = mk_static!(
+        [ChannelItem; CHANNEL_ITEMS_MAX],
+        [ChannelItem::empty(); CHANNEL_ITEMS_MAX]
+    );
+    let uart2udp_channel = mk_static!(
+        Channel<'_, NoopRawMutex, ChannelItem>,
+        Channel::new(uart2udp_buffer)
+    );
+    let (uart_sender, udp_receiver) = uart2udp_channel.split();
+
+    // spawn tasks
     spawner
-        .spawn(udp::server(
-            spawner,
-            controller,
-            ap_stack,
+        .spawn(udp::server(controller, ap_stack, udp_sender, udp_receiver))
+        .ok();
+
+    spawner
+        .spawn(uart::client(
+            uart_sender,
+            uart_receiver,
             peripherals.UART0,
             peripherals.GPIO21,
             peripherals.GPIO20,

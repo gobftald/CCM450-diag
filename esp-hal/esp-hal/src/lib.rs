@@ -70,7 +70,7 @@
 #![feature(variant_count)]
 #![allow(static_mut_refs)]
 
-#[macro_use(assert, unreachable, panic, debug, unwrap)]
+#[macro_use(assert, unreachable, panic, debug, trace, unwrap)]
 extern crate console;
 
 #[cfg(riscv)]

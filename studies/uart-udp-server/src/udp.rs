@@ -4,37 +4,20 @@ use embassy_net::udp::UdpMetadata;
 // we can use NoopRawMutex since we use channel between two tasks in the same executor,
 // in single core environment and not using from interrupt
 //use esp_hal::sync::RawMutex;
-use embassy_sync::{blocking_mutex::raw::NoopRawMutex, zerocopy_channel::Channel};
+use embassy_sync::{
+    blocking_mutex::raw::NoopRawMutex,
+    zerocopy_channel::{Receiver, Sender},
+};
 
-const CHANNEL_ITEM_SIZE: usize = 64;
-const CHANNEL_ITEMS_MAX: usize = 1;
-
-pub const UDP_BUFFER_SIZE: usize = CHANNEL_ITEM_SIZE;
+pub const UDP_BUFFER_SIZE: usize = crate::CHANNEL_ITEM_SIZE;
 const UDP_PACKET_MAX: usize = 4;
-
-#[derive(Clone, Copy)]
-pub struct ChannelItem {
-    pub size: u8,
-    pub data: [u8; CHANNEL_ITEM_SIZE - size_of::<u8>()],
-}
-
-impl ChannelItem {
-    const fn empty() -> Self {
-        Self {
-            size: 0,
-            data: [0; CHANNEL_ITEM_SIZE - size_of::<u8>()],
-        }
-    }
-}
 
 #[embassy_executor::task()]
 pub async fn server(
-    spawner: embassy_executor::Spawner,
     mut controller: esp_wifi::wifi::WifiController<'static>,
     ap_stack: embassy_net::Stack<'static>,
-    uart0: esp_hal::peripherals::UART0<'static>,
-    tx_pin: esp_hal::peripherals::GPIO21<'static>,
-    rx_pin: esp_hal::peripherals::GPIO20<'static>,
+    mut uart_sender: Sender<'static, NoopRawMutex, crate::ChannelItem>,
+    mut uart_receiver: Receiver<'static, NoopRawMutex, crate::ChannelItem>,
 ) {
     // config AP and start WiFi
     let client_config =
@@ -65,55 +48,33 @@ pub async fn server(
     );
     ap_udp_server_socket.bind(19924).unwrap();
 
-    // configure UART
-    let config = esp_hal::uart::Config::default();
-    let mut uart0 = unwrap!(esp_hal::uart::Uart::new(uart0, config))
-        .with_tx(tx_pin)
-        .with_rx(rx_pin);
-    uart0.set_at_cmd(esp_hal::uart::AtCmdConfig::default());
-    let (rx, mut tx) = uart0.split();
-
-    // Channel Setup for communication with UART
-    use crate::mk_static;
-    use core::cell::OnceCell;
-
-    let uart2udp_buffer = mk_static!(
-        [ChannelItem; CHANNEL_ITEMS_MAX],
-        [ChannelItem::empty(); CHANNEL_ITEMS_MAX]
-    );
-    let uart2udp_channel = mk_static!(
-        Channel<'_, NoopRawMutex, ChannelItem>,
-        Channel::new(uart2udp_buffer)
-    );
-    let (sender, mut receiver) = uart2udp_channel.split();
-
-    // spawn UART client task
-    spawner.spawn(crate::uart::client(rx, sender)).ok();
-
-    let mut buf: [u8; UDP_BUFFER_SIZE] = [0; UDP_BUFFER_SIZE];
     let mut end_point: Option<UdpMetadata> = None;
 
     loop {
+        // wait for the channel to clear
+        let sending_item = uart_sender.send().await;
+
         // waiting for request or response
-        match select(ap_udp_server_socket.recv_from(&mut buf), receiver.receive()).await {
+        match select(
+            ap_udp_server_socket.recv_from(&mut sending_item.data),
+            uart_receiver.receive(),
+        )
+        .await
+        {
             // UDP request arrived
             Either::First(result) => {
-                debug!("#### Either::First");
-                let (size, ep) = result.unwrap();
-
-                // Forward request via Uart
-                unwrap!(tx.write_async(&buf[..size]).await);
-                unwrap!(tx.flush_async().await);
-                debug!("uart sent");
-
-                // save end point
+                //debug!("#### UDP: ap_udp_server_socket.recv_from()");
+                let (n, ep) = result.unwrap();
+                sending_item.size = n;
                 end_point = Some(ep);
+                // forward request to uart
+                uart_sender.send_done();
             }
 
             // Uart answer arrived
             Either::Second(received_item) => {
-                debug!("#### Either::Second");
-                // forward response via UDP
+                //debug!("#### UDP: uart_receiver.receive()");
+                // forward response to UDP
                 if let Some(end_point) = end_point {
                     ap_udp_server_socket
                         .send_to(
@@ -123,8 +84,8 @@ pub async fn server(
                         .await
                         .unwrap();
                 }
-                debug!("#### udp sent");
-                receiver.receive_done();
+                //debug!("#### UDP ap_udp_server_socket.send_to()");
+                uart_receiver.receive_done();
             }
         };
 

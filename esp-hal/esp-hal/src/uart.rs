@@ -634,7 +634,7 @@ impl<'d> UartRx<'d> {
             }
 
             let events = UartRxFuture::new(self.uart.reborrow(), events).await;
-            debug!("UartRxFuture returned with events: {}", events);
+            trace!("#### UartRxFuture returned with events: {}", events);
 
             // ignore FifoFull, CmdCharDetected and FifoTout, all others are error
             let result = rx_event_check_for_error(events);

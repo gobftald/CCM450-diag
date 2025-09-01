@@ -1099,8 +1099,7 @@ pub(crate) fn esp_wifi_send_data(mode: WifiDeviceMode, data: &mut [u8]) {
         warn!("esp_wifi_internal_tx {}", res);
         decrement_inflight_counter();
     } else {
-        //trace!("esp_wifi_internal_tx ok");
-        info!("esp_wifi_internal_tx ok");
+        trace!("esp_wifi_internal_tx ok");
     }
 }
 
