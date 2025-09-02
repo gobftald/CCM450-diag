@@ -47,6 +47,7 @@ pub async fn client(
             }
 
             Either::Second(result) => {
+                crate::debug_pin::debug_pin(0);
                 // forward response to udp
                 response_item.size = result.unwrap();
                 /*

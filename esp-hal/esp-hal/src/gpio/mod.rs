@@ -79,6 +79,16 @@ pub enum Level {
     High,
 }
 
+// 212
+impl From<Level> for bool {
+    fn from(level: Level) -> bool {
+        match level {
+            Level::Low => false,
+            Level::High => true,
+        }
+    }
+}
+
 /// Pull setting for a GPIO.
 #[derive(Debug, Eq, PartialEq, Copy, Clone, Hash)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -578,6 +588,76 @@ impl Default for OutputConfig {
     }
 }
 
+/// Push-pull digital output.
+///
+/// This driver configures the GPIO pin to be an output driver.
+#[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+// 1049
+pub struct Output<'d> {
+    pin: Flex<'d>,
+}
+
+impl<'d> Output<'d> {
+    /// Creates a new GPIO output driver.
+    ///
+    /// The `initial_level` parameter sets the initial output level of the pin.
+    /// The `config` parameter sets the drive mode, drive strength, and pull
+    /// direction of the pin.
+    ///
+    /// ## Example
+    ///
+    /// The following example configures `GPIO5` to pulse a LED once. The
+    /// example assumes that the LED is connected such that it is on when
+    /// the pin is low.
+    ///
+    /// ```rust, no_run
+    /// use esp_hal::gpio::{Level, Output, OutputConfig};
+    /// use esp_hal::delay::Delay;
+    ///
+    /// fn blink_once(led: &mut Output<'_>, delay: &mut Delay) {
+    ///     led.set_low();
+    ///     delay.delay_millis(500);
+    ///     led.set_high();
+    /// }
+    ///
+    /// let config = OutputConfig::default();
+    /// let mut led = Output::new(peripherals.GPIO5, Level::High, config);
+    /// let mut delay = Delay::new();
+    ///
+    /// blink_once(&mut led, &mut delay);
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[inline]
+    // 1089
+    pub fn new(pin: impl OutputPin + 'd, initial_level: Level, config: OutputConfig) -> Self {
+        // Set up the pin
+        let mut this = Self {
+            pin: Flex::new(pin),
+        };
+        this.set_level(initial_level);
+        this.apply_config(&config);
+        this.pin.pin.set_output_enable(true);
+
+        this
+    }
+
+    /// Change the configuration.
+    #[inline]
+    // 1127
+    pub fn apply_config(&mut self, config: &OutputConfig) {
+        self.pin.apply_output_config(config)
+    }
+
+    /// Set the output level.
+    #[inline]
+    // 1145
+    pub fn set_level(&mut self, level: Level) {
+        self.pin.set_level(level)
+    }
+}
+
 /// Input pin configuration.
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 //#[derive(Debug, Clone, Copy, PartialEq, Eq, procmacros::BuilderLite)]
@@ -601,6 +681,58 @@ impl InputConfig {
 impl Default for InputConfig {
     fn default() -> Self {
         Self { pull: Pull::None }
+    }
+}
+
+/// Flexible pin driver.
+///
+/// This pin driver can act as either input, or output, or both at the same
+/// time. The input and output are (not counting the shared pull direction)
+/// separately configurable, and they have independent enable states.
+///
+/// Enabling the input stage does not change the output stage, and vice versa.
+/// Disabling the input or output stages don't forget their configuration.
+/// Disabling the output stage will not change the output level, but it will
+/// disable the driver.
+#[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+// 1447
+pub struct Flex<'d> {
+    pin: AnyPin<'d>,
+}
+
+// 1453
+impl<'d> Flex<'d> {
+    /// Create flexible pin driver for a [Pin].
+    /// No mode change happens.
+    #[inline]
+    // 1458
+    pub fn new(pin: impl Pin + 'd) -> Self {
+        let pin = pin.degrade();
+
+        // Before each use, reset the GPIO to a known state.
+        pin.init_gpio();
+
+        Self { pin }
+    }
+
+    /// Set the output level.
+    #[inline]
+    // 1620
+    pub fn set_level(&mut self, level: Level) {
+        self.pin.set_output_high(level.into());
+    }
+
+    // Output functions
+
+    /// Applies the given output configuration to the pin.
+    ///
+    /// This function does not set the pin to output (i.e. it does not enable
+    /// the output driver). Note that the pull direction is common between
+    /// the input and output configuration.
+    // 1586
+    pub fn apply_output_config(&mut self, config: &OutputConfig) {
+        self.pin.apply_output_config(config);
     }
 }
 

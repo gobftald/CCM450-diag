@@ -86,6 +86,7 @@ pub async fn server(
                 }
                 //debug!("#### UDP ap_udp_server_socket.send_to()");
                 uart_receiver.receive_done();
+                crate::debug_pin::debug_pin(1);
             }
         };
 

@@ -11,6 +11,7 @@ mod panic;
 #[macro_use(core_println, unwrap, debug)] // core_println for panic_handler in mod panic
 extern crate console;
 
+mod debug_pin;
 mod uart;
 mod udp;
 
@@ -109,6 +110,8 @@ async fn main(spawner: embassy_executor::Spawner) {
         Channel::new(uart2udp_buffer)
     );
     let (uart_sender, udp_receiver) = uart2udp_channel.split();
+
+    crate::debug_pin::init_debug_pin(peripherals.GPIO0);
 
     // spawn tasks
     spawner

@@ -43,6 +43,7 @@ crate::peripherals! {
         WIFI <= virtual,
     ],
     pins: [
+        (0, [Input, Output])
         (20, [Input, Output] (0 => U0RXD) ())
         (21, [Input, Output] () (0 => U0TXD))
     ]
