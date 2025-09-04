@@ -66,7 +66,8 @@ pub(crate) mod memory_fence;
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 /// Tunable parameters for the WiFi driver
-#[allow(unused)] // currently there are no ble tunables
+// currently there are no ble tunables
+#[allow(unused)]
 // 182
 struct Config {
     rx_queue_size: usize,

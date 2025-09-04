@@ -8,7 +8,7 @@
 // panic_handler
 mod panic;
 
-#[macro_use(core_println, unwrap, debug)] // core_println for panic_handler in mod panic
+#[macro_use(core_println, unwrap, debug, trace)] // core_println for panic_handler in mod panic
 extern crate console;
 
 mod debug_pin;
@@ -122,9 +122,14 @@ async fn main(spawner: embassy_executor::Spawner) {
         .spawn(uart::client(
             uart_sender,
             uart_receiver,
-            peripherals.UART0,
-            peripherals.GPIO21,
-            peripherals.GPIO20,
+            /*
+            peripherals.UART0.into(),
+            peripherals.GPIO21.into(),
+            peripherals.GPIO20.into(),
+            */
+            peripherals.UART1.into(),
+            peripherals.GPIO2.into(),
+            peripherals.GPIO3.into(),
         ))
         .ok();
 

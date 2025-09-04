@@ -43,6 +43,7 @@ pub(crate) fn io_mux_reg(gpio_num: u8) -> &'static io_mux::GPIO {
 // 73
 pub enum InputSignal {
     U0RXD = 6,
+    U1RXD = 9,
 }
 
 /// Peripheral output signals for the GPIO mux
@@ -53,5 +54,6 @@ pub enum InputSignal {
 // 123
 pub enum OutputSignal {
     U0TXD = 6,
+    U1TXD = 9,
     GPIO = 128,
 }

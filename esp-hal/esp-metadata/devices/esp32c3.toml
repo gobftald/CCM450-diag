@@ -14,6 +14,7 @@ peripherals = [
     "systimer",
     "timg0",
     "uart0",
+    "uart1",
 ]
 
 symbols = [

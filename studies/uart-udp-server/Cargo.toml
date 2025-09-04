@@ -45,7 +45,6 @@ defmt = [
     "console/defmt",
     "esp-hal/defmt",
     "esp-hal-embassy/defmt",
-    "esp-hal-embassy/defmt",
     "embassy-executor/defmt",
     "embassy-time/defmt",
     "embassy-time/defmt-timestamp-uptime",

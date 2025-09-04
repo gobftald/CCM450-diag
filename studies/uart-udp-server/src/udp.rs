@@ -63,8 +63,14 @@ pub async fn server(
         {
             // UDP request arrived
             Either::First(result) => {
-                //debug!("#### UDP: ap_udp_server_socket.recv_from()");
                 let (n, ep) = result.unwrap();
+
+                trace!(
+                    "#### UDP: ap_udp_server_socket.recv_from(): size: {} data: {}",
+                    n,
+                    sending_item.data[..n]
+                );
+
                 sending_item.size = n;
                 end_point = Some(ep);
                 // forward request to uart
@@ -73,18 +79,20 @@ pub async fn server(
 
             // Uart answer arrived
             Either::Second(received_item) => {
-                //debug!("#### UDP: uart_receiver.receive()");
+                trace!(
+                    "#### UDP: uart_receiver.receive(): : size: {}",
+                    received_item.size
+                );
+
                 // forward response to UDP
                 if let Some(end_point) = end_point {
                     ap_udp_server_socket
-                        .send_to(
-                            &received_item.data[..received_item.size as usize],
-                            end_point,
-                        )
+                        .send_to(&received_item.data[..received_item.size], end_point)
                         .await
                         .unwrap();
                 }
-                //debug!("#### UDP ap_udp_server_socket.send_to()");
+                debug!("ap_udp_server_socket.send_to() returned");
+
                 uart_receiver.receive_done();
                 crate::debug_pin::debug_pin(1);
             }

@@ -88,7 +88,7 @@ impl TimerGroupInstance for TIMG0<'_> {
                     (*<Self as TimerGroupInstance>::register_block())
                         .t(0)
                         .config()
-                        .modify(|_, w| w.use_xtal().clear_bit());
+                        .modify(|_, w| w.use_xtal().clear_bit());   // use APB
                 }
             } else if #[cfg(any(esp32c6, esp32h2))] {
                 crate::peripherals::PCR::regs()

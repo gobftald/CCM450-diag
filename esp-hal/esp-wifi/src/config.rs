@@ -1,7 +1,8 @@
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 /// Tunable parameters for the WiFi driver
-#[allow(unused)] // currently there are no ble tunables
+// currently there are no ble tunables
+#[allow(unused)]
 // 5
 pub(crate) struct EspWifiConfig {
     /// Size of the RX queue in frames

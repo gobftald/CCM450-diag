@@ -429,6 +429,24 @@ impl Deref for UART0 {
 }
 pub mod uart0;
 
+/// UART (Universal Asynchronous Receiver-Transmitter) Controller 1
+pub struct UART1 {
+    _marker: PhantomData<*const ()>,
+}
+unsafe impl Send for UART1 {}
+impl UART1 {
+    /// Pointer to the register block
+    pub const PTR: *const uart0::RegisterBlock = 0x6001_0000 as *const _;
+}
+impl Deref for UART1 {
+    type Target = uart0::RegisterBlock;
+    #[inline(always)]
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*Self::PTR }
+    }
+}
+pub use self::uart0 as uart1;
+
 /// I2C_MST_ANA Peripheral
 // 2051
 pub struct I2C_ANA_MST {

@@ -42,7 +42,7 @@ use crate::{
     pac::uart0::RegisterBlock,
     peripherals::Interrupt,
     private::OnDrop,
-    system::PeripheralClockControl,
+    system::{PeripheralClockControl, PeripheralGuard},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -213,6 +213,11 @@ impl Config {
         }
         Ok(())
     }
+
+    pub fn with_baudrate(mut self, baudrate: u32) -> Self {
+        self.baudrate = baudrate;
+        self
+    }
 }
 
 /// UART Receive part configuration.
@@ -266,6 +271,7 @@ impl Default for TxConfig {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[non_exhaustive]
+// 404
 pub struct AtCmdConfig {
     /// Optional idle time before the AT command detection begins, in clock
     /// cycles.
@@ -282,6 +288,7 @@ pub struct AtCmdConfig {
     char_num: u8,
 }
 
+// 420
 impl Default for AtCmdConfig {
     fn default() -> Self {
         Self {
@@ -323,20 +330,21 @@ impl<'d> UartBuilder<'d> {
     // 448
     //fn init(self, config: Config) -> Result<Uart<'d, Dm>, ConfigError> {}
     fn init(self, config: Config) -> Result<Uart<'d>, ConfigError> {
+        let rx_guard = PeripheralGuard::new(self.uart.parts().0.peripheral);
+        let tx_guard = PeripheralGuard::new(self.uart.parts().0.peripheral);
+
         let tx_pin = PinGuard::new_unconnected(self.uart.info().tx_signal);
 
         let mut serial = Uart {
             rx: UartRx {
                 uart: unsafe { self.uart.clone_unchecked() },
                 //phantom: PhantomData,
-                // Uart0 is KEEP_ENABLED
-                //guard: rx_guard,
+                _guard: rx_guard,
             },
             tx: UartTx {
                 uart: self.uart,
                 //phantom: PhantomData
-                // Uart0 is KEEP_ENABLED,
-                //guard: tx_guard,
+                _guard: tx_guard,
                 //rts_pin,
                 tx_pin,
             },
@@ -365,8 +373,7 @@ pub struct Uart<'d> {
 pub struct UartTx<'d> {
     uart: AnyUart<'d>,
     //phantom: PhantomData<Dm>,
-    // Uart0 is KEEP_ENABLED
-    //guard: PeripheralGuard,
+    _guard: PeripheralGuard,
     //rts_pin: PinGuard,
     tx_pin: PinGuard,
 }
@@ -377,8 +384,7 @@ pub struct UartTx<'d> {
 pub struct UartRx<'d> {
     uart: AnyUart<'d>,
     //phantom: PhantomData<Dm>,
-    // Uart0 is KEEP_ENABLED
-    //guard: PeripheralGuard,
+    _guard: PeripheralGuard,
 }
 
 /// A configuration error.
@@ -1007,6 +1013,11 @@ impl<'d> Uart<'d> {
         self.tx.uart.info().set_async_interrupt_handler();
     }
 
+    // 1748
+    fn is_instance(&self, other: impl Instance) -> bool {
+        self.tx.uart.info().is_instance(other)
+    }
+
     #[inline(always)]
     // 1753
     fn uart_peripheral_reset(&self) {
@@ -1022,11 +1033,9 @@ impl<'d> Uart<'d> {
         // see https://github.com/espressif/esp-idf/blob/5f4249357372f209fdd57288265741aaba21a2b1/components/esp_driver_uart/src/uart.c#L179
         // I should check it after installation whether it is a real problem
         // since we use SERIAL_JTAG for console
-        /*
         if self.is_instance(unsafe { crate::peripherals::UART0::steal() }) {
             return;
         }
-        */
 
         fn rst_core(_reg_block: &RegisterBlock, _enable: bool) {
             #[cfg(not(any(esp32, esp32s2, esp32c6, esp32h2)))]
@@ -1568,6 +1577,11 @@ impl Info {
         Ok(())
     }
 
+    // 2797
+    fn is_instance(&self, other: impl Instance) -> bool {
+        self == other.info()
+    }
+
     // 2801
     fn sync_regs(&self) {
         sync_regs(self.regs());
@@ -1750,6 +1764,13 @@ impl Info {
     }
 }
 
+// 3220
+impl PartialEq for Info {
+    fn eq(&self, other: &Self) -> bool {
+        core::ptr::eq(self.register_block, other.register_block)
+    }
+}
+
 // 3228
 macro_rules! impl_instance {
     ($inst:ident, $peri:ident, $txd:ident, $rxd:ident) => {
@@ -1784,6 +1805,7 @@ macro_rules! impl_instance {
 
 // 3260
 impl_instance!(UART0, Uart0, U0TXD, U0RXD);
+impl_instance!(UART1, Uart1, U1TXD, U1RXD);
 
 // 3265
 crate::any_peripheral! {
@@ -1791,6 +1813,8 @@ crate::any_peripheral! {
     pub peripheral AnyUart<'d> {
         #[cfg(uart0)]
         Uart0(crate::peripherals::UART0<'d>),
+        #[cfg(uart1)]
+        Uart1(crate::peripherals::UART1<'d>),
     }
 }
 
@@ -1802,6 +1826,8 @@ impl Instance for AnyUart<'_> {
         match &self.0 {
             #[cfg(uart0)]
             AnyUartInner::Uart0(uart) => uart.parts(),
+            #[cfg(uart1)]
+            AnyUartInner::Uart1(uart) => uart.parts(),
         }
     }
 }

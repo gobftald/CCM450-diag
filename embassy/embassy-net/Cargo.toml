@@ -13,7 +13,7 @@ smoltcp = { path = "../../smoltcp/smoltcp", default-features = false, features =
 allocator-api2 = { path = "../../allocator-api2", features = ["alloc"] }
 
 [features]
-defmt = ["dep:defmt", "embassy-net-driver/defmt", "smoltcp/defmt"]
+defmt = ["dep:defmt", "embassy-net-driver/defmt", "smoltcp/defmt", "allocator-api2/defmt"]
 
 ## Trace all raw received and transmitted packets using defmt or log.
 packet-trace = []

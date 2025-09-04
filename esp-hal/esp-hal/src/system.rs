@@ -24,6 +24,11 @@ pub enum Peripheral {
     // 89
     Uart0,
 
+    /// UART1 peripheral.
+    // 91
+    #[cfg(uart1)]
+    Uart1,
+
     /// Systimer peripheral.
     #[cfg(systimer)]
     // 119
@@ -49,6 +54,9 @@ impl Peripheral {
         #[cfg(uart0)]
         // 186
         Self::Uart0,
+        #[cfg(uart1)]
+        // 188
+        Self::Uart1,
         #[cfg(systimer)]
         // 206
         Self::Systimer,
@@ -69,6 +77,38 @@ pub(crate) fn disable_peripherals() {
             PeripheralClockControl::enable_internal(*p, false);
         }
     })
+}
+
+#[derive(Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+// 2424
+pub(crate) struct PeripheralGuard {
+    peripheral: Peripheral,
+}
+
+// 246
+impl PeripheralGuard {
+    pub(crate) fn new_with(p: Peripheral, init: fn()) -> Self {
+        if !Peripheral::KEEP_ENABLED.contains(&p) && PeripheralClockControl::enable(p) {
+            PeripheralClockControl::reset(p);
+            init();
+        }
+
+        Self { peripheral: p }
+    }
+
+    pub(crate) fn new(p: Peripheral) -> Self {
+        Self::new_with(p, || {})
+    }
+}
+
+// 261
+impl Drop for PeripheralGuard {
+    fn drop(&mut self) {
+        if !Peripheral::KEEP_ENABLED.contains(&self.peripheral) {
+            PeripheralClockControl::disable(self.peripheral);
+        }
+    }
 }
 
 /// Controls the enablement of peripheral clocks.
@@ -104,6 +144,12 @@ impl PeripheralClockControl {
             // 444
             Peripheral::Uart0 => {
                 perip_clk_en0.modify(|_, w| w.uart_clk_en().bit(enable));
+            }
+
+            #[cfg(uart1)]
+            // 448
+            Peripheral::Uart1 => {
+                perip_clk_en0.modify(|_, w| w.uart1_clk_en().bit(enable));
             }
 
             #[cfg(systimer)]
@@ -145,6 +191,13 @@ impl PeripheralClockControl {
                 perip_rst_en0.modify(|_, w| w.uart_rst().clear_bit());
             }
 
+            #[cfg(uart1)]
+            // 658
+            Peripheral::Uart1 => {
+                perip_rst_en0.modify(|_, w| w.uart1_rst().set_bit());
+                perip_rst_en0.modify(|_, w| w.uart1_rst().clear_bit());
+            }
+
             #[cfg(systimer)]
             // 698
             Peripheral::Systimer => {
@@ -159,8 +212,21 @@ impl PeripheralClockControl {
 impl PeripheralClockControl {
     /// Enables the given peripheral.
     // 1097
-    pub(crate) fn enable(peripheral: Peripheral) {
+    pub(crate) fn enable(peripheral: Peripheral) -> bool {
         critical_section::with(|_| Self::enable_internal(peripheral, true));
+        // we don't use 'force' and PERIPHERAL_REF_COUNT
+        // so we always actually enable the peripheral
+        true
+    }
+
+    /// Disables the given peripheral.
+    ///
+    // 1119
+    pub(crate) fn disable(peripheral: Peripheral) -> bool {
+        critical_section::with(|_| Self::enable_internal(peripheral, false));
+        // we don't use 'force' and PERIPHERAL_REF_COUNT
+        // so we always actually disable the peripheral
+        true
     }
 }
 

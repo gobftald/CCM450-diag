@@ -40,11 +40,16 @@ crate::peripherals! {
         SYSTIMER <= SYSTIMER,
         TIMG0 <= TIMG0,
         UART0 <= UART0,
+        UART1 <= UART1,
         WIFI <= virtual,
     ],
     pins: [
-        (0, [Input, Output])
-        (20, [Input, Output] (0 => U0RXD) ())
+        (0, [Input, Output])    // debug pin
+
+        (2, [Input, Output] () (1 => U1TXD))    // 1 for IO_MUX Function 1 (Reference Manual Table 5.3)
+        (3, [Input, Output] (1 => U1RXD) ())
+
+        (20, [Input, Output] (0 => U0RXD) ())   // 0 for IO_MUX Function 0 (Reference Manual Table 5.3)
         (21, [Input, Output] () (0 => U0TXD))
     ]
 }
