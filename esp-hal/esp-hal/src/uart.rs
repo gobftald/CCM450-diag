@@ -297,10 +297,16 @@ impl Default for AtCmdConfig {
             //post_idle_count: None, // default is 0x901
             post_idle_count: Some(0),
             gap_timeout: None, // default is 11
-            //cmd_char: b'+',
-            cmd_char: b'\r',
+            cmd_char: b'+',
             char_num: 1,
         }
+    }
+}
+
+impl AtCmdConfig {
+    pub fn with_cmd_char(mut self, cmd_char: u8) -> Self {
+        self.cmd_char = cmd_char;
+        self
     }
 }
 
@@ -640,7 +646,7 @@ impl<'d> UartRx<'d> {
             }
 
             let events = UartRxFuture::new(self.uart.reborrow(), events).await;
-            trace!("#### UartRxFuture returned with events: {}", events);
+            info!("#### UartRxFuture returned with events: {}", events);
 
             // ignore FifoFull, CmdCharDetected and FifoTout, all others are error
             let result = rx_event_check_for_error(events);
