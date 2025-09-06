@@ -34,6 +34,7 @@
     *(.text.*smoltcp*socket*udp*Socket*recv_slice*)
     *(.text.*smoltcp*socket*udp*Socket*register_recv_waker*)
     *(.text.*smoltcp*socket*udp*Socket*register_send_waker*)
+    *(.text.*smoltcp*socket*udp*Socket*send_slice*)
     *(.text.*smoltcp*socket*waker*WakerRegistration*wake*)
     
     *(.text.*smoltcp*storage*packet_buffer*PacketBuffer*enqueue*)

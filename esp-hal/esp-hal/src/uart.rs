@@ -1014,9 +1014,12 @@ impl<'d> Uart<'d> {
     }
 
     // 1748
+    /*
+    #[cfg(uart0)]
     fn is_instance(&self, other: impl Instance) -> bool {
         self.tx.uart.info().is_instance(other)
     }
+    */
 
     #[inline(always)]
     // 1753
@@ -1033,9 +1036,12 @@ impl<'d> Uart<'d> {
         // see https://github.com/espressif/esp-idf/blob/5f4249357372f209fdd57288265741aaba21a2b1/components/esp_driver_uart/src/uart.c#L179
         // I should check it after installation whether it is a real problem
         // since we use SERIAL_JTAG for console
+        /*
+        #[cfg(uart0)]
         if self.is_instance(unsafe { crate::peripherals::UART0::steal() }) {
             return;
         }
+        */
 
         fn rst_core(_reg_block: &RegisterBlock, _enable: bool) {
             #[cfg(not(any(esp32, esp32s2, esp32c6, esp32h2)))]
@@ -1578,9 +1584,11 @@ impl Info {
     }
 
     // 2797
+    /*
+    #[cfg(uart0)]
     fn is_instance(&self, other: impl Instance) -> bool {
         self == other.info()
-    }
+    */
 
     // 2801
     fn sync_regs(&self) {
@@ -1804,15 +1812,17 @@ macro_rules! impl_instance {
 }
 
 // 3260
-impl_instance!(UART0, Uart0, U0TXD, U0RXD);
+//impl_instance!(UART0, Uart0, U0TXD, U0RXD);
 impl_instance!(UART1, Uart1, U1TXD, U1RXD);
 
 // 3265
 crate::any_peripheral! {
     /// Any UART peripheral.
     pub peripheral AnyUart<'d> {
+        /*
         #[cfg(uart0)]
         Uart0(crate::peripherals::UART0<'d>),
+        */
         #[cfg(uart1)]
         Uart1(crate::peripherals::UART1<'d>),
     }
@@ -1824,8 +1834,10 @@ impl Instance for AnyUart<'_> {
     // 3279
     fn parts(&self) -> (&'static Info, &'static State) {
         match &self.0 {
+            /*
             #[cfg(uart0)]
             AnyUartInner::Uart0(uart) => uart.parts(),
+            */
             #[cfg(uart1)]
             AnyUartInner::Uart1(uart) => uart.parts(),
         }

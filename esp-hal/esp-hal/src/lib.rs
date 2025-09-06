@@ -104,7 +104,8 @@ pub mod time;
 mod macros;
 
 // 230
-#[cfg(any(uart0, uart1))]
+//#[cfg(any(uart0, uart1))]
+#[cfg(uart1)]
 pub mod uart;
 
 // 234

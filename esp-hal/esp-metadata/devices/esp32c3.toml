@@ -13,7 +13,6 @@ peripherals = [
     "system",
     "systimer",
     "timg0",
-    "uart0",
     "uart1",
 ]
 

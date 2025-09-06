@@ -33,9 +33,35 @@
         *(.text.*esp_hal*timer*PeriodicTimer*)
         *(.text.*esp_hal*TIMG0*)
 
+        *(.text.*esp_hal*uart*UartBuilder*init*)
+        *(.text.*esp_hal*uart*UartTx*flush_last_byte*)
+        *(.text.*esp_hal*uart*UartRx*apply_config*)
+        *(.text.*esp_hal*uart*Uart*apply_config*)
+        *(.text.*esp_hal*uart*Uart*set_at_cmd*)
+        *(.text.*esp_hal*uart*Uart*with_tx*)
+        *(.text.*esp_hal*uart*rx_event_check_for_error*)
+        *(.text.*esp_hal*uart*Info*set_rx_fifo_full_threshold*)
+        *(.text.*esp_hal*uart*Info*rx_fifo_full_threshold*)
+        *(.text.*esp_hal*uart*Info*rxfifo_reset*)
+        *(.text.*esp_hal*uart*Info*tx_fifo_count*)
+        *(.text.*esp_hal*uart*Info*rx_fifo_count*)
+        *(.text.*esp_hal*uart*Info*read_buffered*)
+        *(.text.*esp_hal*uart*UartRxFuture*as*core*future*future*Future*poll*)
+        *(.text.*esp_hal*uart*UartTxFuture*as*core*future*future*Future*poll*)
+        *(.text.*esp_hal*uart*UartTxFuture*as*core*ops*drop*Drop*drop*)
+
+        *(.text.*esp_hal*gpio*GpioBank*write_out_en*)
+        *(.text.*esp_hal*gpio*GpioBank*write_output*)
+        *(.text.*esp_hal*gpio*Flex*apply_output_config*)
+        *(.text.*esp_hal*gpio*is_int_enabled*)
+        *(.text.*esp_hal*gpio*PinGuard*as*core*ops*drop*Drop*drop*)
+        *(.text.*esp_hal*gpio*interconnect*InputSignal*as*PeripheralSignal*connect_input_to_peripheral*)
+        *(.text.*esp_hal*gpio*interconnect*OutputSignal*as*PeripheralSignal*connect_input_to_peripheral*)
+        *(.text.*esp_hal*gpio*interconnect*OutputSignal*connect_with_guard*)
+
         *(.text.*esp_hal*rtc_cntl*)
 
-        *(.text.*esp_hal*soc*)
+        *(.text.*esp_hal*soc*implementation*)
 
         *(.text.*esp_hal*sync*)
 
@@ -61,6 +87,9 @@
         *(.text.*embassy_net*udp*UdpSocket*poll_recv_from*)
         *(.text.*embassy_net*Stack*is_link_up*)
         *(.text.*embassy_net*Stack*config_v4*)
+        *(.text.*embassy_net*Stack*with_mut*)
+
+        *(.text.*embassy_future*select*Select*)
 
         *(.text.*core*future*poll_fn*PollFn*as*core*future*future*Future*poll*)
         *(.text.*embassy_sync*)
