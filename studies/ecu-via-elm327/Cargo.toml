@@ -31,6 +31,7 @@ default = [
     "esp32c3",
     "console/jtag_serial",
     "defmt",
+    "ecu",
 ]
 
 esp32c3 = [
@@ -55,3 +56,18 @@ defmt = [
 
 backtrace = ["dep:esp-backtrace"]       # needs "-C", "force-frame-pointers" rustflag in config.toml
                                         # needs to comment build-std-features = ["panic_immediate_abort"] out
+
+## ECU related features
+##
+# supported ECUs
+ccm450 = ["elm327", "kwp2000"]
+
+# ECU adapters
+elm327 = []
+l9637 = []
+
+# ECU protocols
+kwp2000 = []
+
+# selected ECU
+ecu = ["ccm450"]

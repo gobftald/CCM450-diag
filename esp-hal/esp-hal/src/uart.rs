@@ -491,6 +491,12 @@ impl<'d> UartTx<'d> {
 
         Ok(())
     }
+
+    pub async fn write_flush_async(&mut self, bytes: &[u8]) -> Result<usize, TxError> {
+        let res = self.write_async(bytes).await?;
+        self.flush_async().await?;
+        Ok(res)
+    }
 }
 
 // 738

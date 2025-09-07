@@ -10,6 +10,8 @@ use embassy_sync::{
 
 use esp_hal::{gpio::AnyPin, uart::AnyUart};
 
+use crate::ecu::*;
+
 #[embassy_executor::task()]
 pub async fn client(
     mut udp_sender: Sender<'static, NoopRawMutex, crate::ChannelItem>,
@@ -43,14 +45,6 @@ pub async fn client(
                     "#### UART: udp_receiver.receive(): size: {}",
                     received_item.size
                 );
-
-                // forward request to uart
-                unwrap!(
-                    tx.write_async(&received_item.data[..received_item.size])
-                        .await
-                );
-                unwrap!(tx.flush_async().await);
-                trace!("#### UART: tx.write_async()");
 
                 udp_receiver.receive_done();
             }

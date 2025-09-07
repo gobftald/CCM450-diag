@@ -12,7 +12,9 @@ mod panic;
 extern crate console;
 
 mod debug_pin;
-mod uart;
+mod ecu;
+mod ecu_adapter;
+mod ecu_protocol;
 mod udp;
 
 // we can use NoopRawMutex since we use channel between two tasks in the same executor,
@@ -91,25 +93,38 @@ async fn main(spawner: embassy_executor::Spawner) {
     // EOF WIFI setup
 
     // Init communication back and forth channel between udp and uart task
-    let udp2uart_buffer = mk_static!(
+    let udp2ecu_buffer = mk_static!(
         [ChannelItem; CHANNEL_ITEMS_MAX],
         [ChannelItem::empty(); CHANNEL_ITEMS_MAX]
     );
-    let udp2uart_channel = mk_static!(
+    let udp2ecu_channel = mk_static!(
         Channel<'_, NoopRawMutex, ChannelItem>,
-        Channel::new(udp2uart_buffer)
+        Channel::new(udp2ecu_buffer)
     );
-    let (udp_sender, uart_receiver) = udp2uart_channel.split();
+    let (udp_sender, ecu_receiver) = udp2ecu_channel.split();
 
-    let uart2udp_buffer = mk_static!(
+    let ecu2udp_buffer = mk_static!(
         [ChannelItem; CHANNEL_ITEMS_MAX],
         [ChannelItem::empty(); CHANNEL_ITEMS_MAX]
     );
-    let uart2udp_channel = mk_static!(
+    let ecu2udp_channel = mk_static!(
         Channel<'_, NoopRawMutex, ChannelItem>,
-        Channel::new(uart2udp_buffer)
+        Channel::new(ecu2udp_buffer)
     );
-    let (uart_sender, udp_receiver) = uart2udp_channel.split();
+    let (ecu_sender, udp_receiver) = ecu2udp_channel.split();
+
+    // initialize ECU specific adapter
+    #[cfg(any(feature = "elm327", feature = "l9637"))]
+    let ecu_adapter = ecu_adapter::Adapter::new(
+        /*
+        peripherals.UART0.into(),
+        peripherals.GPIO21.into(),
+        peripherals.GPIO20.into(),
+        */
+        peripherals.UART1.into(),
+        peripherals.GPIO2.into(),
+        peripherals.GPIO3.into(),
+    );
 
     crate::debug_pin::init_debug_pin(peripherals.GPIO0);
 
@@ -119,18 +134,7 @@ async fn main(spawner: embassy_executor::Spawner) {
         .ok();
 
     spawner
-        .spawn(uart::client(
-            uart_sender,
-            uart_receiver,
-            /*
-            peripherals.UART0.into(),
-            peripherals.GPIO21.into(),
-            peripherals.GPIO20.into(),
-            */
-            peripherals.UART1.into(),
-            peripherals.GPIO2.into(),
-            peripherals.GPIO3.into(),
-        ))
+        .spawn(ecu::server(ecu_sender, ecu_receiver, ecu_adapter))
         .ok();
 
     spawner.spawn(net_task(ap_runner)).ok();
