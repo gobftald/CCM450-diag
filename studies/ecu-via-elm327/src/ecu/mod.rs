@@ -1,5 +1,6 @@
 #[cfg_attr(feature = "ccm450", path = "ccm450.rs")]
-mod ecu;
+mod ecu_implementation;
+use ecu_implementation::ECU;
 
 use embassy_futures::select::{Either, select};
 // we can use NoopRawMutex since we use channel between two tasks in the same executor,
@@ -11,6 +12,9 @@ use embassy_sync::{
 };
 
 // arbitrary high-level ECU commands
+
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(strum_macros::FromRepr)]
 enum Request {
     Connect,
     Disconnect,
@@ -18,17 +22,15 @@ enum Request {
     LiveDataStop,
 }
 
-enum Response {
-    Ok,
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+enum EcuError {
+    InvalidRequest,
+    CommunicationFailed,
 }
 
-enum Error {}
-
-trait Ecu {
-    fn new() -> Self;
-    fn connect(&self);
-    fn process_request(&self, req: Request) -> Result<Response, Error>;
-    fn process_response(&self);
+trait Ecus {
+    async fn request(&mut self, request: Request) -> Result<(), EcuError>;
+    async fn response(&mut self, response: &mut [u8]) -> Result<usize, EcuError>;
 }
 
 #[embassy_executor::task()]
@@ -36,13 +38,13 @@ pub async fn server(
     mut sender: Sender<'static, NoopRawMutex, crate::ChannelItem>,
     mut receiver: Receiver<'static, NoopRawMutex, crate::ChannelItem>,
 
-    #[cfg(any(feature = "elm327", feature = "l9637"))] mut adapter: crate::ecu_adapter::Adapter<
+    #[cfg(any(feature = "elm327", feature = "l9637"))] adapter: crate::ecu_adapter::Adapter<
         'static,
     >,
 ) {
     // get a specific ECU
     #[cfg(feature = "ccm450")]
-    let ecu = ecu::ECU::new();
+    let mut ecu = ECU::new(adapter);
 
     // get a fresh channel item to write to
     let mut response_item = sender.send().await;
@@ -50,28 +52,27 @@ pub async fn server(
     response_item.size = 0;
     loop {
         // waiting for request or response
-        match select(
-            receiver.receive(),
-            adapter.read_async(&mut response_item.data),
-        )
-        .await
-        {
+        match select(receiver.receive(), ecu.response(&mut response_item.data)).await {
+            // received an ecu request
             Either::First(received_item) => {
-                trace!("#### ECU: receiver.receive(): size: {}", received_item.size);
-
-                ecu.process_request(Request::Connect);
-
-                unwrap!(
-                    adapter
-                        .write_async(&mut received_item.data[..received_item.size])
-                        .await
+                trace!(
+                    "#### ECU: received {}",
+                    received_item.data[..received_item.size]
                 );
 
-                trace!("#### ECU: tx.write_async()");
+                if received_item.size == 1 {
+                    if let Some(request) = Request::from_repr(received_item.data[0] as usize) {
+                        unwrap!(ecu.request(request).await);
 
+                        trace!("#### ECU: write_async()");
+                    }
+                }
+
+                // we have finished to process request
                 receiver.receive_done();
             }
 
+            // received responss from ecu
             Either::Second(result) => {
                 crate::debug_pin::debug_pin(0);
 
@@ -87,8 +88,6 @@ pub async fn server(
                         response_item.size,
                         &response_item.data[..response_item.size]
                     );
-
-                    ecu.process_response();
 
                     // wake receiver
                     sender.send_done();

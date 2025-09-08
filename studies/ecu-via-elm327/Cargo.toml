@@ -8,6 +8,7 @@ console = { path = "../../console" }
 defmt = { version = "0.3.10", optional = true }
 esp-hal = { path = "../../esp-hal/esp-hal" }
 esp-alloc = { path = "../../esp-hal/esp-alloc" }
+strum_macros = "0.27"
 
 esp-hal-embassy = { path = "../../esp-hal/esp-hal-embassy"  }
 embassy-executor = { path = "../../embassy/embassy-executor" }

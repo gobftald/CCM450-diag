@@ -1,3 +1,5 @@
+use super::*;
+
 use esp_hal::{
     gpio::AnyPin,
     uart::{AnyUart, Config, RxError, TxError, Uart, UartRx, UartTx},
@@ -20,18 +22,14 @@ impl<'a> Adapter<'a> {
 
         Self { rx, tx }
     }
+}
 
-    pub fn read_async(
-        &mut self,
-        response: &mut [u8],
-    ) -> impl Future<Output = Result<usize, RxError>> {
-        self.rx.read_async(response, false)
+impl<'a> Adapters for Adapter<'a> {
+    async fn write_async(&mut self, request: &[u8]) -> Result<usize, TxError> {
+        self.tx.write_async(request).await
     }
 
-    pub fn write_async(
-        &mut self,
-        request: &mut [u8],
-    ) -> impl Future<Output = Result<usize, TxError>> {
-        self.tx.write_flush_async(request)
+    async fn read_async(&mut self, response: &mut [u8]) -> Result<usize, RxError> {
+        self.rx.read_async(response, false).await
     }
 }

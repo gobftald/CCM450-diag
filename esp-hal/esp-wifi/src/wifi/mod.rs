@@ -806,7 +806,7 @@ unsafe extern "C" fn esp_wifi_tx_done_cb(
     _data_len: *mut u16,
     _tx_status: bool,
 ) {
-    trace!("esp_wifi_tx_done_cb");
+    info!("esp_wifi_tx_done_cb");
 
     decrement_inflight_counter();
 
