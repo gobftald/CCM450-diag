@@ -14,8 +14,8 @@ use super::WifiEvent;
 use crate::{
     compat::{
         common::{
-            ConcurrentQueue, create_queue, create_recursive_mutex, delete_queue, lock_mutex,
-            receive_queued, send_queued, str_from_c, thread_sem_get, unlock_mutex,
+            create_queue, create_recursive_mutex, delete_queue, lock_mutex, receive_queued,
+            send_queued, str_from_c, thread_sem_get, unlock_mutex, ConcurrentQueue,
         },
         malloc::calloc,
     },
@@ -75,7 +75,10 @@ pub unsafe extern "C" fn env_is_chip() -> bool {
 pub unsafe extern "C" fn set_intr(cpu_no: i32, intr_source: u32, intr_num: u32, intr_prio: i32) {
     trace!(
         "set_intr {} {} {} {}",
-        cpu_no, intr_source, intr_num, intr_prio
+        cpu_no,
+        intr_source,
+        intr_num,
+        intr_prio
     );
     unsafe {
         crate::wifi::os_adapter::os_adapter_chip_specific::set_intr(

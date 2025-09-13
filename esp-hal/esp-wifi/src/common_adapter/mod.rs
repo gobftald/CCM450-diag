@@ -46,7 +46,7 @@ pub(crate) mod phy_init_data;
 #[allow(unused)]
 // 52
 pub unsafe extern "C" fn semphr_create(max: u32, init: u32) -> *mut crate::binary::c_types::c_void {
-    //strace!("semphr_create - max {} init {}", max, init);
+    //trace!("semphr_create - max {} init {}", max, init);
     sem_create(max, init)
 }
 

@@ -1,5 +1,7 @@
 #![no_std]
 #![allow(non_camel_case_types)]
+#![allow(mismatched_lifetime_syntaxes)]
+
 /// Peripheral access API for ESP32-C3 microcontrollers (generated using svd2rust v0.35.0 ( ))
 ///
 /// You can find an overview of the generated API [here].

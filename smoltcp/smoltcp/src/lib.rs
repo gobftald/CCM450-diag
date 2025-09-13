@@ -1,4 +1,5 @@
 #![no_std]
+#![allow(mismatched_lifetime_syntaxes)]
 
 #[allow(unused_imports)]
 #[macro_use(
