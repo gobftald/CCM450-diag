@@ -37,7 +37,7 @@ http://www.cafehusky.com/threads/449-511-communication-with-ecu.39593/page-2#pos
 This community was also suffering from not being able to get any diagnostic
 tools for their motorcycles. Initially, I only suspected that what I learned on
 my CCM450 motorcycle would be relevant here. Later it proved to be true. These
-motorcycles have exactly the same ECU, SW and keys as my motorcycle.
+motorcycles have exactly the same ECU, SW and secret access code as my motorcycle.
 
 ## An implementation plan
 

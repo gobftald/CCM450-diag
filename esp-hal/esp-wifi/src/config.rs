@@ -1,8 +1,7 @@
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 /// Tunable parameters for the WiFi driver
-// currently there are no ble tunables
-#[allow(unused)]
+#[allow(unused)] // currently there are no ble tunables
 // 5
 pub(crate) struct EspWifiConfig {
     /// Size of the RX queue in frames
@@ -55,25 +54,3 @@ pub(crate) struct EspWifiConfig {
     /// 0 = WIFI_FAST_SCAN, 1 = WIFI_ALL_CHANNEL_SCAN, defaults to 0
     pub(crate) scan_method: u32,
 }
-
-//pub const ESP_WIFI_CONFIG_RX_QUEUE_SIZE: usize = 5;
-pub const ESP_WIFI_CONFIG_RX_QUEUE_SIZE: usize = 8;
-pub const ESP_WIFI_CONFIG_TX_QUEUE_SIZE: usize = 3;
-pub const ESP_WIFI_CONFIG_STATIC_RX_BUF_NUM: usize = 10;
-pub const ESP_WIFI_CONFIG_DYNAMIC_RX_BUF_NUM: usize = 32;
-pub const ESP_WIFI_CONFIG_STATIC_TX_BUF_NUM: usize = 0;
-pub const ESP_WIFI_CONFIG_DYNAMIC_TX_BUF_NUM: usize = 32;
-pub const ESP_WIFI_CONFIG_AMPDU_RX_ENABLE: bool = true;
-pub const ESP_WIFI_CONFIG_AMPDU_TX_ENABLE: bool = true;
-pub const ESP_WIFI_CONFIG_AMSDU_TX_ENABLE: bool = false;
-pub const ESP_WIFI_CONFIG_RX_BA_WIN: usize = 6;
-pub const ESP_WIFI_CONFIG_MAX_BURST_SIZE: usize = 1;
-pub const ESP_WIFI_CONFIG_COUNTRY_CODE: &'static str = "HU";
-pub const ESP_WIFI_CONFIG_COUNTRY_CODE_OPERATING_CLASS: u8 = 0;
-pub const ESP_WIFI_CONFIG_MTU: usize = 1492;
-pub const ESP_WIFI_CONFIG_TICK_RATE_HZ: u32 = 100;
-pub const ESP_WIFI_CONFIG_LISTEN_INTERVAL: u16 = 3;
-pub const ESP_WIFI_CONFIG_BEACON_TIMEOUT: u16 = 6;
-pub const ESP_WIFI_CONFIG_AP_BEACON_TIMEOUT: u16 = 300;
-pub const ESP_WIFI_CONFIG_FAILURE_RETRY_CNT: u8 = 1;
-pub const ESP_WIFI_CONFIG_SCAN_METHOD: u32 = 0;

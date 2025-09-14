@@ -1,0 +1,666 @@
+macro_rules! driver_configs {
+    (@ignore $t:tt) => {};
+    (@property (u32)           $self:ident, $config:ident) => { Value::Number($self.$config) };
+    (@property (bool)          $self:ident, $config:ident) => { Value::Boolean($self.$config) };
+    (@property (Option<u32>)   $self:ident, $config:ident) => { Value::from($self.$config) };
+    (@property ($($other:ty)*) $self:ident, $config:ident) => { Value::Unset };  // Not a property
+
+    // Creates a single struct
+    (@one
+        $struct:ident $(<$instance_config:ident>)? ($group:ident) {
+            $(
+                $(#[$meta:meta])? $config:ident: $ty:tt $(<$generic:tt>)?,
+            )*
+        }
+    ) => {
+        #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+        pub(crate) struct $struct {
+            #[serde(default)]
+            pub support_status: SupportStatus,
+            // The list of peripherals for which this driver is implemented.
+            // If empty, the driver supports a single instance only.
+            #[serde(default)]
+            pub instances: Vec<PeriInstance $(<$instance_config>)?>,
+            $(
+                $(#[$meta])?
+                pub $config: $ty $(<$generic>)?
+            ),*
+        }
+
+        impl $struct {
+            fn properties(&self) -> impl Iterator<Item = (&str, Value)> {
+                [$( // for each property, generate a tuple
+                    (
+                        /* name: */  concat!(stringify!($group), ".", stringify!($config)),
+                        /* value: */ driver_configs!(@property ($ty $(<$generic>)?) self, $config),
+                    ),
+                )*].into_iter()
+            }
+        }
+    };
+
+    // Repeat pattern for multiple structs
+    ($(
+        $struct:ident $(<$instance_config:ident>)? {
+            // This name will be emitted as a cfg symbol, to activate a driver.
+            driver: $driver:ident,
+            // Driver name, used in the generated documentation.
+            name: $name:literal,
+            $(has_computed_properties: $computed:literal,)?
+            properties: $tokens:tt
+        },
+    )+) => {
+        // Implement the config driver and DriverConfig trait for each driver
+        $(
+            driver_configs!(@one $struct $(<$instance_config>)? ($driver) $tokens);
+        )+
+
+        // Generate a single PeriConfig struct that contains all the drivers. Each of the
+        // drivers is optional to support devices that may not have all peripherals.
+        #[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize)]
+        pub(crate) struct PeriConfig {
+            $(
+                // Each driver is an optional struct.
+                #[serde(default)]
+                pub(crate) $driver: Option<$struct>,
+            )+
+        }
+
+        impl PeriConfig {
+            pub fn drivers() -> &'static [SupportItem] {
+                &[
+                    $(
+                        SupportItem {
+                            name: $name,
+                            config_group: stringify!($driver),
+                        },
+                    )+
+                ]
+            }
+
+            /// Returns an iterator over all driver names, that are
+            /// available on the selected device.
+            pub fn driver_names(&self) -> impl Iterator<Item = &str> {
+                [$(
+                    self.$driver.as_ref().and_then(|d| {
+                        match d.support_status {
+                            SupportStatus::NotSupported => None,
+                            _ => Some(stringify!($driver)),
+                        }
+                    }),
+                )*].into_iter().flatten()
+            }
+
+            pub fn driver_instances(&self) -> impl Iterator<Item = String> {
+                // Collect into a vector. This compiles faster than chaining iterators.
+                let mut instances = vec![];
+                $(
+                    if let Some(driver) = &self.$driver {
+                        instances.extend(driver.instances.iter().map(|i| {
+                            format!("{}.{}", stringify!($driver), i.name)
+                        }));
+                    }
+                )*
+                instances.into_iter()
+            }
+
+            /// Returns an iterator over all properties of all peripherals.
+            pub fn properties(&self) -> impl Iterator<Item = (&str, Value)> {
+                // Collect into a vector. This compiles faster than chaining iterators.
+                let mut properties = vec![];
+                $(
+                    if let Some(driver) = &self.$driver {
+                        properties.extend(driver.properties());
+                        $(
+                            driver_configs!(@ignore $computed);
+                            properties.extend(driver.computed_properties());
+                        )?
+                    }
+                )*
+                properties.into_iter()
+            }
+
+            /// Returns the support status of a peripheral by its name.
+            pub fn support_status(&self, driver: &str) -> Option<SupportStatus> {
+                match driver {
+                    $(stringify!($driver) => self.$driver.as_ref().map(|p| p.support_status),)*
+                    _ => None, // If the peripheral is not found, return None.
+                }
+            }
+
+            /// Returns the peripheral instances used by the given driver.
+            pub fn driver_peris<'a>(&'a self, driver: &str) -> Vec<&'a str> {
+                match driver {
+                    $(stringify!($driver) => self.$driver.iter().flat_map(|p| p.instances.iter().map(|i| i.name.as_str())).collect::<Vec<_>>(),)*
+                    _ => vec![],
+                }
+            }
+        }
+    };
+}
+
+driver_configs![
+    GpioProperties {
+        driver: gpio,
+        name: "GPIO",
+        has_computed_properties: true,
+        properties: {
+            #[serde(default)]
+            has_bank_1: bool,
+            gpio_function: u32,
+            constant_0_input: u32,
+            constant_1_input: u32,
+            #[serde(default)]
+            remap_iomux_pin_registers: bool,
+            #[serde(default)] // currently 0 in all devices
+            func_in_sel_offset: u32,
+
+            #[serde(flatten)]
+            pins_and_signals: GpioPinsAndSignals,
+        }
+    },
+    ...
+    UartProperties<UartInstanceConfig> {
+        driver: uart,
+        name: "UART",
+        properties: {}
+    },
+];
+
+// GpioProperties
+
+pub(crate) struct GpioProperties {
+    #[serde(default)]
+    pub support_status: SupportStatus,
+    #[serde(default)]
+    pub instances: Vec<PeriInstance>,
+    #[serde(default)]
+    pub has_bank_1: bool,
+    pub gpio_function: u32,
+    pub constant_0_input: u32,
+    pub constant_1_input: u32,
+    #[serde(default)]
+    pub remap_iomux_pin_registers: bool,
+    #[serde(default)]
+    pub func_in_sel_offset: u32,
+    #[serde(flatten)]
+    pub pins_and_signals: GpioPinsAndSignals,
+}
+#[automatically_derived]
+impl ::core::fmt::Debug for GpioProperties {
+    ...
+}
+#[automatically_derived]
+impl ::core::clone::Clone for GpioProperties {
+    ...
+}
+...
+const _: () = {
+        #[allow(unused_extern_crates, clippy::useless_attribute)]
+        extern crate serde as _serde;
+        #[automatically_derived]
+        impl<'de> _serde::Deserialize<'de> for GpioProperties {
+            ...
+        }
+}
+const _: () = {
+        #[allow(unused_extern_crates, clippy::useless_attribute)]
+        extern crate serde as _serde;
+        #[automatically_derived]
+        impl _serde::Serialize for GpioPropertie {
+            ...
+        }
+}
+impl GpioProperties {
+
+....
+
+// e.g.
+pub(crate) struct PeriConfig {
+    #[serde(default)]
+    pub(crate) gpio: Option<GpioProperties>,
+    #[serde(default)]
+    pub(crate) interrupts: Option<InterruptProperties>,
+    #[serde(default)]
+    pub(crate) io_mux: Option<IoMuxProperties>,
+    #[serde(default)]
+    pub(crate) rng: Option<RngProperties>,
+    #[serde(default)]
+    pub(crate) systimer: Option<SysTimerProperties>,
+    #[serde(default)]
+    pub(crate) timergroup: Option<TimersProperties>,
+    #[serde(default)]
+    pub(crate) uart: Option<UartProperties>,
+    #[serde(default)]
+    pub(crate) wifi: Option<WifiProperties>,
+}
+
+#[automatically_derived]
+impl ::core::default::Default for PeriConfig {
+    #[inline]
+    fn default() -> PeriConfig {
+        PeriConfig {
+            gpio: ::core::default::Default::default(),
+            interrupts: ::core::default::Default::default(),
+            io_mux: ::core::default::Default::default(),
+            rng: ::core::default::Default::default(),
+            systimer: ::core::default::Default::default(),
+            timergroup: ::core::default::Default::default(),
+            uart: ::core::default::Default::default(),
+            wifi: ::core::default::Default::default(),
+        }
+    }
+}
+
+#[automatically_derived]
+impl ::core::fmt::Debug for PeriConfig {
+    #[inline]
+    fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        let names: &'static _ = &[
+            "gpio",
+            "interrupts",
+            "io_mux",
+            "rng",
+            "systimer",
+            "timergroup",
+            "uart",
+            "wifi",
+        ];
+        let values: &[&dyn ::core::fmt::Debug] = &[
+            &self.gpio,
+            &self.interrupts,
+            &self.io_mux,
+            &self.rng,
+            &self.systimer,
+            &self.timergroup,
+            &self.uart,
+            &&self.wifi,
+        ];
+        ::core::fmt::Formatter::debug_struct_fields_finish(
+            f,
+            "PeriConfig",
+            names,
+            values,
+        )
+    }
+}
+
+#[automatically_derived]
+impl ::core::clone::Clone for PeriConfig {
+    #[inline]
+    fn clone(&self) -> PeriConfig {
+        PeriConfig {
+            gpio: ::core::clone::Clone::clone(&self.gpio),
+            interrupts: ::core::clone::Clone::clone(&self.interrupts),
+            io_mux: ::core::clone::Clone::clone(&self.io_mux),
+            rng: ::core::clone::Clone::clone(&self.rng),
+            systimer: ::core::clone::Clone::clone(&self.systimer),
+            timergroup: ::core::clone::Clone::clone(&self.timergroup),
+            uart: ::core::clone::Clone::clone(&self.uart),
+            wifi: ::core::clone::Clone::clone(&self.wifi),
+        }
+    }
+}
+
+const _: () = {
+        #[allow(unused_extern_crates, clippy::useless_attribute)]
+        extern crate serde as _serde;
+        #[automatically_derived]
+        impl<'de> _serde::Deserialize<'de> for PeriConfig {
+            ...
+        }
+}
+
+const _: () = {
+        #[allow(unused_extern_crates, clippy::useless_attribute)]
+        extern crate serde as _serde;
+        #[automatically_derived]
+        impl _serde::Serialize for PeriConfig {
+            ...
+        }
+}
+
+impl PeriConfig {
+    pub fn drivers() -> &'static [SupportItem] {
+        &[
+            SupportItem {
+                name: "GPIO",
+                config_group: "gpio",
+            },
+            SupportItem {
+                name: "Interrupts",
+                config_group: "interrupts",
+            },
+            SupportItem {
+                name: "IOMUX",
+                config_group: "io_mux",
+            },
+            SupportItem {
+                name: "RNG",
+                config_group: "rng",
+            },
+            SupportItem {
+                name: "SYSTIMER",
+                config_group: "systimer",
+            },
+            SupportItem {
+                name: "Timers",
+                config_group: "timergroup",
+            },
+            SupportItem {
+                name: "UART",
+                config_group: "uart",
+            },
+            SupportItem {
+                name: "WIFI",
+                config_group: "wifi",
+            },
+        ]
+    }
+
+    /// Returns an iterator over all driver names, that are
+    /// available on the selected device.
+    pub fn driver_names(&self) -> impl Iterator<Item = &str> {
+        [
+            self
+                .gpio
+                .as_ref()
+                .and_then(|d| {
+                    match d.support_status {
+                        SupportStatus::NotSupported => None,
+                        _ => Some("gpio"),
+                    }
+                }),
+            self
+                .interrupts
+                .as_ref()
+                .and_then(|d| {
+                    match d.support_status {
+                        SupportStatus::NotSupported => None,
+                        _ => Some("interrupts"),
+                    }
+                }),
+            self
+                .io_mux
+                .as_ref()
+                .and_then(|d| {
+                    match d.support_status {
+                        SupportStatus::NotSupported => None,
+                        _ => Some("io_mux"),
+                    }
+                }),
+            self
+                .rng
+                .as_ref()
+                .and_then(|d| {
+                    match d.support_status {
+                        SupportStatus::NotSupported => None,
+                        _ => Some("rng"),
+                    }
+                }),
+            self
+                .systimer
+                .as_ref()
+                .and_then(|d| {
+                    match d.support_status {
+                        SupportStatus::NotSupported => None,
+                        _ => Some("systimer"),
+                    }
+                }),
+            self
+                .timergroup
+                .as_ref()
+                .and_then(|d| {
+                    match d.support_status {
+                        SupportStatus::NotSupported => None,
+                        _ => Some("timergroup"),
+                    }
+                }),
+            self
+                .uart
+                .as_ref()
+                .and_then(|d| {
+                    match d.support_status {
+                        SupportStatus::NotSupported => None,
+                        _ => Some("uart"),
+                    }
+                }),
+            self
+                .wifi
+                .as_ref()
+                .and_then(|d| {
+                    match d.support_status {
+                        SupportStatus::NotSupported => None,
+                        _ => Some("wifi"),
+                    }
+                }),
+        ]
+            .into_iter()
+            .flatten()
+    }
+
+    pub fn driver_instances(&self) -> impl Iterator<Item = String> {
+        let mut instances = ::alloc::vec::Vec::new();
+        if let Some(driver) = &self.gpio {
+            instances
+                .extend(
+                    driver
+                        .instances
+                        .iter()
+                        .map(|i| {
+                            ::alloc::__export::must_use({
+                                ::alloc::fmt::format(
+                                    format_args!("{0}.{1}", "gpio", i.name),
+                                )
+                            })
+                        }),
+                );
+        }
+        if let Some(driver) = &self.interrupts {
+            instances
+                .extend(
+                    driver
+                        .instances
+                        .iter()
+                        .map(|i| {
+                            ::alloc::__export::must_use({
+                                ::alloc::fmt::format(
+                                    format_args!("{0}.{1}", "interrupts", i.name),
+                                )
+                            })
+                        }),
+                );
+        }
+        if let Some(driver) = &self.io_mux {
+            instances
+                .extend(
+                    driver
+                        .instances
+                        .iter()
+                        .map(|i| {
+                            ::alloc::__export::must_use({
+                                ::alloc::fmt::format(
+                                    format_args!("{0}.{1}", "io_mux", i.name),
+                                )
+                            })
+                        }),
+                );
+        }
+        if let Some(driver) = &self.rng {
+            instances
+                .extend(
+                    driver
+                        .instances
+                        .iter()
+                        .map(|i| {
+                            ::alloc::__export::must_use({
+                                ::alloc::fmt::format(format_args!("{0}.{1}", "rng", i.name))
+                            })
+                        }),
+                );
+        }
+        if let Some(driver) = &self.systimer {
+            instances
+                .extend(
+                    driver
+                        .instances
+                        .iter()
+                        .map(|i| {
+                            ::alloc::__export::must_use({
+                                ::alloc::fmt::format(
+                                    format_args!("{0}.{1}", "systimer", i.name),
+                                )
+                            })
+                        }),
+                );
+        }
+        if let Some(driver) = &self.timergroup {
+            instances
+                .extend(
+                    driver
+                        .instances
+                        .iter()
+                        .map(|i| {
+                            ::alloc::__export::must_use({
+                                ::alloc::fmt::format(
+                                    format_args!("{0}.{1}", "timergroup", i.name),
+                                )
+                            })
+                        }),
+                );
+        }
+        if let Some(driver) = &self.uart {
+            instances
+                .extend(
+                    driver
+                        .instances
+                        .iter()
+                        .map(|i| {
+                            ::alloc::__export::must_use({
+                                ::alloc::fmt::format(
+                                    format_args!("{0}.{1}", "uart", i.name),
+                                )
+                            })
+                        }),
+                );
+        }
+        if let Some(driver) = &self.wifi {
+            instances
+                .extend(
+                    driver
+                        .instances
+                        .iter()
+                        .map(|i| {
+                            ::alloc::__export::must_use({
+                                ::alloc::fmt::format(
+                                    format_args!("{0}.{1}", "wifi", i.name),
+                                )
+                            })
+                        }),
+                );
+        }
+        instances.into_iter()
+    }
+
+    /// Returns an iterator over all properties of all peripherals.
+    pub fn properties(&self) -> impl Iterator<Item = (&str, Value)> {
+        let mut properties = ::alloc::vec::Vec::new();
+        if let Some(driver) = &self.gpio {
+            properties.extend(driver.properties());
+            properties.extend(driver.computed_properties());
+        }
+        if let Some(driver) = &self.interrupts {
+            properties.extend(driver.properties());
+        }
+        if let Some(driver) = &self.io_mux {
+            properties.extend(driver.properties());
+        }
+        if let Some(driver) = &self.rng {
+            properties.extend(driver.properties());
+        }
+        if let Some(driver) = &self.systimer {
+            properties.extend(driver.properties());
+        }
+        if let Some(driver) = &self.timergroup {
+            properties.extend(driver.properties());
+        }
+        if let Some(driver) = &self.uart {
+            properties.extend(driver.properties());
+        }
+        if let Some(driver) = &self.wifi {
+            properties.extend(driver.properties());
+        }
+        properties.into_iter()
+    }
+
+    /// Returns the support status of a peripheral by its name.
+    pub fn support_status(&self, driver: &str) -> Option<SupportStatus> {
+        match driver {
+            "gpio" => self.gpio.as_ref().map(|p| p.support_status),
+            "interrupts" => self.interrupts.as_ref().map(|p| p.support_status),
+            "io_mux" => self.io_mux.as_ref().map(|p| p.support_status),
+            "rng" => self.rng.as_ref().map(|p| p.support_status),
+            "systimer" => self.systimer.as_ref().map(|p| p.support_status),
+            "timergroup" => self.timergroup.as_ref().map(|p| p.support_status),
+            "uart" => self.uart.as_ref().map(|p| p.support_status),
+            "wifi" => self.wifi.as_ref().map(|p| p.support_status),
+            _ => None,
+        }
+    }
+
+    pub fn driver_peris<'a>(&'a self, driver: &str) -> Vec<&'a str> {
+        match driver {
+            "gpio" => {
+                self.gpio
+                    .iter()
+                    .flat_map(|p| p.instances.iter().map(|i| i.name.as_str()))
+                    .collect::<Vec<_>>()
+            }
+            "interrupts" => {
+                self.interrupts
+                    .iter()
+                    .flat_map(|p| p.instances.iter().map(|i| i.name.as_str()))
+                    .collect::<Vec<_>>()
+            }
+            "io_mux" => {
+                self.io_mux
+                    .iter()
+                    .flat_map(|p| p.instances.iter().map(|i| i.name.as_str()))
+                    .collect::<Vec<_>>()
+            }
+            "rng" => {
+                self.rng
+                    .iter()
+                    .flat_map(|p| p.instances.iter().map(|i| i.name.as_str()))
+                    .collect::<Vec<_>>()
+            }
+            "systimer" => {
+                self.systimer
+                    .iter()
+                    .flat_map(|p| p.instances.iter().map(|i| i.name.as_str()))
+                    .collect::<Vec<_>>()
+            }
+            "timergroup" => {
+                self.timergroup
+                    .iter()
+                    .flat_map(|p| p.instances.iter().map(|i| i.name.as_str()))
+                    .collect::<Vec<_>>()
+            }
+            "uart" => {
+                self.uart
+                    .iter()
+                    .flat_map(|p| p.instances.iter().map(|i| i.name.as_str()))
+                    .collect::<Vec<_>>()
+            }
+            "wifi" => {
+                self.wifi
+                    .iter()
+                    .flat_map(|p| p.instances.iter().map(|i| i.name.as_str()))
+                    .collect::<Vec<_>>()
+            }
+            _ => ::alloc::vec::Vec::new(),
+        }
+    }
+}
+
+...

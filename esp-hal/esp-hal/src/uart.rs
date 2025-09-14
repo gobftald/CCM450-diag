@@ -292,10 +292,10 @@ pub struct AtCmdConfig {
 impl Default for AtCmdConfig {
     fn default() -> Self {
         Self {
-            //pre_idle_count: None, // default is 0x901
-            pre_idle_count: Some(0),
-            //post_idle_count: None, // default is 0x901
-            post_idle_count: Some(0),
+            pre_idle_count: None, // default is 0x901
+            //pre_idle_count: Some(0),
+            post_idle_count: None, // default is 0x901
+            //post_idle_count: Some(0),
             gap_timeout: None, // default is 11
             cmd_char: b'+',
             char_num: 1,

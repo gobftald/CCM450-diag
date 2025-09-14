@@ -20,26 +20,6 @@ symbols = [
     # Additional peripherals defined by us (the developers):
     "phy",
     "wifi",
-
-    # Executor parameters
-    "low_power_wait",
-    "integrated_timers",
-    "single_queue",
-
-    # phy configs
-    "phy_enable_usb",                       # description: Keeps USB running when using WiFi.
-                                            #              This allows debugging and log messages via USB Serial JTAG.
-                                            #              Turn off for best WiFi performance.
-                                            # default:     - value: true
-    
-    "phy_full_calibration",                 # description: Use PHY_RF_CAL_FULL instead of PHY_RF_CAL_PARTIAL.
-                                            # default:     - value: true
-
-    "phy_skip_calibration_after_deep_sleep",# description: Use PHY_RF_CAL_NONE after deep sleep.
-                                            # default:     - value: true
-    # others
-    "dump_packets",                         # Dump packets via an info log statement
-
 ]
  
-memory = []
+memory = [{ name = "dram", start = 0x3FC8_0000, end = 0x3FCE_0000 }]

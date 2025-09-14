@@ -206,7 +206,8 @@ pub unsafe extern "C" fn __assert_func(
         let expr = str_from_c(failed_expr);
 
         panic!(
-            "assertion \"{}\" failed: file \"{}\", line {}{}{}",
+            //"assertion \"{}\" failed: file \"{}\", line {}{}{}",
+            "assertion {} failed: file {}, line {}{}{}",
             expr, file, line, func_pre, func
         );
     }

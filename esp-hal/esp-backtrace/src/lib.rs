@@ -1,3 +1,4 @@
+// 5
 #![no_std]
 
 #[allow(unused_imports)]
@@ -16,7 +17,11 @@ macro_rules! backtrace_println {
     }
 }
 
-const MAX_BACKTRACE_ADDRESSES: usize = 20;
+// 12
+const MAX_BACKTRACE_ADDRESSES: usize =
+    esp_config::esp_config_int!(usize, "ESP_BACKTRACE_CONFIG_BACKTRACE_FRAMES");
+
+// 15
 pub struct Backtrace(pub(crate) heapless::Vec<BacktraceFrame, MAX_BACKTRACE_ADDRESSES>);
 
 // 17

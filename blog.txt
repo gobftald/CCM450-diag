@@ -136,5 +136,13 @@ SSID="iWIFI-2.4" PASSWORD="dingomolarsanta" DEFMT_LOG=off,esp_wifi_apsta=debug,e
 
 wifi-test original size: 482608 vs our size at that time: 397456
 
-esp-hal commit number: d28bf1677 (the last commit before RadioClockController was refactored to ModemClockController
-    and it was also somewhere before the whole cfg and metadata system we restructured [with xtask, etc])
+esp-hal commit number: 3cd3606 - a taged commit from Jun 3 2025, where we have frozen following changes
+    before the cfg and metadata system were restructured (with xtask, etc)
+    before RadioClockController was refactored to ModemClockController)
+    it freezes during esp-hal's "v1.0.0-beta.1"
+    also freezes esp-wifi at "v0.14.0"
+
+git log [--oneline] --decorate --graph [--all]
+git checkout <commit number>
+git checkout -
+git log --follow -p -- <file name> // following the history of a specific file

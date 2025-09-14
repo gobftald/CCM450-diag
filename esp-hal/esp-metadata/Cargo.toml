@@ -5,10 +5,6 @@ edition = "2024"
 
 [dependencies]
 anyhow     = { version = "1.0.98" }
-basic-toml = { version = "0.1.9", optional = true }
-serde      = { version = "1.0.217", features = ["derive"], optional = true }
-strum      = { version = "0.26.3", features = ["derive"], optional = true }
-
-[features]
-default = ["build"]
-build = ["dep:basic-toml", "dep:serde", "dep:strum"]
+basic-toml = { version = "0.1.9" }
+serde      = { version = "1.0.217", features = ["derive"] }
+strum      = { version = "0.26.3", features = ["derive"] }

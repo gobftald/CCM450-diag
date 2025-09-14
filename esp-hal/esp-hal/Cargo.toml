@@ -66,5 +66,5 @@ esp-riscv-rt = { path = "../esp-riscv-rt" }
 
 [build-dependencies]
 cfg-if       = "1.0.0"
-esp-build    = { path = "../esp-build" }
 esp-metadata = { path = "../esp-metadata" }
+esp-config = { path = "../esp-config", features = ["build"]}

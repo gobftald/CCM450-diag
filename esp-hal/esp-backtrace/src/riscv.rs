@@ -163,6 +163,7 @@ MTVAL=0x{:08x}
 // I've found that this needed otherwise sometimes an address
 // was optimised out by the compiler in backtrace_internal loop
 #[inline(never)]
+#[cold]
 /// Get an array of backtrace addresses.
 ///
 /// This needs `force-frame-pointers` enabled.

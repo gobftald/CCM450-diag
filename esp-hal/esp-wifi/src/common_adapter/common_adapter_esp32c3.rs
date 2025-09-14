@@ -15,8 +15,6 @@ static mut SOC_PHY_DIG_REGS_MEM: [u8; SOC_PHY_DIG_REGS_MEM_SIZE] = [0u8; SOC_PHY
 static mut G_IS_PHY_CALIBRATED: bool = false;
 static mut G_PHY_DIGITAL_REGS_MEM: *mut u32 = core::ptr::null_mut();
 static mut S_IS_PHY_REG_STORED: bool = false;
-
-// 14
 static PHY_ACCESS_REF: AtomicU32 = AtomicU32::new(0);
 
 // 16
@@ -97,6 +95,8 @@ pub(crate) unsafe fn phy_enable() {
 
             trace!("PHY ENABLE");
         });
+    } else {
+        info!("PHY ENABLE warning: it is called more than once");
     }
 }
 

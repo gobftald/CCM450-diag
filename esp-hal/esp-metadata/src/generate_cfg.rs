@@ -1,7 +1,7 @@
 use core::str::FromStr;
+use std::sync::OnceLock;
 
 use anyhow::{Result, bail};
-use std::sync::OnceLock;
 use strum::IntoEnumIterator;
 
 // 7
@@ -13,21 +13,7 @@ macro_rules! include_toml {
 }
 
 /// Supported device architectures.
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumIter,
-    strum::EnumString,
-    strum::AsRefStr,
-)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, strum::AsRefStr)]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
 // 32
@@ -39,21 +25,7 @@ pub enum Arch {
 }
 
 /// Device core count.
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumIter,
-    strum::EnumString,
-    strum::AsRefStr,
-)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, strum::AsRefStr)]
 // 55
 pub enum Cores {
     /// Single CPU core
@@ -68,23 +40,16 @@ pub enum Cores {
 
 /// Supported devices.
 #[derive(
-    Debug,
-    Clone,
-    Copy,
+    strum::EnumIter,
+    strum::EnumString,
+    strum::Display,
+    serde::Deserialize,
+    serde::Serialize,
     PartialEq,
     Eq,
     PartialOrd,
     Ord,
-    Hash,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumIter,
-    strum::EnumString,
-    strum::AsRefStr,
 )]
-#[serde(rename_all = "kebab-case")]
-#[strum(serialize_all = "kebab-case")]
 // 86
 pub enum Chip {
     /// ESP32
@@ -188,6 +153,12 @@ impl Config {
         }
     }
 
+    /// User-defined symbols for the device.
+    // 251
+    pub fn symbols(&self) -> &[String] {
+        &self.device.symbols
+    }
+
     /// Memory regions.
     ///
     /// Will be available as env-variables `REGION-<NAME>-START` /
@@ -208,6 +179,12 @@ impl Config {
         .into_iter()
         .chain(self.device.peripherals.iter().map(|s| s.as_str()))
         .chain(self.device.symbols.iter().map(|s| s.as_str()))
+    }
+
+    /// Does the configuration contain `item`?
+    // 276
+    pub fn contains(&self, item: &str) -> bool {
+        self.all().any(|i| i == item)
     }
 
     /// Define all symbols for a given configuration.
