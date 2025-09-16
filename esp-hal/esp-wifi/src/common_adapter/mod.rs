@@ -337,6 +337,7 @@ pub(crate) fn phy_calibrate() {
             }
         };
 
+        /*
         cfg_if::cfg_if! {
             if #[cfg(phy_skip_calibration_after_deep_sleep)] {
                 let calibration_mode = if crate::hal::system::reset_reason()
@@ -346,9 +347,10 @@ pub(crate) fn phy_calibrate() {
                     CALIBRATION_MODE
                 };
             } else {
+        */
                 let calibration_mode = CALIBRATION_MODE;
-            }
-        };
+        //    }
+        //};
 
         debug!("Using calibration mode {}", calibration_mode);
 

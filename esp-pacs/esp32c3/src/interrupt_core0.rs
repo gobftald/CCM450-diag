@@ -11,6 +11,7 @@ pub struct RegisterBlock {
     cpu_int_clear: CPU_INT_CLEAR,
     _reserved2: [u8; 0x04],
     cpu_int_pri: [CPU_INT_PRI; 32],
+    cpu_int_thresh: CPU_INT_THRESH,
 }
 
 // 79
@@ -52,6 +53,12 @@ impl RegisterBlock {
     pub const fn cpu_int_pri(&self, n: usize) -> &CPU_INT_PRI {
         &self.cpu_int_pri[n]
     }
+
+    /// 0x194 - mac intr map register
+    #[inline(always)]
+    pub const fn cpu_int_thresh(&self) -> &CPU_INT_THRESH {
+        &self.cpu_int_thresh
+    }
 }
 
 /// INTR_STATUS_REG_0 (r) register accessor: mac intr map register
@@ -83,3 +90,9 @@ pub mod cpu_int_clear;
 // 755
 pub type CPU_INT_PRI = crate::Reg<cpu_int_pri::CPU_INT_PRI_SPEC>;
 pub mod cpu_int_pri;
+
+/// CPU_INT_THRESH (rw) register accessor: mac intr map register
+
+// 759
+pub type CPU_INT_THRESH = crate::Reg<cpu_int_thresh::CPU_INT_THRESH_SPEC>;
+pub mod cpu_int_thresh;

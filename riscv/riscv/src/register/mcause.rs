@@ -10,6 +10,12 @@ pub struct Mcause {
 
 // 18
 impl Mcause {
+    /// Returns the contents of the register as raw bits
+    #[inline]
+    // 19
+    pub fn bits(&self) -> usize {
+        self.bits
+    }
     /// Is trap cause an interrupt.
     // 48
     #[inline]

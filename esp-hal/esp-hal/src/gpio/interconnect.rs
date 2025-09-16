@@ -53,7 +53,7 @@
 //! - A GPIO input signal can be connected to any number of peripheral inputs.
 //! - A GPIO output can be driven by only one peripheral output.
 
-// 100
+// 101
 use crate::gpio::{
     self, AnyPin, InputPin, InputSignalType, Level, OutputPin, OutputSignalType, Pin, PinGuard,
     FUNC_IN_SEL_OFFSET, GPIO_FUNCTION, INPUT_SIGNAL_MAX, OUTPUT_SIGNAL_MAX,

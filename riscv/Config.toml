@@ -6,3 +6,5 @@ members = [
     "riscv-pac",
     "riscv-rt",
 ]
+
+# 5d898cc

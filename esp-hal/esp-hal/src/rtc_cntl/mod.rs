@@ -96,9 +96,6 @@ impl Rwdt {
     }
 }
 
-// 1115
-pub use self::rtc::SocResetReason;
-
 #[cfg(any(esp32c2, esp32c3, esp32c6, esp32h2, esp32s3))]
 /// Super Watchdog
 // 1142
@@ -145,14 +142,4 @@ impl Swd {
             .write(|w| w.swd_auto_feed_en().bit(!enable));
         self.set_write_protection(true);
     }
-}
-
-/// Return reset reason.
-// 1195
-//pub fn reset_reason(cpu: Cpu) -> Option<SocResetReason> {
-pub fn reset_reason() -> Option<SocResetReason> {
-    //let reason = crate::rom::rtc_get_reset_reason(cpu as u32);
-    let reason = crate::rom::rtc_get_reset_reason(0);
-
-    SocResetReason::from_repr(reason as usize)
 }

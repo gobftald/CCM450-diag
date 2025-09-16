@@ -254,15 +254,15 @@ pub fn init(config: Config) -> Peripherals {
     let mut rtc = crate::rtc_cntl::Rtc::new(peripherals.LPWR.reborrow());
 
     // Handle watchdog configuration with defaults
-    #[cfg(not(feature = "unstable"))]
-    {
-        #[cfg(not(any(esp32, esp32s2)))]
-        rtc.swd.disable();
+    //#[cfg(not(feature = "unstable"))]
+    //{
+    #[cfg(not(any(esp32, esp32s2)))]
+    rtc.swd.disable();
 
-        rtc.rwdt.disable();
+    rtc.rwdt.disable();
 
-        crate::timer::timg::Wdt::<crate::peripherals::TIMG0<'static>>::new().disable();
-    }
+    crate::timer::timg::Wdt::<crate::peripherals::TIMG0<'static>>::new().disable();
+    //}
 
     Clocks::init(config.cpu_clock);
 

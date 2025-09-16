@@ -314,6 +314,8 @@ impl Alarm<'_> {
             interrupt::bind_interrupt(interrupt, handler.handler());
         }
 
+        // since #[handler] macro does not define priority
+        // default min will be set
         unwrap!(interrupt::enable(interrupt, handler.priority()));
     }
 }

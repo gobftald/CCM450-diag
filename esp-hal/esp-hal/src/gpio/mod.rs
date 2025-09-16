@@ -716,13 +716,6 @@ impl<'d> Flex<'d> {
         Self { pin }
     }
 
-    /// Set the output level.
-    #[inline]
-    // 1620
-    pub fn set_level(&mut self, level: Level) {
-        self.pin.set_output_high(level.into());
-    }
-
     // Output functions
 
     /// Applies the given output configuration to the pin.
@@ -733,6 +726,13 @@ impl<'d> Flex<'d> {
     // 1586
     pub fn apply_output_config(&mut self, config: &OutputConfig) {
         self.pin.apply_output_config(config);
+    }
+
+    /// Set the output level.
+    #[inline]
+    // 1620
+    pub fn set_level(&mut self, level: Level) {
+        self.pin.set_output_high(level.into());
     }
 }
 

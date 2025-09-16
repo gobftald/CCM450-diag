@@ -1,6 +1,6 @@
 [package]
 name = "riscv-rt"
-version = "0.14.0"
+version = "0.13.0"
 edition = "2021"
 links = "riscv-rt" # Prevent multiple versions of riscv-rt being linked
 

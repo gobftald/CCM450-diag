@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 console = { path = "../../console" }
 defmt = { version = "0.3.10", optional = true }
+esp-config = { path = "../esp-config" }
 critical-section = { version = "1.2.0" }
 fugit = "0.3.7"
 rand_core-09 = { package = "rand_core", path = "../../rand_core" }

@@ -269,6 +269,8 @@ impl Timer<'_> {
         crate::interrupt::disable(interrupt as u8);
         //}
         unsafe { interrupt::bind_interrupt(interrupt, handler.handler()) };
+        // since #[handler] macro does not define priority
+        // default min will be set
         unwrap!(interrupt::enable(interrupt, handler.priority()));
     }
 
@@ -418,13 +420,13 @@ fn timeout_to_ticks(timeout: Duration, clock: Rate, divider: u32) -> Option<u64>
 }
 
 /// Watchdog timer
-// 607
+// 623
 pub struct Wdt<TG> {
     phantom: PhantomData<TG>,
 }
 
 /// Watchdog driver
-// 623
+// 628
 impl<TG> Wdt<TG>
 where
     TG: TimerGroupInstance,

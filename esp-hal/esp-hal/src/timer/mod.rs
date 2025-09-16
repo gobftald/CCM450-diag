@@ -78,8 +78,10 @@ pub struct OneShotTimer<'d> {
     //_ph: PhantomData<Dm>,
 }
 
-// 141
+// we ust blocking since we don't use timers directly
+// but only in embassy (SYSTIMER) and wifi (TIMG0)
 //impl<'d> OneShotTimer<'d, Blocking> {
+// 141
 impl<'d> OneShotTimer<'d> {
     /// Construct a new instance of [`OneShotTimer`].
     //pub fn new(inner: impl Timer + Into<AnyTimer<'d>>) -> OneShotTimer<'d, Blocking> {

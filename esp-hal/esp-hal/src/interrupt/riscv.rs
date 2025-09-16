@@ -3,7 +3,7 @@
 //! CPU interrupts 1 through 15 are reserved for each of the possible interrupt
 //! priorities.
 
-// 16
+// 15
 pub use esp_riscv_rt::TrapFrame;
 use riscv::register::{mcause, mtvec};
 
@@ -166,6 +166,10 @@ impl Priority {
         Priority::Priority1
     }
 }
+
+/// The interrupts reserved by the HAL
+#[cfg_attr(place_switch_tables_in_ram, unsafe(link_section = ".rwtext"))]
+pub static RESERVED_INTERRUPTS: &[usize] = PRIORITY_TO_INTERRUPT;
 
 /// # Safety
 ///
@@ -499,26 +503,22 @@ mod classic {
     use super::{CpuInterrupt, InterruptKind, Priority};
     use crate::peripherals::INTERRUPT_CORE0;
 
-    //#[cfg_attr(place_switch_tables_in_ram, unsafe(link_section = ".rwtext"))]
-    #[unsafe(link_section = ".rwtext")]
+    #[cfg_attr(place_switch_tables_in_ram, unsafe(link_section = ".rwtext"))]
     // 593
     pub(super) static DISABLED_CPU_INTERRUPT: u32 = 0;
 
-    //#[cfg_attr(place_switch_tables_in_ram, unsafe(link_section = ".rwtext"))]
-    #[unsafe(link_section = ".rwtext")]
+    #[cfg_attr(place_switch_tables_in_ram, unsafe(link_section = ".rwtext"))]
     // 596
     pub(super) static EXTERNAL_INTERRUPT_OFFSET: u32 = 0;
 
-    //#[cfg_attr(place_switch_tables_in_ram, unsafe(link_section = ".rwtext"))]
-    #[unsafe(link_section = ".rwtext")]
+    #[cfg_attr(place_switch_tables_in_ram, unsafe(link_section = ".rwtext"))]
     // 599
     pub(super) static PRIORITY_TO_INTERRUPT: &[usize] =
         &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 
     // 604
     // First element is not used, just there to avoid a -1 in the interrupt handler.
-    //#[cfg_attr(place_switch_tables_in_ram, unsafe(link_section = ".rwtext"))]
-    #[unsafe(link_section = ".rwtext")]
+    #[cfg_attr(place_switch_tables_in_ram, unsafe(link_section = ".rwtext"))]
     pub(super) static INTERRUPT_TO_PRIORITY: [u8; 16] =
         [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 
@@ -600,5 +600,41 @@ mod classic {
                 intr.cpu_int_pri(cpu_interrupt as usize).read().map().bits(),
             )
         }
+    }
+
+    #[unsafe(no_mangle)]
+    #[unsafe(link_section = ".trap")]
+    // 682
+    pub(super) unsafe extern "C" fn _handle_priority() -> u32 {
+        use super::mcause;
+        // Both C6 and H2 have 5 bits of code. The riscv crate masks 31 bits, which then
+        // causes a bounds check to be present.
+        let interrupt_id: usize = mcause::read().bits() & 0x1f;
+        let intr = INTERRUPT_CORE0::regs();
+        let interrupt_priority = unsafe {
+            intr.cpu_int_pri(0)
+                .as_ptr()
+                .add(interrupt_id)
+                .read_volatile()
+        };
+
+        let prev_interrupt_priority = intr.cpu_int_thresh().read().bits();
+        if interrupt_priority < 15 {
+            // leave interrupts disabled if interrupt is of max priority.
+            intr.cpu_int_thresh()
+                .write(|w| unsafe { w.bits(interrupt_priority + 1) }); // set the prio threshold to 1 more than current interrupt prio
+            unsafe { riscv::interrupt::enable() };
+        }
+        prev_interrupt_priority
+    }
+
+    #[unsafe(no_mangle)]
+    #[unsafe(link_section = ".trap")]
+    // 706
+    pub(super) unsafe extern "C" fn _restore_priority(stored_prio: u32) {
+        riscv::interrupt::disable();
+        let intr = INTERRUPT_CORE0::regs();
+        intr.cpu_int_thresh()
+            .write(|w| unsafe { w.bits(stored_prio) });
     }
 }

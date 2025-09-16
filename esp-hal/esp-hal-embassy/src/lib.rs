@@ -40,7 +40,7 @@
 #![feature(once_cell_get_mut)]
 #![allow(static_mut_refs)]
 
-#[macro_use(unreachable, unwrap, assert_ne, panic)]
+#[macro_use(unreachable, unwrap, assert_ne, panic, info)]
 extern crate console;
 
 use core::marker::PhantomData;
@@ -192,6 +192,7 @@ impl Executor {
             unsafe {
                 if !SIGNAL_WORK_THREAD_MODE {
                     // if not, wait for interrupt
+                    info!("wfi");
                     core::arch::asm!("wfi");
                 }
 

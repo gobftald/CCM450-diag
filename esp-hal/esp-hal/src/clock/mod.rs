@@ -253,13 +253,11 @@ impl Clocks {
     #[inline]
     // 321
     pub(crate) fn xtal_freq() -> Rate {
-        /*
         if esp_config::esp_config_str!("ESP_HAL_CONFIG_XTAL_FREQUENCY") == "auto" {
             if let Some(clocks) = Self::try_get() {
                 return clocks.xtal_clock;
             }
         }
-        */
 
         Self::measure_xtal_frequency().frequency()
     }
