@@ -292,3 +292,24 @@ impl<L: single_core::RawLock> Drop for LockGuard<'_, L> {
         unsafe { self.lock.release(self.token) };
     }
 }
+
+#[cfg(impl_critical_section)]
+mod critical_section {
+    struct CriticalSection;
+
+    critical_section::set_impl!(CriticalSection);
+
+    static CRITICAL_SECTION: super::RawMutex = super::RawMutex::new();
+
+    unsafe impl critical_section::Impl for CriticalSection {
+        unsafe fn acquire() -> critical_section::RawRestoreState {
+            unsafe { CRITICAL_SECTION.acquire().0 }
+        }
+
+        unsafe fn release(token: critical_section::RawRestoreState) {
+            unsafe {
+                CRITICAL_SECTION.release(super::RestoreState(token));
+            }
+        }
+    }
+}

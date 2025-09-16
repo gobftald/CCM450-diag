@@ -7,7 +7,8 @@ edition = "2021"
 console = { path = "../../console" }
 defmt = { version = "0.3.10", optional = true }
 esp-config = { path = "../esp-config" }
-critical-section = { version = "1.2.0" }
+#critical-section = { version = "1.2.0" }
+critical-section = { version = "1.2.0", features = ["restore-state-u32"] }
 fugit = "0.3.7"
 rand_core-09 = { package = "rand_core", path = "../../rand_core" }
 bytemuck = "1.22.0"
@@ -62,7 +63,8 @@ defmt   = [
 unstable = []
 
 [target.'cfg(target_arch = "riscv32")'.dependencies]
-riscv = { path = "../../riscv/riscv", features = ["critical-section-single-hart"] }
+#riscv = { path = "../../riscv/riscv", features = ["critical-section-single-hart"] }
+riscv = { path = "../../riscv/riscv" }
 esp-riscv-rt = { path = "../esp-riscv-rt" }
 
 [build-dependencies]
