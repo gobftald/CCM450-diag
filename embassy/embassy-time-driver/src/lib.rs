@@ -55,7 +55,7 @@
 //!   active, one could compare an `Instant` from driver A to an `Instant` from driver B, which
 //!   would yield incorrect results.
 
-// 23
+// 108
 use core::task::Waker;
 
 // 110
@@ -98,7 +98,7 @@ extern "Rust" {
 
 /// See [`Driver::now`]
 #[inline]
-// 143
+// 142
 pub fn now() -> u64 {
     unsafe { _embassy_time_now() }
 }

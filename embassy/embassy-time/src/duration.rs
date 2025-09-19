@@ -26,7 +26,7 @@ impl Duration {
     }
 }
 
-// 276
+// 201
 #[inline]
 const fn div_ceil(num: u64, den: u64) -> u64 {
     (num + den - 1) / den

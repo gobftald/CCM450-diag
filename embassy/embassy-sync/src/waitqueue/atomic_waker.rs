@@ -1,6 +1,8 @@
+// 1
 use core::cell::Cell;
 use core::task::Waker;
 
+// 4
 use crate::blocking_mutex::raw::RawMutex;
 use crate::blocking_mutex::Mutex;
 
@@ -8,15 +10,15 @@ use crate::blocking_mutex::Mutex;
 /// If a waker is registered, registering another waker will replace the previous one without waking it.
 /// Intended to wake a task from an interrupt. Therefore, it is generally not expected,
 /// that multiple tasks register try to register a waker simultaneously.
-// 11
+// 8
 pub struct GenericAtomicWaker<M: RawMutex> {
     waker: Mutex<M, Cell<Option<Waker>>>,
 }
 
-// 15
+// 12
 impl<M: RawMutex> GenericAtomicWaker<M> {
     /// Create a new `AtomicWaker`.
-    // 17
+    // 14
     pub const fn new(mutex: M) -> Self {
         Self {
             waker: Mutex::const_new(mutex, Cell::new(None)),
@@ -24,7 +26,7 @@ impl<M: RawMutex> GenericAtomicWaker<M> {
     }
 
     /// Register a waker. Overwrites the previous waker, if any.
-    // 24
+    // 21
     pub fn register(&self, w: &Waker) {
         self.waker.lock(|cell| {
             cell.set(match cell.replace(None) {
@@ -35,7 +37,7 @@ impl<M: RawMutex> GenericAtomicWaker<M> {
     }
 
     /// Wake the registered waker, if any.
-    // 34
+    // 31
     pub fn wake(&self) {
         self.waker.lock(|cell| {
             if let Some(w) = cell.replace(None) {

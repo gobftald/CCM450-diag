@@ -4,10 +4,10 @@ use core::ops::Add;
 // 4
 use super::{Duration, GCD_1M, TICK_HZ};
 
-// 9
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 /// An Instant in time, based on the MCU's clock ticks since startup.
+// 9
 pub struct Instant {
     ticks: u64,
 }
@@ -16,7 +16,7 @@ pub struct Instant {
 impl Instant {
     /// Returns an Instant representing the current time.
     #[inline]
-    // 21
+    // 20
     pub fn now() -> Instant {
         Instant {
             ticks: embassy_time_driver::now(),
@@ -24,7 +24,7 @@ impl Instant {
     }
 
     /// Create an Instant from a microsecond count since system boot.
-    // 33
+    // 32
     pub const fn from_micros(micros: u64) -> Self {
         Self {
             ticks: micros * (TICK_HZ / GCD_1M) / (1_000_000 / GCD_1M),
@@ -32,19 +32,19 @@ impl Instant {
     }
 
     /// Tick count since system boot.
-    // 85
+    // 53
     pub const fn as_ticks(&self) -> u64 {
         self.ticks
     }
 
     /// Microseconds since system boot.
-    // 100
+    // 68
     pub const fn as_micros(&self) -> u64 {
         self.ticks * (1_000_000 / GCD_1M) / (TICK_HZ / GCD_1M)
     }
 
     /// Adds one Duration to self, returning a new `Instant` or None in the event of an overflow.
-    // 141
+    // 109
     pub fn checked_add(&self, duration: Duration) -> Option<Instant> {
         self.ticks
             .checked_add(duration.ticks)
@@ -52,7 +52,7 @@ impl Instant {
     }
 }
 
-// 163
+// 119
 impl Add<Duration> for Instant {
     type Output = Instant;
 

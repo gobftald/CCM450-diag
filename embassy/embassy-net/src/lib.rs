@@ -10,37 +10,33 @@ extern crate console;
 // 17
 mod driver_util;
 
-// 24
+// 22
 mod time;
 
 #[cfg(feature = "udp")]
-// 26
+// 24
 pub mod udp;
 
-// 28
+// 26
 use core::cell::RefCell;
 use core::future::{poll_fn, Future};
-
-// 30
 use core::mem::MaybeUninit;
-
-// 31
 use core::pin::pin;
 use core::task::{Context, Poll};
 
-// 34
+// 32
 pub use embassy_net_driver as driver;
 use embassy_net_driver::{Driver, LinkState};
 use embassy_sync::waitqueue::WakerRegistration;
 
-// 37
+// 35
 use embassy_time::{Instant, Timer};
 //use heapless::Vec;
 use allocator_api2::vec::Vec;
 
 //#[cfg(any(feature = "dns", feature = "dhcpv4"))]
 #[cfg(feature = "dhcpv4")]
-// 44
+// 42
 use smoltcp::iface::SocketHandle;
 use smoltcp::iface::{Interface, SocketSet, SocketStorage};
 use smoltcp::phy::Medium;
@@ -48,26 +44,27 @@ use smoltcp::phy::Medium;
 use smoltcp::socket::dhcpv4::{self, RetryConfig};
 
 #[cfg(feature = "medium-ethernet")]
-// 50
+// 48
 pub use smoltcp::wire::EthernetAddress;
+//#[cfg(any(feature = "medium-ethernet", feature = "medium-ieee802154", feature = "medium-ip"))]
 #[cfg(feature = "medium-ethernet")]
 pub use smoltcp::wire::HardwareAddress;
 
-// 57
+// 55
 pub use smoltcp::wire::IpCidr;
 #[cfg(feature = "proto-ipv4")]
 pub use smoltcp::wire::{Ipv4Address, Ipv4Cidr};
 
-// 63
+// 61
 use crate::driver_util::DriverAdapter;
 use crate::time::{instant_from_smoltcp, instant_to_smoltcp};
 
-// 66
+// 64
 const LOCAL_PORT_MIN: u16 = 1025;
 const LOCAL_PORT_MAX: u16 = 65535;
 
 /// Memory resources needed for a network stack.
-// 74
+// 72
 pub struct StackResources<const SOCK: usize> {
     sockets: MaybeUninit<[SocketStorage<'static>; SOCK]>,
     inner: MaybeUninit<RefCell<Inner>>,
@@ -77,7 +74,7 @@ pub struct StackResources<const SOCK: usize> {
     //hostname: HostnameResources,
 }
 
-// 89
+// 87
 impl<const SOCK: usize> StackResources<SOCK> {
     /// Create a new set of stack resources.
     pub const fn new() -> Self {
@@ -100,7 +97,7 @@ impl<const SOCK: usize> StackResources<SOCK> {
 /// Static IP address configuration.
 #[cfg(feature = "proto-ipv4")]
 #[derive(Debug, Clone, PartialEq, Eq)]
-// 109
+// 107
 pub struct StaticConfigV4 {
     /// IP address and subnet mask.
     pub address: Ipv4Cidr,
@@ -115,7 +112,7 @@ pub struct StaticConfigV4 {
 #[cfg(feature = "dhcpv4")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
-// 134
+// 132
 pub struct DhcpConfig {
     /// Maximum lease duration.
     ///
@@ -140,7 +137,7 @@ pub struct DhcpConfig {
 }
 
 #[cfg(feature = "dhcpv4")]
-// 156
+// 154
 impl Default for DhcpConfig {
     fn default() -> Self {
         Self {
@@ -155,7 +152,7 @@ impl Default for DhcpConfig {
     }
 }
 
-// 173
+// 171
 /// Network stack configuration.
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
@@ -168,11 +165,11 @@ pub struct Config {
     pub ipv6: ConfigV6,
 }
 
-// 182
+// 180
 impl Config {
     /// IPv4 configuration with static addressing.
     #[cfg(feature = "proto-ipv4")]
-    // 185
+    // 183
     pub const fn ipv4_static(config: StaticConfigV4) -> Self {
         Self {
             ipv4: ConfigV4::Static(config),
@@ -197,7 +194,7 @@ impl Config {
 /// Network stack IPv4 configuration.
 #[cfg(feature = "proto-ipv4")]
 #[derive(Debug, Clone, Default)]
-// 223
+// 221
 pub enum ConfigV4 {
     /// Do not configure IPv4.
     #[default]
@@ -212,7 +209,7 @@ pub enum ConfigV4 {
 /// Network stack runner.
 ///
 /// You must call [`Runner::run()`] in a background task for the network stack to work.
-// 248
+// 246
 pub struct Runner<'d, D: Driver> {
     driver: D,
     stack: Stack<'d>,
@@ -223,14 +220,14 @@ pub struct Runner<'d, D: Driver> {
 /// Use this to create sockets. It's `Copy`, so you can pass
 /// it by value instead of by reference.
 #[derive(Copy, Clone)]
-// 258
+// 256
 pub struct Stack<'d> {
     inner: &'d RefCell<Inner>,
 }
 
 #[allow(dead_code)]
 // we use hardware_address and next_local_port only in smoltcp
-// 262
+// 260
 pub(crate) struct Inner {
     pub(crate) sockets: SocketSet<'static>, // Lifetime type-erased.
     pub(crate) iface: Interface,
@@ -256,7 +253,7 @@ pub(crate) struct Inner {
 }
 
 /// Create a new network stack.
-// 291
+// 289
 pub fn new<'d, D: Driver, const SOCK: usize>(
     mut driver: D,
     config: Config,
@@ -320,7 +317,7 @@ pub fn new<'d, D: Driver, const SOCK: usize>(
     (stack, Runner { driver, stack })
 }
 
-// 362
+// 360
 fn to_smoltcp_hardware_address(addr: driver::HardwareAddress) -> (HardwareAddress, Medium) {
     match addr {
         #[cfg(feature = "medium-ethernet")]
@@ -346,20 +343,20 @@ fn to_smoltcp_hardware_address(addr: driver::HardwareAddress) -> (HardwareAddres
     }
 }
 
-// 382
+// 380
 impl<'d> Stack<'d> {
-    // 383
+    // 381
     fn with<R>(&self, f: impl FnOnce(&Inner) -> R) -> R {
         f(&self.inner.borrow())
     }
 
-    //387
+    //385
     fn with_mut<R>(&self, f: impl FnOnce(&mut Inner) -> R) -> R {
         f(&mut self.inner.borrow_mut())
     }
 
     /// Check whether the link is up.
-    // 397
+    // 395
     pub fn is_link_up(&self) -> bool {
         self.with(|i| i.link_up)
     }
@@ -369,16 +366,17 @@ impl<'d> Stack<'d> {
     /// If using DHCP, this will be None if DHCP hasn't been able to
     /// acquire an IP address, or Some if it has.
     #[cfg(feature = "proto-ipv4")]
-    // 499
+    // 497
     pub fn config_v4(&self) -> Option<StaticConfigV4> {
         self.with(|i| i.static_v4.clone())
     }
 }
 
-// 646
+// 644
 impl Inner {
     #[cfg(feature = "proto-ipv4")]
     #[allow(clippy::absurd_extreme_comparisons)]
+    // 646
     pub fn get_local_port(&mut self) -> u16 {
         let res = self.next_local_port;
         self.next_local_port = if res >= LOCAL_PORT_MAX {
@@ -389,7 +387,7 @@ impl Inner {
         res
     }
 
-    // 655
+    // 653
     pub fn set_config_v4(&mut self, config: ConfigV4) {
         // Handle static config.
         self.static_v4 = match config.clone() {
@@ -436,7 +434,7 @@ impl Inner {
         }
     }
 
-    // 721
+    // 719
     fn apply_static_config(&mut self) {
         //let mut addrs = Vec::new();
         let mut addrs = Vec::<IpCidr>::with_capacity(smoltcp::config::IFACE_MAX_ADDR_COUNT);
@@ -477,7 +475,7 @@ impl Inner {
         self.state_waker.wake();
     }
 
-    // 798
+    // 796
     fn poll<D: Driver>(&mut self, cx: &mut Context<'_>, driver: &mut D) {
         self.waker.register(cx.waker());
 
@@ -551,7 +549,7 @@ impl Inner {
     }
 }
 
-// 880
+// 878
 impl<'d, D: Driver> Runner<'d, D> {
     /// Run the network stack.
     ///

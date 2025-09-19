@@ -11,11 +11,7 @@ mod timer;
 // 30
 pub use duration::Duration;
 pub use embassy_time_driver::TICK_HZ;
-
-// 32
 pub use instant::Instant;
-
-// 33
 pub use timer::Timer;
 
 // 35

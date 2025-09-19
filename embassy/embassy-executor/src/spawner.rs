@@ -28,6 +28,7 @@ pub struct SpawnToken {
 
 // 29
 impl SpawnToken {
+    // 30
     pub(crate) unsafe fn new(raw_task: raw::TaskRef) -> Self {
         Self {
             raw_task: Some(raw_task),
@@ -36,7 +37,7 @@ impl SpawnToken {
     }
 
     /// Return a SpawnToken that represents a failed spawn.
-    // 47
+    // 38
     pub fn new_failed() -> Self {
         Self {
             raw_task: None,
@@ -45,6 +46,7 @@ impl SpawnToken {
     }
 }
 
+// 46
 impl Drop for SpawnToken {
     fn drop(&mut self) {
         // TODO deallocate the task instead.
@@ -53,8 +55,8 @@ impl Drop for SpawnToken {
 }
 
 /// Error returned when spawning a task.
-#[derive(Copy, Clone)]
-// 64
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+// 56
 pub enum SpawnError {
     /// Too many instances of this task are already running.
     ///
@@ -64,14 +66,12 @@ pub enum SpawnError {
     Busy,
 }
 
-// 73
 impl core::fmt::Debug for SpawnError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         core::fmt::Display::fmt(self, f)
     }
 }
 
-// 79
 impl core::fmt::Display for SpawnError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
@@ -80,26 +80,17 @@ impl core::fmt::Display for SpawnError {
     }
 }
 
-// 87
-#[cfg(feature = "defmt")]
-impl defmt::Format for SpawnError {
-    fn format(&self, f: defmt::Formatter) {
-        match self {
-            SpawnError::Busy => defmt::write!(f, "Busy - Too many instances of this task are already running. Check the `pool_size` attribute of the task."),
-        }
-    }
-}
-
 /// Handle to spawn tasks into an executor.
 #[derive(Copy, Clone)]
-// 105
+// 82
 pub struct Spawner {
     executor: &'static raw::Executor,
     not_send: PhantomData<*mut ()>,
 }
 
-// 110
+// 87
 impl Spawner {
+    // 88
     pub(crate) fn new(executor: &'static raw::Executor) -> Self {
         Self {
             executor,
@@ -110,7 +101,7 @@ impl Spawner {
     /// Spawn a task into an executor.
     ///
     /// You obtain the `token` by calling a task function (i.e. one marked with `#[embassy_executor::task]`).
-    // 144
+    // 121
     //pub fn spawn<S>(&self, token: SpawnToken<S>) -> Result<(), SpawnError> {
     pub fn spawn(&self, token: SpawnToken) -> Result<(), SpawnError> {
         let task = token.raw_task;
@@ -134,7 +125,7 @@ impl Spawner {
     /// # Panics
     ///
     /// Panics if the spawning fails.
-    // 166
+    // 143
     pub fn must_spawn(&self, token: SpawnToken) {
         unwrap!(self.spawn(token));
     }

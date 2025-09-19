@@ -1,5 +1,4 @@
 #![no_std]
-#![feature(local_waker)]
 
 #[macro_use(panic, unwrap)]
 extern crate console;
@@ -7,9 +6,9 @@ extern crate console;
 //12
 pub use embassy_executor_macros::task;
 
-// 50
+// 42
 pub mod raw;
 
-// 52
+// 50
 mod spawner;
 pub use spawner::*;

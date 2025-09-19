@@ -46,16 +46,16 @@ pub enum RecvError {
 }
 
 /// An UDP socket.
-// 45
+// 43
 pub struct UdpSocket<'a> {
     stack: Stack<'a>,
     handle: SocketHandle,
 }
 
-// 50
+// 48
 impl<'a> UdpSocket<'a> {
     /// Create a new UDP socket using the provided stack and buffers.
-    // 52
+    // 50
     pub fn new(
         stack: Stack<'a>,
         rx_meta: &'a mut [PacketMetadata],
@@ -78,7 +78,7 @@ impl<'a> UdpSocket<'a> {
     }
 
     /// Bind the socket to a local endpoint.
-    // 74
+    // 72
     pub fn bind<T>(&mut self, endpoint: T) -> Result<(), BindError>
     where
         T: Into<IpListenEndpoint>,

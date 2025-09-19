@@ -1,6 +1,7 @@
 //! Blocking mutex.
 //!
 //! This module provides a blocking mutex that can be used to synchronize data.
+// 4
 pub mod raw;
 
 // 6
@@ -28,7 +29,7 @@ use self::raw::RawMutex;
 /// We can also use a smart/reentrant CriticalSectionMutex like RawMutex implementing in  esp_hal::sync::RawMutex
 
 #[derive(Debug)]
-// 26
+// 25
 pub struct Mutex<R, T: ?Sized> {
     // NOTE: `raw` must be FIRST, so when using ThreadModeMutex the "can't drop in non-thread-mode" gets
     // to run BEFORE dropping `data`.
@@ -63,7 +64,7 @@ impl<R: RawMutex, T> Mutex<R, T> {
     }
 }
 
-// 72
+//55
 impl<R, T> Mutex<R, T> {
     /// Creates a new mutex based on a pre-existing raw mutex.
     ///

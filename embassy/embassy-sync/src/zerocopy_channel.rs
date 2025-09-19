@@ -41,26 +41,26 @@ use crate::waitqueue::WakerRegistration;
 /// The channel requires a buffer of recyclable elements.  Writing to the channel is done through
 /// an `&mut T`.
 #[derive(Debug)]
-// 38
+// 37
 pub struct Channel<'a, M: RawMutex, T> {
-    buf: BufferPtr<T>,
+    buf: *mut T,
     phantom: PhantomData<&'a mut T>,
     state: Mutex<M, RefCell<State>>,
 }
 
-// 44
+// 43
 impl<'a, M: RawMutex, T> Channel<'a, M, T> {
     /// Initialize a new [`Channel`].
     ///
     /// The provided buffer will be used and reused by the channel's logic, and thus dictates the
     /// channel's capacity.
-    // 49
+    // 48
     pub fn new(buf: &'a mut [T]) -> Self {
         let len = buf.len();
         assert!(len != 0);
 
         Self {
-            buf: BufferPtr(buf.as_mut_ptr()),
+            buf: buf.as_mut_ptr(),
             phantom: PhantomData,
             state: Mutex::new(RefCell::new(State {
                 capacity: len,
@@ -77,35 +77,23 @@ impl<'a, M: RawMutex, T> Channel<'a, M, T> {
     ///
     /// Further Senders and Receivers can be created through [`Sender::borrow`] and
     /// [`Receiver::borrow`] respectively.
-    // 71
+    // 70
     pub fn split(&mut self) -> (Sender<'_, M, T>, Receiver<'_, M, T>) {
         (Sender { channel: self }, Receiver { channel: self })
     }
 }
 
-#[repr(transparent)]
-#[derive(Debug)]
-// 100
-struct BufferPtr<T>(*mut T);
-
-// 102
-impl<T> BufferPtr<T> {
-    unsafe fn add(&self, count: usize) -> *mut T {
-        self.0.add(count)
-    }
-}
-
 /// Send-only access to a [`Channel`].
 #[derive(Debug)]
-// 113
+// 98
 pub struct Sender<'a, M: RawMutex, T> {
     channel: &'a Channel<'a, M, T>,
 }
 
-// 117
+// 102
 impl<'a, M: RawMutex, T> Sender<'a, M, T> {
     /// Asynchronously send a value over the channel.
-    // 149
+    // 134
     pub fn send(&mut self) -> impl Future<Output = &mut T> {
         poll_fn(|cx| {
             self.channel.state.lock(|s| {
@@ -125,7 +113,7 @@ impl<'a, M: RawMutex, T> Sender<'a, M, T> {
     }
 
     /// Notify the channel that the sending of the value has been finalized.
-    // 168
+    // 153
     pub fn send_done(&mut self) {
         self.channel.state.lock(|s| s.borrow_mut().push_done())
     }
@@ -133,14 +121,14 @@ impl<'a, M: RawMutex, T> Sender<'a, M, T> {
 
 /// Receive-only access to a [`Channel`].
 #[derive(Debug)]
-// 197
+// 181
 pub struct Receiver<'a, M: RawMutex, T> {
     channel: &'a Channel<'a, M, T>,
 }
 
-// 201
+// 185
 impl<'a, M: RawMutex, T> Receiver<'a, M, T> {
-    // 233
+    // 217
     /// Asynchronously receive a value over the channel.
     pub fn receive(&mut self) -> impl Future<Output = &mut T> {
         poll_fn(|cx| {
@@ -161,14 +149,11 @@ impl<'a, M: RawMutex, T> Receiver<'a, M, T> {
     }
 
     /// Notify the channel that the receiving of the value has been finalized.
-    // 252
+    // 236
     pub fn receive_done(&mut self) {
         self.channel.state.lock(|s| s.borrow_mut().pop_done())
     }
 }
-
-unsafe impl<T> Send for BufferPtr<T> {}
-unsafe impl<T> Sync for BufferPtr<T> {}
 
 #[derive(Debug)]
 // 280
@@ -189,9 +174,9 @@ struct State {
     receive_waker: WakerRegistration,
 }
 
-// 297
+// 280
 impl State {
-    // 298
+    // 281
     fn increment(&self, i: usize) -> usize {
         if i + 1 == self.capacity {
             0
@@ -200,17 +185,17 @@ impl State {
         }
     }
 
-    // 327
+    // 307
     fn is_full(&self) -> bool {
         self.full
     }
 
-    // 331
+    // 311
     fn is_empty(&self) -> bool {
         self.front == self.back && !self.full
     }
 
-    // 335
+    // 315
     fn push_index(&mut self) -> Option<usize> {
         match self.is_full() {
             true => None,
@@ -218,7 +203,7 @@ impl State {
         }
     }
 
-    // 342
+    // 322
     fn push_done(&mut self) {
         assert!(!self.is_full());
         self.back = self.increment(self.back);
@@ -228,7 +213,7 @@ impl State {
         self.send_waker.wake();
     }
 
-    // 351
+    // 331
     fn pop_index(&mut self) -> Option<usize> {
         match self.is_empty() {
             true => None,
@@ -236,7 +221,7 @@ impl State {
         }
     }
 
-    // 258
+    // 338
     fn pop_done(&mut self) {
         assert!(!self.is_empty());
         self.front = self.increment(self.front);

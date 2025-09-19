@@ -1,24 +1,25 @@
+// 1
 use core::{
     future::Future,
     pin::Pin,
     task::{Context, Poll},
 };
 
-// 8
+// 9
 use crate::{Duration, Instant};
 
-// 95
 /// A future that completes at a specified [Instant](struct.Instant.html).
 #[must_use = "futures do nothing unless you `.await` or poll them"]
+// 72
 pub struct Timer {
     expires_at: Instant,
     yielded_once: bool,
 }
 
-// 100
+// 77
 impl Timer {
     /// Expire at specified [Instant](struct.Instant.html)
-    // 102
+    // 79
     pub fn at(expires_at: Instant) -> Self {
         Self {
             expires_at,
@@ -39,7 +40,7 @@ impl Timer {
     ///     Timer::after(Duration::from_secs(1)).await;
     /// }
     /// ```
-    // 122
+    // 99
     pub fn after(duration: Duration) -> Self {
         Self {
             expires_at: Instant::now() + duration,
@@ -48,7 +49,7 @@ impl Timer {
     }
 }
 
-// 177
+// 154
 impl Future for Timer {
     type Output = ();
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {

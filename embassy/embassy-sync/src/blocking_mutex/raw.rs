@@ -44,15 +44,15 @@ pub unsafe trait RawMutex {
 ///
 /// **This Mutex is only safe within a single executor.**
 #[derive(Debug)]
-// 70
+// 68
 pub struct NoopRawMutex {
     _phantom: PhantomData<*mut ()>,
 }
 
-// 74
+// 72
 unsafe impl Send for NoopRawMutex {}
 
-// 76
+// 74
 impl NoopRawMutex {
     /// Create a new `NoopRawMutex`.
     pub const fn new() -> Self {
@@ -62,7 +62,7 @@ impl NoopRawMutex {
     }
 }
 
-// 83
+// 81
 unsafe impl RawMutex for NoopRawMutex {
     const INIT: Self = Self::new();
     fn lock<R>(&self, f: impl FnOnce() -> R) -> R {

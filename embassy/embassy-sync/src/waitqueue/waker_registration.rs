@@ -8,21 +8,21 @@ use core::task::Waker;
 /// Although it is possible to wake multiple tasks this way,
 /// this will cause them to wake each other in a loop registering themselves.
 #[derive(Debug, Default)]
-// 10
+// 6
 pub struct WakerRegistration {
     waker: Option<Waker>,
 }
 
-// 14
+// 10
 impl WakerRegistration {
     /// Create a new `WakerRegistration`.
-    // 16
+    // 12
     pub const fn new() -> Self {
         Self { waker: None }
     }
 
     /// Register a waker. Overwrites the previous waker, if any.
-    // 21
+    // 17
     pub fn register(&mut self, w: &Waker) {
         match self.waker {
             // Optimization: If both the old and new Wakers wake the same task, we can simply
@@ -48,7 +48,7 @@ impl WakerRegistration {
     }
 
     /// Wake the registered waker, if any.
-    // 46
+    // 42
     pub fn wake(&mut self) {
         if let Some(w) = self.waker.take() {
             w.wake()

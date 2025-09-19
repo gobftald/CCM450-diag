@@ -68,7 +68,7 @@ pub async fn server(
                 {
                     ecu.request(request)
                         .await
-                        .unwrap_or_else(|err| error!("{}", err));
+                        .unwrap_or_else(|_err| error!("{}", _err));
                 }
 
                 // we have finished to process request
