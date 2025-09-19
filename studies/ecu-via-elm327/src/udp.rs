@@ -50,6 +50,17 @@ pub async fn server(
 
     let mut end_point: Option<UdpMetadata> = None;
 
+    /*
+    let mut buf: [u8; 16] = [0; 16];
+    loop {
+        let (n, ep) = unwrap!(ap_udp_server_socket.recv_from(&mut buf).await);
+        for i in 0..10 {
+            trace!("{}", &buf);
+            ap_udp_server_socket.send_to(&buf, ep).await.unwrap();
+        }
+    }
+    */
+
     loop {
         // wait for the channel to clear
         let sending_item = uart_sender.send().await;

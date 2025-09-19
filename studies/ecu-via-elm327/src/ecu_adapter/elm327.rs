@@ -30,6 +30,9 @@ impl<'a> Adapters for Adapter<'a> {
     }
 
     async fn read_async(&mut self, response: &mut [u8]) -> Result<usize, RxError> {
-        self.rx.read_async(response, false).await
+        trace!("ecu_adapter/elm327: self.rx.read_async(response, false).await");
+        let res = self.rx.read_async(response, false).await;
+        trace!("ecu_adapter/elm327: self.rx.read_async(response, false).await awaken");
+        res
     }
 }

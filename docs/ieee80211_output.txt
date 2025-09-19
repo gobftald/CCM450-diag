@@ -1,0 +1,311 @@
+g_net80211_tx_func = 0x3fcdf8d0
+
+4201e7c2 <pp_register_net80211_tx_cb>:
+4201e7c2:       3fce07b7                lui     a5,0x3fce0
+4201e7c6:       8ca7a823                sw      a0,-1840(a5) # 3fcdf8d0 <g_net80211_tx_func>
+                                                # a0 = 0x40380e86 = ieee80211_output_process
+4201e7ca:       4505                    li      a0,1
+4201e7cc:       8082                    ret
+
+msg[0] = 5  g_net80211_tx_func
+0x4004095a  lw	a5,-1840(s7)        // g_net80211_tx_func
+0x4004095e:	jalr	a5              // g_net80211_tx_func
+                    # a5 = 0x40380e86 ieee80211_output_process
+0x40040960:	j	0x400407c4          // read queue again
+
+ieee80211_output_process
+40380e86:       711d                    addi    sp,sp,-96
+40380e88:       c6ce                    sw      s3,76(sp)
+40380e8a:       de5e                    sw      s7,60(sp)
+40380e8c:       3fca29b7                lui     s3,0x3fca2
+40380e90:       ce86                    sw      ra,92(sp)
+40380e92:       cca2                    sw      s0,88(sp)
+40380e94:       caa6                    sw      s1,84(sp)
+40380e96:       c8ca                    sw      s2,80(sp)
+40380e98:       c4d2                    sw      s4,72(sp)
+40380e9a:       c2d6                    sw      s5,68(sp)
+40380e9c:       c0da                    sw      s6,64(sp)
+40380e9e:       dc62                    sw      s8,56(sp)
+40380ea0:       da66                    sw      s9,52(sp)
+40380ea2:       d86a                    sw      s10,48(sp)
+40380ea4:       d66e                    sw      s11,44(sp)
+40380ea6:       cc02                    sw      zero,24(sp)
+40380ea8:       ffc81097                auipc   ra,0xffc81
+40380eac:       990080e7                jalr    -1648(ra) # 40001838 <chm_is_at_home_channel> see below
+
+40380eb0:       a0898793                addi    a5,s3,-1528 # 0x3fca1a08 <g_ic>
+40380eb4:       1a47a783                lw      a5,420(a5)  # 0x00 <- g_ic[420]
+40380eb8:       8baa                    mv      s7,a0       # 0x01
+40380eba:       a0898993                addi    s3,s3,-1528 # 0x3fca1a08 <g_ic>
+
+40380ebe:       c791                    beqz    a5,40380eca <.L1176>  g_ic[420] ?= 0 yes 
+
+40380eca <.L1176>:
+40380eca:       3fca24b7                lui     s1,0x3fca2
+40380ece:       3fca2b37                lui     s6,0x3fca2
+40380ed2:       3fce0a37                lui     s4,0x3fce0
+40380ed6:       3fce0ab7                lui     s5,0x3fce0
+40380eda:       41848493                addi    s1,s1,1048 # 3fca2418 <s_tx_cacheq>
+40380ede:       3c006c37                lui     s8,0x3c006
+40380ee2:       3fce0cb7                lui     s9,0x3fce0
+40380ee6:       d24b0b13                addi    s6,s6,-732 # 3fca1d24 <g_hmac_cnt>
+
+// loop
+40380eea <.L1177>:
+40380eea:       954aa783                lw      a5,-1708(s5) # 3fcdf954 <g_osi_funcs_p>
+40380eee:       930a2503                lw      a0,-1744(s4) # 3fcdf930 <g_wifi_global_lock>
+40380ef2:       4bfc                    lw      a5,84(a5)
+40380ef4:       9782                    jalr    a5           # mutex_lock
+
+40380ef8:       c409                    beqz    s0,40380f02 <.L1179>
+40380efa:       541c                    lw      a5,40(s0)
+40380efc:       c09c                    sw      a5,0(s1)                # -> s_tx_cacheq[0]
+40380efe:       e391                    bnez    a5,40380f02 <.L1179>
+40380f00:       c0c4                    sw      s1,4(s1)                # -> s_tx_cacheq[4]
+
+40380f02 <.L1179>:
+40380f02:       954aa783                lw      a5,-1708(s5)
+40380f06:       930a2503                lw      a0,-1744(s4)
+40380f0a:       4fbc                    lw      a5,88(a5)
+40380f0c:       9782                    jalr    a5              # mutex_unlock
+
+40380f0e:       20040363                beqz    s0,40381114 <.L1200>    # exit
+40380f12:       545c                    lw      a5,44(s0)
+40380f14:       0107a903                lw      s2,16(a5)
+40380f18:       01395913                srli    s2,s2,0x13
+40380f1c:       00197913                andi    s2,s2,1
+40380f20:       ffc81097                auipc   ra,0xffc81
+40380f24:       8ec080e7                jalr    -1812(ra) # 4000180c <config_is_cache_tx_buf_enabled>
+
+40380f28:       cd65                    beqz    a0,40381020 <.L1182>
+                                        # we have tx buf, so skip the next 7 calls
+
+    wifi_log                            # tx process: alloc static tx buf, pb=%p l=%d hdr=%d data=%d"
+    ieee80211_search_node
+    is_wapi_alloc_tx_buf
+    ieee80211_wapi_alloc_tx_buf
+    ieee80211_copy_eb_header
+    ieee80211_recycle_cache_eb
+    (s_encap_amsdu_func)
+
+40380fac <.L1186>:
+40380fac:       45f2                    lw      a1,28(sp)       # get saved s0 (was) = 0x3fc94918
+40380fae:       55dc                    lw      a5,44(a1)
+40380fb0:       439c                    lw      a5,0(a5)
+40380fb2:       01179713                slli    a4,a5,0x11
+40380fb6:       06075763                bgez    a4,40381024 <.L1188>
+
+    ieee80211_output_raw_process
+    ic_ebuf_alloc
+    mutex_lock
+    mutex_unlock
+
+40381024 <.L1188>:
+40381024:       41dc                    lw      a5,4(a1)
+40381026:       0830                    addi    a2,sp,24
+40381028:       854a                    mv      a0,s2
+4038102a:       0047ad03                lw      s10,4(a5)
+4038102e:       85ea                    mv      a1,s10
+40381030:       ffc81097                auipc   ra,0xffc81
+40381034:       860080e7                jalr    -1952(ra) # 40001890 <ieee80211_search_node>
+
+40381038:       842a                    mv      s0,a0       # here save a returned pointer
+4038103a:       45f2                    lw      a1,28(sp)
+4038103c:       e519                    bnez    a0,4038104a <.L1190>
+
+    ic_ebuf_recycle_tx
+
+4038104a <.L1190>:
+4038104a:       55d4                    lw      a3,44(a1)               # a3 = 0x3fc95e98
+4038104c:       4290                    lw      a2,0(a3)                # a2 = 0x2000
+4038104e:       01061793                slli    a5,a2,0x10              # a5 = 0x20000000
+40381052:       0407c863                bltz    a5,403810a2 <.L1192>    ieee80211_classify
+
+40381056:       00dd4783                lbu     a5,13(s10)
+4038105a:       00cd4703                lbu     a4,12(s10)
+4038105e:       07a2                    slli    a5,a5,0x8
+40381060:       8fd9                    or      a5,a5,a4
+40381062:       00879713                slli    a4,a5,0x8
+40381066:       83a1                    srli    a5,a5,0x8
+40381068:       8fd9                    or      a5,a5,a4
+4038106a:       07c2                    slli    a5,a5,0x10
+4038106c:       6725                    lui     a4,0x9
+4038106e:       83c1                    srli    a5,a5,0x10
+40381070:       88e70513                addi    a0,a4,-1906 # 888e <.LLST86+0x4150>
+40381074:       00a78663                beq     a5,a0,40381080 <.L1193>
+
+40381078:       8b470713                addi    a4,a4,-1868
+4038107c:       02e79363                bne     a5,a4,403810a2 <.L1192>
+
+...
+
+403810a2 <.L1192>:
+403810a2:       42dc                    lw      a5,4(a3)
+403810a4:       473d                    li      a4,15
+403810a6:       8bbd                    andi    a5,a5,15
+403810a8:       0ff7f613                zext.b  a2,a5
+403810ac:       00e79863                bne     a5,a4,403810bc <.L1197>
+
+403810b0:       8522                    mv      a0,s0
+403810b2:       01cb9097                auipc   ra,0x1cb9
+403810b6:       3b0080e7                jalr    944(ra) # 4203a462 <ieee80211_classify>
+403810ba:       862a                    mv      a2,a0   # save returned value
+
+403810bc <.L1197>:
+403810bc:       45f2                    lw      a1,28(sp)
+403810be:       8522                    mv      a0,s0
+403810c0:       3845                    jal     40380970 <ieee80211_encap_esfbuf>
+
+403810c2:       ce2a                    sw      a0,28(sp)   # save returned value
+403810c4:       e20503e3                beqz    a0,40380eea <.L1177>    # back to loop
+
+403810c8:       445c                    lw      a5,12(s0)   # a5 = 0x00
+403810ca:       8bc1                    andi    a5,a5,16
+403810cc:       c38d                    beqz    a5,403810ee <.L1198>
+
+403810ce:       02090063                beqz    s2,403810ee <.L1198>
+
+403810d2:       85aa                    mv      a1,a0
+403810d4:       8522                    mv      a0,s0
+403810d6:       01cbc097                auipc   ra,0x1cbc
+403810da:       304080e7                jalr    772(ra) # 4203d3da <ieee80211_pwrsave>
+
+403810de:       030b5783                lhu     a5,48(s6)
+403810e2:       0785                    addi    a5,a5,1 # 10001 <.LLST86+0xb8c3>
+403810e4:       02fb1823                sh      a5,48(s6)
+403810e8:       b509                    j       40380eea <.L1177>   # back to loop
+
+403810ee <.L1198>:
+403810ee:       000b8863                beqz    s7,403810fe <.L1199>
+403810f2:       4585                    li      a1,1
+403810f4:       ffc80097                auipc   ra,0xffc80
+403810f8:       630080e7                jalr    1584(ra) # 40001724 <ppTxPkt>
+403810fc:       b3fd                    j       40380eea <.L1177>   # back to loop
+
+
+    ppTxPkt
+
+
+40381020 <.L1182>:
+40381020:       ce22                    sw      s0,28(sp)           # save s0 = 0x3fc94918
+40381022:       b769                    j       40380fac <.L1186>
+
+
+
+chm_is_at_home_channel
+0x40043c38      lui     a5,0x3fce0
+0x40043c3c      lw      a5,-1948(a5)        # 0x3fca2620 = gChmCxt
+0x40043c40      lbu     a0,80(a5)           # 0x01 <- gChmCxt[80]
+0x40043c44      lbu     a5,82(a5)           # 0x01 <- gChmCxt[82]
+0x40043c48      sub     a0,a0,a5            # 0x0
+0x40043c4a      seqz    a0,a0
+0x40043c4e      ret
+
+config_is_cache_tx_buf_enabled
+0x40043b3e      lui     a5,0x3fce0
+0x40043b42      lw      a5,-1764(a5)
+0x40043b46      lw      a0,64(a5)
+0x40043b48      srli    a0,a0,0x1
+0x40043b4a      andi    a0,a0,1
+0x40043b4c      ret
+
+ppTxPkt
+called from eg.:
+
+#0  0x4003f310 in ?? ()
+#1  0x420302b4 in ieee80211_hostap_send_beacon_process ()
+
+#0  0x4003f310 in ?? ()
+#1  0x4203c95c in ieee80211_send_proberesp ()
+#2  0x3fc965c0 in ecu_via_elm327::____embassy_main_task::{{closure}}::HEAP ()
+
+
+
+ppTxPkt
+0x4003f310      addi    sp,sp,-32
+0x4003f312      lw      a4,44(a0)
+0x4003f314      sw      s1,20(sp)
+0x4003f316      lui     s1,0x3fce0
+0x4003f31a      lw      a5,-1704(s1)
+0x4003f31e      sw      s0,24(sp)
+0x4003f320      mv      s0,a0
+0x4003f322      lw      a0,16(a4)
+0x4003f324      lw      a5,488(a5)      # ic_interface_enabled
+0x4003f328      sw      s2,16(sp) 
+0x4003f32a      srli    a0,a0,0x13
+0x4003f32c      sw      ra,28(sp)
+0x4003f32e      sw      s3,12(sp)
+0x4003f330      andi    a0,a0,1
+0x4003f332      mv      s2,a1
+0x4003f334      jalr    a5              # ic_interface_enabled
+
+0x4003f336      beqz    a0,0x4003f41c
+0x4003f338      lw      a5,44(s0)
+0x4003f33a      lui     a4,0x3fce0
+0x4003f33e      lw      a4,-1720(a4)
+0x4003f342      lw      a5,4(a5)
+0x4003f344      lw      a3,-1704(s1)
+0x4003f348      mv      a0,s0
+0x4003f34a      srli    a5,a5,0x1
+0x4003f34c      andi    a5,a5,120 
+0x4003f350      add     a5,a5,a4
+0x4003f352      lw      a4,132(a5)
+0x4003f356      lw      a3,168(a3)      # ppTxProtoProc
+0x4003f35a      li      s3,1
+0x4003f35c      addi    a4,a4,1
+0x4003f35e      sw      a4,132(a5)
+0x4003f362      jalr    a3              # ppTxProtoProc
+
+0x4003f364      lw      a5,-1704(s1)
+0x4003f368      mv      a0,s0
+0x4003f36a      lw      a5,216(a5)
+0x4003f36e      jalr    a5              # ppProcTxSecFrame
+
+0x4003f370      beq     a0,s3,0x4003f41c
+0x4003f374      lw      a5,-1704(s1)
+0x4003f378      lw      a1,44(s0)
+0x4003f37a      lw      a0,36(s0)
+0x4003f37c      lw      a5,16(a5)
+0x4003f37e      jalr    a5              # rcGetSched
+
+0x4003f380      lw      a5,-1704(s1)
+0x4003f384      mv      a0,s0
+0x4003f386      lw      a5,148(a5)
+0x4003f38a      jalr    a5              # ppCalFrameTimes
+
+0x4003f38c      lw      a5,-1704(s1)
+0x4003f390      mv      a0,s0
+0x4003f392      lw      a5,212(a5) 
+0x4003f396      jalr    a5              # ppMapTxQueue
+
+0x4003f398      bnez    a0,0x4003f412 
+...
+0x4003f3dc      beqz    s2,0x4003f460
+0x4003f3e0      lw      a5,-1704(s1) 
+0x4003f3e4      lw      a0,4(a2) 
+0x4003f3e6      lw      a5,220(a5)
+0x4003f3ea      srli    a0,a0,0x4
+0x4003f3ec      andi    a0,a0,15
+0x4003f3ee      jalr    a5              # lmacIsIdle
+
+0x4003f3f0      beqz    a0,0x4003f460 
+0x4003f3f2      lw      a4,44(s0)
+0x4003f3f4      lw      a5,-1704(s1)
+0x4003f3f8      lw      s0,24(sp)
+0x4003f3fa      lw      a0,4(a4) 
+0x4003f3fc      lw      ra,28(sp)       # return after pp_post ieee80211_hostap_send_beacon_process
+0x4003f3fe      lw      s1,20(sp)
+0x4003f400      lw      s2,16(sp)
+0x4003f402      lw      s3,12(sp)
+0x4003f404      lw      t1,4(a5)        # pp_post
+0x4003f408      srli    a0,a0,0x4
+0x4003f40a      li      a1,0            # 
+0x4003f40c      andi    a0,a0,15        # 0x07
+0x4003f40e      addi    sp,sp,32
+0x4003f410      jr      t1              # pp_post
+
+
+
+
+
+

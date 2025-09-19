@@ -192,8 +192,8 @@ impl Executor {
             unsafe {
                 if !SIGNAL_WORK_THREAD_MODE {
                     // if not, wait for interrupt
-                    info!("wfi");
                     core::arch::asm!("wfi");
+                    info!("wfi");
                 }
 
                 //});

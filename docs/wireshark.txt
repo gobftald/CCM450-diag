@@ -1,0 +1,278 @@
+My expirence was that for the very simple test scenario when I sent fro my Mac a single 0 byte via UDP to CCM AP
+then CCM sent an reset (ATZ\r) message via UART to ELM327, then after around 800ms response time CCM got the answer
+from ELM327 (ATZ\r\r\ELM327 v1.5\r\r>) and sent it back to my Mac the overall response times measured on my mac were
+quite a large variance. Above the 800ms there were a mimimum of 50 ms but sometime it increased up to several seconds.
+But the average "oevrall long response times" were 950 - 1200 ms (800ms included).
+
+
+As you can see I have been heavily tracing the ESP32C3 code, mainly the queue messages of the internal wifi code and found that the final
+'esp_wifi_tx_done_cb' call and the same time the response at my Mac was depended of an internal 80211 message:
+
+49.410837 INFO wfi
+49.410862 TRACE yield during queue_recv
+49.420837 INFO wfi
+49.420861 TRACE yield during queue_recv
+49.420880 TRACE trigger timer....
+49.420928 TRACE enqueued: [7, 0, 0, 0, 12, 74, 201, 63]
+49.420963 TRACE timer callback called
+49.430837 INFO wfi
+49.430861 TRACE yield during queue_recv
+49.430880 TRACE dequeued: [7, 0, 0, 0, 12, 74, 201, 63]
+49.440837 INFO wfi
+49.440873 TRACE enqueued: [0, 0, 0, 0, 0, 0, 0, 0]
+49.440913 TRACE queue_recv: start to receive 0x3fc8ba0c item 0x3fc8d3f8 block_time_tick 4294967295
+0x3fc8ba0c - ecu_via_elm327::____embassy_main_task::{{closure}}::HEAP
+0x3fc8d3f8 - ecu_via_elm327::____embassy_main_task::{{closure}}::HEAP
+49.440966 TRACE dequeued: [0, 0, 0, 0, 0, 0, 0, 0]
+49.441008 TRACE queue_recv: start to receive 0x3fc8ba0c item 0x3fc8d3f8 block_time_tick 4294967295
+0x3fc8ba0c - ecu_via_elm327::____embassy_main_task::{{closure}}::HEAP
+0x3fc8d3f8 - ecu_via_elm327::____embassy_main_task::{{closure}}::HEAP
+49.441063 TRACE yield during queue_recv
+49.442510 INFO wfi
+49.442536 TRACE interrupt WIFI_MAC 0x40385f6c 0x0
+0x40385f6c - wDev_ProcessFiq
+49.442583 TRACE enqueued: [23, 0, 0, 0, 0, 0, 0, 0]
+49.442617 TRACE task_yield_from_isr
+49.442637 TRACE interrupt 1 done
+49.442655 TRACE yield during queue_recv
+49.442725 TRACE dequeued: [23, 0, 0, 0, 0, 0, 0, 0]
+49.450838 INFO wfi
+49.450862 TRACE enqueued: [16, 0, 0, 0, 0, 0, 0, 0]
+49.450894 TRACE queue_recv: start to receive 0x3fc8ba0c item 0x3fc8d3f8 block_time_tick 4294967295
+0x3fc8ba0c - ecu_via_elm327::____embassy_main_task::{{closure}}::HEAP
+0x3fc8d3f8 - ecu_via_elm327::____embassy_main_task::{{closure}}::HEAP
+49.450950 TRACE dequeued: [16, 0, 0, 0, 0, 0, 0, 0]
+49.450988 TRACE timer disarm
+49.451008 TRACE timer_disarm 3fca1db4
+49.451046 TRACE queue_recv: start to receive 0x3fc8ba0c item 0x3fc8d3f8 block_time_tick 4294967295
+0x3fc8ba0c - ecu_via_elm327::____embassy_main_task::{{closure}}::HEAP
+0x3fc8d3f8 - ecu_via_elm327::____embassy_main_task::{{closure}}::HEAP
+49.451103 TRACE yield during queue_recv
+49.460838 INFO wfi
+49.460862 TRACE yield during queue_recv
+49.470838 INFO wfi
+49.470862 TRACE yield during queue_recv
+
+the 
+49.420880 TRACE trigger timer....
+49.430880 TRACE dequeued: [7, 0, 0, 0, 12, 74, 201, 63]
+49.430880 TRACE dequeued: [7, 0, 0, 0, 12, 74, 201, 63] g_timer_func
+...
+49.440873 TRACE enqueued: [0, 0, 0, 0, 0, 0, 0, 0]
+49.440966 TRACE dequeued: [0, 0, 0, 0, 0, 0, 0, 0]  ppProcessTxQ
+...
+49.442583 TRACE enqueued: [23, 0, 0, 0, 0, 0, 0, 0]
+49.442725 TRACE dequeued: [23, 0, 0, 0, 0, 0, 0, 0] lmacProcessTxComplete
+...
+49.450862 TRACE enqueued: [16, 0, 0, 0, 0, 0, 0, 0]
+49.450950 TRACE dequeued: [16, 0, 0, 0, 0, 0, 0, 0] ppProcTxDone
+49.450988 TRACE timer disarm
+sequence repeated by the 100Hz wifi tick rate (driving by the internal preemptive sheduler's timer task)
+and the the wifi internal functions dispatched by ppTask based on dequeued messages send AP's beacon messages
+
+these sequences are repeated as an idle state until a 80211 message arrives (see the log below):
+49.554249 TRACE enqueued: [25, 0, 0, 0, 0, 0, 0, 0]
+interlived 49.554318 TRACE enqueued: [16, 0, 0, 0, 0, 0, 0, 0]
+49.554409 TRACE dequeued: [25, 0, 0, 0, 0, 0, 0, 0]
+49.554456 TRACE enqueued: [17, 0, 0, 0, 0, 0, 0, 0]
+0x40385f6c - wDev_ProcessFiq
+49.554592 TRACE enqueued: [25, 0, 0, 0, 0, 0, 0, 0]
+...
+interlived 49.560862 TRACE dequeued: [16, 0, 0, 0, 0, 0, 0, 0]
+49.560894 TRACE timer disarm
+...
+49.561006 TRACE dequeued: [17, 0, 0, 0, 0, 0, 0, 0]
+49.561252 TRACE enqueued: [2, 0, 0, 0, 0, 0, 0, 0]
+49.561417 TRACE dequeued: [25, 0, 0, 0, 0, 0, 0, 0]
+49.561500 TRACE dequeued: [2, 0, 0, 0, 0, 0, 0, 0]
+...
+49.561832 TRACE enqueued: [23, 0, 0, 0, 0, 0, 0, 0]
+49.561924 TRACE dequeued: [23, 0, 0, 0, 0, 0, 0, 0]
+...
+49.570879 TRACE enqueued: [16, 0, 0, 0, 0, 0, 0, 0]
+49.570973 TRACE dequeued: [16, 0, 0, 0, 0, 0, 0, 0]
+49.571019 INFO esp_wifi_tx_done_cb
+finally the call back function called when AP got the ack message from my Mac client
+
+49.480838 INFO wfi
+49.480862 TRACE yield during queue_recv
+49.490838 INFO wfi
+49.490862 TRACE yield during queue_recv
+49.500838 INFO wfi
+49.500862 TRACE yield during queue_recv
+49.510838 INFO wfi
+49.510862 TRACE yield during queue_recv
+49.520838 INFO wfi
+49.520862 TRACE yield during queue_recv
+49.530838 INFO wfi
+49.530862 TRACE yield during queue_recv
+49.530880 TRACE trigger timer....
+49.530898 TRACE enqueued: [7, 0, 0, 0, 12, 74, 201, 63]
+49.530942 TRACE timer callback called
+49.540838 INFO wfi
+49.540862 TRACE yield during queue_recv
+49.540880 TRACE dequeued: [7, 0, 0, 0, 12, 74, 201, 63]
+49.550838 INFO wfi
+49.550875 TRACE enqueued: [0, 0, 0, 0, 0, 0, 0, 0]
+49.550913 TRACE queue_recv: start to receive 0x3fc8ba0c item 0x3fc8d3f8 block_time_tick 4294967295
+0x3fc8ba0c - ecu_via_elm327::____embassy_main_task::{{closure}}::HEAP
+0x3fc8d3f8 - ecu_via_elm327::____embassy_main_task::{{closure}}::HEAP
+49.550967 TRACE dequeued: [0, 0, 0, 0, 0, 0, 0, 0]
+49.550999 TRACE queue_recv: start to receive 0x3fc8ba0c item 0x3fc8d3f8 block_time_tick 4294967295
+0x3fc8ba0c - ecu_via_elm327::____embassy_main_task::{{closure}}::HEAP
+0x3fc8d3f8 - ecu_via_elm327::____embassy_main_task::{{closure}}::HEAP
+49.551053 TRACE yield during queue_recv
+49.552505 INFO wfi
+49.552526 TRACE interrupt WIFI_MAC 0x40385f6c 0x0
+0x40385f6c - wDev_ProcessFiq
+49.552573 TRACE enqueued: [23, 0, 0, 0, 0, 0, 0, 0]
+49.552606 TRACE task_yield_from_isr
+49.552626 TRACE interrupt 1 done
+49.552644 TRACE yield during queue_recv
+49.552726 TRACE dequeued: [23, 0, 0, 0, 0, 0, 0, 0]
+49.554185 INFO wfi
+49.554211 TRACE interrupt WIFI_MAC 0x40385f6c 0x0
+0x40385f6c - wDev_ProcessFiq
+49.554249 TRACE enqueued: [25, 0, 0, 0, 0, 0, 0, 0]
+49.554280 TRACE task_yield_from_isr
+49.554300 TRACE interrupt 1 done
+49.554318 TRACE enqueued: [16, 0, 0, 0, 0, 0, 0, 0]
+49.554355 TRACE queue_recv: start to receive 0x3fc8ba0c item 0x3fc8d3f8 block_time_tick 4294967295
+0x3fc8ba0c - ecu_via_elm327::____embassy_main_task::{{closure}}::HEAP
+0x3fc8d3f8 - ecu_via_elm327::____embassy_main_task::{{closure}}::HEAP
+49.554409 TRACE dequeued: [25, 0, 0, 0, 0, 0, 0, 0]
+49.554456 TRACE enqueued: [17, 0, 0, 0, 0, 0, 0, 0]
+49.554490 TRACE queue_recv: start to receive 0x3fc8ba0c item 0x3fc8d3f8 block_time_tick 4294967295
+0x3fc8ba0c - ecu_via_elm327::____embassy_main_task::{{closure}}::HEAP
+0x3fc8d3f8 - ecu_via_elm327::____embassy_main_task::{{closure}}::HEAP
+49.554546 TRACE interrupt WIFI_MAC 0x40385f6c 0x0
+0x40385f6c - wDev_ProcessFiq
+49.554592 TRACE enqueued: [25, 0, 0, 0, 0, 0, 0, 0]
+49.554625 TRACE task_yield_from_isr
+49.554652 TRACE interrupt 1 done
+49.560838 INFO wfi
+49.560862 TRACE dequeued: [16, 0, 0, 0, 0, 0, 0, 0]
+49.560894 TRACE timer disarm
+49.560914 TRACE timer_disarm 3fca1db4
+49.560953 TRACE queue_recv: start to receive 0x3fc8ba0c item 0x3fc8d3f8 block_time_tick 4294967295
+0x3fc8ba0c - ecu_via_elm327::____embassy_main_task::{{closure}}::HEAP
+0x3fc8d3f8 - ecu_via_elm327::____embassy_main_task::{{closure}}::HEAP
+49.561006 TRACE dequeued: [17, 0, 0, 0, 0, 0, 0, 0]
+49.561252 TRACE enqueued: [2, 0, 0, 0, 0, 0, 0, 0]
+49.561362 TRACE queue_recv: start to receive 0x3fc8ba0c item 0x3fc8d3f8 block_time_tick 4294967295
+0x3fc8ba0c - ecu_via_elm327::____embassy_main_task::{{closure}}::HEAP
+0x3fc8d3f8 - ecu_via_elm327::____embassy_main_task::{{closure}}::HEAP
+49.561417 TRACE dequeued: [25, 0, 0, 0, 0, 0, 0, 0]
+49.561449 TRACE queue_recv: start to receive 0x3fc8ba0c item 0x3fc8d3f8 block_time_tick 4294967295
+0x3fc8ba0c - ecu_via_elm327::____embassy_main_task::{{closure}}::HEAP
+0x3fc8d3f8 - ecu_via_elm327::____embassy_main_task::{{closure}}::HEAP
+49.561500 TRACE dequeued: [2, 0, 0, 0, 0, 0, 0, 0]
+49.561570 TRACE queue_recv: start to receive 0x3fc8ba0c item 0x3fc8d3f8 block_time_tick 4294967295
+0x3fc8ba0c - ecu_via_elm327::____embassy_main_task::{{closure}}::HEAP
+0x3fc8d3f8 - ecu_via_elm327::____embassy_main_task::{{closure}}::HEAP
+49.561626 TRACE yield during queue_recv
+49.561762 INFO wfi
+49.561785 TRACE interrupt WIFI_MAC 0x40385f6c 0x0
+0x40385f6c - wDev_ProcessFiq
+49.561832 TRACE enqueued: [23, 0, 0, 0, 0, 0, 0, 0]
+49.561867 TRACE task_yield_from_isr
+49.561887 TRACE interrupt 1 done
+49.561906 TRACE yield during queue_recv
+49.561924 TRACE dequeued: [23, 0, 0, 0, 0, 0, 0, 0]
+49.570841 INFO wfi
+49.570879 TRACE enqueued: [16, 0, 0, 0, 0, 0, 0, 0]
+49.570914 TRACE queue_recv: start to receive 0x3fc8ba0c item 0x3fc8d3f8 block_time_tick 4294967295
+0x3fc8ba0c - ecu_via_elm327::____embassy_main_task::{{closure}}::HEAP
+0x3fc8d3f8 - ecu_via_elm327::____embassy_main_task::{{closure}}::HEAP
+49.570973 TRACE dequeued: [16, 0, 0, 0, 0, 0, 0, 0]
+49.571019 INFO esp_wifi_tx_done_cb
+
+It wouldhave been hard to decoode the AP 80211 communication, so I went to wireshark. I've tried it, see ieee80211_output.txt 
+in the doc folder. But finally I went to Wireshark.
+
+To capture 80211 frames, I sent the 0 byte request to CCM AP from my old Mac, then I need to put my current Mac into
+monitor mode and got/collect an offline sniffer .cap file () with the airport program (airport en0 sniff). Then the output 
+file was open by Wireshark.
+
+No.	Time	Source	Destination	Protocol	Length	Info
+ 764	12.708859	Apple_de:f5:a6	f6:12:fa:16:30:88	802.11	64	Null function (No data), SN=457, FN=0, Flags=...P...TC
+ 765	12.708925		Apple_de:f5:a6 (28:cf:da:de:f5:a6) (RA)	802.11	48	Acknowledgement, Flags=........C
+1356	22.118796	Apple_de:f5:a6 (28:cf:da:de:f5:a6) (TA)	f6:12:fa:16:30:88 (f6:12:fa:16:30:88) (RA)	802.11	76	Request-to-send, Flags=........C
+1357	22.118806		Apple_de:f5:a6 (28:cf:da:de:f5:a6) (RA)	802.11	72	Clear-to-send, Flags=........C
+1358	22.118808	f6:12:fa:16:30:88 (f6:12:fa:16:30:88) (TA)	Apple_de:f5:a6 (28:cf:da:de:f5:a6) (RA)	802.11	68	802.11 Block Ack, Flags=........C
+1359	22.118811	Apple_de:f5:a6	f6:12:fa:16:30:88	802.11	64	Null function (No data), SN=458, FN=0, Flags=.......TC
+1360	22.118813		Apple_de:f5:a6 (28:cf:da:de:f5:a6) (RA)	802.11	48	Acknowledgement, Flags=........C
+1369	22.324069	Apple_de:f5:a6	f6:12:fa:16:30:88	802.11	64	Null function (No data), SN=459, FN=0, Flags=...P...TC
+1370	22.324079		Apple_de:f5:a6 (28:cf:da:de:f5:a6) (RA)	802.11	48	Acknowledgement, Flags=........C
+1428	23.352610	Apple_de:f5:a6	f6:12:fa:16:30:88	802.11	64	Null function (No data), SN=460, FN=0, Flags=.......TC
+1429	23.353253		Apple_de:f5:a6 (28:cf:da:de:f5:a6) (RA)	802.11	48	Acknowledgement, Flags=........C
+1430	23.361834	192.168.3.1	192.168.3.2	UDP	144	19924 → 54553 Len=20
+1431	23.361846	Apple_de:f5:a6 (28:cf:da:de:f5:a6) (TA)	f6:12:fa:16:30:88 (f6:12:fa:16:30:88) (RA)	802.11	68	802.11 Block Ack, Flags=........C
+1550	23.569772	Apple_de:f5:a6	f6:12:fa:16:30:88	802.11	64	Null function (No data), SN=461, FN=0, Flags=...P...TC
+1551	23.569780		Apple_de:f5:a6 (28:cf:da:de:f5:a6) (RA)	802.11	48	Acknowledgement, Flags=........C
+
+The conclusion was that after the sent request (which could not be seen in the captured frames) and during the more than 
+800ms response time the Mac wlan card went to seep. The next awake was quite random but CCM was able to send the response
+when it got the message about this awakened status meassage from my Mac:
+
+f6:12:fa:16:30:88   CCM as AP (192.168.3.1)
+28:cf:da:de:f5:a6   old Mac (192.168.3.2)  (shown Apple_de:f5:a6)
+
+
+ 764	12.708859	Apple_de:f5:a6	f6:12:fa:16:30:88	802.11	64	Null function (No data), SN=457, FN=0, Flags=...P...TC
+    P bit in PWR MGMT flag means that Mac claims that "STA will go to sleep"
+
+ 765	12.708925		            Apple_de:f5:a6 (28:cf:da:de:f5:a6) (RA)	802.11	48	Acknowledgement, Flags=........C
+    acknoledgement from CCM
+
+1356    22.118796	Apple_de:f5:a6 (28:cf:da:de:f5:a6) (TA)	f6:12:fa:16:30:88 (f6:12:fa:16:30:88) (RA)	802.11	76	Request-to-send, Flags=........C
+    here is where the communication starts
+    Mac ask RTS to reserve the channel for its sending
+
+1357	22.118806		            Apple_de:f5:a6 (28:cf:da:de:f5:a6) (RA)	802.11	72	Clear-to-send, Flags=........C
+    CCM CTS message when reserve this channel for the communcation (for 148us)
+
+1358	22.118808	f6:12:fa:16:30:88 (f6:12:fa:16:30:88) (TA)	Apple_de:f5:a6 (28:cf:da:de:f5:a6) (RA)	802.11	68	802.11 Block Ack, Flags=........C
+    CCM ack-ed that it had received the data
+    the sending is not seen in this capture list (this should be a wireshark "feature", since it is a "direct communication
+        between Mac and AP, so here AP is not a "tranmistter" between two ather BSSID node, but a "direct receiver")
+    but the Acknowledgement is clearly signal that the request packet was sent
+
+1359	22.118811	Apple_de:f5:a6	f6:12:fa:16:30:88	802.11	64	Null function (No data), SN=458, FN=0, Flags=.......TC
+    PWR MGMT flag signals that: STA will stay up
+
+1360	22.118813		            Apple_de:f5:a6 (28:cf:da:de:f5:a6) (RA)	802.11	48	Acknowledgement, Flags=........C
+    CCM ack for the perious message
+
+1369	22.324069	Apple_de:f5:a6	f6:12:fa:16:30:88	802.11	64	Null function (No data), SN=459, FN=0, Flags=...P...TC
+    about 200ms later Mac decides that it goes to sleep
+    PWR MGMT flag: "STA will go to sleep"
+
+1370	22.324079		            Apple_de:f5:a6 (28:cf:da:de:f5:a6) (RA)	802.11	48	Acknowledgement, Flags=........C
+    CCM answers OK
+
+1428	23.352610	Apple_de:f5:a6	f6:12:fa:16:30:88	802.11	64	Null function (No data), SN=460, FN=0, Flags=.......TC
+    I don't know why and why after this time (maybe close to pervious sending it awake more frequently) but Mac awakes
+    signalin via PWR MGMT flag that STA will stay up
+
+1429	23.353253		            Apple_de:f5:a6 (28:cf:da:de:f5:a6) (RA)	802.11	48	Acknowledgement, Flags=........C
+    CCM happily answers with OK
+
+1430	23.361834	192.168.3.1	192.168.3.2	UDP	144	19924 → 54553 Len=20
+    and send the wating response
+    as it appears it took 8.6 ms to get the response physically which is quite long
+    I don't understand why it is so long, but it is the measured value (probably my old Mac plays a role in this)
+
+1431	23.361846	Apple_de:f5:a6 (28:cf:da:de:f5:a6) (TA)	f6:12:fa:16:30:88 (f6:12:fa:16:30:88) (RA)	802.11	68	802.11 Block Ack, Flags=........C
+    Mac confirms the got message
+
+1550	23.569772	Apple_de:f5:a6	f6:12:fa:16:30:88	802.11	64	Null function (No data), SN=461, FN=0, Flags=...P...TC
+    then MAC will go to sleep again 
+
+1551	23.569780		            Apple_de:f5:a6 (28:cf:da:de:f5:a6) (RA)	802.11	48	Acknowledgement, Flags=........C
+    which is confirmed by CCM
+
+I tried to find some solution. As a quick search Apple does not support disabling this power sawing behaviour deeply 
+programmed to the wlan card firmware or the mac kernel. But I continue to search.
+
+Some advice was to keep wifi card awaken by continuously pinging it. I tried but it does not help.

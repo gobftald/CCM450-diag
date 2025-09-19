@@ -2,7 +2,7 @@
 use std::error::Error;
 
 // 3
-use esp_config::{ConfigOption, generate_config};
+use esp_config::{generate_config, ConfigOption};
 use esp_metadata::{Chip, Config};
 
 // 6
@@ -170,7 +170,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             ConfigOption::new(
                 "dump_packets",
                 "Dump packets via an info log statement",
-                false,
+                true,
             ),
             ConfigOption::new(
                 "phy_enable_usb",

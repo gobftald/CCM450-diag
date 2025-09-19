@@ -11,8 +11,7 @@ use embassy_sync::{
     zerocopy_channel::{Receiver, Sender},
 };
 
-// arbitrary high-level ECU commands
-
+// arbitrary high-level ECU commands#[]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(strum_macros::FromRepr)]
 enum Request {
@@ -22,6 +21,7 @@ enum Request {
     LiveDataStop,
 }
 
+#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 enum EcuError {
     InvalidRequest,
@@ -51,6 +51,9 @@ pub async fn server(
 
     response_item.size = 0;
     loop {
+        trace!(
+            "ecu/mod: match select(receiver.receive(), ecu.response(&mut response_item.data)).await"
+        );
         // waiting for request or response
         match select(receiver.receive(), ecu.response(&mut response_item.data)).await {
             // received an ecu request
@@ -60,12 +63,12 @@ pub async fn server(
                     received_item.data[..received_item.size]
                 );
 
-                if received_item.size == 1 {
-                    if let Some(request) = Request::from_repr(received_item.data[0] as usize) {
-                        unwrap!(ecu.request(request).await);
-
-                        trace!("#### ECU: write_async()");
-                    }
+                if received_item.size == 1
+                    && let Some(request) = Request::from_repr(received_item.data[0] as usize)
+                {
+                    ecu.request(request)
+                        .await
+                        .unwrap_or_else(|err| error!("{}", err));
                 }
 
                 // we have finished to process request

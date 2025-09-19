@@ -1,0 +1,1081 @@
+ppRxPkt
+
+40384074:       1101                    addi    sp,sp,-32
+40384076:       c84a                    sw      s2,16(sp)
+40384078:       c64e                    sw      s3,12(sp)
+4038407a:       c452                    sw      s4,8(sp)
+4038407c:       c256                    sw      s5,4(sp)
+4038407e:       ce06                    sw      ra,28(sp)
+40384080:       cc22                    sw      s0,24(sp)
+40384082:       ca26                    sw      s1,20(sp)
+40384084:       3fce0937                lui     s2,0x3fce0
+40384088:       0f500993                li      s3,245
+4038408c:       3fce0a37                lui     s4,0x3fce0
+40384090:       3c00aab7                lui     s5,0x3c00a
+
+// loop next frame
+40384094 <.L484>:
+40384094:       ffc7d097                auipc   ra,0xffc7d
+40384098:       628080e7                jalr    1576(ra) # 400016bc <ppDequeueRxq_Locked>
+
+4038409c:       842a                    mv      s0,a0
+4038409e:       e911                    bnez    a0,403840b2 <.L499>
+
+// exit
+403840a0:       40f2                    lw      ra,28(sp)
+403840a2:       4462                    lw      s0,24(sp)
+403840a4:       44d2                    lw      s1,20(sp)
+403840a6:       4942                    lw      s2,16(sp)
+403840a8:       49b2                    lw      s3,12(sp)
+403840aa:       4a22                    lw      s4,8(sp)
+403840ac:       4a92                    lw      s5,4(sp)
+403840ae:       6105                    addi    sp,sp,32
+403840b0:       8082                    ret
+
+403840b2 <.L499>:
+403840b2:       ffc7d097                auipc   ra,0xffc7d
+403840b6:       702080e7                jalr    1794(ra)        # 400017b4 <wDevCheckBlockError>
+
+403840ba:       4804                    lw      s1,16(s0)       # buf[16]       0x3fc8ec3c 
+403840bc:       405c                    lw      a5,4(s0)        # buf[4]        0x3fc8ec0c
+403840be:       8522                    mv      a0,s0           # save &buf     0x3fc8ebdc
+403840c0:       03048713                addi    a4,s1,48        # buf[16] + 48  0x3fc8ec6c
+403840c4:       c3d8                    sw      a4,4(a5)        # buf[4][4]     0x3fc8ec6c -> 0x3fc8ec10   
+403840c6:       545c                    lw      a5,44(s0)       # buf[44]       0x3fc8ec18
+403840c8:       85a6                    mv      a1,s1           # save buf[16]  save 0x3fc8ec3c  
+403840ca:       439c                    lw      a5,0(a5)        # buf[4][0]     (0x3fc8ec18) = 0x100
+403840cc:       8bc1                    andi    a5,a5,16        # mask
+403840ce:       ebb9                    bnez    a5,40384124 <.L485>     # goto ppRxProtoProc
+
+403840d0:       ffc7d097                auipc   ra,0xffc7d
+403840d4:       63c080e7                jalr    1596(ra) # 4000170c <ppRxProtoProc>
+
+403840d8:       c519                    beqz    a0,403840e6 <.L486>
+
+// error
+403840da <.L497>:
+403840da:       8522                    mv      a0,s0
+403840dc:       ffc7d097                auipc   ra,0xffc7d
+403840e0:       61c080e7                jalr    1564(ra) # 400016f8 <ppRecycleRxPkt>
+
+403840e4:       bf45                    j       40384094 <.L484>    # loop next frame
+
+403840e6 <.L486>:
+403840e6:       8522                    mv      a0,s0
+403840e8:       a79fe0ef                jal     ra,40382b60 <ppRxFragmentProc>
+
+403840ec:       842a                    mv      s0,a0
+403840ee:       d15d                    beqz    a0,40384094 <.L484> # loop
+
+403840f0 <.L488>:
+403840f0:       409c                    lw      a5,0(s1)
+403840f2:       00379713                slli    a4,a5,0x3
+403840f6:       06075d63                bgez    a4,40384170 <.L491>
+
+403840fa:       02f4c783                lbu     a5,47(s1)
+403840fe:       c399                    beqz    a5,40384104 <.L492>
+
+40384100:       fd379de3                bne     a5,s3,403840da <.L497>
+
+40384104 <.L492>:
+40384104:       96892703                lw      a4,-1688(s2) # 3fcdf968 <pTxRx>
+40384108:       3a872703                lw      a4,936(a4)
+4038410c:       d779                    beqz    a4,403840da <.L497>     # error
+
+4038410e:       05379a63                bne     a5,s3,40384162 <.L494>
+
+40384112:       8c8a2783                lw      a5,-1848(s4) # 3fcdf8c8 <s_michael_mic_failure_cb>
+40384116:       cb9d                    beqz    a5,4038414c <.L495>
+
+40384118:       4488                    lw      a0,8(s1)
+4038411a:       fff54513                not     a0,a0
+4038411e:       817d                    srli    a0,a0,0x1f
+40384120:       9782                    jalr    a5
+
+40384122:       bf65                    j       403840da <.L497>    # error
+
+40384124 <.L485>:
+40384124:       ffc7d097                auipc   ra,0xffc7d
+40384128:       5e8080e7                jalr    1512(ra) # 4000170c <ppRxProtoProc>
+
+4038412c:       f55d                    bnez    a0,403840da <.L497>     # error
+
+4038412e:       405c                    lw      a5,4(s0)
+40384130:       43dc                    lw      a5,4(a5)
+40384132:       0007c703                lbu     a4,0(a5)
+40384136:       8b11                    andi    a4,a4,4
+40384138:       ff45                    bnez    a4,403840f0 <.L488>
+
+4038413a:       0017c703                lbu     a4,1(a5)
+4038413e:       8b11                    andi    a4,a4,4
+40384140:       ff49                    bnez    a4,403840da <.L497>     # error
+
+40384142:       0167d783                lhu     a5,22(a5)
+40384146:       8bbd                    andi    a5,a5,15
+40384148:       d7c5                    beqz    a5,403840f0 <.L488>
+
+4038414a:       bf41                    j       403840da <.L497>        # error
+
+4038414c <.L495>:
+4038414c:       c04a8693                addi    a3,s5,-1020 # 3c009c04 <.LANCHOR15>
+40384150:       4605                    li      a2,1
+40384152:       02000593                li      a1,32
+40384156:       4519                    li      a0,6
+40384158:       01caa097                auipc   ra,0x1caa
+4038415c:       88c080e7                jalr    -1908(ra) # 4202d9e4 <wifi_log>   # "invalid micahel mic failure cb"
+
+40384160:       bfad                    j       403840da <.L497>        # error
+
+40384162 <.L494>:
+40384162:       481c                    lw      a5,16(s0)
+40384164:       4601                    li      a2,0
+40384166:       8522                    mv      a0,s0
+40384168:       00078583                lb      a1,0(a5)
+4038416c:       9702                    jalr    a4
+
+4038416e:       b71d                    j       40384094 <.L484>
+
+40384170 <.L491>:
+40384170:       00279713                slli    a4,a5,0x2
+40384174:       f60753e3                bgez    a4,403840da <.L497>     # error
+
+40384178:       96892783                lw      a5,-1688(s2)
+4038417c:       3ac7a783                lw      a5,940(a5)
+40384180:       dfa9                    beqz    a5,403840da <.L497>     # error
+
+40384182:       4818                    lw      a4,16(s0)
+40384184:       4601                    li      a2,0
+40384186:       8522                    mv      a0,s0
+40384188:       00070583                lb      a1,0(a4)
+4038418c:       9782                    jalr    a5                      # ap_rx_cb
+
+4038418e:       b719                    j       40384094 <.L484>
+
+
+
+wDevCheckBlockError
+0x40042f6e      lw      a5,44(a0)       # 0x3fc8ec1c
+0x40042f70      lw      a5,0(a5)        # 0x100
+0x40042f72      andi    a5,a5,16
+0x40042f74      beqz    a5,0x40043010   # exit
+
+0x40042f76      addi    sp,sp,-32
+0x40042f78      sw      s0,24(sp)
+0x40042f7a      lw      s0,4(a0)
+
+0x40042f7c      sw      ra,28(sp)
+0x40042f7e      sw      s1,20(sp)
+0x40042f80      sw      s2,16(sp)
+0x40042f82      sw      s3,12(sp)
+0x40042f84      sw      s4,8(sp)
+0x40042f86      sw      s5,4(sp)
+0x40042f88      sw      s6,0(sp)
+
+0x40042f8a      beqz    s0,0x40042ffc   # check new ptr
+
+0x40042f8c      lui     s1,0x1
+0x40042f8e      lui     s4,0xdeadc
+0x40042f92      addi    s3,s1,-1
+0x40042f96      mv      s2,a0 
+0x40042f98      addi    s4,s4,-273
+0x40042f9c      addi    s1,s1,-4
+0x40042f9e      lui     s6,0x3fce0
+0x40042fa2      lui     s5,0x3ff1b
+0x40042fa6      j       0x40042fac
+
+0x40042fa8      lw      s0,8(s0)
+0x40042faa      beqz    s0,0x40042ffc
+
+0x40042fac      lw      a6,0(s0)
+0x40042fb0      lw      t1,4(s0)
+0x40042fb4      addi    a3,s5,1876
+0x40042fb8      and     a6,a6,s3
+0x40042fbc      slli    a6,a6,0x10
+0x40042fbe      srli    a6,a6,0x10
+0x40042fc2      add     a6,a6,t1
+0x40042fc4      lw      a5,0(a6)
+0x40042fc8      mv      a4,t1
+0x40042fca      li      a2,1
+0x40042fcc      mv      a7,a5
+0x40042fce      li      a1,1024
+0x40042fd2      li      a0,6
+0x40042fd4      beq     a5,s4,0x40042ff4
+
+0x40042fd8      lw      a5,0(s0)
+0x40042fda      and     a5,a5,s3
+0x40042fde      slli    a5,a5,0x10
+0x40042fe0      srli    a5,a5,0x10
+0x40042fe2      beq     a5,s1,0x40042ff4
+
+0x40042fe6      lw      t3,-1940(s6)
+0x40042fea      lw      a5,0(t1)
+0x40042fee      lw      t1,180(t3)
+0x40042ff2      jalr    t1
+
+0x40042ff4      lw      a5,8(s2)
+0x40042ff8      bne     a5,s0,0x40042fa8
+
+0x40042ffc      lw      ra,28(sp)
+0x40042ffe      lw      s0,24(sp)
+0x40043000      lw      s1,20(sp)
+0x40043002      lw      s2,16(sp)
+0x40043004      lw      s3,12(sp)
+0x40043006      lw      s4,8(sp)
+0x40043008      lw      s5,4(sp)
+0x4004300a      lw      s6,0(sp)
+0x4004300c      addi    sp,sp,32
+0x4004300e      ret
+
+0x40043010      ret
+
+
+0x3fc8ebdc  0x00    0x00    0x00    0x00    0x0c    0xec    0xc8    0x3f
+0x3fc8ebe4  0x0c    0xec    0xc8    0x3f    0x01    0x00    0x00    0x00
+0x3fc8ebec  0x3c    0xec    0xc8    0x3f    0x00    0x00    0x64    0x00
+0x3fc8ebf4  0x00    0x00    0x08    0x00    0x00    0x00    0x00    0x00
+0x3fc8ebfc  0x00    0x00    0x00    0x00    0x00    0x00    0x00    0x00
+0x3fc8ec04  0x00    0x00    0x00    0x00    0x18    0xec    0xc8    0x3f
+0x3fc8ec0c  0x64    0x40    0x06    0x00    0x3c    0xec    0xc8    0x3f
+0x3fc8ec14  0x00    0x00    0x00    0x00    0x00    0x01    0x00    0x00
+0x3fc8ec1c  0x8d    0x15    0x6e    0x00    0x01    0x01    0x00    0x00
+
+
+
+ppRxProtoProc
+0x40040ef4      lw      a4,4(a0)
+0x40040ef6      addi    sp,sp,-32
+0x40040ef8      sw      s1,20(sp)
+0x40040efa      lw      s1,4(a4)
+0x40040efc      sw      s0,24(sp)
+0x40040efe      sw      s2,16(sp)
+0x40040f00      sw      s3,12(sp)
+0x40040f02      lw      a5,0(a1)
+0x40040f04      sw      ra,28(sp)
+0x40040f06      sw      s4,8(sp)
+0x40040f08      sw      s5,4(sp)
+
+0x40040f0a      lbu     a4,0(s1)
+0x40040f0e      lui     s0,0x20000
+0x40040f12      slli    a2,a5,0x3
+0x40040f16      mv      s2,a0
+0x40040f18      mv      s3,a1
+0x40040f1a      and     s0,s0,a5
+0x40040f1c      andi    a3,a4,12
+0x40040f20      bgez    a2,0x40040ff6
+
+0x40040f24      snez    s0,s0 
+0x40040f28      li      a5,8
+0x40040f2a      slli    s0,s0,0x1
+0x40040f2c      beq     a3,a5,0x40041002
+
+// loop
+0x40040f30      beqz    a3,0x40040f72
+
+//
+0x40040f32      li      a5,2
+0x40040f34      beq     s0,a5,0x40040f5e
+
+0x40040f38      lui     s4,0x3fce0
+0x40040f3c      lw      a5,-1704(s4)
+0x40040f40      addi    a1,s1,10
+0x40040f44      mv      a0,s0
+0x40040f46      lw      a5,388(a5) 
+0x40040f4a      jalr    a5                  # rc_get_trc
+
+0x40040f4c      sw      a0,36(s2)
+0x40040f50      beqz    a0,0x40040f5e
+
+0x40040f52      lw      a5,-1704(s4)        # rcUpdateRxDone
+0x40040f56      mv      a1,s3
+0x40040f58      lw      a5,416(a5)
+0x40040f5c      jalr    a5
+
+// exit
+0x40040f5e      lw      ra,28(sp)
+0x40040f60      lw      s0,24(sp)
+0x40040f62      lw      s1,20(sp)
+0x40040f64      lw      s2,16(sp)
+0x40040f66      lw      s3,12(sp)
+0x40040f68      lw      s4,8(sp)
+0x40040f6a      lw      s5,4(sp)
+0x40040f6c      li      a0,0
+0x40040f6e      addi    sp,sp,32
+0x40040f70      ret
+
+0x40040f72      andi    a4,a4,240
+0x40040f76      li      a5,128
+0x40040f7a      bne     a4,a5,0x40040f32
+
+0x40040f7e      lw      a5,44(s2)
+0x40040f82      lw      a5,0(a5)
+0x40040f84      andi    a5,a5,16
+0x40040f86      bnez    a5,0x40040f5e           # exit
+
+0x40040f88      lui     s5,0x3fce0
+0x40040f8c      lw      a5,-1704(s5)
+0x40040f90      mv      a0,s1
+0x40040f92      li      s4,0
+0x40040f94      lw      a5,412(a5)
+0x40040f98      jalr    a5
+
+0x40040f9a      lw      a5,44(s3)
+0x40040f9e      lui     a3,0x1
+0x40040fa0      addi    a3,a3,-1
+0x40040fa2      slli    a4,a0,0x10
+0x40040fa6      and     a5,a5,a3
+0x40040fa8      srli    a4,a4,0x10
+0x40040faa      slli    a5,a5,0x10
+0x40040fac      addi    a4,a4,3
+0x40040fae      srli    a5,a5,0x10
+0x40040fb0      bge     a4,a5,0x40040fc0
+
+0x40040fb4      addi    a5,a5,-4
+0x40040fb6      sub     a5,a5,a0
+0x40040fb8      slli    s4,a5,0x10
+0x40040fbc      srli    s4,s4,0x10
+
+//
+0x40040fc0      lw      a5,-1704(s5)
+0x40040fc4      addi    a0,s1,10
+0x40040fc8      lw      a5,424(a5)
+0x40040fcc      jalr    a5                      # pm_sleep_for
+
+0x40040fce      beqz    a0,0x40040f32
+
+0x40040fd0      lhu     a4,12(s2)
+0x40040fd4      li      a5,1
+0x40040fd6      bne     a4,a5,0x40040f32
+
+0x40040fda      lw      a4,44(s2)
+0x40040fde      lw      a5,-1704(s5)
+0x40040fe2      addi    a1,s1,24 
+0x40040fe6      lw      a0,4(a4)
+0x40040fe8      lw      a5,428(a5)
+0x40040fec      li      a3,0
+0x40040fee      add     a2,a1,s4
+0x40040ff2      jalr    a5                      # pm_on_beacon_rx
+
+0x40040ff4      j       0x40040f32
+
+0x40040ff6      seqz    s0,s0
+0x40040ffa      li      a5,8
+0x40040ffc      addi    s0,s0,1
+0x40040ffe      bne     a3,a5,0x40040f30
+
+0x40041002      lui     a5,0x3fce0
+0x40041006      lw      a5,-1704(a5)
+0x4004100a      lbu     a3,1(s1)
+0x4004100e      addi    a2,s1,4
+0x40041012      lw      a5,420(a5)
+0x40041016      mv      a1,s0
+0x40041018      addi    a0,s1,10
+0x4004101c      jalr    a5                      # pm_on_data_rx
+
+0x4004101e      j       0x40040f32
+
+
+ap_rx_cb
+0x420307ac <ap_rx_cb>                   lui     a5,0x3fce0
+0x420307b0 <ap_rx_cb+4>                 lw      a5,-1940(a5)    # net80211_funcs
+0x420307b4 <ap_rx_cb+8>                 mv      a3,a2
+0x420307b6 <ap_rx_cb+10>                mv      a2,a1
+0x420307b8 <ap_rx_cb+12>                lw      t1,132(a5)      # hostap_input
+0x420307bc <ap_rx_cb+16>                lui     a5,0x3fca2
+0x420307c0 <ap_rx_cb+20>                mv      a1,a0
+0x420307c2 <ap_rx_cb+22>                lw      a0,-1508(a5)
+0x420307c6 <ap_rx_cb+26>                li      a4,0
+0x420307c8 <ap_rx_cb+28>                jr      t1 
+
+
+hostap_input
+0x420320fc <hostap_input>       addi    sp,sp,-112
+0x420320fe <hostap_input+2>     sw      s9,68(sp)
+0x42032100 <hostap_input+4>     lw      s9,16(a1)
+0x42032104 <hostap_input+8>     sw      s2,96(sp)
+0x42032106 <hostap_input+10>    sw      s5,84(sp)
+0x42032108 <hostap_input+12>    lw      s2,44(s9) 
+0x4203210c <hostap_input+16>    sw      s10,64(sp) 
+0x4203210e <hostap_input+18>    lui     s5,0x3fca2
+0x42032112 <hostap_input+22>    mv      s10,a4
+0x42032114 <hostap_input+24>    lui     a4,0x1
+0x42032116 <hostap_input+26>    addi    a4,a4,-1
+0x42032118 <hostap_input+28>    sw      a3,28(sp)
+0x4203211a <hostap_input+30>    addi    a3,s5,-732
+0x4203211e <hostap_input+34>    and     s2,s2,a4
+0x42032122 <hostap_input+38>    lw      a4,20(a3)
+
+0x42032124 <hostap_input+40>    sw      s0,104(sp)
+0x42032126 <hostap_input+42>    sw      ra,108(sp)
+0x42032128 <hostap_input+44>    sw      s1,100(sp)
+0x4203212a <hostap_input+46>    sw      s3,92(sp)
+0x4203212c <hostap_input+48>        sw      s4,88(sp)
+0x4203212e <hostap_input+50>:        sw      s6,80(sp)
+0x42032130 <hostap_input+52>:        sw      s7,76(sp)
+0x42032132 <hostap_input+54>:        sw      s8,72(sp)
+0x42032134 <hostap_input+56>:        sw      s11,60(sp)
+0x42032136 <hostap_input+58>:        addi    a4,a4,1
+0x42032138 <hostap_input+60>:        sw      a2,16(sp)
+0x4203213a <hostap_input+62>:        sw      a4,20(a3)
+0x4203213c <hostap_input+64>:        mv      s0,a1
+0x4203213e <hostap_input+66>:        beqz    a0,0x4203275c <hostap_input+1632>
+
+0x42032142 <hostap_input+70>:        lui     s1,0x3fca2
+0x42032146 <hostap_input+74>:        addi    a4,s1,-1528        # 0x3fca1a08    g_ic
+0x4203214a <hostap_input+78>:        mv      s3,a0              # 0x3fc93754    heap
+0x4203214c <hostap_input+80>:        lw      a0,16(a4)          # g_ic[16]  0x00
+                                            # a1 = 0x3fc8ebdc orignal buffer, see above
+0x4203214e <hostap_input+82>:        addi    a1,sp,40           # a1 = 0x3fc8d388
+                                            # s2 = 0x38
+0x42032150 <hostap_input+84>:        slli    s2,s2,0x10         # s2 = 0x380000
+0x42032152 <hostap_input+86>:        sub     a0,a0,s3           # a0 = 0xc036c8ac
+0x42032156 <hostap_input+90>:        snez    a0,a0
+0x4203215a <hostap_input+94>:        auipc   ra,0xfdfcf
+0x4203215e <hostap_input+98>:        jalr    1818(ra)           # wifi_get_macaddr
+
+0x42032162 <hostap_input+102>:       lw      a4,44(s0)          # s0 = 0x3fc8ebdc (original buf[44])
+0x42032164 <hostap_input+104>:       addi    a5,s1,-1528        # g_ic  
+0x42032168 <hostap_input+108>:       sw      a5,20(sp)          # save
+0x4203216a <hostap_input+110>:       lw      a4,0(a4)           # 0x100
+0x4203216c <hostap_input+112>:       srli    s2,s2,0x10
+0x42032170 <hostap_input+116>:       addi    s5,s5,-732         # g_hmac_cnt
+0x42032174 <hostap_input+120>:       andi    a4,a4,32           # mask 5. bit
+0x42032178 <hostap_input+124>:       beqz    a4,0x420321ee <hostap_input+242>
+
+0x4203217a <hostap_input+126>:       lw      a4,4(s0)
+0x4203217c <hostap_input+128>:       li      a2,3
+0x4203217e <hostap_input+130>:       li      s7,24
+0x42032180 <hostap_input+132>:       lw      s11,4(a4)
+0x42032184 <hostap_input+136>:       lbu     a3,1(s11)
+0x42032188 <hostap_input+140>:       andi    s6,a3,3
+0x4203218c <hostap_input+144>:       bne     s6,a2,0x42032192 <hostap_input+150>
+
+0x42032190 <hostap_input+148>:       li      s7,30
+0x42032192 <hostap_input+150>:       lbu     a2,0(s11)
+0x42032196 <hostap_input+154>:       li      a1,136
+0x4203219a <hostap_input+158>:       andi    a2,a2,140
+0x4203219e <hostap_input+162>:       bne     a2,a1,0x420321a4 <hostap_input+168>
+
+0x420321a2 <hostap_input+166>:       addi    s7,s7,2
+0x420321a4 <hostap_input+168>:       slli    a3,a3,0x18
+0x420321a6 <hostap_input+170>:       srai    a3,a3,0x18
+0x420321a8 <hostap_input+172>:       li      s4,128
+0x420321ac <hostap_input+176>:       bgez    a3,0x420321b2 <hostap_input+182>
+
+0x420321b0 <hostap_input+180>:       addi    s7,s7,4
+0x420321b2 <hostap_input+182>:       lbu     a3,1(s11)
+0x420321b6 <hostap_input+186>:       andi    a3,a3,64
+0x420321ba <hostap_input+190>:       beqz    a3,0x4203269c <hostap_input+1440>
+
+0x420321be <hostap_input+194>:       lw      a3,164(s3)
+0x420321c2 <hostap_input+198>:       andi    a3,a3,16
+0x420321c4 <hostap_input+200>:       beqz    a3,0x4203227a <hostap_input+382>
+
+0x420321c6 <hostap_input+202>:       bnez    s10,0x4203260e <hostap_input+1298>
+
+0x420321ca <hostap_input+206>:       lui     a4,0x3c002
+0x420321ce <hostap_input+210>:       lui     a3,0x3c004
+0x420321d2 <hostap_input+214>:       lui     a1,0x1
+0x420321d4 <hostap_input+216>:       li      a5,1110
+0x420321d8 <hostap_input+220>:       addi    a4,a4,-472
+0x420321dc <hostap_input+224>:       addi    a3,a3,1252
+0x420321e0 <hostap_input+228>:       li      a2,1
+0x420321e2 <hostap_input+230>:       addi    a1,a1,-2048
+0x420321e6 <hostap_input+234>:       li      a0,1
+0x420321e8 <hostap_input+236>:       jal     ra,0x4202d9e4 <wifi_log>   "ieee80211_hostap.c" "%s %d\n"
+
+0x420321ec <hostap_input+240>:       j       0x420321ec <hostap_input+240>  # forever loop
+
+0x420321ee <hostap_input+242>:       li      a5,15
+0x420321f0 <hostap_input+244>:       bgeu    a5,s2,0x4203275c <hostap_input+1632>
+
+0x420321f4 <hostap_input+248>:       lw      a5,4(s0)
+0x420321f6 <hostap_input+250>:       lw      s11,4(a5)
+0x420321fa <hostap_input+254>:       lbu     s7,0(s11)
+0x420321fe <hostap_input+258>:       andi    a5,s7,3
+0x42032202 <hostap_input+262>:       bnez    a5,0x4203275c <hostap_input+1632>
+
+0x42032206 <hostap_input+266>:       lbu     s6,1(s11)
+0x4203220a <hostap_input+270>:       andi    s1,s7,12
+0x4203220e <hostap_input+274>:       li      a5,8
+0x42032210 <hostap_input+276>:       andi    s6,s6,3
+0x42032214 <hostap_input+280>:       andi    s4,s7,240
+0x42032218 <hostap_input+284>:       bne     s1,a5,0x42032242 <hostap_input+326>
+
+0x4203221c <hostap_input+288>:       li      a5,3
+0x4203221e <hostap_input+290>:       bne     s6,a5,0x42032762 <hostap_input+1638>
+
+0x42032222 <hostap_input+294>:       lbu     a5,4(s11)
+0x42032226 <hostap_input+298>:       andi    a5,a5,1
+0x42032228 <hostap_input+300>:       beqz    a5,0x42032246 <hostap_input+330>
+
+0x4203222a <hostap_input+302>:       lw      a2,16(sp)
+0x4203222c <hostap_input+304>:       addi    a1,s2,-4
+0x42032230 <hostap_input+308>:       mv      a0,s11
+0x42032232 <hostap_input+310>:       jal     ra,0x4203dba4 <ieee80211_rfid_locp_recv>
+
+0x42032236 <hostap_input+314>:       mv      a0,s0
+0x42032238 <hostap_input+316>:       auipc   ra,0xfdfcf
+0x4203223c <hostap_input+320>:       jalr    1548(ra)
+
+0x42032240 <hostap_input+324>:       j       0x4203260a <hostap_input+1294>
+
+0x42032242 <hostap_input+326>:       beqz    s6,0x4203227e <hostap_input+386>
+
+0x42032246 <hostap_input+330>:       addi    s8,s11,4
+0x4203224a <hostap_input+334>:       addi    a5,s11,10
+0x4203224e <hostap_input+338>:       mv      a0,a5
+0x42032250 <hostap_input+340>:       sw      a5,24(sp)
+0x42032252 <hostap_input+342>:       auipc   ra,0xfdfcf
+0x42032256 <hostap_input+346>:       jalr    1518(ra)
+
+0x4203225a <hostap_input+350>:       mv      s10,a0
+0x4203225c <hostap_input+352>:       bnez    a0,0x420323e0 <hostap_input+740>
+
+0x42032260 <hostap_input+356>:       li      a5,8
+0x42032262 <hostap_input+358>:       bne     s1,a5,0x420322b0 <hostap_input+436>
+
+0x42032266 <hostap_input+362>:       lui     a0,0x3c002
+0x4203226a <hostap_input+366>:       addi    a0,a0,1400
+0x4203226e <hostap_input+370>:       auipc   ra,0xfdfcf
+0x42032272 <hostap_input+374>:       jalr    1490(ra)
+
+0x42032276 <hostap_input+378>:       mv      s2,a0
+0x42032278 <hostap_input+380>:       bnez    a0,0x42032290 <hostap_input+404>
+
+0x4203227a <hostap_input+382>:       li      s1,8
+0x4203227c <hostap_input+384>:       j       0x42032236 <hostap_input+314>
+
+0x4203227e <hostap_input+386>:       li      a5,4
+0x42032280 <hostap_input+388>:       beq     s1,a5,0x42032246 <hostap_input+330>
+
+0x42032284 <hostap_input+392>:       li      a5,23
+0x42032286 <hostap_input+394>:       bgeu    a5,s2,0x42032236 <hostap_input+314>
+
+0x4203228a <hostap_input+398>:       addi    s8,s11,16
+0x4203228e <hostap_input+402>:       j       0x4203224a <hostap_input+334>
+
+0x42032290 <hostap_input+404>:       lui     a3,0x3c004
+0x42032294 <hostap_input+408>:       li      a2,4
+0x42032296 <hostap_input+410>:       li      a1,4
+0x42032298 <hostap_input+412>:       li      a0,1
+0x4203229a <hostap_input+414>:       li      a4,6
+0x4203229c <hostap_input+416>:       addi    a3,a3,632
+0x420322a0 <hostap_input+420>:       jal     ra,0x4202d9e4 <wifi_log>   # "no bcast bss, send deauth: reason not authed(%d)"
+
+0x420322a4 <hostap_input+424>:       lw      a1,24(sp)
+0x420322a6 <hostap_input+426>:       li      a2,6
+0x420322a8 <hostap_input+428>:       mv      a0,s2
+0x420322aa <hostap_input+430>:       jal     ra,0x4203c974 <ieee80211_send_deauth_no_bss>
+
+0x420322ae <hostap_input+434>:       j       0x42032236 <hostap_input+314>
+
+0x420322b0 <hostap_input+436>:       lbu     a5,47(s9)
+0x420322b4 <hostap_input+440>:       beqz    a5,0x420322be <hostap_input+450>
+
+0x420322b6 <hostap_input+442>:       li      a3,245
+0x420322ba <hostap_input+446>:       bne     a5,a3,0x42032236 <hostap_input+314>
+
+0x420322be <hostap_input+450>:       lui     s10,0x3c002
+0x420322c2 <hostap_input+454>:       li      a2,6
+0x420322c4 <hostap_input+456>:       addi    a1,s10,1400
+0x420322c8 <hostap_input+460>:       mv      a0,s8
+0x420322ca <hostap_input+462>:       auipc   ra,0xfdfce
+0x420322ce <hostap_input+466>:       jalr    150(ra)
+
+0x420322d2 <hostap_input+470>:       beqz    a0,0x420322e4 <hostap_input+488>
+
+0x420322d4 <hostap_input+472>:       li      a2,6
+0x420322d6 <hostap_input+474>:       addi    a1,sp,40
+0x420322d8 <hostap_input+476>:       mv      a0,s8
+0x420322da <hostap_input+478>:       auipc   ra,0xfdfce
+0x420322de <hostap_input+482>:       jalr    134(ra)
+
+0x420322e2 <hostap_input+486>:       bnez    a0,0x42032236 <hostap_input+314>
+
+0x420322e4 <hostap_input+488>:       addi    a0,s10,1400
+0x420322e8 <hostap_input+492>:       auipc   ra,0xfdfcf
+0x420322ec <hostap_input+496>:       jalr    1368(ra)
+
+0x420322f0 <hostap_input+500>:       mv      s10,a0
+0x420322f2 <hostap_input+502>:       beqz    a0,0x42032236 <hostap_input+314>
+
+0x420322f4 <hostap_input+504>:       sw      zero,12(sp)
+0x420322f6 <hostap_input+506>:       lw      a3,28(s9)
+0x420322fa <hostap_input+510>:       srli    a3,a3,0x1f
+0x420322fc <hostap_input+512>:       sb      a3,696(s10)
+0x42032300 <hostap_input+516>:       bnez    s1,0x4203230a <hostap_input+526>
+
+0x42032302 <hostap_input+518>:       li      a3,64
+0x42032306 <hostap_input+522>:       beq     s4,a3,0x42032330 <hostap_input+564>
+
+0x4203230a <hostap_input+526>:       li      a2,6
+0x4203230c <hostap_input+528>:       addi    a1,sp,40
+0x4203230e <hostap_input+530>:       mv      a0,s8
+0x42032310 <hostap_input+532>:       auipc   ra,0xfdfce
+0x42032314 <hostap_input+536>:       jalr    80(ra)
+
+0x42032318 <hostap_input+540>:       beqz    a0,0x42032330 <hostap_input+564>
+
+0x4203231a <hostap_input+542>:       lui     a1,0x3c002
+0x4203231e <hostap_input+546>:       li      a2,6
+0x42032320 <hostap_input+548>:       addi    a1,a1,1400
+0x42032324 <hostap_input+552>:       mv      a0,s8
+0x42032326 <hostap_input+554>:       auipc   ra,0xfdfce
+0x4203232a <hostap_input+558>:       jalr    58(ra)
+
+0x4203232e <hostap_input+562>:       bnez    a0,0x42032236 <hostap_input+314>
+
+0x42032330 <hostap_input+564>:       lw      a5,28(sp)
+0x42032332 <hostap_input+566>:       andi    a3,s7,4
+0x42032336 <hostap_input+570>:       sb      a5,304(s3)
+0x4203233a <hostap_input+574>:       bnez    a3,0x4203246a <hostap_input+878>
+
+0x4203233e <hostap_input+578>:       li      a3,64
+0x42032342 <hostap_input+582>:       beq     s4,a3,0x4203246a <hostap_input+878>
+
+0x42032346 <hostap_input+586>:       mv      a0,s11
+0x42032348 <hostap_input+588>:       jal     ra,0x4203d652 <ieee80211_gettid>
+
+0x4203234c <hostap_input+592>:       lw      a5,20(sp)
+0x4203234e <hostap_input+594>:       mv      s8,a0
+0x42032350 <hostap_input+596>:       lhu     s9,22(s11)
+0x42032354 <hostap_input+600>:       lw      a3,116(a5)
+0x42032356 <hostap_input+602>:       beqz    a3,0x42032360 <hostap_input+612>
+
+0x42032358 <hostap_input+604>:       srli    a3,s9,0x4
+0x4203235c <hostap_input+608>:       sh      a3,28(s0)
+0x42032360 <hostap_input+612>:       bnez    s1,0x42032458 <hostap_input+860>
+
+0x42032362 <hostap_input+614>:       li      a3,208
+0x42032366 <hostap_input+618>:       bne     s4,a3,0x4203243c <hostap_input+832>
+
+0x4203236a <hostap_input+622>:       lbu     a3,1(s11)
+0x4203236e <hostap_input+626>:       addi    a0,s11,24
+0x42032372 <hostap_input+630>:       andi    a3,a3,64
+0x42032376 <hostap_input+634>:       beqz    a3,0x42032384 <hostap_input+648>
+
+0x42032378 <hostap_input+636>:       lui     a3,0x3fc88
+0x4203237c <hostap_input+640>:       lw      a0,-1872(a3)
+0x42032380 <hostap_input+644>:       addi    a0,a0,24
+0x42032382 <hostap_input+646>:       add     a0,a0,s11
+0x42032384 <hostap_input+648>:       lbu     a2,0(a0)
+0x42032388 <hostap_input+652>:       li      a1,1
+0x4203238a <hostap_input+654>:       li      s8,17
+0x4203238c <hostap_input+656>:       addi    a3,a2,-126
+0x42032390 <hostap_input+660>:       zext.b  a3,a3
+0x42032394 <hostap_input+664>:       bltu    a1,a3,0x420323c2 <hostap_input+710>
+
+0x42032398 <hostap_input+668>:       addi    a3,a0,8
+0x4203239c <hostap_input+672>:       sub     a3,a3,s11
+0x420323a0 <hostap_input+676>:       blt     s2,a3,0x42032236 <hostap_input+314>
+
+0x420323a4 <hostap_input+680>:       li      a3,127
+0x420323a8 <hostap_input+684>:       bne     a2,a3,0x420323c2 <hostap_input+710>
+
+0x420323ac <hostap_input+688>:       lui     a1,0x3c002
+0x420323b0 <hostap_input+692>:       li      a2,3
+0x420323b2 <hostap_input+694>:       addi    a1,a1,1324
+0x420323b6 <hostap_input+698>:       addi    a0,a0,1
+0x420323b8 <hostap_input+700>:       auipc   ra,0xfdfce
+0x420323bc <hostap_input+704>:       jalr    -88(ra)
+
+0x420323c0 <hostap_input+708>:       beqz    a0,0x4203246a <hostap_input+878>
+
+0x420323c2 <hostap_input+710>:       add     a3,s10,s8
+0x420323c6 <hostap_input+714>:       lbu     a2,246(a3)
+0x420323ca <hostap_input+718>:       addi    s8,s8,104
+0x420323ce <hostap_input+722>:       beqz    a2,0x42032542 <hostap_input+1094>
+
+0x420323d2 <hostap_input+726>:       sb      zero,246(a3)
+0x420323d6 <hostap_input+730>:       slli    s8,s8,0x1
+0x420323d8 <hostap_input+732>:       add     s8,s8,s10
+0x420323da <hostap_input+734>:       sh      s9,2(s8)
+0x420323de <hostap_input+738>:       j       0x4203246a <hostap_input+878>
+
+0x420323e0 <hostap_input+740>:       lbu     a3,47(s9)
+0x420323e4 <hostap_input+744>:       beqz    a3,0x420323ee <hostap_input+754>
+
+0x420323e6 <hostap_input+746>:       li      a2,245
+0x420323ea <hostap_input+750>:       bne     a3,a2,0x42032236 <hostap_input+314>
+
+0x420323ee <hostap_input+754>:       li      a3,8
+0x420323f0 <hostap_input+756>:       bne     s1,a3,0x4203242c <hostap_input+816>
+
+0x420323f4 <hostap_input+760>:       lui     a6,0x60035
+0x420323f8 <hostap_input+764>:       lw      a3,0(a6)
+0x420323fc <hostap_input+768>:       lw      a2,340(s10)
+0x42032400 <hostap_input+772>:       sw      a3,336(s10)
+0x42032404 <hostap_input+776>:       sub     a3,a3,a2
+0x42032406 <hostap_input+778>:       lui     a2,0x18
+0x42032408 <hostap_input+780>:       addi    a2,a2,1696
+0x4203240c <hostap_input+784>:       bgeu    a2,a3,0x42032426 <hostap_input+810>
+
+0x42032410 <hostap_input+788>:       lw      a1,16(sp)
+0x42032412 <hostap_input+790>:       li      a2,2
+0x42032414 <hostap_input+792>:       mv      a0,s10
+0x42032416 <hostap_input+794>:       jal     ra,0x4204706a <cnx_rc_update_rssi>
+
+0x4203241a <hostap_input+798>:       lui     a6,0x60035
+0x4203241e <hostap_input+802>:       lw      a3,0(a6)
+0x42032422 <hostap_input+806>:       sw      a3,340(s10)
+0x42032426 <hostap_input+810>:       sb      zero,310(s10)
+0x4203242a <hostap_input+814>:       j       0x42032436 <hostap_input+826>
+
+0x4203242c <hostap_input+816>:       bnez    s1,0x42032426 <hostap_input+810>
+
+0x4203242e <hostap_input+818>:       li      a3,176
+0x42032432 <hostap_input+822>:       bne     s4,a3,0x42032426 <hostap_input+810>
+
+0x42032436 <hostap_input+826>:       li      a5,1
+0x42032438 <hostap_input+828>:       sw      a5,12(sp)
+0x4203243a <hostap_input+830>:       j       0x420322f6 <hostap_input+506>
+
+0x4203243c <hostap_input+832>:       li      a3,176
+0x42032440 <hostap_input+836>:       li      s8,17
+0x42032442 <hostap_input+838>:       bne     s4,a3,0x420323c2 <hostap_input+710>
+
+0x42032446 <hostap_input+842>:       lw      a3,236(s3)
+0x4203244a <hostap_input+846>:       beq     a3,s10,0x420323c2 <hostap_input+710>
+
+0x4203244e <hostap_input+850>:       lbu     a3,310(s10)
+0x42032452 <hostap_input+854>:       bnez    a3,0x420323c2 <hostap_input+710>
+
+0x42032454 <hostap_input+856>:       sw      zero,12(sp)
+0x42032456 <hostap_input+858>:       j       0x420323c2 <hostap_input+710>
+
+0x42032458 <hostap_input+860>:       li      a3,8
+0x4203245a <hostap_input+862>:       bne     s1,a3,0x420323c2 <hostap_input+710>
+
+0x4203245e <hostap_input+866>:       andi    s7,s7,192
+0x42032462 <hostap_input+870>:       li      a3,192
+0x42032466 <hostap_input+874>:       bne     s7,a3,0x420323c2 <hostap_input+710>
+
+0x4203246a <hostap_input+878>:       li      a2,6
+0x4203246c <hostap_input+880>:       addi    a1,s11,10
+0x42032470 <hostap_input+884>:       addi    a0,s3,156
+0x42032474 <hostap_input+888>:       auipc   ra,0xfdfce
+0x42032478 <hostap_input+892>:       jalr    -284(ra)
+
+0x4203247c <hostap_input+896>:       li      a3,4
+0x4203247e <hostap_input+898>:       beq     s1,a3,0x42032746 <hostap_input+1610>
+
+0x42032482 <hostap_input+902>:       li      a3,8
+0x42032484 <hostap_input+904>:       beq     s1,a3,0x42032562 <hostap_input+1126>
+
+0x42032488 <hostap_input+908>:       bnez    s1,0x42032236 <hostap_input+314>
+
+0x4203248c <hostap_input+912>:       lhu     a3,30(s5)
+0x42032490 <hostap_input+916>:       li      a1,3
+0x42032492 <hostap_input+918>:       li      a2,24
+0x42032494 <hostap_input+920>:       addi    a3,a3,1
+0x42032496 <hostap_input+922>:       sh      a3,30(s5)
+0x4203249a <hostap_input+926>:       lbu     a3,1(s11)
+0x4203249e <hostap_input+930>:       andi    a0,a3,3
+0x420324a2 <hostap_input+934>:       bne     a0,a1,0x420324a8 <hostap_input+940>
+
+0x420324a6 <hostap_input+938>:       li      a2,30
+0x420324a8 <hostap_input+940>:       lbu     a1,0(s11)
+0x420324ac <hostap_input+944>:       li      a0,136
+0x420324b0 <hostap_input+948>:       andi    a1,a1,140
+0x420324b4 <hostap_input+952>:       bne     a1,a0,0x420324ba <hostap_input+958>
+
+0x420324b8 <hostap_input+956>:       addi    a2,a2,2
+0x420324ba <hostap_input+958>:       slli    a1,a3,0x18
+0x420324be <hostap_input+962>:       srai    a1,a1,0x18
+0x420324c0 <hostap_input+964>:       bgez    a1,0x420324c6 <hostap_input+970>
+
+0x420324c4 <hostap_input+968>:       addi    a2,a2,4
+0x420324c6 <hostap_input+970>:       slli    a0,a2,0x10
+0x420324ca <hostap_input+974>:       srli    a0,a0,0x10
+0x420324cc <hostap_input+976>:       addi    a1,s2,-4
+0x420324d0 <hostap_input+980>:       sub     a1,a1,a0
+0x420324d2 <hostap_input+982>:       sh      a0,20(s0)
+0x420324d6 <hostap_input+986>:       sh      a1,22(s0)
+0x420324da <hostap_input+990>:       bnez    s6,0x42032236 <hostap_input+314>
+
+0x420324de <hostap_input+994>:       li      a1,23
+0x420324e0 <hostap_input+996>:       bgeu    a1,s2,0x42032236 <hostap_input+314>
+
+0x420324e4 <hostap_input+1000>:      lbu     a4,10(s11)
+0x420324e8 <hostap_input+1004>:      andi    a4,a4,1
+0x420324ea <hostap_input+1006>:      bnez    a4,0x42032236 <hostap_input+314>
+
+0x420324ee <hostap_input+1010>:      lbu     a4,763(s10)
+0x420324f2 <hostap_input+1014>:      bnez    a4,0x42032530 <hostap_input+1076>
+
+0x420324f4 <hostap_input+1016>:      andi    a3,a3,64
+0x420324f8 <hostap_input+1020>:      beqz    a3,0x42032530 <hostap_input+1076>
+
+0x420324fa <hostap_input+1022>:      li      a4,208
+0x420324fe <hostap_input+1026>:      beq     s4,a4,0x42032530 <hostap_input+1076>
+
+0x42032502 <hostap_input+1030>:      li      a4,176
+0x42032506 <hostap_input+1034>:      bne     s4,a4,0x42032236 <hostap_input+314>
+
+0x4203250a <hostap_input+1038>:      lw      a4,164(s3)
+0x4203250e <hostap_input+1042>:      andi    a4,a4,16
+0x42032510 <hostap_input+1044>:      beqz    a4,0x42032236 <hostap_input+314>
+
+0x42032514 <hostap_input+1048>:      mv      a1,s0
+0x42032516 <hostap_input+1050>:      mv      a0,s10
+0x42032518 <hostap_input+1052>:      jal     ra,0x4202cce6 <ieee80211_crypto_decap>
+
+0x4203251c <hostap_input+1056>:      beqz    a0,0x42032236 <hostap_input+314>
+
+0x42032520 <hostap_input+1060>:      lw      a4,4(s0)
+0x42032522 <hostap_input+1062>:      lw      a3,4(a4)
+0x42032524 <hostap_input+1064>:      lbu     a4,1(a3)
+0x42032528 <hostap_input+1068>:      andi    a4,a4,-65
+0x4203252c <hostap_input+1072>:      sb      a4,1(a3)
+0x42032530 <hostap_input+1076>:      lw      a4,28(sp)
+0x42032532 <hostap_input+1078>:      lw      a3,16(sp)
+0x42032534 <hostap_input+1080>:      mv      a2,s4
+0x42032536 <hostap_input+1082>:      mv      a1,s0
+0x42032538 <hostap_input+1084>:      mv      a0,s10
+0x4203253a <hostap_input+1086>:      jal     ra,0x420311dc <hostap_recv_mgmt>
+
+0x4203253e <hostap_input+1090>:      li      s1,0
+0x42032540 <hostap_input+1092>:      j       0x42032236 <hostap_input+314>
+
+0x42032542 <hostap_input+1094>:      lw      a5,12(sp)
+0x42032544 <hostap_input+1096>:      beqz    a5,0x420323d6 <hostap_input+730>
+
+0x42032548 <hostap_input+1100>:      lbu     a3,1(s11)
+0x4203254c <hostap_input+1104>:      andi    a3,a3,8
+0x4203254e <hostap_input+1106>:      beqz    a3,0x420323d6 <hostap_input+730>
+
+0x42032552 <hostap_input+1110>:      slli    a3,s8,0x1
+0x42032556 <hostap_input+1114>:      add     a3,a3,s10
+0x42032558 <hostap_input+1116>:      lhu     a3,2(a3)
+0x4203255c <hostap_input+1120>:      bne     a3,s9,0x420323d6 <hostap_input+730>
+
+0x42032560 <hostap_input+1124>:      j       0x42032236 <hostap_input+314>
+
+0x42032562 <hostap_input+1126>:      lw      a3,24(s5)
+0x42032566 <hostap_input+1130>:      li      s7,24
+0x42032568 <hostap_input+1132>:      addi    a3,a3,1
+0x4203256a <hostap_input+1134>:      sw      a3,24(s5)
+0x4203256e <hostap_input+1138>:      lbu     a1,1(s11)
+0x42032572 <hostap_input+1142>:      li      a3,3
+0x42032574 <hostap_input+1144>:      andi    a2,a1,3
+0x42032578 <hostap_input+1148>:      bne     a2,a3,0x4203257e <hostap_input+1154>
+
+0x4203257c <hostap_input+1152>:      li      s7,30
+0x4203257e <hostap_input+1154>:      lbu     a3,0(s11)
+0x42032582 <hostap_input+1158>:      li      a2,136
+0x42032586 <hostap_input+1162>:      andi    a3,a3,140
+0x4203258a <hostap_input+1166>:      bne     a3,a2,0x42032590 <hostap_input+1172>
+
+0x4203258e <hostap_input+1170>:      addi    s7,s7,2
+0x42032590 <hostap_input+1172>:      slli    a3,a1,0x18
+0x42032594 <hostap_input+1176>:      srai    a3,a3,0x18
+0x42032596 <hostap_input+1178>:      bgez    a3,0x4203259c <hostap_input+1184>
+
+0x4203259a <hostap_input+1182>:      addi    s7,s7,4
+0x4203259c <hostap_input+1184>:      slli    a2,s7,0x10
+0x420325a0 <hostap_input+1188>:      srli    a2,a2,0x10
+0x420325a2 <hostap_input+1190>:      addi    a3,s2,-4
+0x420325a6 <hostap_input+1194>:      sub     a3,a3,a2
+0x420325a8 <hostap_input+1196>:      sh      a2,20(s0)
+0x420325ac <hostap_input+1200>:      sh      a3,22(s0)
+0x420325b0 <hostap_input+1204>:      blt     s2,s7,0x4203227a <hostap_input+382>
+
+0x420325b4 <hostap_input+1208>:      li      a3,1
+0x420325b6 <hostap_input+1210>:      bne     s6,a3,0x4203227a <hostap_input+382>
+
+0x420325ba <hostap_input+1214>:      lhu     a3,38(s10)
+0x420325be <hostap_input+1218>:      bnez    a3,0x420325e6 <hostap_input+1258>
+
+0x420325c0 <hostap_input+1220>:      lw      a4,236(s3)
+0x420325c4 <hostap_input+1224>:      li      a2,7
+0x420325c6 <hostap_input+1226>:      bne     a4,s10,0x420325d0 <hostap_input+1236>
+
+0x420325ca <hostap_input+1230>:      lw      a1,24(sp)
+0x420325cc <hostap_input+1232>:      mv      a0,s10
+0x420325ce <hostap_input+1234>:      j       0x420322aa <hostap_input+430>
+
+0x420325d0 <hostap_input+1236>:      li      a1,160
+0x420325d4 <hostap_input+1240>:      mv      a0,s10
+0x420325d6 <hostap_input+1242>:      jal     ra,0x4203c760 <ieee80211_send_mgmt>
+
+0x420325da <hostap_input+1246>:      beqz    a0,0x4203227a <hostap_input+382>
+
+0x420325de <hostap_input+1250>:      mv      a0,s10
+0x420325e0 <hostap_input+1252>:      jal     ra,0x42047fec <cnx_node_leave>
+
+0x420325e4 <hostap_input+1256>:      j       0x42032236 <hostap_input+314>
+
+0x420325e6 <hostap_input+1258>:      lw      a3,12(s10)
+0x420325ea <hostap_input+1262>:      xor     a3,a3,a1
+0x420325ec <hostap_input+1264>:      andi    a3,a3,16
+0x420325ee <hostap_input+1266>:      beqz    a3,0x420325f8 <hostap_input+1276>
+
+0x420325f0 <hostap_input+1268>:      andi    a1,a1,16
+0x420325f2 <hostap_input+1270>:      mv      a0,s10
+0x420325f4 <hostap_input+1272>:      jal     ra,0x4203d4da <ieee80211_node_pwrsave>
+
+0x420325f8 <hostap_input+1276>:      mv      a1,s0
+0x420325fa <hostap_input+1278>:      mv      a0,s10
+0x420325fc <hostap_input+1280>:      auipc   ra,0xfe350
+0x42032600 <hostap_input+1284>:      jalr    -1108(ra)
+
+0x42032604 <hostap_input+1288>:      beqz    a0,0x420321b2 <hostap_input+182>
+
+0x42032608 <hostap_input+1292>:      li      s1,8
+0x4203260a <hostap_input+1294>:      mv      a0,s1
+0x4203260c <hostap_input+1296>:      j       0x42032728 <hostap_input+1580>
+
+0x4203260e <hostap_input+1298>:      mv      a2,s7
+0x42032610 <hostap_input+1300>:      mv      a1,s0
+0x42032612 <hostap_input+1302>:      mv      a0,s10
+0x42032614 <hostap_input+1304>:      jal     ra,0x4202cce6 <ieee80211_crypto_decap>
+
+0x42032618 <hostap_input+1308>:      mv      s8,a0
+0x4203261a <hostap_input+1310>:      beqz    a0,0x4203227a <hostap_input+382>
+
+0x4203261e <hostap_input+1314>:      lbu     a3,1(s11)
+0x42032622 <hostap_input+1318>:      andi    a3,a3,-65
+0x42032626 <hostap_input+1322>:      sb      a3,1(s11)
+0x4203262a <hostap_input+1326>:      li      a3,128
+0x4203262e <hostap_input+1330>:      li      s1,0
+0x42032630 <hostap_input+1332>:      bne     s4,a3,0x4203263e <hostap_input+1346>
+
+0x42032634 <hostap_input+1336>:      li      a3,3
+0x42032636 <hostap_input+1338>:      bne     s6,a3,0x420326ac <hostap_input+1456>
+
+0x4203263a <hostap_input+1342>:      lbu     s1,30(s11)
+0x4203263e <hostap_input+1346>:      mv      a0,s0
+0x42032640 <hostap_input+1348>:      mv      a3,s7
+0x42032642 <hostap_input+1350>:      mv      a2,s2
+0x42032644 <hostap_input+1352>:      mv      a1,s11
+0x42032646 <hostap_input+1354>:      jal     ra,0x42034c50 <ieee80211_decap>
+
+0x4203264a <hostap_input+1358>:      mv      s0,a0
+0x4203264c <hostap_input+1360>:      beqz    a0,0x42032608 <hostap_input+1292>
+
+0x4203264e <hostap_input+1362>:      lw      a4,4(a0)
+0x42032650 <hostap_input+1364>:      lw      a2,4(a4)
+0x42032652 <hostap_input+1366>:      lw      a4,12(s10)
+0x42032656 <hostap_input+1370>:      andi    a4,a4,1
+0x42032658 <hostap_input+1372>:      bnez    a4,0x420326b2 <hostap_input+1462>
+
+0x4203265a <hostap_input+1374>:      lbu     a3,36(s10)
+0x4203265e <hostap_input+1378>:      li      a4,1
+0x42032660 <hostap_input+1380>:      bne     a3,a4,0x420326ea <hostap_input+1518>
+
+0x42032664 <hostap_input+1384>:      lbu     a4,13(a2)
+0x42032668 <hostap_input+1388>:      lbu     a3,12(a2)
+0x4203266c <hostap_input+1392>:      li      s1,8
+0x4203266e <hostap_input+1394>:      slli    a4,a4,0x8
+0x42032670 <hostap_input+1396>:      or      a4,a4,a3
+0x42032672 <hostap_input+1398>:      lui     a3,0x9
+0x42032674 <hostap_input+1400>:      addi    a3,a3,-376
+0x42032678 <hostap_input+1404>:      bne     a4,a3,0x42032236 <hostap_input+314>
+
+0x4203267c <hostap_input+1408>:      lw      a5,20(sp)
+0x4203267e <hostap_input+1410>:      lw      a4,436(a5)
+0x42032682 <hostap_input+1414>:      beqz    a4,0x42032236 <hostap_input+314>
+
+0x42032686 <hostap_input+1418>:      lhu     a3,22(a0)
+0x4203268a <hostap_input+1422>:      lw      a4,48(a4)
+0x4203268c <hostap_input+1424>:      lw      a1,304(s10)
+0x42032690 <hostap_input+1428>:      lw      a0,316(s3)
+0x42032694 <hostap_input+1432>:      addi    a3,a3,-14
+0x42032696 <hostap_input+1434>:      addi    a2,a2,14
+0x42032698 <hostap_input+1436>:      jalr    a4
+
+0x4203269a <hostap_input+1438>:      j       0x42032236 <hostap_input+314>
+
+0x4203269c <hostap_input+1440>:      lw      a2,4(s0)
+0x4203269e <hostap_input+1442>:      lhu     a1,20(s0)
+0x420326a2 <hostap_input+1446>:      li      s8,0
+0x420326a4 <hostap_input+1448>:      lw      a3,4(a2)
+0x420326a6 <hostap_input+1450>:      add     a3,a3,a1
+0x420326a8 <hostap_input+1452>:      sw      a3,4(a2)
+0x420326aa <hostap_input+1454>:      j       0x4203262a <hostap_input+1326>
+
+0x420326ac <hostap_input+1456>:      lbu     s1,24(s11)
+0x420326b0 <hostap_input+1460>:      j       0x4203263e <hostap_input+1346>
+
+0x420326b2 <hostap_input+1462>:      lbu     a4,13(a2)
+0x420326b6 <hostap_input+1466>:      lbu     a3,12(a2)
+0x420326ba <hostap_input+1470>:      slli    a4,a4,0x8
+0x420326bc <hostap_input+1472>:      or      a4,a4,a3
+0x420326be <hostap_input+1474>:      lui     a3,0x9
+0x420326c0 <hostap_input+1476>:      addi    a3,a3,-376
+0x420326c4 <hostap_input+1480>:      bne     a4,a3,0x420326ea <hostap_input+1518>
+
+0x420326c8 <hostap_input+1484>:      lw      a0,316(s3)
+0x420326cc <hostap_input+1488>:      beqz    a0,0x420326ea <hostap_input+1518>
+
+0x420326ce <hostap_input+1490>:      lw      a5,20(sp)
+0x420326d0 <hostap_input+1492>:      li      s1,8
+0x420326d2 <hostap_input+1494>:      lw      a4,436(a5)
+0x420326d6 <hostap_input+1498>:      beqz    a4,0x42032236 <hostap_input+314>
+
+0x420326da <hostap_input+1502>:      lhu     a3,22(s0)
+0x420326de <hostap_input+1506>:      lw      a4,48(a4)
+0x420326e0 <hostap_input+1508>:      addi    a2,a2,14
+0x420326e2 <hostap_input+1510>:      addi    a3,a3,-14
+0x420326e4 <hostap_input+1512>:      lw      a1,304(s10)
+0x420326e8 <hostap_input+1516>:      j       0x42032698 <hostap_input+1436>
+
+0x420326ea <hostap_input+1518>:      bnez    s8,0x420326fe <hostap_input+1538>
+
+0x420326ee <hostap_input+1522>:      lui     a5,0x3fc88
+0x420326f2 <hostap_input+1526>:      lw      a5,-1848(a5)
+0x420326f6 <hostap_input+1530>:      lbu     a5,1012(a5)
+0x420326fa <hostap_input+1534>:      bnez    a5,0x4203227a <hostap_input+382>
+
+0x420326fe <hostap_input+1538>:      slli    s1,s1,0x18
+0x42032700 <hostap_input+1540>:      srai    s1,s1,0x18
+0x42032702 <hostap_input+1542>:      bgez    s1,0x4203271e <hostap_input+1570>
+
+0x42032706 <hostap_input+1546>:      lhu     a5,38(s5)
+0x4203270a <hostap_input+1550>:      mv      a1,s0
+0x4203270c <hostap_input+1552>:      mv      a0,s3
+0x4203270e <hostap_input+1554>:      addi    a5,a5,1
+0x42032710 <hostap_input+1556>:      sh      a5,38(s5)
+0x42032714 <hostap_input+1560>:      jal     ra,0x420348f6 <ieee80211_decap_amsdu>
+
+0x42032718 <hostap_input+1564>:      mv      s0,a0
+0x4203271a <hostap_input+1566>:      li      a0,8
+0x4203271c <hostap_input+1568>:      beqz    s0,0x42032728 <hostap_input+1580>
+
+0x4203271e <hostap_input+1570>:      mv      a0,s3
+0x42032720 <hostap_input+1572>:      mv      a1,s0
+0x42032722 <hostap_input+1574>:      jal     ra,0x4203055e <hostap_deliver_data>
+
+0x42032726 <hostap_input+1578>:      li      a0,8
+0x42032728 <hostap_input+1580>:      lw      ra,108(sp)
+0x4203272a <hostap_input+1582>:      lw      s0,104(sp)
+0x4203272c <hostap_input+1584>:      lw      s1,100(sp)
+0x4203272e <hostap_input+1586>:      lw      s2,96(sp)
+0x42032730 <hostap_input+1588>:      lw      s3,92(sp)
+0x42032732 <hostap_input+1590>:      lw      s4,88(sp)
+0x42032734 <hostap_input+1592>:      lw      s5,84(sp)
+0x42032736 <hostap_input+1594>:      lw      s6,80(sp)
+0x42032738 <hostap_input+1596>:      lw      s7,76(sp)
+0x4203273a <hostap_input+1598>:      lw      s8,72(sp)
+0x4203273c <hostap_input+1600>:      lw      s9,68(sp)
+0x4203273e <hostap_input+1602>:      lw      s10,64(sp)
+0x42032740 <hostap_input+1604>:      lw      s11,60(sp)
+0x42032742 <hostap_input+1606>:      addi    sp,sp,112
+0x42032744 <hostap_input+1608>:      ret
+
+0x42032746 <hostap_input+1610>:      lhu     a4,28(s5)
+0x4203274a <hostap_input+1614>:      mv      a2,s4
+0x4203274c <hostap_input+1616>:      mv      a1,s0
+0x4203274e <hostap_input+1618>:      addi    a4,a4,1
+0x42032750 <hostap_input+1620>:      mv      a0,s10
+0x42032752 <hostap_input+1622>:      sh      a4,28(s5)
+0x42032756 <hostap_input+1626>:      jal     ra,0x42030950 <hostap_recv_ctl>
+
+0x4203275a <hostap_input+1630>:      j       0x42032236 <hostap_input+314>
+
+0x4203275c <hostap_input+1632>:      li      s1,255
+0x42032760 <hostap_input+1636>:      j       0x42032236 <hostap_input+314>
+
+0x42032762 <hostap_input+1638>:      beqz    s6,0x42032284 <hostap_input+392>
+
+0x42032766 <hostap_input+1642>:      j       0x42032246 <hostap_input+330>

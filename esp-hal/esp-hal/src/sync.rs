@@ -236,8 +236,6 @@ pub struct Locked<T> {
     data: UnsafeCell<T>,
 }
 
-unsafe impl<T> Sync for Locked<T> {}
-
 // 458
 impl<T> Locked<T> {
     /// Create a new instance
@@ -257,6 +255,9 @@ impl<T> Locked<T> {
         lock(&self.lock_state, || f(unsafe { &mut *self.data.get() }))
     }
 }
+
+// 475
+unsafe impl<T> Sync for Locked<T> {}
 
 // 477
 struct LockGuard<'a, L: single_core::RawLock> {

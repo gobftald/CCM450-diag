@@ -33,9 +33,9 @@ pub(crate) extern "C" fn timer_task(_param: *mut esp_wifi_sys::c_types::c_void) 
 
         // run the due timer callback NOT in an interrupt free context
         if let Some(to_run) = to_run {
-            //trace!("trigger timer....");
+            trace!("trigger timer....");
             to_run.call();
-            //trace!("timer callback called");
+            trace!("timer callback called");
         } else {
             yield_task();
         }

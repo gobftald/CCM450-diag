@@ -1,0 +1,54 @@
+0, 1, 2, 3, 4   ppProcessTxQ
+5   g_net80211_tx_func
+7   g_timer_func with msg
+16  ppProcTxDone
+17  ppRxPkt
+23  lmacProcessTxComplete
+25  wdevProcessRxSucDataAll
+
+peridoc timer:
+2.108426 TRACE trigger timer....
+2.108496 TRACE enqueued: [7, 0, 0, 0, 124, 72, 201, 63] # g_timer_func 
+2.108537 TRACE timer callback called
+2.118382 INFO wfi
+2.118407 TRACE yield during queue_recv
+2.118436 TRACE dequeued: [7, 0, 0, 0, 124, 72, 201, 63] # g_timer_func 
+2.128382 INFO wfi
+2.128415 TRACE enqueued: [0, 0, 0, 0, 0, 0, 0, 0]
+2.128449 TRACE queue_recv: start to receive 0x3fc8ba0c item 0x3fc8d3f8 block_time_tick 4294967295
+2.128507 TRACE dequeued: [0, 0, 0, 0, 0, 0, 0, 0]   # ppProcessTxQ
+2.128559 TRACE queue_recv: start to receive 0x3fc8ba0c item 0x3fc8d3f8 block_time_tick 4294967295
+2.128611 TRACE yield during queue_recv
+2.130059 INFO wfi
+2.130115 TRACE interrupt WIFI_MAC 0x40385f6c 0x0
+2.130162 TRACE enqueued: [23, 0, 0, 0, 0, 0, 0, 0]
+2.130193 TRACE task_yield_from_isr
+2.130210 TRACE interrupt 1 done
+2.130229 TRACE yield during queue_recv
+2.130249 TRACE dequeued: [23, 0, 0, 0, 0, 0, 0, 0]  # lmacProcessTxComplete
+2.138382 INFO wfi
+2.138414 TRACE enqueued: [16, 0, 0, 0, 0, 0, 0, 0]
+2.138450 TRACE queue_recv: start to receive 0x3fc8ba0c item 0x3fc8d3f8 block_time_tick 4294967295
+2.138507 TRACE dequeued: [16, 0, 0, 0, 0, 0, 0, 0]  # ppProcTxDone
+2.138539 TRACE timer disarm
+2.138556 TRACE timer_disarm 3fca1db4
+2.138589 TRACE queue_recv: start to receive 0x3fc8ba0c item 0x3fc8d3f8 block_time_tick 4294967295
+
+
+4201e7da <pp_register_timer_cb>:
+4201e7da:       3fce07b7                lui     a5,0x3fce0
+4201e7de:       8ca7a623                sw      a0,-1844(a5) # 3fcdf8cc <g_timer_func>
+                                                # a0 = 0x42044836 -> ieee80211_timer_do_process
+4201e7e2:       4505                    li      a0,1
+4201e7e4:       8082                    ret
+
+42044836 <ieee80211_timer_do_process>:
+    ...
+420448b4:       078e                    slli    a5,a5,0x3
+420448b6:       97ba                    add     a5,a5,a4
+420448b8:       43dc                    lw      a5,4(a5)
+420448ba:       c399                    beqz    a5,420448c0 <.L107>
+420448bc:       8522                    mv      a0,s0
+420448be:       9782                    jalr    a5  # a5 = 0x42044764 -> ieee80211_send_beacon
+...
+ieee80211_send_beacon called every 100 ms

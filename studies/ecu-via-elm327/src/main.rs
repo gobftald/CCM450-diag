@@ -8,7 +8,8 @@
 // panic_handler
 mod panic;
 
-#[macro_use(core_println, unwrap, debug, trace)] // core_println for panic_handler in mod panic
+#[macro_use(core_println, unwrap, debug, trace, error)]
+// core_println for panic_handler in mod panic
 extern crate console;
 
 mod debug_pin;

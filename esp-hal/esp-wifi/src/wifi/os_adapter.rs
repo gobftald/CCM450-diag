@@ -14,8 +14,8 @@ use super::WifiEvent;
 use crate::{
     compat::{
         common::{
-            create_queue, create_recursive_mutex, delete_queue, lock_mutex, receive_queued,
-            send_queued, str_from_c, thread_sem_get, unlock_mutex, ConcurrentQueue,
+            ConcurrentQueue, create_queue, create_recursive_mutex, delete_queue, lock_mutex,
+            receive_queued, send_queued, str_from_c, thread_sem_get, unlock_mutex,
         },
         malloc::calloc,
     },
@@ -75,10 +75,7 @@ pub unsafe extern "C" fn env_is_chip() -> bool {
 pub unsafe extern "C" fn set_intr(cpu_no: i32, intr_source: u32, intr_num: u32, intr_prio: i32) {
     trace!(
         "set_intr {} {} {} {}",
-        cpu_no,
-        intr_source,
-        intr_num,
-        intr_prio
+        cpu_no, intr_source, intr_num, intr_prio
     );
     unsafe {
         crate::wifi::os_adapter::os_adapter_chip_specific::set_intr(
@@ -222,7 +219,7 @@ pub unsafe extern "C" fn wifi_int_restore(
 // 266
 pub unsafe extern "C" fn task_yield_from_isr() {
     // original: /* Do nothing */
-    //trace!("task_yield_from_isr");
+    trace!("task_yield_from_isr");
     yield_task();
 }
 
@@ -594,10 +591,10 @@ pub unsafe extern "C" fn event_post(
     event_data_size: usize,
     ticks_to_wait: u32,
 ) -> i32 {
-    //trace!(
-    //    "event_post {:?} {} {:?} {} {:?}",
-    //    event_base, event_id, event_data, event_data_size, ticks_to_wait
-    //);
+    trace!(
+        "event_post {:?} {} {:?} {} {:?}",
+        event_base, event_id, event_data, event_data_size, ticks_to_wait
+    );
     use num_traits::FromPrimitive;
 
     let event = unwrap!(WifiEvent::from_i32(event_id));

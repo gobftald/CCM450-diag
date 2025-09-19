@@ -46,9 +46,12 @@ impl<'a> Ecus for ECU<'a> {
     }
 
     async fn response(&mut self, response: &mut [u8]) -> Result<usize, EcuError> {
-        self.adapter
+        trace!("ecu/ccm450: read_async(response).await");
+        let res = self.adapter
             .read_async(response)
             .await
-            .map_err(|_| EcuError::CommunicationFailed)
+            .map_err(|_| EcuError::CommunicationFailed);
+        trace!("ecu/ccm450: read_async(response).await awaken");
+        res
     }
 }

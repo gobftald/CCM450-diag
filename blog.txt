@@ -134,7 +134,7 @@ SSID="iWIFI-2.4" PASSWORD="dingomolarsanta" DEFMT_LOG=debug,smoltcp=trace,embass
 SSID="iWIFI-2.4" PASSWORD="dingomolarsanta" DEFMT_LOG=off,esp_wifi_apsta=debug,esp_wifi=debug,smoltcp=debug cargo run --features=esp-alloc/internal-heap-stats
 
 
-wifi-test original size: 482608 vs our size at that time: 397456
+wifi-test original size: 482608 vs our size at that time: 378464
 
 esp-hal commit number: 3cd3606 - a taged commit from Jun 3 2025, where we have frozen following changes
     before the cfg and metadata system were restructured (with xtask, etc)
@@ -146,3 +146,10 @@ git log [--oneline] --decorate --graph [--all]
 git checkout <commit number>
 git checkout -
 git log --follow -p -- <file name> // following the history of a specific file
+
+echo -n -e '\x00' | nc -u 192.168.3.1 19924
+
+DEFMT_LOG=off,ecu_via_elm327=trace,esp_hal=info,esp_wifi=trace,esp_wifi_sys=trace,smoltcp=info,esp_hal_embassy=info \
+    cargo run --release --features=esp-wifi/sys-logs
+
+airport en0 sniff

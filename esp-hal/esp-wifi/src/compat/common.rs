@@ -113,6 +113,7 @@ impl RawQueue {
 
             let dst = self.get_mut(self.current_write);
             dst.copy_from_slice(item);
+            trace!("enqueued: {}", dst);
 
             self.current_write = (self.current_write + 1) % self.capacity;
             1
@@ -128,6 +129,7 @@ impl RawQueue {
 
             let src = self.get(self.current_read);
             item.copy_from_slice(src);
+            trace!("dequeued: {}", item);
 
             self.current_read = (self.current_read + 1) % self.capacity;
 
@@ -375,12 +377,12 @@ pub(crate) fn receive_queued(
     item: *mut c_void,
     block_time_tick: u32,
 ) -> i32 {
-    //trace!(
-    //    "queue_recv {:?} item {:?} block_time_tick {}",
-    //    queue,
-    //    item,
-    //    block_time_tick
-    //);
+    trace!(
+        "queue_recv: start to receive {:?} item {:?} block_time_tick {}",
+        queue,
+        item,
+        block_time_tick
+    );
 
     let forever = block_time_tick == OSI_FUNCS_TIME_BLOCKING;
     let timeout = block_time_tick as u64;
@@ -396,7 +398,7 @@ pub(crate) fn receive_queued(
             trace!("queue_recv returns with timeout");
             return -1;
         }
-
+        trace!("yield during queue_recv");
         yield_task();
     }
 }
