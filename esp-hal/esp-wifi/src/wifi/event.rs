@@ -33,10 +33,12 @@ fn default_handler<Event: 'static>() -> Box<Handler<Event>> {
 // 43
 pub trait EventExt: Event + Sized + 'static {
     /// Get the handler for this event, replacing it with the default handler.
+    // 45
     fn take_handler() -> Box<Handler<Self>> {
         Self::handler().with(|handler| handler.take().unwrap_or_else(default_handler::<Self>))
     }
     /// Set the handler for this event, returning the old handler.
+    // 49
     fn replace_handler<F: FnMut(&Self) + Sync + Send + 'static>(f: F) -> Box<Handler<Self>> {
         Self::handler().with(|handler| {
             handler
@@ -47,6 +49,7 @@ pub trait EventExt: Event + Sized + 'static {
     /// Atomic combination of [`Self::take_handler`] and
     /// [`Self::replace_handler`]. Use this to add a new handler which runs
     /// after the previously registered handlers.
+    // 59
     fn update_handler<F: FnMut(&Self) + Sync + Send + 'static>(mut f: F) {
         Self::handler().with(|handler| {
             let mut prev: Box<Handler<Self>> =

@@ -37,6 +37,7 @@ pub unsafe extern "C" fn free(ptr: *mut u8) {
 }
 
 #[unsafe(no_mangle)]
+// 37
 pub unsafe extern "C" fn calloc(number: u32, size: usize) -> *mut u8 {
     //trace!("calloc {} {}", number, size);
 
@@ -54,9 +55,9 @@ pub unsafe extern "C" fn calloc(number: u32, size: usize) -> *mut u8 {
     }
 }
 
-// 86
 #[cfg(feature = "esp-alloc")]
 #[unsafe(no_mangle)]
+// 86
 pub extern "C" fn esp_wifi_allocate_from_internal_ram(size: usize) -> *mut u8 {
     use core::alloc::GlobalAlloc;
 

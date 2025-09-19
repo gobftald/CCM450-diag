@@ -1,4 +1,5 @@
 // Time keeping
+// 2
 pub const TICKS_PER_SECOND: u64 = 1_000_000;
 
 /// Current systimer count value

@@ -6,9 +6,10 @@ use esp_wifi_sys::{
     },
 };
 
-// 11
+// 8
 use portable_atomic::{AtomicU32, Ordering};
-// 13
+
+// 10
 use crate::{
     binary::include::{esp_event_base_t, esp_timer_get_time, get_phy_version_str},
     compat::{
@@ -21,12 +22,12 @@ use crate::{
     hal::{self, clock::RadioClockController, peripherals::RADIO_CLK, ram},
 };
 
-// 19
 #[cfg_attr(esp32c3, path = "common_adapter_esp32c3.rs")]
+// 23
 pub(crate) mod chip_specific;
 
-// 28
 #[cfg_attr(esp32c3, path = "phy_init_data_esp32c3.rs")]
+// 32
 pub(crate) mod phy_init_data;
 
 /// **************************************************************************
@@ -44,7 +45,7 @@ pub(crate) mod phy_init_data;
 ///
 /// *************************************************************************
 #[allow(unused)]
-// 52
+// 49
 pub unsafe extern "C" fn semphr_create(max: u32, init: u32) -> *mut crate::binary::c_types::c_void {
     //trace!("semphr_create - max {} init {}", max, init);
     sem_create(max, init)
@@ -64,7 +65,7 @@ pub unsafe extern "C" fn semphr_create(max: u32, init: u32) -> *mut crate::binar
 ///
 /// *************************************************************************
 #[allow(unused)]
-// 71
+// 68
 pub unsafe extern "C" fn semphr_delete(semphr: *mut crate::binary::c_types::c_void) {
     //trace!("semphr_delete {:?}", semphr);
     sem_delete(semphr);
@@ -85,7 +86,7 @@ pub unsafe extern "C" fn semphr_delete(semphr: *mut crate::binary::c_types::c_vo
 ///
 /// *************************************************************************
 #[ram]
-// 91
+// 88
 pub unsafe extern "C" fn semphr_take(
     semphr: *mut crate::binary::c_types::c_void,
     tick: u32,
@@ -107,7 +108,7 @@ pub unsafe extern "C" fn semphr_take(
 ///
 /// *************************************************************************
 #[ram]
-// 112
+// 109
 pub unsafe extern "C" fn semphr_give(semphr: *mut crate::binary::c_types::c_void) -> i32 {
     sem_give(semphr)
 }
@@ -117,7 +118,7 @@ pub unsafe extern "C" fn semphr_give(semphr: *mut crate::binary::c_types::c_void
 /// *************************************************************************
 #[ram]
 #[unsafe(no_mangle)]
-// 122
+// 119
 pub unsafe extern "C" fn random() -> crate::binary::c_types::c_ulong {
     trace!("random");
 
@@ -140,7 +141,7 @@ pub unsafe extern "C" fn random() -> crate::binary::c_types::c_ulong {
 ///   0 if success or -1 if fail
 ///
 /// *************************************************************************
-// 144
+// 141
 pub unsafe extern "C" fn read_mac(mac: *mut u8, type_: u32) -> crate::binary::c_types::c_int {
     trace!("read_mac {:?} {}", mac, type_);
 
@@ -174,7 +175,7 @@ pub unsafe extern "C" fn read_mac(mac: *mut u8, type_: u32) -> crate::binary::c_
 // other functions
 #[allow(unused_variables)]
 #[unsafe(no_mangle)]
-// 213
+// 210
 pub unsafe extern "C" fn puts(s: *const c_char) {
     unsafe {
         let cstr = str_from_c(s);
@@ -184,12 +185,12 @@ pub unsafe extern "C" fn puts(s: *const c_char) {
 
 // #define ESP_EVENT_DEFINE_BASE(id) esp_event_base_t id = #id
 #[unsafe(no_mangle)]
-// 222
+// 219
 static mut WIFI_EVENT: esp_event_base_t = c"WIFI_EVENT".as_ptr();
 
 // stuff needed by wpa-supplicant
 #[unsafe(no_mangle)]
-// 226
+// 223
 pub unsafe extern "C" fn __assert_func(
     file: *const c_char,
     line: u32,
@@ -214,19 +215,19 @@ pub unsafe extern "C" fn __assert_func(
 }
 
 #[unsafe(no_mangle)]
-// 230
-pub unsafe extern "C" fn ets_timer_done(timer: *mut crate::binary::c_types::c_void) {
-    compat_timer_done(timer.cast());
-}
-
-#[unsafe(no_mangle)]
-// 249
+// 247
 pub unsafe extern "C" fn ets_timer_disarm(timer: *mut crate::binary::c_types::c_void) {
     compat_timer_disarm(timer.cast());
 }
 
 #[unsafe(no_mangle)]
-// 259
+// 252
+pub unsafe extern "C" fn ets_timer_done(timer: *mut crate::binary::c_types::c_void) {
+    compat_timer_done(timer.cast());
+}
+
+#[unsafe(no_mangle)]
+// 257
 pub unsafe extern "C" fn ets_timer_setfn(
     ptimer: *mut crate::binary::c_types::c_void,
     pfunction: *mut crate::binary::c_types::c_void,
@@ -245,7 +246,7 @@ pub unsafe extern "C" fn ets_timer_setfn(
 }
 
 #[unsafe(no_mangle)]
-// 277
+// 275
 pub unsafe extern "C" fn ets_timer_arm(
     timer: *mut crate::binary::c_types::c_void,
     tmout: u32,
@@ -255,7 +256,7 @@ pub unsafe extern "C" fn ets_timer_arm(
 }
 
 #[unsafe(no_mangle)]
-// 286
+// 284
 pub unsafe extern "C" fn ets_timer_arm_us(
     timer: *mut crate::binary::c_types::c_void,
     tmout: u32,
@@ -265,7 +266,7 @@ pub unsafe extern "C" fn ets_timer_arm_us(
 }
 
 #[unsafe(no_mangle)]
-// 295
+// 293
 pub unsafe extern "C" fn gettimeofday(tv: *mut timeval, _tz: *mut ()) -> i32 {
     if !tv.is_null() {
         unsafe {
@@ -279,7 +280,7 @@ pub unsafe extern "C" fn gettimeofday(tv: *mut timeval, _tz: *mut ()) -> i32 {
 }
 
 #[unsafe(no_mangle)]
-// 308
+// 306
 pub unsafe extern "C" fn esp_fill_random(dst: *mut u8, len: u32) {
     trace!("esp_fill_random");
     unsafe {
@@ -295,15 +296,15 @@ pub unsafe extern "C" fn esp_fill_random(dst: *mut u8, len: u32) {
 }
 
 #[unsafe(no_mangle)]
-// 323
+// 321
 pub unsafe extern "C" fn strrchr(_s: *const (), _c: u32) -> *const u8 {
     todo!("strrchr");
 }
 
-// 327
+// 325
 static PHY_CLOCK_ENABLE_REF: AtomicU32 = AtomicU32::new(0);
 
-// 329
+// 327
 pub(crate) unsafe fn phy_enable_clock() {
     let count = PHY_CLOCK_ENABLE_REF.fetch_add(1, Ordering::Acquire);
     if count == 0 {
@@ -315,7 +316,7 @@ pub(crate) unsafe fn phy_enable_clock() {
     }
 }
 
-// 352
+// 350
 #[allow(unused)]
 pub(crate) fn phy_calibrate() {
     let mut cal_data: [u8; core::mem::size_of::<esp_phy_calibration_data_t>()] =

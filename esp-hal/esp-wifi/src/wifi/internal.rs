@@ -1,7 +1,7 @@
 // 1
 use esp_wifi_sys::include::{
-    ESP_WIFI_OS_ADAPTER_MAGIC, ESP_WIFI_OS_ADAPTER_VERSION, WIFI_INIT_CONFIG_MAGIC,
-    wifi_init_config_t, wifi_osi_funcs_t, wpa_crypto_funcs_t,
+    wifi_init_config_t, wifi_osi_funcs_t, wpa_crypto_funcs_t, ESP_WIFI_OS_ADAPTER_MAGIC,
+    ESP_WIFI_OS_ADAPTER_VERSION, WIFI_INIT_CONFIG_MAGIC,
 };
 
 // 10
@@ -19,6 +19,7 @@ use super::os_adapter::{
     wifi_clock_enable, wifi_create_queue, wifi_delete_queue, wifi_int_disable, wifi_int_restore,
     wifi_malloc, wifi_reset_mac, wifi_thread_semphr_get, wifi_zalloc, zalloc_internal,
 };
+
 #[cfg(feature = "sys-logs")]
 use super::os_adapter::{log_write, log_writev};
 

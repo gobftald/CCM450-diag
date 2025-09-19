@@ -56,6 +56,11 @@ pub(crate) fn enable() {
     unsafe { esp_wifi_preempt_enable() }
 }
 
+// 81
+pub(crate) fn yield_task() {
+    unsafe { esp_wifi_preempt_yield_task() }
+}
+
 // 85
 pub(crate) fn current_task() -> *mut c_void {
     unsafe { esp_wifi_preempt_current_task() }
@@ -68,11 +73,6 @@ pub(crate) fn task_create(
     task_stack_size: usize,
 ) -> *mut c_void {
     unsafe { esp_wifi_preempt_task_create(task, param, task_stack_size) }
-}
-
-// 81
-pub(crate) fn yield_task() {
-    unsafe { esp_wifi_preempt_yield_task() }
 }
 
 // 101

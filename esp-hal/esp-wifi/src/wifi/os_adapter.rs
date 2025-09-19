@@ -1,5 +1,5 @@
-// 1
 #[cfg_attr(esp32c3, path = "os_adapter_esp32c3.rs")]
+// 8
 pub(crate) mod os_adapter_chip_specific;
 
 // 10
@@ -8,14 +8,14 @@ use core::{cell::RefCell, ptr::addr_of_mut};
 // 12
 use enumset::EnumSet;
 
-// 14
 use super::WifiEvent;
 #[allow(unused_imports)]
+// 14
 use crate::{
     compat::{
         common::{
-            ConcurrentQueue, create_queue, create_recursive_mutex, delete_queue, lock_mutex,
-            receive_queued, send_queued, str_from_c, thread_sem_get, unlock_mutex,
+            create_queue, create_recursive_mutex, delete_queue, lock_mutex, receive_queued,
+            send_queued, str_from_c, thread_sem_get, unlock_mutex, ConcurrentQueue,
         },
         malloc::calloc,
     },
@@ -75,7 +75,10 @@ pub unsafe extern "C" fn env_is_chip() -> bool {
 pub unsafe extern "C" fn set_intr(cpu_no: i32, intr_source: u32, intr_num: u32, intr_prio: i32) {
     trace!(
         "set_intr {} {} {} {}",
-        cpu_no, intr_source, intr_num, intr_prio
+        cpu_no,
+        intr_source,
+        intr_num,
+        intr_prio
     );
     unsafe {
         crate::wifi::os_adapter::os_adapter_chip_specific::set_intr(
@@ -593,7 +596,11 @@ pub unsafe extern "C" fn event_post(
 ) -> i32 {
     trace!(
         "event_post {:?} {} {:?} {} {:?}",
-        event_base, event_id, event_data, event_data_size, ticks_to_wait
+        event_base,
+        event_id,
+        event_data,
+        event_data_size,
+        ticks_to_wait
     );
     use num_traits::FromPrimitive;
 
@@ -905,7 +912,7 @@ pub unsafe extern "C" fn calloc_internal(
 ///   New memory pointer
 ///
 /// *************************************************************************
-// 1583
+// 1596
 pub unsafe extern "C" fn zalloc_internal(size: usize) -> *mut crate::binary::c_types::c_void {
     unsafe { calloc(size as u32, 1usize) as *mut crate::binary::c_types::c_void }
 }
@@ -1041,7 +1048,7 @@ pub unsafe extern "C" fn coex_enable() -> crate::binary::c_types::c_int {
 ///   Don't support
 ///
 /// *************************************************************************
-// 1781
+// 1780
 pub unsafe extern "C" fn coex_status_get() -> u32 {
     //#[cfg(coex)]
     //return unsafe { crate::binary::include::coex_status_get() };
@@ -1137,7 +1144,7 @@ pub unsafe extern "C" fn coex_event_duration_get(
 /// *************************************************************************
 #[cfg(any(esp32c3, esp32c2, esp32c6, esp32s3))]
 #[allow(unused_variables)]
-// 1882
+// 1881
 pub unsafe extern "C" fn coex_pti_get(event: u32, pti: *mut u8) -> crate::binary::c_types::c_int {
     //#[cfg(coex)]
     //return unsafe { crate::binary::include::coex_pti_get(event, pti) };
@@ -1154,7 +1161,7 @@ pub unsafe extern "C" fn coex_pti_get(event: u32, pti: *mut u8) -> crate::binary
 ///
 /// *************************************************************************
 #[allow(unused_variables)]
-// 1906
+// 1905
 pub unsafe extern "C" fn coex_schm_status_bit_clear(type_: u32, status: u32) {
     //#[cfg(coex)]
     //unsafe {
@@ -1170,7 +1177,7 @@ pub unsafe extern "C" fn coex_schm_status_bit_clear(type_: u32, status: u32) {
 ///
 /// *************************************************************************
 #[allow(unused_variables)]
-// 1923
+// 1922
 pub unsafe extern "C" fn coex_schm_status_bit_set(type_: u32, status: u32) {
     //#[cfg(coex)]
     //unsafe {
@@ -1186,7 +1193,7 @@ pub unsafe extern "C" fn coex_schm_status_bit_set(type_: u32, status: u32) {
 ///
 /// *************************************************************************
 #[allow(unused_variables)]
-// 1940
+// 1939
 pub unsafe extern "C" fn coex_schm_interval_set(interval: u32) -> crate::binary::c_types::c_int {
     //#[cfg(coex)]
     //return unsafe { crate::binary::include::coex_schm_interval_set(interval) };
@@ -1212,7 +1219,7 @@ pub unsafe extern "C" fn coex_schm_curr_period_get() -> u8 {
 }
 
 #[allow(unused_variables)]
-// 2020
+// 2016
 pub unsafe extern "C" fn coex_schm_register_cb_wrapper(
     arg1: esp_wifi_sys::c_types::c_int,
     cb: ::core::option::Option<
@@ -1270,7 +1277,7 @@ pub unsafe extern "C" fn coex_schm_flexible_period_get() -> u8 {
 }
 
 #[allow(unused_variables)]
-// 2073
+// 2069
 pub unsafe extern "C" fn coex_register_start_cb(
     cb: Option<unsafe extern "C" fn() -> esp_wifi_sys::c_types::c_int>,
 ) -> esp_wifi_sys::c_types::c_int {

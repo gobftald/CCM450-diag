@@ -2,8 +2,6 @@
 
 // 10
 use allocator_api2::boxed::Box;
-
-// 11
 use esp_wifi_sys::{c_types::c_char, include::malloc};
 
 // 13
@@ -157,8 +155,8 @@ pub unsafe fn str_from_c<'a>(s: *const c_char) -> &'a str {
     }
 }
 
-// 175
 #[unsafe(no_mangle)]
+// 175
 unsafe extern "C" fn strnlen(chars: *const c_char, _maxlen: usize) -> usize {
     let mut len = 0;
     loop {
@@ -357,6 +355,7 @@ pub(crate) fn delete_queue(queue: *mut ConcurrentQueue) {
     }
 }
 
+// 362
 pub(crate) fn send_queued(
     queue: *mut ConcurrentQueue,
     item: *mut c_void,

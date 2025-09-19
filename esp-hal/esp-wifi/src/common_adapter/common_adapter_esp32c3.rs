@@ -61,6 +61,7 @@ pub(crate) fn phy_mem_init() {
     }
 }
 
+// 58
 pub(crate) unsafe fn bbpll_en_usb() {
     #[cfg(phy_enable_usb)]
     {
@@ -100,6 +101,7 @@ pub(crate) unsafe fn phy_enable() {
     }
 }
 
+// 131
 fn phy_digital_regs_load() {
     unsafe {
         if S_IS_PHY_REG_STORED && !G_PHY_DIGITAL_REGS_MEM.is_null() {

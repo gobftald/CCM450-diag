@@ -1,15 +1,16 @@
 #[cfg(not(any(esp32c6, esp32h2)))]
+// 4
 use peripherals::SYSTEM as SystemPeripheral;
 
 // 6
 use crate::{
-    TimeBase,
     hal::{
         interrupt::{self, TrapFrame},
         peripherals::{self, Interrupt},
         riscv,
     },
     preempt_builtin::{task_switch, timer::setup_timebase},
+    TimeBase,
 };
 
 // 16

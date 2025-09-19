@@ -42,6 +42,7 @@ pub(crate) struct Timer {
     next: Option<Box<Timer>>,
 }
 
+// 45
 impl Timer {
     #[allow(dead_code)]
     pub(crate) fn id(&self) -> usize {
@@ -196,6 +197,7 @@ pub fn compat_timer_disarm(ets_timer: *mut ets_timer) {
     });
 }
 
+// 184
 pub fn compat_timer_done(ets_timer: *mut ets_timer) {
     trace!("timer done");
     TIMERS.with(|timers| {

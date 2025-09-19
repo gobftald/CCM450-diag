@@ -8,6 +8,7 @@ use super::WifiEvent;
 #[portable_atomic_enum::atomic_enum]
 #[derive(PartialEq, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+// 11
 pub enum WifiState {
     StaStarted,
     StaConnected,

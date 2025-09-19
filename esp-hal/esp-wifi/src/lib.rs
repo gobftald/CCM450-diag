@@ -42,6 +42,7 @@
 //! features. These can be set via environment variables, or via cargo's `[env]`
 //! section inside `.cargo/config.toml`.
 
+// 83
 #![no_std]
 #![cfg_attr(feature = "sys-logs", feature(c_variadic))]
 #![allow(static_mut_refs)]
@@ -89,7 +90,7 @@ mod radio;
 mod time;
 
 #[cfg(feature = "wifi")]
-// 143
+// 144
 pub mod wifi;
 
 // 152
@@ -296,7 +297,7 @@ pub fn init<'d>(
 }
 
 /// Returns true if at least some interrupt levels are disabled.
-// 391
+// 467
 fn is_interrupts_disabled() -> bool {
     #[cfg(target_arch = "xtensa")]
     return hal::xtensa_lx::interrupt::get_level() != 0
@@ -306,20 +307,6 @@ fn is_interrupts_disabled() -> bool {
     return !hal::riscv::register::mstatus::read().mie();
     // we don't use "runlevel" yet
     //|| hal::interrupt::current_runlevel() >= hal::interrupt::Priority::Priority1;
-}
-
-/// Enable verbose logging within the WiFi driver
-/// Does nothing unless the `sys-logs` feature is enabled.
-// 417
-pub fn wifi_set_log_verbose() {
-    #[cfg(all(feature = "sys-logs", not(esp32h2)))]
-    unsafe {
-        use crate::binary::include::{
-            esp_wifi_internal_set_log_level, wifi_log_level_t_WIFI_LOG_VERBOSE,
-        };
-
-        esp_wifi_internal_set_log_level(wifi_log_level_t_WIFI_LOG_VERBOSE);
-    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -333,6 +320,20 @@ pub enum InitializationError {
     /// Tried to initialize while interrupts are disabled.
     /// This is not supported.
     InterruptsDisabled,
+}
+
+/// Enable verbose logging within the WiFi driver
+/// Does nothing unless the `sys-logs` feature is enabled.
+// 508
+pub fn wifi_set_log_verbose() {
+    #[cfg(all(feature = "sys-logs", not(esp32h2)))]
+    unsafe {
+        use crate::binary::include::{
+            esp_wifi_internal_set_log_level, wifi_log_level_t_WIFI_LOG_VERBOSE,
+        };
+
+        esp_wifi_internal_set_log_level(wifi_log_level_t_WIFI_LOG_VERBOSE);
+    }
 }
 
 // 520
