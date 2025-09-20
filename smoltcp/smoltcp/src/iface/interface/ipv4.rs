@@ -1,3 +1,4 @@
+// 1
 use super::*;
 
 // 30
@@ -176,7 +177,7 @@ impl InterfaceInner {
     }
 
     #[cfg(feature = "medium-ethernet")]
-    // 249
+    // 246
     pub(super) fn process_arp<'frame>(
         &mut self,
         timestamp: Instant,
@@ -242,7 +243,7 @@ impl InterfaceInner {
         }
     }
 
-    // 314
+    // 311
     pub(super) fn process_icmpv4<'frame>(
         &mut self,
         _sockets: &mut SocketSet,
@@ -295,7 +296,7 @@ impl InterfaceInner {
         }
     }
 
-    // 366
+    // 363
     pub(super) fn icmpv4_reply<'frame, 'icmp: 'frame>(
         &self,
         ipv4_repr: Ipv4Repr,

@@ -18,8 +18,8 @@ pub struct PacketMetadata<H> {
 
 // 15
 impl<H> PacketMetadata<H> {
-    // 16
     /// Empty packet description.
+    // 17
     pub const EMPTY: PacketMetadata<H> = PacketMetadata {
         size: 0,
         header: None,

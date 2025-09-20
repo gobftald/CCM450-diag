@@ -7,6 +7,7 @@ provides lookup and caching of hardware addresses, and handles management packet
 // 8
 mod interface;
 
+//#[cfg(any(feature = "medium-ethernet", feature = "medium-ieee802154"))]
 #[cfg(feature = "medium-ethernet")]
 // 10
 mod neighbor;

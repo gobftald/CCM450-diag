@@ -32,7 +32,7 @@ pub mod udp;
 mod waker;
 
 #[cfg(feature = "async")]
-// 33
+// 34
 pub(crate) use self::waker::WakerRegistration;
 
 /// Gives an indication on the next time the socket should be polled.
@@ -59,7 +59,7 @@ pub(crate) enum PollAt {
 /// [AnySocket]: trait.AnySocket.html
 /// [SocketSet::get]: struct.SocketSet.html#method.get
 #[derive(Debug)]
-// 59
+// 60
 pub enum Socket<'a> {
     //#[cfg(feature = "socket-raw")]
     //Raw(raw::Socket<'a>),
@@ -96,7 +96,7 @@ impl<'a> Socket<'a> {
 }
 
 /// A conversion trait for network sockets.
-// 94
+// 95
 pub trait AnySocket<'a> {
     fn upcast(self) -> Socket<'a>;
     fn downcast<'c>(socket: &'c Socket<'a>) -> Option<&'c Self>
@@ -107,7 +107,7 @@ pub trait AnySocket<'a> {
         Self: Sized;
 }
 
-// 104
+// 105
 macro_rules! from_socket {
     ($socket:ty, $variant:ident) => {
         impl<'a> AnySocket<'a> for $socket {
@@ -135,13 +135,13 @@ macro_rules! from_socket {
 }
 
 #[cfg(feature = "socket-icmp")]
-// 133
+// 134
 from_socket!(icmp::Socket<'a>, Icmp);
 
 #[cfg(feature = "socket-udp")]
-// 135
+// 136
 from_socket!(udp::Socket<'a>, Udp);
 
 #[cfg(feature = "socket-dhcpv4")]
-// 139
+// 140
 from_socket!(dhcpv4::Socket<'a>, Dhcpv4);

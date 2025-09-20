@@ -503,14 +503,35 @@ impl<'a> Socket<'a> {
                 .rebind_duration
                 .map(|d| Duration::from_secs(d as u64)),
         ) {
-            (Some(renew_duration), Some(rebind_duration)) => (renew_duration, rebind_duration),
-            (None, None) => (lease_duration / 2, lease_duration * 7 / 8),
-            (Some(renew_duration), None) => (
+            (Some(renew_duration), Some(rebind_duration))
+                if renew_duration < rebind_duration && rebind_duration < lease_duration =>
+            {
+                (renew_duration, rebind_duration)
+            }
+            // RFC 2131 does not say what to do if only one value is
+            // provided, so:
+
+            // If only T1 is provided, set T2 to be 0.75 through the gap
+            // between T1 and the duration of the lease. If T1 is set to
+            // the default (0.5 * duration_of_lease), then T2 will also
+            // be set to the default (0.875 * duration_of_lease).
+            (Some(renew_duration), None) if renew_duration < lease_duration => (
                 renew_duration,
                 renew_duration + (lease_duration - renew_duration) * 3 / 4,
             ),
-            (None, Some(rebind_duration)) => {
+
+            // If only T2 is provided, then T1 will be set to be
+            // whichever is smaller of the default (0.5 *
+            // duration_of_lease) or T2.
+            (None, Some(rebind_duration)) if rebind_duration < lease_duration => {
                 ((lease_duration / 2).min(rebind_duration), rebind_duration)
+            }
+
+            // Use the defaults if the following order is not met:
+            // T1 < T2 < lease_duration
+            (_, _) => {
+                net_debug!("using default T1 and T2 values since the provided values are invalid");
+                (lease_duration / 2, lease_duration * 7 / 8)
             }
         };
         let renew_at = now + renew_duration;
@@ -521,12 +542,12 @@ impl<'a> Socket<'a> {
     }
 
     //#[cfg(not(test))]
-    // 542
+    // 554
     fn random_transaction_id(cx: &mut Context) -> u32 {
         cx.rand().rand_u32()
     }
 
-    // 551
+    // 563
     pub(crate) fn dispatch<F, E>(&mut self, cx: &mut Context, emit: F) -> Result<(), E>
     where
         F: FnOnce(&mut Context, (Ipv4Repr, UdpRepr, DhcpRepr)) -> Result<(), E>,
@@ -590,6 +611,9 @@ impl<'a> Socket<'a> {
                 if cx.now() < state.retry_at {
                     return Ok(());
                 }
+
+                let next_transaction_id = Self::random_transaction_id(cx);
+                dhcp_repr.transaction_id = next_transaction_id;
 
                 // send packet
                 net_debug!(
@@ -659,6 +683,9 @@ impl<'a> Socket<'a> {
                 dhcp_repr.message_type = DhcpMessageType::Request;
                 dhcp_repr.client_ip = state.config.address.address();
 
+                let next_transaction_id = Self::random_transaction_id(cx);
+                dhcp_repr.transaction_id = next_transaction_id;
+
                 net_debug!("DHCP send renew to {}: {:?}", ipv4_repr.dst_addr, dhcp_repr);
                 ipv4_repr.payload_len = udp_repr.header_len() + dhcp_repr.buffer_len();
                 emit(cx, (ipv4_repr, udp_repr, dhcp_repr))?;
@@ -695,7 +722,7 @@ impl<'a> Socket<'a> {
     ///
     /// Use this to speed up acquisition of an address in a new
     /// network if a link was down and it is now back up.
-    // 719
+    // 732
     pub fn reset(&mut self) {
         net_trace!("DHCP reset");
         if let ClientState::Renewing(_) = &self.state {
@@ -710,7 +737,7 @@ impl<'a> Socket<'a> {
     ///
     /// The socket has an internal "configuration changed" flag. If
     /// set, this function returns the configuration and resets the flag.
-    // 733
+    // 746
     pub fn poll(&mut self) -> Option<Event> {
         if !self.config_changed {
             None
@@ -735,7 +762,7 @@ impl<'a> Socket<'a> {
     /// This function _must_ be called when the configuration provided to the
     /// interface, by this DHCP socket, changes. It will update the `config_changed` field
     /// so that a subsequent call to `poll` will yield an event, and wake a possible waker.
-    // 757
+    // 770
     pub(crate) fn config_changed(&mut self) {
         self.config_changed = true;
         #[cfg(feature = "async")]

@@ -6,8 +6,6 @@ use core::cmp;
 use super::{Error, Result};
 use crate::phy::ChecksumCapabilities;
 use crate::wire::ip::checksum;
-
-// 7
 use crate::wire::{Ipv4Packet, Ipv4Repr};
 
 // 9

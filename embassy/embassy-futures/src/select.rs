@@ -40,6 +40,12 @@ pub struct Select<A, B> {
     b: B,
 }
 
+// I don't understand (yet) why it is necessary
+// my uderstanding is that compiler ensure that a struct
+// with Unpin memmbers is also Unpin by default
+// 51
+//impl<A: Unpin, B: Unpin> Unpin for Select<A, B> {}
+
 // 53
 impl<A, B> Future for Select<A, B>
 where

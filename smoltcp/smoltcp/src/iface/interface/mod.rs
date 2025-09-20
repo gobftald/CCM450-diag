@@ -294,7 +294,7 @@ impl Interface {
     /// [`poll_egress()`](Self::poll_egress) and [`poll_ingress_single()`](Self::poll_ingress_single).
     /// This allows you to insert yields or process other events between processing
     /// individual ingress packets.
-    // 436
+    // 440
     pub fn poll(
         &mut self,
         timestamp: Instant,
@@ -352,7 +352,7 @@ impl Interface {
     ///
     /// [poll]: #method.poll
     /// [Instant]: struct.Instant.html
-    // 529
+    // 533
     pub fn poll_at(&mut self, timestamp: Instant, sockets: &SocketSet<'_>) -> Option<Instant> {
         self.inner.now = timestamp;
 
@@ -374,7 +374,7 @@ impl Interface {
             .min()
     }
 
-    // 571
+    // 575
     fn socket_ingress(
         &mut self,
         device: &mut (impl Device + ?Sized),
@@ -412,7 +412,7 @@ impl Interface {
         })
     }
 
-    // 644
+    // 648
     fn socket_egress(
         &mut self,
         device: &mut (impl Device + ?Sized),
@@ -502,11 +502,11 @@ impl Interface {
     }
 }
 
-// 763
+// 767
 impl InterfaceInner {
     // unused depending on which sockets are enabled
     #[allow(unused)]
-    // 765
+    // 769
     pub(crate) fn now(&self) -> Instant {
         self.now
     }
@@ -515,28 +515,28 @@ impl InterfaceInner {
     #[cfg(feature = "medium-ethernet")]
     // unused depending on which sockets are enabled
     #[allow(unused)]
-    // 771
+    // 775
     pub(crate) fn hardware_addr(&self) -> HardwareAddress {
         self.hardware_addr
     }
 
     // unused depending on which sockets are enabled
     #[allow(unused)]
-    // 781
+    // 785
     pub(crate) fn ip_mtu(&self) -> usize {
         self.caps.ip_mtu()
     }
 
     // unused depending on which sockets are enabled, and in tests
     #[allow(unused)]
-    // 786
+    // 790
     pub(crate) fn rand(&mut self) -> &mut Rand {
         &mut self.rand
     }
 
     // unused depending on which sockets are enabled
     #[allow(unused)]
-    // 791
+    // 795
     pub(crate) fn get_source_address(&self, dst_addr: &IpAddress) -> Option<IpAddress> {
         match dst_addr {
             #[cfg(feature = "proto-ipv4")]
@@ -547,7 +547,7 @@ impl InterfaceInner {
     }
 
     #[cfg(feature = "medium-ethernet")]
-    // 807
+    // 811
     fn check_hardware_addr(addr: &HardwareAddress) {
         if !addr.is_unicast() {
             //panic!("Hardware address {addr} is not unicast")
@@ -555,7 +555,7 @@ impl InterfaceInner {
         }
     }
 
-    // 813
+    // 817
     fn check_ip_addrs(addrs: &[IpCidr]) {
         for cidr in addrs {
             if !cidr.address().is_unicast() && !cidr.address().is_unspecified() {
@@ -565,14 +565,14 @@ impl InterfaceInner {
     }
 
     /// Check whether the interface has the given IP address assigned.
-    // 822
+    // 826
     fn has_ip_addr<T: Into<IpAddress>>(&self, addr: T) -> bool {
         let addr = addr.into();
         self.ip_addrs.iter().any(|probe| probe.address() == addr)
     }
 
     /// Check whether the interface listens to given destination multicast IP address.
-    // 828
+    // 832
     fn has_multicast_group<T: Into<IpAddress>>(&self, addr: T) -> bool {
         let addr = addr.into();
 
@@ -597,7 +597,7 @@ impl InterfaceInner {
 
     /// Checks if an address is broadcast, taking into account ipv4 subnet-local
     /// broadcast addresses.
-    // 898
+    // 902
     pub(crate) fn is_broadcast(&self, address: &IpAddress) -> bool {
         match address {
             #[cfg(feature = "proto-ipv4")]
@@ -608,7 +608,7 @@ impl InterfaceInner {
     }
 
     #[cfg(feature = "medium-ethernet")]
-    // 908
+    // 912
     fn dispatch<Tx>(
         &mut self,
         tx_token: Tx,
@@ -642,12 +642,12 @@ impl InterfaceInner {
         }
     }
 
-    // 941
+    // 945
     fn in_same_network(&self, addr: &IpAddress) -> bool {
         self.ip_addrs.iter().any(|cidr| cidr.contains_addr(addr))
     }
 
-    // 945
+    // 949
     fn route(&self, addr: &IpAddress, timestamp: Instant) -> Option<IpAddress> {
         // Send directly.
         // note: no need to use `self.is_broadcast()` to check for subnet-local broadcast addrs
@@ -660,7 +660,7 @@ impl InterfaceInner {
         self.routes.lookup(addr, timestamp)
     }
 
-    // 957
+    // 961
     fn has_neighbor(&self, addr: &IpAddress) -> bool {
         match self.route(addr, self.now) {
             Some(_routed_addr) => match self.caps.medium {
@@ -677,7 +677,7 @@ impl InterfaceInner {
 
     //#[cfg(any(feature = "medium-ethernet", feature = "medium-ieee802154"))]
     #[cfg(feature = "medium-ethernet")]
-    // 972
+    // 976
     fn lookup_hardware_addr<Tx>(
         &mut self,
         tx_token: Tx,
@@ -772,13 +772,13 @@ impl InterfaceInner {
         Err(DispatchError::NeighborPending)
     }
 
-    // 1119
+    // 1123
     fn flush_neighbor_cache(&mut self) {
         #[cfg(feature = "medium-ethernet")]
         self.neighbor_cache.flush()
     }
 
-    // 1124
+    // 1128
     fn dispatch_ip<Tx: TxToken>(
         &mut self,
         // NOTE(unused_mut): tx_token isn't always mutated, depending on
@@ -877,7 +877,7 @@ impl InterfaceInner {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-// 1318
+// 1330
 enum DispatchError {
     /// No route to dispatch this packet. Retrying won't help unless
     /// configuration is changed.

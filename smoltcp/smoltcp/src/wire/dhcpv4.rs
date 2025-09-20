@@ -3,18 +3,14 @@
 // 3
 use bitflags::bitflags;
 use byteorder::{ByteOrder, NetworkEndian};
-
-// 5
 use core::iter;
 //use heapless::Vec;
 use allocator_api2::vec::Vec;
 
 // 8
 use super::{Error, Result};
-use crate::wire::arp::Hardware;
-
-// 10
 use super::{EthernetAddress, Ipv4Address, Ipv4AddressExt};
+use crate::wire::arp::Hardware;
 
 //12
 pub const SERVER_PORT: u16 = 67;
@@ -484,6 +480,7 @@ impl<T: AsRef<[u8]> + AsMut<[u8]>> Packet<T> {
 impl<'a, T: AsRef<[u8]> + AsMut<[u8]> + ?Sized> Packet<&'a mut T> {
     /// Return a pointer to the options.
     #[inline]
+    // 537
     pub fn options_mut(&mut self) -> DhcpOptionWriter<'_> {
         DhcpOptionWriter::new(&mut self.buffer.as_mut()[field::OPTIONS])
     }

@@ -114,7 +114,7 @@ impl<T: AsRef<[u8]>> Packet<T> {
     ///
     /// # Fuzzing
     /// This function always returns `true` when fuzzing.
-    // 112
+    // 129
     pub fn verify_checksum(&self, src_addr: &IpAddress, dst_addr: &IpAddress) -> bool {
         /*
         if cfg!(fuzzing) {
@@ -138,7 +138,7 @@ impl<T: AsRef<[u8]>> Packet<T> {
     }
 }
 
-// 133
+// 150
 impl<'a, T: AsRef<[u8]> + ?Sized> Packet<&'a T> {
     /// Return a pointer to the payload.
     #[inline]
@@ -149,11 +149,11 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Packet<&'a T> {
     }
 }
 
-// 143
+// 160
 impl<T: AsRef<[u8]> + AsMut<[u8]>> Packet<T> {
     /// Set the source port field.
     #[inline]
-    // 146
+    // 163
     pub fn set_src_port(&mut self, value: u16) {
         let data = self.buffer.as_mut();
         NetworkEndian::write_u16(&mut data[field::SRC_PORT], value)
@@ -161,7 +161,7 @@ impl<T: AsRef<[u8]> + AsMut<[u8]>> Packet<T> {
 
     /// Set the destination port field.
     #[inline]
-    // 153
+    // 170
     pub fn set_dst_port(&mut self, value: u16) {
         let data = self.buffer.as_mut();
         NetworkEndian::write_u16(&mut data[field::DST_PORT], value)
@@ -169,7 +169,7 @@ impl<T: AsRef<[u8]> + AsMut<[u8]>> Packet<T> {
 
     /// Set the length field.
     #[inline]
-    // 160
+    // 177
     pub fn set_len(&mut self, value: u16) {
         let data = self.buffer.as_mut();
         NetworkEndian::write_u16(&mut data[field::LENGTH], value)
@@ -177,7 +177,7 @@ impl<T: AsRef<[u8]> + AsMut<[u8]>> Packet<T> {
 
     /// Set the checksum field.
     #[inline]
-    // 167
+    // 184
     pub fn set_checksum(&mut self, value: u16) {
         let data = self.buffer.as_mut();
         NetworkEndian::write_u16(&mut data[field::CHECKSUM], value)
@@ -188,7 +188,7 @@ impl<T: AsRef<[u8]> + AsMut<[u8]>> Packet<T> {
     /// # Panics
     /// This function panics unless `src_addr` and `dst_addr` belong to the same family,
     /// and that family is IPv4 or IPv6.
-    // 177
+    // 194
     pub fn fill_checksum(&mut self, src_addr: &IpAddress, dst_addr: &IpAddress) {
         self.set_checksum(0);
         let checksum = {
@@ -207,7 +207,7 @@ impl<T: AsRef<[u8]> + AsMut<[u8]>> Packet<T> {
 
     /// Return a mutable pointer to the payload.
     #[inline]
-    // 195
+    // 212
     pub fn payload_mut(&mut self) -> &mut [u8] {
         let length = self.len();
         let data = self.buffer.as_mut();
@@ -217,16 +217,16 @@ impl<T: AsRef<[u8]> + AsMut<[u8]>> Packet<T> {
 
 /// A high-level representation of an User Datagram Protocol packet.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-// 210
+// 227
 pub struct Repr {
     pub src_port: u16,
     pub dst_port: u16,
 }
 
-// 215
+// 232
 impl Repr {
     /// Parse an User Datagram Protocol packet and return a high-level representation.
-    // 217
+    // 234
     pub fn parse<T>(
         packet: &Packet<&T>,
         src_addr: &IpAddress,
@@ -259,13 +259,13 @@ impl Repr {
     }
 
     /// Return the length of the packet header that will be emitted from this high-level representation.
-    // 249
+    // 266
     pub const fn header_len(&self) -> usize {
         HEADER_LEN
     }
 
     /// Emit a high-level representation into an User Datagram Protocol packet.
-    // 269
+    // 286
     pub fn emit<T>(
         &self,
         packet: &mut Packet<&mut T>,
@@ -293,7 +293,7 @@ impl Repr {
 }
 
 #[cfg(feature = "defmt")]
-// 309
+// 326
 impl<'a, T: AsRef<[u8]> + ?Sized> defmt::Format for Packet<&'a T> {
     fn format(&self, fmt: defmt::Formatter) {
         // Cannot use Repr::parse because we don't have the IP addresses.
@@ -308,7 +308,7 @@ impl<'a, T: AsRef<[u8]> + ?Sized> defmt::Format for Packet<&'a T> {
 }
 
 #[cfg(feature = "defmt")]
-// 329
+// 346
 impl defmt::Format for Repr {
     fn format(&self, fmt: defmt::Formatter) {
         defmt::write!(fmt, "UDP src={} dst={}", self.src_port, self.dst_port);

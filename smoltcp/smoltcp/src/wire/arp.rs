@@ -16,7 +16,7 @@ enum_with_unknown! {
     }
 }
 
-// 17
+// 16
 enum_with_unknown! {
     /// ARP operation type.
     pub enum Operation(u16) {
