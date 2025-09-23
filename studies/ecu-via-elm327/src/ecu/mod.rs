@@ -11,6 +11,8 @@ use embassy_sync::{
     zerocopy_channel::{Receiver, Sender},
 };
 
+use crate::ChannelItem;
+
 // arbitrary high-level ECU commands#[]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(strum_macros::FromRepr)]
@@ -25,18 +27,19 @@ enum Request {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 enum EcuError {
     InvalidRequest,
-    CommunicationFailed,
+    InconsystentRequest,
+    CommunicationError,
 }
 
-trait Ecus {
-    async fn request(&mut self, request: Request) -> Result<(), EcuError>;
-    async fn response(&mut self, response: &mut [u8]) -> Result<usize, EcuError>;
+trait Ecu {
+    async fn connect(&mut self) -> Result<(), EcuError>;
+    async fn reply(&mut self, reply: &mut [u8]) -> Result<usize, EcuError>;
 }
 
 #[embassy_executor::task()]
 pub async fn server(
-    mut sender: Sender<'static, NoopRawMutex, crate::ChannelItem>,
-    mut receiver: Receiver<'static, NoopRawMutex, crate::ChannelItem>,
+    mut sender: Sender<'static, NoopRawMutex, ChannelItem>,
+    mut receiver: Receiver<'static, NoopRawMutex, ChannelItem>,
 
     #[cfg(any(feature = "elm327", feature = "l9637"))] adapter: crate::ecu_adapter::Adapter<
         'static,
@@ -46,59 +49,65 @@ pub async fn server(
     #[cfg(feature = "ccm450")]
     let mut ecu = ECU::new(adapter);
 
-    // get a fresh channel item to write to
-    let mut response_item = sender.send().await;
-
-    response_item.size = 0;
     loop {
-        trace!(
-            "ecu/mod: match select(receiver.receive(), ecu.response(&mut response_item.data)).await"
-        );
-        // waiting for request or response
-        match select(receiver.receive(), ecu.response(&mut response_item.data)).await {
+        // get a fresh channel item to write to
+        let reply_item = sender.send().await;
+
+        // waiting for request or reply
+        match select(receiver.receive(), ecu.reply(&mut reply_item.data)).await {
             // received an ecu request
-            Either::First(received_item) => {
+            Either::First(request_item) => {
                 trace!(
-                    "#### ECU: received {}",
-                    received_item.data[..received_item.size]
+                    "#### ECU: received: {}",
+                    request_item.data[..request_item.size]
                 );
 
-                if received_item.size == 1
-                    && let Some(request) = Request::from_repr(received_item.data[0] as usize)
-                {
-                    ecu.request(request)
-                        .await
-                        .unwrap_or_else(|_err| error!("{}", _err));
+                if let Some(request) = Request::from_repr(request_item.data[1] as usize) {
+                    match request {
+                        Request::Connect => {
+                            // if request failed, send error via udp immediately
+                            if let Err(err) = ecu.connect().await {
+                                error!("#### Request::Connect error: {}", err);
+                                ecu_error(reply_item, err);
+                                sender.send_done();
+                            }
+                        }
+                        Request::Disconnect => {}
+                        Request::LiveDataStart => {}
+                        Request::LiveDataStop => {}
+                    }
+                    // we have finished to process request
+                    receiver.receive_done();
+                } else {
+                    // send invalid request error via udp immediately
+                    ecu_error(reply_item, EcuError::InvalidRequest);
+                    sender.send_done();
                 }
-
-                // we have finished to process request
-                receiver.receive_done();
             }
 
-            // received responss from ecu
+            // received reply from ecu
             Either::Second(result) => {
                 crate::debug_pin::debug_pin(0);
 
-                response_item.size = result.unwrap_or_else(|_err| {
-                    trace!("RxError: {}", _err);
+                reply_item.size = result.unwrap_or_else(|_err| {
+                    trace!("#### {}", _err);
                     0
                 });
 
-                // if not error forward response to udp
-                if response_item.size > 0 {
-                    trace!(
-                        "#### ECU: read_async(): size: {} data: {}",
-                        response_item.size,
-                        &response_item.data[..response_item.size]
-                    );
+                // if not error forward reply to udp
+                if reply_item.size > 0 {
+                    trace!("#### ECU: reply: {}", &reply_item.data[..reply_item.size]);
 
                     // wake receiver
                     sender.send_done();
-
-                    // wait channel to clear (it takes until data was sent by udp)
-                    response_item = sender.send().await;
                 }
             }
+        }
+
+        fn ecu_error(reply_item: &mut ChannelItem, error: EcuError) {
+            reply_item.data[0] = crate::udp::Subsystem::Ecu as u8;
+            reply_item.data[1] = error as u8;
+            reply_item.size = 2;
         }
     }
 }

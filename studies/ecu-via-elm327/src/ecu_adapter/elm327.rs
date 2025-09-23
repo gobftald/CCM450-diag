@@ -25,14 +25,17 @@ impl<'a> Adapter<'a> {
 }
 
 impl<'a> Adapters for Adapter<'a> {
-    async fn write_async(&mut self, request: &[u8]) -> Result<usize, TxError> {
+    async fn connect(&mut self) -> Result<(), TxError> {
+        // forwarding only TxError
+        self.tx.write_async(b"ATZ\r").await?;
+        Ok(())
+    }
+    async fn write(&mut self, request: &[u8]) -> Result<usize, TxError> {
         self.tx.write_async(request).await
     }
 
-    async fn read_async(&mut self, response: &mut [u8]) -> Result<usize, RxError> {
-        trace!("ecu_adapter/elm327: self.rx.read_async(response, false).await");
-        let res = self.rx.read_async(response, false).await;
-        trace!("ecu_adapter/elm327: self.rx.read_async(response, false).await awaken");
-        res
+    // there is no conversion between results, so we can accept future directly
+    fn read(&mut self, response: &mut [u8]) -> impl Future<Output = Result<usize, RxError>> {
+        self.rx.read_async(response, false)
     }
 }

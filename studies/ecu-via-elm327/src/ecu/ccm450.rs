@@ -6,6 +6,7 @@ use crate::{
 
 enum State {
     Disconnected,
+    Connected,
 }
 
 /// A Keihin KMSK16 ECU
@@ -25,33 +26,38 @@ impl<'a> ECU<'a> {
     }
 
     async fn write(&mut self, request: &[u8]) -> Result<(), EcuError> {
-        if let Ok(sent) = self.adapter.write_async(request).await {
+        if let Ok(sent) = self.adapter.write(request).await {
             if sent != request.len() {
-                Err(EcuError::CommunicationFailed)
+                Err(EcuError::CommunicationError)
             } else {
                 Ok(())
             }
         } else {
-            Err(EcuError::CommunicationFailed)
+            Err(EcuError::CommunicationError)
         }
     }
 }
 
-impl<'a> Ecus for ECU<'a> {
-    async fn request(&mut self, request: Request) -> Result<(), EcuError> {
-        match request {
-            Request::Connect => self.write(b"ATZ\r").await,
-            _ => Err(EcuError::InvalidRequest),
+impl<'a> Ecu for ECU<'a> {
+    // we cannot shortcut async-await with future since we convert errors
+    async fn connect(&mut self) -> Result<(), EcuError> {
+        match self.state {
+            State::Disconnected => {
+                // convert TxError to EcuError
+                self.adapter
+                    .connect()
+                    .await
+                    .map_err(|_| EcuError::CommunicationError)
+            }
+            _ => Err(EcuError::InconsystentRequest),
         }
     }
 
-    async fn response(&mut self, response: &mut [u8]) -> Result<usize, EcuError> {
-        trace!("ecu/ccm450: read_async(response).await");
-        let res = self.adapter
-            .read_async(response)
+    // we cannot shortcut async-await with future since we convert errors
+    async fn reply(&mut self, reply: &mut [u8]) -> Result<usize, EcuError> {
+        self.adapter
+            .read(reply)
             .await
-            .map_err(|_| EcuError::CommunicationFailed);
-        trace!("ecu/ccm450: read_async(response).await awaken");
-        res
+            .map_err(|_| EcuError::CommunicationError)
     }
 }

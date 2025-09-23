@@ -12,6 +12,22 @@ use embassy_sync::{
 pub const UDP_BUFFER_SIZE: usize = crate::CHANNEL_ITEM_SIZE;
 const UDP_PACKET_MAX: usize = 4;
 
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(strum_macros::FromRepr)]
+pub enum Subsystem {
+    // itself
+    System,
+    Ecu,
+    Gps,
+}
+
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum Reply {
+    Ok,
+    InvalidSubystem,
+    InvalidRequest,
+}
+
 #[embassy_executor::task()]
 pub async fn server(
     mut controller: esp_wifi::wifi::WifiController<'static>,
@@ -47,27 +63,15 @@ pub async fn server(
         &mut ap_udp_server_tx_buffer,
     );
     ap_udp_server_socket.bind(19924).unwrap();
-
     let mut end_point: Option<UdpMetadata> = None;
-
-    /*
-    let mut buf: [u8; 16] = [0; 16];
-    loop {
-        let (n, ep) = unwrap!(ap_udp_server_socket.recv_from(&mut buf).await);
-        for i in 0..10 {
-            trace!("{}", &buf);
-            ap_udp_server_socket.send_to(&buf, ep).await.unwrap();
-        }
-    }
-    */
 
     loop {
         // wait for the channel to clear
-        let sending_item = uart_sender.send().await;
+        let request_item = uart_sender.send().await;
 
         // waiting for request or response
         match select(
-            ap_udp_server_socket.recv_from(&mut sending_item.data),
+            ap_udp_server_socket.recv_from(&mut request_item.data),
             uart_receiver.receive(),
         )
         .await
@@ -77,32 +81,51 @@ pub async fn server(
                 let (n, ep) = result.unwrap();
 
                 trace!(
-                    "#### UDP: ap_udp_server_socket.recv_from(): size: {} data: {}",
-                    n,
-                    sending_item.data[..n]
+                    "#### UDP: ap_udp_server_socket.recv_from(): {}",
+                    request_item.data[..n]
                 );
 
-                sending_item.size = n;
+                if let Some(subsystem) = Subsystem::from_repr(request_item.data[0] as usize) {
+                    match subsystem {
+                        Subsystem::System => {}
+                        Subsystem::Ecu => {
+                            // send all icoming data
+                            request_item.size = n;
+
+                            // forward request to uart
+                            uart_sender.send_done();
+                        }
+                        Subsystem::Gps => {}
+                    }
+                } else {
+                    // since the only competence of udp server competence is dispatching requests
+                    // among subsystems, this is the only error it can notice and reply on its own
+                    ap_udp_server_socket
+                        // error sending subsystem is the system itself, which is 0 as u8
+                        .send_to(&[Subsystem::System as u8, Reply::InvalidSubystem as u8], ep)
+                        .await
+                        .unwrap();
+                    debug!("#### ap_udp_server_socket.send_to() returned");
+                }
+
                 end_point = Some(ep);
-                // forward request to uart
-                uart_sender.send_done();
             }
 
             // Uart answer arrived
             Either::Second(received_item) => {
                 trace!(
-                    "#### UDP: uart_receiver.receive(): : size: {}",
+                    "#### UDP: uart_receiver.receive(): size: {}",
                     received_item.size
                 );
 
-                // forward response to UDP
+                // forward response via UDP
                 if let Some(end_point) = end_point {
                     ap_udp_server_socket
                         .send_to(&received_item.data[..received_item.size], end_point)
                         .await
                         .unwrap();
+                    debug!("#### ap_udp_server_socket.send_to() returned");
                 }
-                debug!("ap_udp_server_socket.send_to() returned");
 
                 uart_receiver.receive_done();
                 crate::debug_pin::debug_pin(1);
