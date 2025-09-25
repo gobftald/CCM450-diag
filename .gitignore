@@ -1,6 +1,8 @@
 Cargo.lock
 target/
+._target/
 
 .DS_Store
+._.DS_Store
 
 *.map

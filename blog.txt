@@ -156,3 +156,5 @@ DEFMT_LOG=off,ecu_via_elm327=trace,esp_hal=debug,esp_wifi=info cargo run --relea
 
 # for wireshark tracing file
 airport en0 sniff
+
+git pull --rebase origin main
