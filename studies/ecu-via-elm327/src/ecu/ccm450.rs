@@ -25,16 +25,11 @@ impl<'a> ECU<'a> {
         }
     }
 
-    async fn write(&mut self, request: &[u8]) -> Result<(), EcuError> {
-        if let Ok(sent) = self.adapter.write(request).await {
-            if sent != request.len() {
-                Err(EcuError::CommunicationError)
-            } else {
-                Ok(())
-            }
-        } else {
-            Err(EcuError::CommunicationError)
-        }
+    async fn write(&mut self, request: &[u8]) -> Result<usize, EcuError> {
+        self.adapter
+            .write(request)
+            .await
+            .map_err(EcuError::CommunicationError)
     }
 }
 
@@ -43,21 +38,23 @@ impl<'a> Ecu for ECU<'a> {
     async fn connect(&mut self) -> Result<(), EcuError> {
         match self.state {
             State::Disconnected => {
-                // convert TxError to EcuError
+                trace!("#### adapter.connect()");
                 self.adapter
                     .connect()
                     .await
-                    .map_err(|_| EcuError::CommunicationError)
+                    .map_err(EcuError::CommunicationError)?;
+                //self.state = State::Connected;
+                Ok(())
             }
             _ => Err(EcuError::InconsystentRequest),
         }
     }
 
-    // we cannot shortcut async-await with future since we convert errors
+    // we cannot shortcut async-await with future since here we convert errors
     async fn reply(&mut self, reply: &mut [u8]) -> Result<usize, EcuError> {
         self.adapter
             .read(reply)
             .await
-            .map_err(|_| EcuError::CommunicationError)
+            .map_err(EcuError::CommunicationError)
     }
 }

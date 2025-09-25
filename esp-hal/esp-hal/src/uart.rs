@@ -536,6 +536,24 @@ impl<'d> UartTx<'d> {
         Ok(())
     }
 
+    /// Write bytes.
+    ///
+    /// This function writes data to the internal TX FIFO of the UART
+    /// peripheral. The data is then transmitted over the UART TX line.
+    ///
+    /// The function returns the number of bytes written to the FIFO. This may
+    /// be less than the length of the provided data. The function may only
+    /// return 0 if the provided data is empty.
+    ///
+    /// ## Errors
+    ///
+    /// This function returns a [`TxError`] if an error occurred during the
+    /// write operation.
+    // 812
+    pub fn write(&mut self, data: &[u8]) -> Result<usize, TxError> {
+        self.uart.info().write(data)
+    }
+
     // 830
     fn flush_last_byte(&mut self) {
         // This function handles an edge case that happens when the TX FIFO count
@@ -1742,6 +1760,13 @@ impl Info {
         u16::from(self.regs().status().read().txfifo_cnt().bits())
     }
 
+    // 3125
+    fn write_byte(&self, byte: u8) {
+        self.regs()
+            .fifo()
+            .write(|w| unsafe { w.rxfifo_rd_byte().bits(byte) });
+    }
+
     // 3131
     fn check_for_errors(&self) -> Result<(), RxError> {
         let errors = RxEvent::FifoOvf
@@ -1763,6 +1788,23 @@ impl Info {
     // 3150
     fn rx_fifo_count(&self) -> u16 {
         self.regs().status().read().rxfifo_cnt().bits() as u16
+    }
+
+    // 3175
+    fn write(&self, data: &[u8]) -> Result<usize, TxError> {
+        if data.is_empty() {
+            return Ok(0);
+        }
+
+        while self.tx_fifo_count() >= Info::UART_FIFO_SIZE {}
+
+        let space = (Info::UART_FIFO_SIZE - self.tx_fifo_count()) as usize;
+        let to_write = space.min(data.len());
+        for &byte in &data[..to_write] {
+            self.write_byte(byte);
+        }
+
+        Ok(to_write)
     }
 
     // 3204

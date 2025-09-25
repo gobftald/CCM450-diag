@@ -151,5 +151,8 @@ echo -n -e '\x00' | nc -u 192.168.3.1 19924
 
 DEFMT_LOG=off,ecu_via_elm327=trace,esp_hal=info,esp_wifi=trace,esp_wifi_sys=trace,smoltcp=info,esp_hal_embassy=info \
     cargo run --release --features=esp-wifi/sys-logs
+or
+DEFMT_LOG=off,ecu_via_elm327=trace,esp_hal=debug,esp_wifi=info cargo run --release
 
+# for wireshark tracing file
 airport en0 sniff

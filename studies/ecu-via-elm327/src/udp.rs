@@ -98,8 +98,6 @@ pub async fn server(
                         Subsystem::Gps => {}
                     }
                 } else {
-                    // since the only competence of udp server competence is dispatching requests
-                    // among subsystems, this is the only error it can notice and reply on its own
                     ap_udp_server_socket
                         // error sending subsystem is the system itself, which is 0 as u8
                         .send_to(&[Subsystem::System as u8, Reply::InvalidSubystem as u8], ep)

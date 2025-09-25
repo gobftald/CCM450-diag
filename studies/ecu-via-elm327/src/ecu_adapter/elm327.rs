@@ -1,9 +1,11 @@
-use super::*;
-
 use esp_hal::{
     gpio::AnyPin,
-    uart::{AnyUart, Config, RxError, TxError, Uart, UartRx, UartTx},
+    uart::{AnyUart, Config, Uart, UartRx, UartTx},
 };
+
+use embassy_futures::select::{Either, select};
+
+use super::{AdapterError, Adapters};
 
 pub struct Adapter<'a> {
     pub(crate) rx: UartRx<'a>,
@@ -22,20 +24,81 @@ impl<'a> Adapter<'a> {
 
         Self { rx, tx }
     }
-}
 
-impl<'a> Adapters for Adapter<'a> {
-    async fn connect(&mut self) -> Result<(), TxError> {
-        // forwarding only TxError
-        self.tx.write_async(b"ATZ\r").await?;
+    async fn wait_for_prompt(&mut self, check_ok: bool, timeout: u64) -> Result<(), AdapterError> {
+        let mut buf: [u8; 32] = [0; 32];
+        loop {
+            match select(
+                self.rx.read_async(&mut buf, false),
+                embassy_time::Timer::after(embassy_time::Duration::from_millis(timeout)),
+            )
+            .await
+            {
+                Either::First(result) => {
+                    trace!("wait for prompt buf: {}", buf);
+                    let size = result.map_err(|err| {
+                        error!("read_async error {}", err);
+                        AdapterError::Rx(err)
+                    })?;
+
+                    if buf[size - 1] == b'>' {
+                        if !check_ok {
+                            break;
+                        } else if buf[size - 5] == b'O' && buf[size - 4] == b'K' {
+                            break;
+                        }
+                    }
+                }
+
+                Either::Second(_) => {
+                    error!("#### Uart timeout error");
+                    return Err(AdapterError::Timeout);
+                }
+            }
+        }
         Ok(())
     }
-    async fn write(&mut self, request: &[u8]) -> Result<usize, TxError> {
-        self.tx.write_async(request).await
+}
+
+#[allow(unused_must_use)]
+impl<'a> Adapters for Adapter<'a> {
+    async fn connect(&mut self) -> Result<(), AdapterError> {
+        // reset
+        self.tx.write(b"ATZ\r").map_err(AdapterError::Tx);
+        self.wait_for_prompt(false, 1000).await?;
+
+        // echo off
+        self.tx.write(b"ATE0\r").map_err(AdapterError::Tx);
+        self.wait_for_prompt(true, 500).await?;
+
+        // set WakeUp Message
+        self.tx
+            .write(b"AT WM 82 12 F1 3E 01\r")
+            .map_err(AdapterError::Tx);
+        self.wait_for_prompt(true, 500).await?;
+
+        // set WakeUp frequency (5000/20 in hex)
+        self.tx.write(b"AT SW FA\r").map_err(AdapterError::Tx);
+        self.wait_for_prompt(true, 500).await?;
+
+        // set Header
+        self.tx.write(b"AT SH 81 12 F1\r").map_err(AdapterError::Tx);
+        self.wait_for_prompt(true, 500).await?;
+
+        // Fast Init
+        self.tx.write(b"AT FI\r").map_err(AdapterError::Tx);
+        self.wait_for_prompt(false, 1000).await?;
+
+        Ok(())
+    }
+    async fn write(&mut self, request: &[u8]) -> Result<usize, AdapterError> {
+        self.tx.write_async(request).await.map_err(AdapterError::Tx)
     }
 
-    // there is no conversion between results, so we can accept future directly
-    fn read(&mut self, response: &mut [u8]) -> impl Future<Output = Result<usize, RxError>> {
-        self.rx.read_async(response, false)
+    async fn read(&mut self, response: &mut [u8]) -> Result<usize, AdapterError> {
+        self.rx
+            .read_async(response, false)
+            .await
+            .map_err(AdapterError::Rx)
     }
 }

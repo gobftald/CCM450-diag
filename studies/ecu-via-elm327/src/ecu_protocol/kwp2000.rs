@@ -1,12 +1,11 @@
 pub struct Protocol;
 
-// imported from automotive_diag crate
-
-pub enum KwpCommand {
+pub enum KwpServiceId {
     /// Start or change ECU diagnostic session mode.
     StartDiagnosticSession = 0x10,
     /// Reset the ECU.
     ECUReset = 0x11,
+    ReadFreezeFrameData = 0x12,
     /// Clears diagnostic information stored on the ECU.
     ClearDiagnosticInformation = 0x14,
     /// Reads snapshot data of DTCs stored on the ECU.
@@ -15,6 +14,7 @@ pub enum KwpCommand {
     ReadDiagnosticTroubleCodesByStatus = 0x18,
     /// Reads ECU identification data.
     ReadECUIdentification = 0x1A,
+    StopDiagnosticSession = 0x20,
     /// Reads data from the ECU using a local identifier.
     ReadDataByLocalIdentifier = 0x21,
     /// Reads data from the ECU using a unique identifier.
@@ -44,6 +44,9 @@ pub enum KwpCommand {
     WriteMemoryByAddress = 0x3D,
     /// Tester present message.
     TesterPresent = 0x3E,
+    StartCommunication = 0x81,
+    StopCommunication = 0x82,
+    AccessTimingParameter = 0x83,
     ControlDTCSettings = 0x85,
     ResponseOnEvent = 0x86,
 }

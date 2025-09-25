@@ -70,9 +70,8 @@ communication layer for the UDP serve as a gateway of all ECU communication.
 
 ## Considerations for implementation
 
-I would like to follow the painful, long but ultimately most
-knowledge-providing path of starting almost all code, my own, as well as used
-external crates, from scratch. Although this may seem like copy-paste
-technology at first, if you understand each "paste" and build even the external
-codes step by step, you will eventually be able to see the details and the big
-picture as well.
+I would like to follow the painful, long but ultimately most knowledge-providing
+path of starting almost all code, my own, as well as used external crates, from
+scratch. Although this may seem like copy-paste technology at first, if you
+understand each "paste" and build even the external codes step by step, you will 
+eventually be able to see the details and the big picture as well.

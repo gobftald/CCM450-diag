@@ -11,7 +11,7 @@ use embassy_sync::{
     zerocopy_channel::{Receiver, Sender},
 };
 
-use crate::ChannelItem;
+use crate::{ChannelItem, ecu_adapter::AdapterError};
 
 // arbitrary high-level ECU commands#[]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -23,12 +23,12 @@ enum Request {
     LiveDataStop,
 }
 
-#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 enum EcuError {
+    Ok,
     InvalidRequest,
     InconsystentRequest,
-    CommunicationError,
+    CommunicationError(AdapterError),
 }
 
 trait Ecu {
@@ -65,12 +65,15 @@ pub async fn server(
                 if let Some(request) = Request::from_repr(request_item.data[1] as usize) {
                     match request {
                         Request::Connect => {
-                            // if request failed, send error via udp immediately
                             if let Err(err) = ecu.connect().await {
                                 error!("#### Request::Connect error: {}", err);
-                                ecu_error(reply_item, err);
-                                sender.send_done();
+                                ecu_reply(reply_item, err);
+                            } else {
+                                trace!("#### Request::Connect Ok");
+                                ecu_reply(reply_item, EcuError::Ok);
                             }
+                            trace!("#### ECU: reply: {}", &reply_item.data[..reply_item.size]);
+                            sender.send_done();
                         }
                         Request::Disconnect => {}
                         Request::LiveDataStart => {}
@@ -80,7 +83,8 @@ pub async fn server(
                     receiver.receive_done();
                 } else {
                     // send invalid request error via udp immediately
-                    ecu_error(reply_item, EcuError::InvalidRequest);
+                    ecu_reply(reply_item, EcuError::InvalidRequest);
+                    trace!("#### ECU: reply: {}", &reply_item.data[..reply_item.size]);
                     sender.send_done();
                 }
             }
@@ -104,10 +108,32 @@ pub async fn server(
             }
         }
 
-        fn ecu_error(reply_item: &mut ChannelItem, error: EcuError) {
+        fn ecu_reply(reply_item: &mut ChannelItem, error: EcuError) {
             reply_item.data[0] = crate::udp::Subsystem::Ecu as u8;
-            reply_item.data[1] = error as u8;
             reply_item.size = 2;
+            reply_item.data[1] = match error {
+                EcuError::Ok => 0,
+                EcuError::InvalidRequest => 1,
+                EcuError::InconsystentRequest => 2,
+                EcuError::CommunicationError(err) => match err {
+                    AdapterError::Tx(_) => {
+                        reply_item.data[2] = 0;
+                        reply_item.size = 3;
+                        3
+                    }
+                    AdapterError::Rx(err) => {
+                        reply_item.data[2] = 1;
+                        reply_item.data[3] = err as u8;
+                        reply_item.size = 4;
+                        3
+                    }
+                    AdapterError::Timeout => {
+                        reply_item.data[2] = 3;
+                        reply_item.size = 3;
+                        3
+                    }
+                },
+            } as u8;
         }
     }
 }

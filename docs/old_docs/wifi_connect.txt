@@ -355,10 +355,10 @@ ppTask
 0x400407ac:	lui	s7,0x3fce0
 try to receive:
 0x400407b0:	lw	a5,-1708(s0)
-0x400407b4:	lw	a0,0(s1)
-0x400407b6:	li	a2,-1
+0x400407b4:	lw	a0,0(s1)            // e.g. 0x3fc8b6f8 = queue: *mut crate::binary::c_types::c_void,
+0x400407b6:	li	a2,-1               // block_time_tick: u32,
 0x400407b8:	lw	a5,116(a5)          // queue_recv
-0x400407ba:	addi	a1,sp,8
+0x400407ba:	addi	a1,sp,8         // e.g 0x3fc8d0d8 = item: *mut crate::binary::c_types::c_void,
 0x400407bc:	jalr	a5              // queue_recv
 
 0x400407be:	li	a5,1
@@ -374,7 +374,7 @@ try to receive:
 0x400407d6:	j	0x400407b0          // try to receive
 
 received:
-0x400407d8:	lw	a0,8(sp)            // msg[0]
+0x400407d8:	lw	a0,8(sp)            // msg[0] item: *mut crate::binary::c_types::c_void [0]
 
 msg[0] = 32
 0x400407da:	li	a5,32
