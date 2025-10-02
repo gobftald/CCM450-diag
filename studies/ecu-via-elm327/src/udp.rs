@@ -23,9 +23,7 @@ pub enum Subsystem {
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Reply {
-    Ok,
     InvalidSubystem,
-    InvalidRequest,
 }
 
 #[embassy_executor::task()]

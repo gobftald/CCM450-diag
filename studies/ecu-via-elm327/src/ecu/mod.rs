@@ -100,7 +100,10 @@ pub async fn server(
 
                 // if not error forward reply to udp
                 if reply_item.size > 0 {
-                    trace!("#### ECU: reply: {}", &reply_item.data[..reply_item.size]);
+                    trace!(
+                        "#### ECU #direct# reply: {}",
+                        &reply_item.data[..reply_item.size]
+                    );
 
                     // wake receiver
                     sender.send_done();
@@ -117,18 +120,23 @@ pub async fn server(
                 EcuError::InconsystentRequest => 2,
                 EcuError::CommunicationError(err) => match err {
                     AdapterError::Tx(_) => {
-                        reply_item.data[2] = 0;
+                        reply_item.data[2] = 0; // AdapterError::Tx
                         reply_item.size = 3;
                         3
                     }
                     AdapterError::Rx(err) => {
-                        reply_item.data[2] = 1;
+                        reply_item.data[2] = 1; // AdapterError::Rx
                         reply_item.data[3] = err as u8;
                         reply_item.size = 4;
                         3
                     }
                     AdapterError::Timeout => {
-                        reply_item.data[2] = 3;
+                        reply_item.data[2] = 2; // AdapterError::Timeout
+                        reply_item.size = 3;
+                        3
+                    }
+                    AdapterError::NAck => {
+                        reply_item.data[2] = 3; // AdapterError::NAck
                         reply_item.size = 3;
                         3
                     }

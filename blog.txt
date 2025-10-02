@@ -85,7 +85,11 @@ ddbug -c function -p all -f function-inline=no esp-minimal|less
 
 openocd -c 'set ESP_RTOS none' -f board/esp32c3-builtin.cfg
 riscv32-esp-elf-gdb esp-wifi
+# it does not load but monitor, but only after reset
+espflash monitor --elf ./ecu-via-elm327 --log-format defmt 
+# monitor/dump only
 cat /dev/cu.usbmodem1101 |defmt-print -e target/riscv32imc-unknown-none-elf/debug/esp-wifi
+
 
 espflash save-image --chip esp32c3 esp-wifi esp-wifi.img
 esptool.py image_info --version 2 esp-wifi.img
@@ -157,4 +161,52 @@ DEFMT_LOG=off,ecu_via_elm327=trace,esp_hal=debug,esp_wifi=info cargo run --relea
 # for wireshark tracing file
 airport en0 sniff
 
+# synchronise git from another same but further developped git tree
 git pull --rebase origin main
+
+# install a specific toolchain version
+rustup install nightly-2022-06-28
+rustup component add rust-src --toolchain nightly-2025-09-08
+rustup default nightly-2025-09-08
+
+### from here I setup an rpi for remote flashing and debugging
+
+# used for Visual Studio debug
+# but i cannot manage to read source file information if it is connected to a remote (not localhost) server
+probe-rs dap-server --port 50000 --ip 0.0.0.0   # without --ip 0.0.0.0 we cannot connect from a real remote client
+                                                # it listen on localhost:50000 and not 0.0.0.0:50000 (netstat -l)
+
+probe-rs gdb --gdb-connection-string "0.0.0.0:1337"
+
+sshpass -p haho-piv scp target/riscv32imc-unknown-none-elf/debug/ecu-via-elm327 dietpi@192.168.2.100:
+sshpass -p haho-piv ssh -t dietpi@192.168.2.99 'espflash flash --monitor --log-format defmt ecu-via-elm327'
+
+
+# it does not load but monitor, but only after reset
+espflash monitor --elf ./ecu-via-elm327 --log-format defmt 
+# monitor/dump only (if it can open the device) # it shows both defmt and normal output
+cat /dev/ttyACM0    # it show only normal output
+cat /dev/ttyACM0 | defmt-print -e ./ecu-via-elm327  $ it shows only defmt output
+# if cannot open the devce, you should run espflash monitor --elf ...
+
+
+sudo tcpdump -i wlan0 -n udp port 20000 -X &
+echo -en '\x01\x00' | nc -nu -q0 -p 20000 192.168.3.1 19924
+
+# I setup an ethernet connection with dhcp to login rpi
+# then setup a wlan0 connection with static (192.168.3.2) configuration to connect to CCM-GP450 AP (192.168.3.1)
+# but to use this two independent network connection parallel, you should not give/set default gateway to wlan0 interface:
+# so edit and comment it out from /etc/network/interfaces
+# see netstat below:
+
+netstat -r
+Kernel IP routing table
+Destination     Gateway         Genmask         Flags   MSS Window  irtt Iface
+default         192.168.2.1     0.0.0.0         UG        0 0          0 eth0
+192.168.2.0     0.0.0.0         255.255.255.0   U         0 0          0 eth0
+192.168.3.0     0.0.0.0         255.255.255.0   U         0 0          0 wlan0
+
+sudo ifconfig
+sudo systemctl status ifup@wlan0
+journalctl -xeu ifup@wlan0.service
+sudo wpa_cli -i wlan0

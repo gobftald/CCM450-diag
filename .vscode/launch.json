@@ -1,0 +1,28 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        
+        {
+            "type": "probe-rs-debug",
+            "request": "launch",
+            "name": "RPI4 DAB",
+            "server": "192.168.2.99:50000",
+            "cwd": "${workspaceFolder}",
+            "connectUnderReset": true,
+            "chip": "esp32c3",
+            "flashingConfig": {
+                "flashingEnabled": true,
+                "haltAfterReset": true
+            },
+            "coreConfigs": [
+                {
+                    "coreIndex": 0,
+                    "programBinary": "/home/dietpi/ccm-diag/studies/ecu-via-elm327/target/riscv32imc-unknown-none-elf/debug/ecu-via-elm327"
+                }
+            ]
+        }
+    ]
+}

@@ -15,4 +15,5 @@ pub enum AdapterError {
     Tx(TxError),
     Rx(RxError),
     Timeout,
+    NAck,
 }

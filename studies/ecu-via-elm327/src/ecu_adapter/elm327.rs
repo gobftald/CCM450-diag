@@ -37,15 +37,16 @@ impl<'a> Adapter<'a> {
                 Either::First(result) => {
                     trace!("wait for prompt buf: {}", buf);
                     let size = result.map_err(|err| {
-                        error!("read_async error {}", err);
+                        error!("elm327 read_async error {}", err);
                         AdapterError::Rx(err)
                     })?;
 
                     if buf[size - 1] == b'>' {
-                        if !check_ok {
+                        if !check_ok || buf[size - 5] == b'O' && buf[size - 4] == b'K' {
                             break;
-                        } else if buf[size - 5] == b'O' && buf[size - 4] == b'K' {
-                            break;
+                        } else {
+                            error!("elm327 NAck error");
+                            return Err(AdapterError::NAck);
                         }
                     }
                 }
@@ -87,7 +88,7 @@ impl<'a> Adapters for Adapter<'a> {
 
         // Fast Init
         self.tx.write(b"AT FI\r").map_err(AdapterError::Tx);
-        self.wait_for_prompt(false, 1000).await?;
+        self.wait_for_prompt(true, 1000).await?;
 
         Ok(())
     }
