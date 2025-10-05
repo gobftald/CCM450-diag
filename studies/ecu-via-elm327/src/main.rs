@@ -4,6 +4,7 @@
 #![feature(impl_trait_in_assoc_type)]
 #![feature(once_cell_get_mut)]
 #![allow(static_mut_refs)]
+#![feature(ascii_char)]
 
 // panic_handler
 mod panic;
@@ -12,10 +13,9 @@ mod panic;
 // core_println for panic_handler in mod panic
 extern crate console;
 
+mod adapter;
 mod debug_pin;
 mod ecu;
-mod ecu_adapter;
-mod ecu_protocol;
 mod udp;
 
 // we can use NoopRawMutex since we use channel between two tasks in the same executor,
@@ -116,7 +116,7 @@ async fn main(spawner: embassy_executor::Spawner) {
 
     // initialize ECU specific adapter
     #[cfg(any(feature = "elm327", feature = "l9637"))]
-    let ecu_adapter = ecu_adapter::Adapter::new(
+    let ecu_adapter = adapter::Adapter::new(
         /*
         peripherals.UART0.into(),
         peripherals.GPIO21.into(),

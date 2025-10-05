@@ -124,7 +124,6 @@ pub async fn server(
                 }
 
                 uart_receiver.receive_done();
-                crate::debug_pin::debug_pin(1);
             }
         };
 

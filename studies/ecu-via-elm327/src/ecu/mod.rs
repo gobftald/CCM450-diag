@@ -11,7 +11,7 @@ use embassy_sync::{
     zerocopy_channel::{Receiver, Sender},
 };
 
-use crate::{ChannelItem, ecu_adapter::AdapterError};
+use crate::{ChannelItem, adapter::AdapterError};
 
 // arbitrary high-level ECU commands#[]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -28,7 +28,7 @@ enum EcuError {
     Ok,
     InvalidRequest,
     InconsystentRequest,
-    CommunicationError(AdapterError),
+    AdapterError(AdapterError),
 }
 
 trait Ecu {
@@ -41,9 +41,7 @@ pub async fn server(
     mut sender: Sender<'static, NoopRawMutex, ChannelItem>,
     mut receiver: Receiver<'static, NoopRawMutex, ChannelItem>,
 
-    #[cfg(any(feature = "elm327", feature = "l9637"))] adapter: crate::ecu_adapter::Adapter<
-        'static,
-    >,
+    adapter: crate::adapter::Adapter<'static>,
 ) {
     // get a specific ECU
     #[cfg(feature = "ccm450")]
@@ -91,8 +89,6 @@ pub async fn server(
 
             // received reply from ecu
             Either::Second(result) => {
-                crate::debug_pin::debug_pin(0);
-
                 reply_item.size = result.unwrap_or_else(|_err| {
                     trace!("#### {}", _err);
                     0
@@ -101,7 +97,7 @@ pub async fn server(
                 // if not error forward reply to udp
                 if reply_item.size > 0 {
                     trace!(
-                        "#### ECU #direct# reply: {}",
+                        "#### ECU #direct# reply: {:a}",
                         &reply_item.data[..reply_item.size]
                     );
 
@@ -118,7 +114,7 @@ pub async fn server(
                 EcuError::Ok => 0,
                 EcuError::InvalidRequest => 1,
                 EcuError::InconsystentRequest => 2,
-                EcuError::CommunicationError(err) => match err {
+                EcuError::AdapterError(err) => match err {
                     AdapterError::Tx(_) => {
                         reply_item.data[2] = 0; // AdapterError::Tx
                         reply_item.size = 3;
@@ -135,8 +131,18 @@ pub async fn server(
                         reply_item.size = 3;
                         3
                     }
-                    AdapterError::NAck => {
-                        reply_item.data[2] = 3; // AdapterError::NAck
+                    AdapterError::Elm327Nok => {
+                        reply_item.data[2] = 3; // AdapterError::Elm327Nok
+                        reply_item.size = 3;
+                        3
+                    }
+                    AdapterError::InitError => {
+                        reply_item.data[2] = 4; // AdapterError::InitError
+                        reply_item.size = 3;
+                        3
+                    }
+                    AdapterError::AuthError => {
+                        reply_item.data[2] = 5; // AdapterError::AuthError
                         reply_item.size = 3;
                         3
                     }

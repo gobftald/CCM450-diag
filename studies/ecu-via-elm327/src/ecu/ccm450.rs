@@ -1,8 +1,7 @@
 use super::*;
-use crate::{
-    ecu_adapter::{Adapter, Adapters},
-    ecu_protocol::Protocol,
-};
+use crate::adapter::{Adapter, Adapters};
+
+const SECRET_KEY: u32 = 0x1EC3;
 
 enum State {
     Disconnected,
@@ -12,7 +11,6 @@ enum State {
 /// A Keihin KMSK16 ECU
 pub struct ECU<'a> {
     adapter: Adapter<'a>,
-    protocol: Protocol,
     state: State,
 }
 
@@ -20,7 +18,6 @@ impl<'a> ECU<'a> {
     pub fn new(adapter: Adapter<'a>) -> Self {
         Self {
             adapter,
-            protocol: Protocol,
             state: State::Disconnected,
         }
     }
@@ -29,7 +26,7 @@ impl<'a> ECU<'a> {
         self.adapter
             .write(request)
             .await
-            .map_err(EcuError::CommunicationError)
+            .map_err(EcuError::AdapterError)
     }
 }
 
@@ -40,9 +37,9 @@ impl<'a> Ecu for ECU<'a> {
             State::Disconnected => {
                 trace!("#### adapter.connect()");
                 self.adapter
-                    .connect()
+                    .connect(SECRET_KEY)
                     .await
-                    .map_err(EcuError::CommunicationError)?;
+                    .map_err(EcuError::AdapterError)?;
                 //self.state = State::Connected;
                 Ok(())
             }
@@ -55,6 +52,6 @@ impl<'a> Ecu for ECU<'a> {
         self.adapter
             .read(reply)
             .await
-            .map_err(EcuError::CommunicationError)
+            .map_err(EcuError::AdapterError)
     }
 }

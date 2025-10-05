@@ -179,7 +179,7 @@ probe-rs dap-server --port 50000 --ip 0.0.0.0   # without --ip 0.0.0.0 we cannot
 probe-rs gdb --gdb-connection-string "0.0.0.0:1337"
 
 sshpass -p haho-piv scp target/riscv32imc-unknown-none-elf/debug/ecu-via-elm327 dietpi@192.168.2.100:
-sshpass -p haho-piv ssh -t dietpi@192.168.2.99 'espflash flash --monitor --log-format defmt ecu-via-elm327'
+sshpass -p haho-piv ssh -t dietpi@192.168.2.100 'espflash flash --monitor --log-format defmt ecu-via-elm327'
 
 
 # it does not load but monitor, but only after reset

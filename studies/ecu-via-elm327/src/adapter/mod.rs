@@ -5,7 +5,7 @@ pub use adapter_implementation::Adapter;
 use esp_hal::uart::{RxError, TxError};
 
 pub trait Adapters {
-    async fn connect(&mut self) -> Result<(), AdapterError>;
+    async fn connect(&mut self, secret_key: u32) -> Result<(), AdapterError>;
     async fn write(&mut self, request: &[u8]) -> Result<usize, AdapterError>;
     async fn read(&mut self, response: &mut [u8]) -> Result<usize, AdapterError>;
 }
@@ -15,5 +15,7 @@ pub enum AdapterError {
     Tx(TxError),
     Rx(RxError),
     Timeout,
-    NAck,
+    Elm327Nok,
+    InitError,
+    AuthError,
 }

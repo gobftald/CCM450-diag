@@ -11,7 +11,7 @@ runner = "espflash flash --monitor --log-format defmt"
 rustflags = [
     "-C", "link-arg=-Tlinkall.x",           # from esp-hal
     "-C", "link-arg=-Map=riscv32.map",
-    "-C", "link-arg=-Tdefmt.x",             # for defmt
+    #"-C", "link-arg=-Tdefmt.x",             # for defmt
     #"-C", "force-frame-pointers",           # for esp-backtrace
                                             # otherwise some size ovehead occurs
                                             # when making frame for every real (not inlined) function call

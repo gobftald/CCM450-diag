@@ -583,7 +583,7 @@ impl Default for OutputConfig {
         Self {
             drive_mode: DriveMode::PushPull,
             drive_strength: DriveStrength::_20mA,
-            pull: Pull::None,
+            pull: Pull::Up,
         }
     }
 }
