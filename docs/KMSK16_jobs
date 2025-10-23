@@ -1,0 +1,1259 @@
+TBEG "DIAGMODE"
+HEAD "NR", "MODE", "MODE_TEXT"
+LINE "0x81", "DEFAULT", "DefaultMode"
+LINE "0x82", "PT", "PeriodicTransmissions"
+LINE "0x84", "EOLSSM", "EndOfLineSystemSupplierMode"
+LINE "0x85", "ECUPM", "ECUProgrammingMode"
+LINE "0x86", "ECUDM", "ECUDevelopmentMode"
+LINE "0x87", "ECUAM", "ECUAdjustmentMode"
+LINE "0x88", "ECUVCM", "ECUVariantCodingMode"
+LINE "0x89", "ECUSM", "ECUSafetyMode"
+LINE "0xFA", "SSS_A", "SystemSupplierSpecific (A)"
+LINE "0xFB", "SSS_B", "SystemSupplierSpecific (B)"
+LINE "0xFC", "SSS_C", "SystemSupplierSpecific (C)"
+LINE "0xFD", "SSS_D", "SystemSupplierSpecific (D)"
+LINE "0xFE", "SSS_E", "SystemSupplierSpecific (E)"
+LINE "0xXY", "--", "unbekannter Diagnose-Mode"  // unknown diagnostic mode
+TEND
+
+TBEG "BAUDRATE"
+HEAD "NR", "BAUD", "BAUD_TEXT"
+LINE "0x01", "PC9600", "Baudrate 9.6 kBaud"
+LINE "0x02", "PC19200", "Baudrate 19.2 kBaud"
+LINE "0x03", "PC38400", "Baudrate 38.4 kBaud"
+LINE "0x04", "PC57600", "Baudrate 57.6 kBaud"
+LINE "0x05", "PC115200", "Baudrate 115.2 kBaud"
+LINE "0x06", "SB", "Specific Baudrate"
+LINE "0xXY", "--", "unbekannte Baudrate"    // // unknown Baudrate
+TEND
+
+TBEG "PROGRAMMIERSTATUS"
+HEAD "SB", "STATUS_TEXT"
+LINE "0x00", "Anlieferzustand"						            // delivered
+LINE "0x01", "Normalbetrieb"						            // normal mode
+LINE "0x02", "nicht benutzt"						            // not used
+LINE "0x03", "Speicher gel�scht"					            // erase memory
+LINE "0x04", "nicht benutzt"						            // not used
+LINE "0x05", "Signaturpr�fung PAF nicht durchgef�hrt"			// signature verification PAF not performed
+LINE "0x06", "Signaturpr�fung DAF nicht durchgef�hrt"			// signature verification DAF not performed
+LINE "0x07", "Programmprogrammiersitzung aktiv"				    // program programming session active
+LINE "0x08", "Datenprogrammiersitzung aktiv"				    // data programming session active
+LINE "0x09", "Hardwarereferenzeintrag fehlerhaft"			    // Hardware Reference entry faulty
+LINE "0x0A", "Programmreferenzeintrag fehlerhaft"			    // Program Reference entry faulty
+LINE "0x0B", "Referenzierungsfehler Hardware -> Programm"       // Referencing error hardware -> program
+LINE "0x0C", "Programm nicht vorhanden oder nicht vollst�ndig"  // Program not available or incomplete
+LINE "0x0D", "Datenreferenzeintrag fehlerhaft"                  // Data reference entry incorrect
+LINE "0x0E", "Referenzierungsfehler Programm -> Daten"          // Referencing error program -> data
+LINE "0x0F", "Daten nicht vorhanden oder nicht vollst�ndig"     // Data not available or incomplete
+LINE "0x10", "Reserviert fuer BMW"                              // Reserved for BMW
+LINE "0x80", "Reserviert fuer Zulieferer"                       // Reserved for suppliers
+LINE "0xXY", "unbekannter Programmierstatus"                    // unknown programming status
+TEND
+
+TBEG "JOBRESULTEXTENDED"
+HEAD "SB", "STATUS_TEXT"
+LINE "0xXY", "ERROR_UNKNOWN"
+TEND
+
+TBEG "SG_DIAGNOSEKONZEPT"
+HEAD "RANG", "KONZEPT_TEXT"
+LINE "1", "KWP2000"
+TEND
+
+TBEG "FORTTEXTE"
+HEAD "ORT", "ORTTEXT"
+LINE "0x0031", "Lambdasonde Heizung Kurzschluss nach Masse oder Leitungsunterbrechung"
+                // Lambda sensor heater short circuit to ground or open circuit
+LINE "0x0032", "Lambdasonde Heizung Kurzschluss nach Batterieplus"
+                // Lambda sensor heating short circuit to battery plus
+
+LINE "0x0105", "Ansaugdrucksensor defekt"
+                // Intake pressure sensor defective
+LINE "0x0107", "Ansaugdrucksensor Kurzschluss nach Masse"
+                // Intake pressure sensor short circuit to ground
+LINE "0x0108", "Ansaugdrucksensor Kurzschluss nach Batterieplus oder Leitungsunterbrechung"
+                // Intake pressure sensor short circuit to battery plus or line break
+
+LINE "0x0112", "Ansauglufttemperatursensor Kurzschluss nach Masse"
+                // Intake air temperature sensor short circuit to ground
+LINE "0x0113", "Ansauglufttemperatursensor Kurzschluss nach Batterieplus oder Leitungsunterbrechung"
+                // Intake air temperature sensor short circuit to battery positive or open circuit
+
+LINE "0x0117", "Motortemperatursensor Kurzschluss nach Masse"
+                // Engine temperature sensor short circuit to ground
+LINE "0x0118", "Motortemperatursensor Kurzschluss nach Batterieplus oder Leitungsunterbrechung"
+                // Engine temperature sensor short circuit to battery plus or line break
+
+LINE "0x0122", "Drosselklappensensor Kurzschluss nach Masse  oder Leitungsunterbrechung"
+                // Throttle position sensor short circuit to ground or open circuit
+LINE "0x0123", "Drosselklappensensor Kurzschluss nach Batterieplus"
+                // Throttle position sensor short circuit to battery positive
+
+LINE "0x0130", "Lambdasonde defekt" 
+                // Lambda sensor defective
+
+LINE "0x0201", "Einspritzventil defekt"
+                // Injector defective
+
+LINE "0x0222", "Drosselklappensensor 2 Kurzschluss nach Masse oder Leitungsunterbrechung"
+                // Throttle position sensor 2 short circuit to ground or open circuit
+LINE "0x0223", "Drosselklappensensor 2 Kurzschluss nach Batterieplus"
+                // Throttle position sensor 2 short circuit to battery positive
+
+LINE "0x0335", "Kurbelwellensensor Kurschluss oder Leitungsunterbrechung"
+                // Crankshaft sensor short circuit or open circuit
+
+LINE "0x0351", "Zuendspule defekt"
+                // Ignition coil defective
+
+LINE "0x0444", "Tankentlueftungsventil Kurzschluss nach Masse oder Leitungsunterbrechung"
+                // Tank vent valve short circuit to ground or open circuit
+LINE "0x0445", "Tankentlueftungsventil Kurzschluss nach Batterieplus"
+                // Tank vent valve short circuit to battery plus
+
+LINE "0x0560", "Spannungsversorgung fehlerhaft"
+                // Power supply faulty
+
+LINE "0x0603", "EEPROM Fehler"
+                // EEPROM error
+
+LINE "0x0638", "Schrittmotor Drosselklappe 2 defekt"
+                // Stepper motor throttle valve 2 defective
+
+LINE "0x1231", "Kraftstoffpumpenrelais Kurzschluss nach Masse oder Leitungsunterbrechung"
+                // Fuel pump relay short circuit to ground or open circuit
+LINE "0x1232", "Kraftstoffpumpenrelais Kurzschluss nach Batterieplus"
+                // Fuel pump relay short circuit to battery positive
+
+LINE "0xFFFF", "unbekannter Fehlerort"
+                // unknown error location
+TEND
+
+TBEG TEMPERATURE SENSOR CHARACTERISTIC CURVE
+HEAD "WERT", "TEMPERATUR"
+LINE "1", "120"
+LINE "2", "120"
+LINE "3", "120"
+LINE "4", "120"
+LINE "5", "120"
+...
+LINE "253", "-20"
+LINE "254", "-20"
+LINE "255", "-20"
+TEND
+
+TBEG "JOBRESULT"
+HEAD "SB", "STATUS_TEXT"
+LINE "0x10", "ERROR_ECU_GENERAL_REJECT"
+LINE "0x11", "ERROR_ECU_SERVICE_NOT_SUPPORTED"
+LINE "0x12", "ERROR_ECU_SUBFUNCTION_NOT_SUPPORTED__INVALID_FORMAT"
+LINE "0x21", "ERROR_ECU_BUSY_REPEAT_REQUEST"
+LINE "0x22", "ERROR_ECU_CONDITIONS_NOT_CORRECT_OR_REQUEST_SEQUENCE_ERROR"
+LINE "0x23", "ERROR_ECU_ROUTINE_NOT_COMPLETE"
+LINE "0x31", "ERROR_ECU_REQUEST_OUT_OF_RANGE"
+LINE "0x33", "ERROR_ECU_SECURITY_ACCESS_DENIED__SECURITY_ACCESS_REQUESTED"
+LINE "0x36", "ERROR_ECU_EXCEED_NUMBER_OF_ATTEMPTS"
+LINE "0x37", "ERROR_ECU_REQUIRED_TIME_DELAY_NOT_EXPIRED"
+LINE "0x40", "ERROR_ECU_DOWNLOAD_NOT_ACCEPTED"
+LINE "0x41", "ERROR_ECU_IMPROPER_DOWNLOAD_TYPE"
+LINE "0x42", "ERROR_ECU_CANNOT_DOWNLOAD_TO_SPECIFIED_ADDRESS"
+LINE "0x43", "ERROR_ECU_CANNOT_DOWNLOAD_NUMBER_OF_BYTES_REQUESTED"
+LINE "0x50", "ERROR_ECU_UPLOAD_NOT_ACCEPTED"
+LINE "0x51", "ERROR_ECU_IMPROPER_UPLOAD_TYPE"
+LINE "0x52", "ERROR_ECU_CANNOT_UPLOAD_FROM_SPECIFIED_ADDRESS"
+LINE "0x53", "ERROR_ECU_CANNOT_UPLOAD_NUMBER_OF_BYTES_REQUESTED"
+LINE "0x71", "ERROR_ECU_TRANSFER_SUSPENDED"
+LINE "0x72", "ERROR_ECU_TRANSFER_ABORTED"
+LINE "0x74", "ERROR_ECU_ILLEGAL_ADDRESS_IN_BLOCK_TRANSFER"
+LINE "0x75", "ERROR_ECU_ILLEGAL_BYTE_COUNT_IN_BLOCK_TRANSFER"
+LINE "0x76", "ERROR_ECU_ILLEGAL_BLOCK_TRANSFER_TYPE"
+LINE "0x77", "ERROR_ECU_BLOCKTRANSFER_DATA_CHECKSUM_ERROR"
+LINE "0x78", "ERROR_ECU_REQUEST_CORRECTLY_RECEIVED__RESPONSE_PENDING"
+LINE "0x79", "ERROR_ECU_INCORRECT_BYTE_COUNT_DURING_BLOCK_TRANSFER"
+LINE "0x80", "ERROR_ECU_SERVICE_NOT_SUPPORTED_IN_ACTIVE_DIAGNOSTIC_MODE"
+LINE "?00?", "OKAY"
+LINE "?02?", "ERROR_ECU_INCORRECT_RESPONSE_ID"
+LINE "?03?", "ERROR_ECU_INCORRECT_LEN"
+LINE "?04?", "ERROR_ECU_INCORRECT_LIN_RESPONSE_ID"
+LINE "?05?", "ERROR_ECU_INCORRECT_LIN_LEN"
+LINE "?10?", "ERROR_F_CODE"
+LINE "?11?", "ERROR_TABLE"
+LINE "?12?", "ERROR_INTERPRETATION"
+LINE "?13?", "ERROR_F_POS"
+LINE "?20?", "ERROR_SEGMENT"
+LINE "?21?", "ERROR_ADDRESS"
+LINE "?22?", "ERROR_NUMBER"
+LINE "?30?", "ERROR_DATA"
+LINE "?40?", "ERROR_MODE"
+LINE "?41?", "ERROR_BAUDRATE"
+LINE "?50?", "ERROR_BYTE1"
+LINE "?51?", "ERROR_BYTE2"
+LINE "?52?", "ERROR_BYTE3"
+LINE "?60?", "ERROR_DATA_OUT_OF_RANGE"
+LINE "?70?", "ERROR_NUMBER_ARGUMENT"
+LINE "?71?", "ERROR_RANGE_ARGUMENT"
+LINE "?72?", "ERROR_VERIFY"
+LINE "?73?", "ERROR_NO_BIN_BUFFER"
+LINE "?74?", "ERROR_BIN_BUFFER"
+LINE "?75?", "ERROR_DATA_TYPE"
+LINE "?76?", "ERROR_CHECKSUM"
+LINE "?80?", "ERROR_FLASH_SIGNATURE_CHECK"
+LINE "?81?", "ERROR_VEHICLE_IDENTIFICATION_NR"
+LINE "?82?", "ERROR_PROGRAMMING_DATE"
+LINE "?83?", "ERROR_ASSEMBLY_NR"
+LINE "?84?", "ERROR_CALIBRATION_DATASET_NR"
+LINE "?85?", "ERROR_EXHAUST_REGULATION_OR_TYPE_APPROVAL_NR"
+LINE "?86?", "ERROR_REPAIR_SHOP_NR"
+LINE "?87?", "ERROR_TESTER_SERIAL_NR"
+LINE "?88?", "ERROR_MILAGE"
+LINE "?89?", "ERROR_PROGRAMMING_REFERENCE"
+LINE "?8A?", "ERROR_NO_FREE_UIF"
+LINE "?8B?", "ERROR_MAX_UIF"
+LINE "?8C?", "ERROR_SIZE_UIF"
+LINE "?8D?", "ERROR_LEVEL"
+LINE "?8E?", "ERROR_KEY"
+LINE "?8F?", "ERROR_AUTHENTICATION"
+LINE "?90?", "ERROR_NO_DREF"
+LINE "?91?", "ERROR_CHECK_PECUHN"
+LINE "?92?", "ERROR_CHECK_PRGREF"
+LINE "?93?", "ERROR_AIF_NR"
+LINE "?94?", "ERROR_CHECK_DREF"
+LINE "?95?", "ERROR_CHECK_HWREF"
+LINE "?96?", "ERROR_CHECK_HWREF"
+LINE "?97?", "ERROR_CHECK_PRGREFB"
+LINE "?98?", "ERROR_CHECK_VMECUH*NB"
+LINE "?99?", "ERROR_CHECK_PRGREFB"
+LINE "?9A?", "ERROR_CHECK_VMECUH*N"
+LINE "?9B?", "ERROR_MOST_CAN_GATEWAY_DISABLE"
+LINE "?9C?", "ERROR_NO_P2MIN"
+LINE "?9D?", "ERROR_NO_P2MAX"
+LINE "?9E?", "ERROR_NO_P3MIN"
+LINE "?9F?", "ERROR_NO_P3MAX"
+LINE "?A0?", "ERROR_NO_P4MIN"
+LINE "?B0?", "ERROR_DIAG_PROT"
+LINE "?B1?", "ERROR_SG_ADRESSE"
+LINE "?B2?", "ERROR_SG_MAXANZAHL_AIF"
+LINE "?B3?", "ERROR_SG_GROESSE_AIF"
+LINE "?B4?", "ERROR_SG_ENDEKENNUNG_AIF"
+LINE "?B5?", "ERROR_SG_AUTHENTISIERUNG"
+LINE "?C0?", "ERROR_TELEGRAM_LEN_OUT_OFF_RANGE"
+LINE "?F0?", "ERROR_ARGUMENT"
+LINE "0xXY", "ERROR_ECU_UNKNOWN_NEGATIVE_RESPONSE"
+TEND
+
+1 JOBNAME: INFO 
+    Information SGBD
+    RESULT
+        ECU - Control unit in plain text
+        ORIGIN - Control unit manager
+        REVISION - Version number
+        AUTHOR - Names of all authors
+        COMMENT - important instructions
+        PACKAGE - Include package number
+        SPRACHE. - German, English
+
+2 JOBNAME: INITIALIZATION
+    Initialization and communication parameters
+
+3 JOBNAME: FS_READ 
+    $1A ReadECUIdentification
+    RESULT
+        ID_BMW_NR - BMW part number
+        ID_HW_NR - BMW hardware version index
+        ID_COD_INDEX - Coding index
+        ID_DIAG_INDEX - Diagnosis Index
+        ID_VAR_INDEX - Variant index
+        ID_DATUM_YEAR - Date of manufacture (year)
+        ID_DATUM_MONTH - Date of manufacture (month)
+        ID_DATUM_DAY - Date of manufacture (day)
+        ID_DATUM - Date of manufacture (DD.MM.YYYY)
+        ID_LIEF_NR - Supplier number
+        ID_LIEF_TEXT - Supplier text
+                       table Suppliers ID_LIEF_TEXT
+        ID_SW_NR_MCV - Software number (message catalog version)
+        ID_SW_NR_FSV - Software number (functional software version)
+        ID_SW_NR_OSV - Software number (operating system version)
+        ID_SW_NR_RES - Software number (reserved - currently unused)
+        ID_SG_ADR - Control unit addres
+                    or LIN master control unit address
+        ID_LIN_SLAVE_ADR - LIN slave control unit address
+        ID_EWS_SS - identification EWS interface
+                    Only required for DS2 electrical system
+                    For EWS-DME/DDE comparison
+
+4 JOBNAME: FS_READ
+    Read error memory (all errors / location and type)
+    $18 ReadDiagnosticTroubleCodesByStatus
+    RESULT
+        JOB_STATUS - OKAY if error-free
+        F_VERSION - Type of error memory
+                    For KWP-2000 always 2
+        F_HEX_CODE - Error data per error as hex code
+        F_ORT_NR - Index for error location
+        F_ORT_TEXT - Fehlerort als Text
+                     table FORtTexte ORTTEXT
+        F_SYMPTOM_NR - Error symptom (standard error type) as a number
+        F_SYMPTOM_TEXT - Error symptom (standard error type) as text
+                         table FArtTexte ARTTEXT
+        F_READY_NR - Readiness Flag (default error type) as a number
+        F_READY_TEXT - Readiness Flag (standard error type) as text
+                       table FArtTexte ARTTEXT
+        F_EXISTING_NO - Error present (standard error type) as number
+        F_EXISTING_TEXT - Error present (standard error type) as text
+                          table FArtTexte ARTTEXT
+        WARNING_NO - Warning lamp flag (standard error type) as number
+        F_WARNUNG_TEXT - Warning lights flag (standard error type) as text
+                         table FArtTexte ARTTEXT
+
+
+5 JOBNAME: FS_READ_DETAIL
+    Read error log (one error / all details)
+    $17 ReadStatusOfDiagnosticTroubleCodes
+    ARG:F_CODE
+        selected error code
+
+6 JOBNAME: FS_DELETE
+    Clear error memory
+    $14 ClearDiagnosticInformation
+    ARG:F_CODE
+        0x????: Indicates a single error
+        0xFFFB: all drive errors
+        0xFFFC: all chassis errors
+        0xFFFD: all body errors
+        0xFFFE: all network errors
+        Default: 0xFFFF: all errors
+
+7 JOBNAME: READ_TEST_STAMP
+    $22 ReadDataByCommonIdentifier
+    $1000 TestStamp
+    RESULT:BYTE1
+        Range: 0-255 or 0x00-0xFF
+    RESULT:BYTE2
+        Range: 0-255 or 0x00-0xFF
+    RESULT:BYTE3
+        Range: 0-255 or 0x00-0xFF
+
+8 JOBNAME: TEST_STAMP_LETTER
+    Describe the test stamp
+    All three arguments must always be in the range
+    from 0-255 or 0x00-0xFF.
+    $2E WriteDataByCommonIdentifier
+    $1000 TestStamp
+    ARG:BYTE1
+        Range: 0-255 or 0x00-0xFF
+    ARG:BYTE2
+        Range: 0-255 or 0x00-0xFF
+    ARG:BYTE3
+        Range: 0-255 or 0x00-0xFF
+    
+
+
+9 JOBNAME: DIAGNOSIS_UPRIGHT
+    Maintain SG diagnostic mode
+    $3E TesterPresent
+    ARG:SG_ANSWER
+        "yes" -> SG should answer
+        "no" -> SG should not answer
+    ARG:FUNKTIONAL
+        "yes" -> Functional address 0xEF is used
+        only in conjunction with SG_ANTWORT="no"
+        "no" -> SG address is used
+
+10 JOBNAME: DIAGNOSIS_END
+    $20 StopDiagnosticSession
+
+11 JOBNAME: DIAGNOSE_MODE
+    Put the SG into a specific diagnostic mode
+    $10 StartDiagnosticSession
+    Mode : adjustable with this job
+    If MODE = "ECUPM" ( ECUProgrammingMode )
+    After the job, the control unit reset time
+    After that, the control unit able to be diagnosed again
+    see: Job FLASH_ZEITEN_LESEN Result FLASH_RESETZEIT
+
+    ARG:MODE
+        desired diagnostic mode
+        table DiagMode MODE MODE_TEXT
+        Default value: DEFAULT (DefaultMode)
+    
+    ARG:BAUDRATE
+        optional parameter for the desired baud rate
+        table BaudRate BAUD
+
+    ARG:ARG:SPECIFIC_BAUDRATE_VALUE
+        Parameter only for BAUDRATE = 'SB' (specific baud rate)
+
+
+12 JOBNAME: READ_SERIAL_NUMBER
+    $1A ReadECUIdentification
+    $89 SystemSupplierECUSerialNumber
+    or alternatively
+    $1A ReadECUIdentification
+    $80 ECUIdentificationDataTable
+    RESULT - Serial number of the control unit
+
+13 JOBNAME: ZIF_BACKUP_READ
+    Reading the backup of the supplier information field
+    ProgramReferenceBackup PRGREFB
+    vehicleManufECUHW*NumberBackup VMECUH*NB
+    $22   ReadDataByCommonIdentifier
+    $2500 PRBHW*B
+    or alternatively
+    $1A ReadECUIdentification
+    $80 ECUIdentificationDataTable
+    RESULT
+        ZIF_BACKUP_PROGRAM_REFERENCE
+        PRGREFB ProgramReferenceBackup
+        last executable program version
+            Format: ZZZPPPxVBBxh 12 Byte ASCII
+            ZZZ : Hardware supplier
+            PPP : Hardware relevance to the program version
+            x   : non-program-relevant hardware variants
+            V   : Project variant
+            BB  : Program status
+            x   : non-data-relevant change index
+            h : Program creator
+        ZIF_BACKUP_SG_IDENTIFICATION - ZZZ
+        ZIF_BACKUP_PROJEKT - PPPxV
+        ZIF_BACKUP_PROGRAM_STAND - BBxh
+        ZIF_BACKUP_STATUS - Data content not yet described at FF
+        ZIF_BACKUP_BMW_HW - VMECUH*NB vehicleManufECUHW*NumberBackup
+                            BMW Hardware* Nummer
+
+14 JOBNAME: READ_HARDWARE_REFERENCE
+    $22   ReadDataByCommonIdentifier
+    $2502 HWREF
+    or alternatively
+    $1A ReadECUIdentification
+    $80 ECUIdentificationDataTable
+    RESULT
+        HARDWARE_REFERENCE 
+            Hardware reference
+            Format: ZZZPPPx 7 Byte ASCII
+            ZZZ : Hardware supplier
+            PPP : Hardware relevance to the program version
+            x   : non-program-relevant hardware variants
+        HW_REF_SG_IDENTIFICATION - ZZZ
+        HW_REF_PROJECT - PPPx
+        HW_REF_STATUS - Data content not yet described at FF
+
+        
+15 JOBNAME: READ_DATA_REFERENCE
+    $22   ReadDataByCommonIdentifier
+    $2504 DREF
+    RESULT
+        DATA_REFERENCE
+            Data Reference
+            Format: ZZZPPPx 7 bytes ASCII
+            ZZZ : Hardware supplier
+            PPP : Hardware relevance to the program version
+            x   : non-program-relevant hardware variants
+            V   : Project variant
+            BB  : Program status
+            x   : non-data-relevant change index
+            h   : Program creator
+            d   : Data creator
+            xxxx  : frei aber eindeutig belegt
+        DATA_REF_SG_IDENTIFICATION - ZZZ
+        DATA_REF_PROJEKT - PPPxV
+        DATA_REF_PROGRAM_STATUS - BBxh
+        DATA_REF_DATA_SET - dxxxx
+        DATA_REF_STATUS - Data content not yet described at FF
+
+16 JOBNAME: FLASH_TIMES_READING
+    Reading the flash deletion time, signature test time,
+    authentication calculation time and reset time
+    $22   ReadDataByCommonIdentifier
+    $2501 Times
+    RESULT
+        FLASH_LOESCHZEIT - Flash deletion time in seconds
+        FLASH_SIGNATURTESTZEIT - Flash signature test time in seconds
+        FLASH_RESETZEIT - Flash reset time in seconds
+        FLASH_AUTHENTISIERZEIT - Flash authentication calculation time in seconds
+
+
+17 JOBNAME: FLASH_BLOCK_LENGTH_READING
+    $22   ReadDataByCommonIdentifier
+    $2506 MaximumBlockLength
+    RESULTCOMMENT:Flash block length including SID
+    RESULTCOMMENT:Flash data length
+
+18 JOBNAME: FLASH_PROGRAMMING_STATUS_READ
+    $31 StartRoutineByLocalIdentifier
+    $0A CheckProgrammingStatus
+    RESULT
+        FLASH_PROGRAMMIER_STATUS_TEXT - string 
+        FLASH_PROGRAMMIER_STATUS - 0 - 255
+ 
+19 JOBNAME: CONTROL_UNITS_RESET
+    $11 ECUReset
+    $01 PowerOn
+        Nach dem Job muss die Steuergeraete-Resetzeit
+        After that, the control unit able to be diagnosed again
+
+20 JOBNAME: FLASH_WRITE_ADDRESS
+    $36 TransferData
+    ARG:BINAER_BUFFER
+    A prefilled binary buffer is passed as argument
+    The binary buffer has the following structure
+        Byte 0 : Data type (1:Data, 2:Mask data)
+        Byte 1 : (unused) Word width (1:Byte, 2:Word, 3:DWord)
+        Byte 2 : (unused) Byte order (0:LSB first, 1:MSB first)
+        Byte 3 : Addressing (0: free addressing, 1: block addressing)
+        Byte 4 : Deletion time in seconds (byte parameter 1)
+        Byte 5,6 : Deletion time in seconds (WordParameter 1 (low/high))
+        Byte 7,8 : (unused) WordParameter 2 (low/high)
+        Byte 9,10,11,12 : (unused) Mask (left aligned)
+        Byte 13,14 : Number of bytes of data (low/high)
+        Byte 15,16 : Number of word data (low/high)
+        Byte 17,18,19,20: Word address (low/highbyte, low/highword)
+        Byte 21,.... : (unused) Flash data
+        Byte 21+number of data: ETX (0x03)
+    
+21 JOBNAME: FLASH_WRITE
+    $36 TransferData
+    ARG:BINAER_BUFFER
+    A prefilled binary buffer is passed as argument
+    The binary buffer has the following structure
+        Byte 0 : Data type (1:Data, 2:Mask data)
+        Byte 1 : (unused) Word width (1:Byte, 2:Word, 3:DWord)
+        Byte 2 : (unused) Byte order (0:LSB first, 1:MSB first)
+        Byte 3 : Addressing (0: free addressing, 1: block addressing)
+        Byte 4 : Deletion time in seconds (byte parameter 1)
+        Byte 5,6 : Deletion time in seconds (WordParameter 1 (low/high))
+        Byte 7,8 : (unused) WordParameter 2 (low/high)
+        Byte 9,10,11,12 : (unused) Mask (left aligned)
+        Byte 13,14 : Number of bytes of data (low/high)
+        Byte 15,16 : Number of word data (low/high)
+        Byte 17,18,19,20: Word address (low/highbyte, low/highword)
+        Byte 21,.... : (unused) Flash data
+        Byte 21+number of data: ETX (0x03)
+    
+22 JOBNAME: FLASH_WRITE_END
+    $37 RequestTransferExit
+    ARG:BINAER_BUFFER
+    A prefilled binary buffer is passed as argument
+    The binary buffer has the following structure
+        Byte 0 : Data type (1:Data, 2:Mask data)
+        Byte 1 : (unused) Word width (1:Byte, 2:Word, 3:DWord)
+        Byte 2 : (unused) Byte order (0:LSB first, 1:MSB first)
+        Byte 3 : Addressing (0: free addressing, 1: block addressing)
+        Byte 4 : Deletion time in seconds (byte parameter 1)
+        Byte 5,6 : Deletion time in seconds (WordParameter 1 (low/high))
+        Byte 7,8 : (unused) WordParameter 2 (low/high)
+        Byte 9,10,11,12 : (unused) Mask (left aligned)
+        Byte 13,14 : Number of bytes of data (low/high)
+        Byte 15,16 : Number of word data (low/high)
+        Byte 17,18,19,20: Word address (low/highbyte, low/highword)
+        Byte 21,.... : (unused) Flash data
+        Byte 21+number of data: ETX (0x03)
+    
+    
+23 JOBNAME: AIF_READ
+    $23 ReadMemoryByAddress
+    ARG:AIF_NUMMER
+        =0 : current AIF
+        >0 : Number of the AIF
+    AIF_ADRESSE_HIGH - AIF Address of the AIF, high word
+    AIF_ADRESSE_LOW - AIF Address of the AIF, low word
+    AIF_FG_NR - Chassis number 7-digit
+    AIF_FG_NR_LANG - Chassis number 17-digit if available, otherwise 7-digit
+    AIF_DATUM - Date of SG programming in the form DD.MM.YYYY
+    AIF_ZB_NR - BMW/Rover assembly number
+    AIF_SW_NR - BMW/Rover data record number - software number
+    AIF_BEHOERDEN_NR - BMW/Rover authority number
+    AIF_HAENDLER_NR - Dealer number
+    AIF_SERIEN_NR - Tester serial number
+    AIF_KM - Mileage during programming
+    AIF_PROG_NR - Program version number
+    AIF_ANZ_FREI - Number of remaining AIF entries
+    AIF_ANZAHL_PROG - Number of programming operations
+    AIF_ANZ_DATEN - Size of the AIF entry
+    AIF_GROESSE - Size of the AIF
+    
+    
+24 JOBNAME: AIF_WRITE
+    $3D WriteMemoryByAddress
+    ARG:AIF_FG_NR - chassis number
+                    7-digit or 17-digit
+    AIF_DATUM - Date of SG programming
+              - in the form DD.MM.YYYY or DDMMYY
+    AIF_ZB_NR - BMW/Rover assembly number
+    AIF_SW_NR - BMW/Rover data record number - software number
+    AIF_BEHOERDEN_NR - BMW/Rover authority number
+    AIF_HAENDLER_NR - Dealer number
+    AIF_SERIEN_NR - Tester serial number
+    AIF_KM - Mileage during programming
+    AIF_PROG_NR - Program version number
+    AIF_NUMMER - Number of the written AUF
+    AIF_DATEN - AIF hex data
+
+
+    
+25 JOBNAME: SEED_KEY
+    $27 Security Access Request
+    $01 or $04 Access Mode
+    ARG:SECURITY_LEVEL
+        default: 0x01 > Security Level 1 > Access to "normal"
+        services, immediately active after initialization
+        0x02 > Security Level 2 > Access to "secure"
+        services for service and dealer purposes
+    
+26 JOBNAME: FLASH_CHECKSUM
+    $31 FLASH_DELETE_K16
+    $90 RoutineLocalIdentifier - Applikation software, calibration data Refine erase mode table
+    $00 or $01: RoutineEntryOption:
+        $00 for application and calibration code,
+        $01 only for calibration code
+    ARG:BINAER_BUFFER
+        A prefilled binary buffer is passed as argument
+        The binary buffer has the following structure
+            Byte 0 : Data type (1:Data, 2:Mask data)
+            Byte 1 : (unused) Word width (1:Byte, 2:Word, 3:DWord)
+            Byte 2 : (unused) Byte order (0:LSB first, 1:MSB first)
+            Byte 3 : Addressing (0: free addressing, 1: block addressing)
+            Byte 4 : Deletion time in seconds (byte parameter 1)
+            Byte 5,6 : Deletion time in seconds (WordParameter 1 (low/high))
+            Byte 7,8 : (unused) WordParameter 2 (low/high)
+            Byte 9,10,11,12 : (unused) Mask (left aligned)
+            Byte 13,14 : Number of bytes of data (low/high)
+            Byte 15,16 : Number of word data (low/high)
+            Byte 17,18,19,20: Word address (low/highbyte, low/highword)
+            Byte 21,.... : (unused) Flash data
+            Byte 21+number of data: ETX (0x03)
+    
+27 JOBNAME: FLASH_CHECKSUM
+    $31 StartRoutineByLocalIdentifier
+    $01 CheckCodingChecksum
+    $02 Program (Application Code),
+    $04 Data (Calibration Code)
+    
+28 JOBNAME: BAUDRATE_62500
+    Switching to 62500 baud (and BMW-FAST due to fast initialization)
+    
+29 JOBNAME: ZIF_READ
+    $22 ReadDataByCommonIdentifier
+    $2503 ProgrammReferenz
+    and
+    $1A ReadECUIdentification
+    $91 VehicleManufacturerECUHardware*Number
+    or alternatively
+    $1A ReadECUIdentification
+    $80 ECUIdentificationDataTable
+    RESULT
+        ZIF_PROGRAM_REFERENCE
+            PRGREF ProgrammReferenz
+            last executable program version
+            Format: ZZZPPPxVBBxh 12 bytes ASCII
+            ZZZ : Hardware supplier
+            PPP : Hardware relevance to the program version
+            x   : non-program-relevant hardware variants
+            V   : Project variant
+            BB  : Program status
+            x   : non-data-relevant change index
+            h : Program creator
+        ZIF_SG_IDENTIFICATION - ZZZ
+        ZIF_PROJEKT - PPPxV
+        ZIF_PROGRAM_STATUS - BBxh
+        ZIF_STATUS - Data content not yet described at FF
+        ZIF_BMW_HW - VMECUH*N vehicleManufacturerECUHardware*Number
+                     BMW Hardware Nummer
+    
+30 JOBNAME: CONTROL_IGNITION
+    $31 StartRoutineByLocalIdentifier
+    $A4 01 Ignition test "bank1"
+    
+31 JOBNAME: CONTROL_INJECTION VALVE
+    $31 StartRoutineByLocalIdentifier
+    $A5 01 Injector test "bank1"
+    
+32 JOBNAME: CONTROL_FUEL_PUMP_RELAY_TEST
+    $31 StartRoutineByLocalIdentifier
+    $A7 00 Fuel pump relay ON/OFF test
+    
+33 JOBNAME: CONTROL_LAMBDA_SENSOR_HEATING_ON
+    $32 StartRoutineByLocalIdentifier
+    $AF 01 HEGO sensor operation "bank1"
+    
+34 JOBNAME: CONTROL_FUEL PUMP RELAY_ON
+    $31 StartRoutineByLocalIdentifier
+    :$A7 01 Fuel pump relay operation
+    
+35 JOBNAME: CONTROL_LAMBDA_SENSOR_HEATING_OFF
+    $32 StopRoutineByLocalIdentifier
+    $AF 01 HEGO sensor operation "bank1"
+    
+36 JOBNAME: CONTROLFUEL_PUMP_RELAY_OFF
+    $32 StopRoutineByLocalIdentifier
+    $A7 01 Fuel pump relay operation
+    
+37 JOBNAME: CONTROL_CHASSIS_NUMBER
+    $3B WriteDataByLocalIdentifier
+    $90 Vehicle Identification Number
+    $1A ReadECUIdentification
+    $90 Vehicle Identification Number
+    
+38 JOBNAME: STATUS_CHASSIS_NUMBER
+    $1A ReadECUIdentification
+    $90 Vehicle Identification Number
+    
+39 JOBNAME: CONTROL_THROTTLE_2_ENGINE_TEST
+    $31 StartRoutineByLocalIdentifier
+    $A9 00 2nd throttle valve control stepper motor test
+    
+40 JOBNAME: CONTROL_DELETE_ADAPTIONS
+    $31 StartRoutineByLocalIdentifier
+    $A0 00 all reference reset operation
+
+41 JOBNAME: CONTROL_DELIVERY_CONDITION
+    $31 StartRoutineByLocalIdentifier
+    $91 E2 study control data, breakdown information all reference reset operation
+
+42 JOBNAME: STATUS_ERROR_MEMORY_ENVIRONMENTAL_CONDITIONS
+    $22 ReadDataByCommonIdentifier
+    $1001 Engine RPM
+    $1002 Intake manifold pressure
+    $1004 Engine coolant temperature
+    $1005 Intake air temperature
+    $1006 Absolute throttle position sensor
+    $1007 short term fuel trim
+    $1009 Heated Exhaust Oxygen sensor
+    $1012 2nd throttle position sensor
+    $1013 Battery voltage
+    $1020 Injector On time
+    $1030 Ignition timing
+    $1100 DTC Diagnostic Trouble Code
+    RESULT
+        STAT_FS_ERRORCODE - Decimal value of the error code
+        STAT_FS_ERRORCODE_HEX - Hexadecimal value of the error code
+        STAT_FS_ERROCODE_TEXT - Error location as text - see table FOrtTexte
+        STAT_FS_ENGINE_SPEED_VALUE - Range from 0 [rpm] to 16384 [rpm]
+        STAT_FS_INTAKE_MANIFOLD_PRESSURE_VALUE - Range from 0 [mBar] to 1834 [mBar]
+        STAT_FS_ENGINE_TEMPERATURE_VALUE - Range from -20 [DEGREES] to 120 [DEGREES]
+        STAT_FS_SUCTION_AIR_TEMPERATURE_VALUE - Range from -20 [DEGREES] to 120 [DEGREES]
+        STAT_FS_THROTTLE ANGLE_VALUE - Range from 0 [DEGREES] to 80 [DEGREES]
+        STAT_FS_LAMBDA_CONTROL_FACTOR_VALUE - Range from 0 [] to 2 []
+        STAT_FS_LAMBDA_PROBE_SENSOR_VOLTAGE_VALUE - Range from 0 [V] to 5 [V]
+        STAT_FS_THROTTLE_FLAP_ANGLE_2_VALUE - Range from 0 [DEGREES] to 80 [DEGREES]
+        STAT_FS_BATTERY_VOLTAGE_VALUE - Range from 0 [V] to 25.6 [V]
+        STAT_FS_INJECTION_DURATION_VALUE - Range from 0 [microsec] to 65535 [microsec]
+        STAT_FS_IGNITION_TIME_VALUE - Range from -64 [GRAD] to 64 [GRAD]
+
+
+43 JOBNAME: IDENT_FUNCTION
+    $1A ReadECUIdentification
+    RESULT
+        ID_BMW_NR - BMW part number
+        ID_HW_NR - BMW hardware version index
+        ID_COD_INDEX - Coding index
+        ID_DIAG_INDEX - Diagnosis Index
+        ID_VAR_INDEX - Variant index
+        ID_DATUM_JAHR - Date of manufacture (year)
+        ID_DATUM_MONAT - Date of manufacture (month)
+        ID_DATUM_TAG - Date of manufacture (day)
+        ID_DATUM - Date of manufacture (DD.MM.YYYY)
+        ID_LIEF_NR - Supplier number
+        ID_LIEF_TEXT - Supplier text
+        ID_SW_NR_MCV - Software number (message catalog version)
+        ID_SW_NR_FSV - Software number (functional software version)
+        ID_SW_NR_OSV - Software number (operating system version)
+        ID_SW_NR_RES - Software number (reserved - currently unused)
+        ID_SG_ADR - Control unit address or LIN master control unit address
+        ID_LIN_SLAVE_ADR - LIN slave control unit address
+        ID_EWS_SS - Identification EWS interface
+
+44 JOBNAME: C_FA_READ
+    Dummy job read vehicle order
+    This means that the K16 always issues the standard FA ECE or US or US-Street-Legal
+    The distinction is made based on the type approval number
+        Dummy-Standard-FA ECE "K16_#0808*0145%0N27&0000-ISTA" in codierter Form
+        Dummy-Standard-FA US "K16_#0808*0155%0N27&0000-ISTA" in codierter Form
+        Dummy-Standard-FA US Street Legal "K16_#0808*0145%0N27&0000$146$370-ISTA" in codierter Form
+
+45 JOBNAME: I_STAGE_READING
+    $22 ReadDataByCommonIdentifier
+    $1000 TestStamp
+    RESULTCOMMENT:Corresponds to byte 1 of the test stamp
+    RESULTCOMMENT:Corresponds to byte 2 of the test stamp
+    RESULTCOMMENT:Corresponds to byte 3 of the test stamp
+
+46 JOBNAME: AIF_READ_FUNCTION
+    $23 ReadMemoryByAddress
+    ARG:AIF_NUMMER
+        =0 : current AIF
+        >0 : Number of the AIF
+    RESULT
+        AIF_ADRESSE_HIGH - AIF Address of the AIF, high word
+        AIF_ADRESSE_LOW - AIF Address of the AIF, low word
+        AIF_FG_NR - Chassis number 7-digit
+        AIF_FG_NR_LANG - Chassis number 17-digit if available, otherwise 7-digit
+        AIF_DATUM - Date of SG programming in the form DD.MM.YYYY
+        AIF_ZB_NR - BMW/Rover assembly number
+        AIF_SW_NR - BMW/Rover data record number - software number
+        AIF_BEHOERDEN_NR - BMW/Rover authority number
+        AIF_HAENDLER_NR - Dealer number
+        AIF_SERIEN_NR - Tester serial number
+        AIF_KM - Mileage during programming
+        AIF_PROG_NR - Program version number
+        AIF_ANZ_FREI - Number of remaining AIF entries
+        AIF_ANZAHL_PROG - Number of programming operations
+        AIF_ANZ_DATEN - Size of the AIF entry
+        AIF_GROESSE - Size of the AIF
+
+
+47 JOBNAME: I_STAGE_WRITING
+    $2E WriteDataByCommonIdentifier
+    $1000 TestStamp
+
+48 JOBNAME: FLASH_PROGRAMMING_STATUS_READ_FUNCTION
+    $31 StartRoutineByLocalIdentifier
+    $0A CheckProgrammingStatus
+
+49 JOBNAME: SERIAL_NUMBER_READ_FUNCTION
+    $1A ReadECUIdentification
+    $89 SystemSupplierECUSerialNumber
+
+50 JOBNAME: CONTROL_FUEL_VENTILATION_TEST
+    $31 StartRoutineByLocalIdentifier
+    $A6 00 Purge control valve ON/OFF test
+
+# LiveData
+    
+51 JOBNAME: STATUS_INTAKE_AIR_TEMPERATURE
+    $22 ReadDataByCommonIdentifier
+    $0011 intake air temperature - TA
+    RESULTTYPE:real
+    RESULTCOMMENT:Range from -40 [DEGREES] to 215 [DEGREES]
+    
+52 JOBNAME: STATUS_INTAKE_AIR_TEMPERATURE_SENSOR_VOLTAGE
+    $22 ReadDataByCommonIdentifier
+    $0010 intake air temperature voltage
+    RESULTTYPE:real
+    RESULTCOMMENT:Range from 0 [V] to 5 [V]
+    
+53 JOBNAME: STATUS_THROTTLE_ANGLE_VOLTAGE
+    $22 ReadDataByCommonIdentifier
+    $0001 Absolute throttle position sensor - THM/80 deg *100 %
+    RESULTTYPE:real
+    RESULTCOMMENT: Range from 0 [DEGREES] to 80 [DEGREES]
+    
+54 JOBNAME: STATUS_BATTERY_VOLTAGE
+    $22 ReadDataByCommonIdentifier
+    $0007 Battery voltage (scaling)
+    RESULTTYPE:real
+    RESULTCOMMENT:Range from 0 [V] to 5 [V]
+    
+55 JOBNAME: STATUS_BATTERY_VOLTAGE_AD_CONVERTER
+    $22 ReadDataByCommonIdentifier
+    $0006 Battery voltage // Battery voltage directly at the AD converter
+    RESULTTYPE:real
+    RESULTCOMMENT:Range from 0 [V] to 5 [V]
+    
+56 JOBNAME: STATUS_THROTTLE_2_REF_VOLTAGE_MIN
+    $22 ReadDataByCommonIdentifier
+    $0172 2nd throttle ADLL - STHADLL
+    RESULTTYPE:real
+    RESULTCOMMENT:Range from 0 [V] to 5 [V]
+    
+57 JOBNAME: STATUS_THROTTLE_SENSOR_2_VOLTAGE
+    $22 ReadDataByCommonIdentifier
+    $0018 2nd throttle actuator on voltage
+    RESULTTYPE:real
+    RESULTCOMMENT:Range from 0 [V] to 5 [V]
+    
+58 JOBNAME: STATUS_THROTTLE_POSITION_SENSOR_VOLTAGE
+    $22 ReadDataByCommonIdentifier
+    $0000 Absolute throttle position sensor voltage -THAD
+    RESULTTYPE:real
+    RESULTCOMMENT:Range from 0 [V] to 5 [V]
+    
+59 JOBNAME: STATUS_THROAT_VALVE_2_REF_VOLTAGE_MAX
+    $22 ReadDataByCommonIdentifier
+    $0173 2nd throttle ADHH - STDHADHH
+    RESULTTYPE:real
+    RESULTCOMMENT:Range from 0 [V] to 5 [V]
+    
+60 JOBNAME: STATUS_THROTTLE_VALVE_ACTUATOR_2_STEPS_MAX
+    $22 ReadDataByCommonIdentifier
+    $0174 2nd throttle steph - STHSTEPH
+    RESULTTYPE:real
+    RESULTCOMMENT:Range from 0 [] to 32767 []
+    
+61 JOBNAME: STATUS_THROTTLE_FLAP_ANGLE_2_ACTUAL_VALUE
+    $22 ReadDataByCommonIdentifier
+    $0170 2nd throttle current angle - (STHAD-STHADL)/(STHADH/STHADL) * 100%
+    RESULTTYPE:real
+    RESULTCOMMENT: Range from 0 [DEGREES] to 80 [DEGREES]
+    
+62 JOBNAME: STATUS_THROTTLE_FLAP_ANGLE_2_SETPOINT
+    $22 ReadDataByCommonIdentifier
+    $0171 2nd throttle target angle - STHTRG
+    RESULTTYPE:real
+    RESULTCOMMENT: Range from 0 [DEGREES] to 80 [DEGREES]
+    
+63 JOBNAME: STATUS_THROTTLE_FLAP_ANGLE_REFERENCE
+    $22 ReadDataByCommonIdentifier
+    $0140 THREF
+    RESULTTYPE:real
+    RESULTCOMMENT: Range from -3276.8 [GRAD] to 3276.8 [GRAD]
+    
+64 JOBNAME: STATUS_INJECTION_DURATION
+    $22 ReadDataByCommonIdentifier
+    $0110 Injector1 ON Time (bank1) - TIOUT1
+    RESULTTYPE:real
+    RESULTCOMMENT: Range from 0 [microsec] to 65535 [microsec]
+    
+65 JOBNAME: STATUS_CALCULATED_ENGINE_LOAD
+    $22 ReadDataByCommonIdentifier
+    $0107 Calculated load Value - CLV=(PM1M/10103 mba)r * 100%
+    RESULTTYPE:real
+    RESULTCOMMENT: Range from 0 [%] to 100 [%]
+    
+66 JOBNAME: FUEL_PUMP_RELAY_STATUS
+    $22 ReadDataByCommonIdentifier
+    $0060 Fuel pump relay - FLPR
+    RESULTTYPE:int
+    RESULTCOMMENT: "0x0000", "OFF" / "0x00FF", "ON" / "0xXYXY", "unknown"
+    
+67 JOBNAME: STATUS_LAMBDA_ADAPTION_IDLE
+    $22 ReadDataByCommonIdentifier
+    $0143  MREFHG1ID
+    RESULTTYPE:real
+    RESULTCOMMENT: Range from 0 [] to 2 []
+    
+68 JOBNAME: STATUS_LAMBDA_ADAPTION_SHOW
+    $22 ReadDataByCommonIdentifier
+    $0149  MRFH1DEC
+    RESULTTYPE:real
+    RESULTCOMMENT: Range from 0 [] to 2 []
+    
+69 JOBNAME: STATUS_LAMBDA_ADAPTION_PART_LOAD
+    $22 ReadDataByCommonIdentifier
+    $0142  MREFHG1
+    RESULTTYPE:real
+    RESULTCOMMENT: Range from 0 [] to 2 []
+    
+70 JOBNAME: STATUS_LAMBDA_CONTROL_FACTOR
+    $22 ReadDataByCommonIdentifier
+    $0102 Short term fuel trim - bank1 (2byte value - high byte/low byte) - MHG1
+    RESULTTYPE:real
+    RESULTCOMMENT: Range from 0 [] to 2 []
+    
+71 JOBNAME: STATUS_LAMBDA_SENSOR_HEATING
+    $22 ReadDataByCommonIdentifier
+    $0064 Heated exhaust gas oxygen sensor Heater1 - HG1HT
+    RESULTCOMMENT: "0x0000", "OFF" / "0x00FF", "ON" / "0xXYXY", "unknown"
+    RESULTTYPE:int
+    
+72 JOBNAME: STATUS_LAMBDA_SENSOR_VOLTAGE
+    $22 ReadDataByCommonIdentifier
+    $0012 HEGO sensor1 voltage (bank1) - VHG1
+    RESULTTYPE:real
+    RESULTCOMMENT:Range from 0 [V] to 5 [V]
+    
+73 JOBNAME: STATUS_ENGINE_SPEED
+    $22 ReadDataByCommonIdentifier
+    $0100 Engine rpm (2byte value - high byte/low byte) - NE
+    RESULTTYPE:real
+    RESULTCOMMENT: Range from 0 [rpm] to 16384 [rpm]
+    
+74 JOBNAME: STATUS_ENGINE_TEMPERATURE
+    $22 ReadDataByCommonIdentifier
+    $0009 Engine coolant temperature - TW
+    RESULTTYPE:real
+    RESULTCOMMENT: Range from -40 [DEGREES] to 215 [DEGREES]
+    
+75 JOBNAME: STATUS_ENGINE_TEMPERATURE_SENSOR_VOLTAGE
+    $22 ReadDataByCommonIdentifier
+    $0008 Engine coolant temperature voltage
+    RESULTTYPE:real
+    RESULTCOMMENT:Range from 0 [V] to 5 [V]
+    
+76 JOBNAME: STATUS_NEUTRALSWITCH
+    $22 ReadDataByCommonIdentifier
+    $0040 Neutral switch - NEUTRAL
+    RESULTTYPE:int
+    RESULTCOMMENT: "0x0000", "Neutral" / "0x00FF", "Gear engaged" / "0xXYXY", "unknown"
+    
+77 JOBNAME: STATUS_INTAKE_MANIFOLD_PRESSURE
+    $22 ReadDataByCommonIdentifier
+    $0003 Intake manifold absolute pressure (bank1) - PM1
+    RESULTTYPE:real
+    RESULTCOMMENT:Range from 0 [mBar] to 65535 [mBar]
+    
+78 JOBNAME: STATUS_INTAKE_MANIFOLD_PRESSURE_SENSOR_VOLTAGE
+    $22 ReadDataByCommonIdentifier
+    $0002 Intake manifold absolute pressure voltage (bank1) - voltage PM1
+    RESULTTYPE:real
+    RESULTCOMMENT:Range from 0 [V] to 5 [V]
+    
+79 JOBNAME: STATUS_SPORTSWITCH_INPUT
+    $22 ReadDataByCommonIdentifier
+    $0053 MAP SW // current state of the sports switch input - MAPCHG
+    RESULTTYPE:int
+    RESULTCOMMENT: "0x0000", "Standard" / "0x00FF", "Sport" / "0xXYXY", "unknown"
+    
+80 JOBNAME: STATUS_SPORTSWITCH_MEMORY
+    $22 ReadDataByCommonIdentifier
+    $0500 RaceMAP SW // Sport switch has been activated
+    RESULTTYPE:int
+    RESULTCOMMENT: "0x0000", "Standard" / "0x00FF", "Sport" / "0xXYXY", "unknown"
+
+81 JOBNAME: TANK_VENT_VALVE_STATUS
+    $22 ReadDataByCommonIdentifier
+    $01 85 Purge valve duty cycle
+    RESULTTYPE:real
+    RESULTCOMMENT:Range from 0 [%] to 100 [%]
+
+
+82 JOBNAME: STATUS_OVERSPEED_COUNTER_RANGE1
+    $22 ReadDataByCommonIdentifier
+    $0502 High REV counter area 1
+    RESULTTYPE:real
+    RESULTCOMMENT:Range from 0 [s] to 6553.5 [s]
+
+83 JOBNAME: STATUS_OVERSPEED_COUNTER_RANGE2
+    $22 ReadDataByCommonIdentifier
+    $0503 High REV counter area 2
+    RESULTTYPE:real
+    RESULTCOMMENT:Range from 0 [s] to 6553.5 [s]
+
+84 JOBNAME: STATUS_OVERSPEED_COUNTER_RANGE3
+    $22 ReadDataByCommonIdentifier
+    $0504 High REV counter area 3
+    RESULTTYPE:real
+    RESULTCOMMENT:Range from 0 [s] to 6553.5 [s]
+
+85 JOBNAME: STATUS_OVERSPEED_COUNTER_RANGE4
+    $22 ReadDataByCommonIdentifier
+    $0505 High REV counter area 4
+    RESULTTYPE:real
+    RESULTCOMMENT:Range from 0 [s] to 6553.5 [s]
+
+86 JOBNAME: STATUS_OVERSPEED_COUNTER_RANGE5
+    $22 ReadDataByCommonIdentifier
+    $0506 High REV counter area 5
+    RESULTTYPE:real
+    RESULTCOMMENT:Range from 0 [s] to 6553.5 [s]
+
+87 JOBNAME: STATUS_OVERSPEED_COUNTER_RANGE6
+    $22 ReadDataByCommonIdentifier
+    $0507 High REV counter area 6
+    RESULTTYPE:real
+    RESULTCOMMENT:Range from 0 [s] to 6553.5 [s]
+
+88 JOBNAME: STATUS_OVERSPEED_COUNTER_RANGE7
+    $22 ReadDataByCommonIdentifier
+    $0508 High REV counter area 7
+    RESULTTYPE:real
+    RESULTCOMMENT:Range from 0 [s] to 6553.5 [s]
+
+89 JOBNAME: STATUS_OVERSPEED_COUNTER_RANGE8
+    $22 ReadDataByCommonIdentifier
+    $0509 High REV counter area 8
+    RESULTTYPE:real
+    RESULTCOMMENT:Range from 0 [s] to 6553.5 [s]    // "00 08"
+
+90 JOBNAME: STATUS_OVERSPEED_COUNTER_RANGE9
+    $22 ReadDataByCommonIdentifier
+    $0510 High REV counter area 9
+    RESULTTYPE:real
+    RESULTCOMMENT:Range from 0 [s] to 6553.5 [s]    // "00 02"
+
+91 JOBNAME: STATUS_OVERSPEED_COUNTER_SPECIAL
+    $22 ReadDataByCommonIdentifier
+    $0501 High REV counter
+    RESULTTYPE:real
+    RESULTCOMMENT:Range from 0 [min] to 196605 [min]    // "00 00"
+
+92 JOBNAME: STATUS_IGNITION_CLOSING_TIME
+    $22 ReadDataByCommonIdentifier
+    $0130 Ignition coil dwell time1 (bank1) - IGDWELL
+    RESULTTYPE:real
+    RESULTCOMMENT:Range from 0 [microsec] to 65535 [microsec]   // "00 00"
+
+93 JOBNAME: STATUS_FIRING_ANGLE
+    $22 ReadDataByCommonIdentifier
+    $0120 Ignition timing1 (bank1) - IGAB1
+    RESULTTYPE:real
+    RESULTCOMMENT:Range from -64 [DEGREES] to 64 [DEGREES]  // "00 80"
+
+
+
+Common Data IDs
+$0000 Absolute throttle position sensor voltage -THAD
+        0 [V] to 5 [V]                                                      // 0x0001
+$0001 Absolute throttle position sensor - THM/80 deg *100 %
+        0 [DEGREES] to 80 [DEGREES]                                         // 0x0000
+$0002 Intake manifold absolute pressure voltage (bank1) - voltage PM1
+        0 [V] to 5 [V]                                                      // 0x03fa
+$0003 Intake manifold absolute pressure (bank1) - PM1
+        0 [mBar] to 65535 [mBar]                                            // 0x0000
+$0006 Battery voltage // Battery voltage directly at the AD converter
+        0 [V] to 5 [V]                                                      // 0x0075 - 117 - 11.7V
+$0007 Battery voltage (scaling)
+        0 [V] to 5 [V]                                                      // 0x0070
+$0008 Engine coolant temperature voltage
+        0 [V] to 5 [V]                                                      // 0x03ff - 1023
+$0009 Engine coolant temperature - TW
+        -40 [DEGREES] to 215 [DEGREES]                                      // 0x0014
+$0010 intake air temperature voltage
+        0 [V] to 5 [V]                                                      // 0x03ff - 1023
+$0011 intake air temperature - TA
+        -40 [DEGREES] to 215 [DEGREES]                                      // 0x0014
+$0012 HEGO sensor1 voltage (bank1) - VHG1
+        0 [V] to 5 [V]                                                      // 0x03f6
+$0018 2nd throttle actuator on voltage
+        0 [V] to 5 [V]                                                      // 0x0000
+
+$0029 ???                                                                   // 0x008c
+
+
+$0040 Neutral switch - NEUTRAL
+        "0x0000", "Neutral" / "0x00FF", "Gear engaged" / "0xXYXY", "unknown" // 0x00ff
+$0053 MAP SW // current state of the sports switch input - MAPCHG
+        "0x0000", "Standard" / "0x00FF", "Sport" / "0xXYXY", "unknown"       // 0x0000
+$0060 Fuel pump relay - FLPR
+        "0x0000", "OFF" / "0x00FF", "ON" / "0xXYXY", "unknown"               // 0x0000
+$0064 Heated exhaust gas oxygen sensor Heater1 - HG1HT
+        "0x0000", "OFF" / "0x00FF", "ON" / "0xXYXY", "unknown"               // 0x0000
+
+
+$0100 Engine rpm (2byte value - high byte/low byte) - NE
+        0 [rpm] to 16384 [rpm]                                               // 0x0000
+$0102 Short term fuel trim - bank1 (2byte value - high byte/low byte) - MHG1
+        0 [] to 2 []                                                         // 0x0000
+$0107 Calculated load Value - CLV=(PM1M/10103 mba)r * 100%
+        0 [%] to 100 [%]                                                     // 0x0000                                        
+$0110 Injector1 ON Time (bank1) - TIOUT1
+        0 [microsec] to 65535 [microsec]                                     // 0x0000
+$0120 Ignition timing1 (bank1) - IGAB1
+        -64 [DEGREES] to 64 [DEGREES]                                        // 0x0x80
+$0130 Ignition coil dwell time1 (bank1) - IGDWELL
+        0 [microsec] to 65535 [microsec]                                     // 0x0000
+$0140 THREF - STATUS_THROTTLE_FLAP_ANGLE_REFERENCE
+        -3276.8 [GRAD] to 3276.8 [GRAD]                                      // 0x80b5
+$0142  MREFHG1 - STATUS_LAMBDA_ADAPTION_PART_LOAD
+        0 [] to 2 []                                                         // 0x8493
+$0143  MREFHG1ID - STATUS_LAMBDA_ADAPTION_IDLE
+        0 [] to 2 []                                                         // 0x816a
+$0149  MRFH1DEC - STATUS_LAMBDA_ADAPTION_SHOW
+        0 [] to 2 []                                                         // 0x8552
+$0170 2nd throttle current angle - (STHAD-STHADL)/(STHADH/STHADL) * 100%
+        0 [DEGREES] to 80 [DEGREES]                                          // 0x0000
+$0171 2nd throttle target angle - STHTRG
+        0 [DEGREES] to 80 [DEGREES]                                          // 0x0000
+$0172 2nd throttle ADLL - STHADLL
+        0 [V] to 5 [V]                                                       // 0x00e3
+$0173 2nd throttle ADHH - STDHADHH
+        0 [V] to 5 [V]                                                       // 0x03a1
+$0174 2nd throttle steph - STHSTEPH
+        0 [] to 32767 []                                                     // 0x0139
+$0185 Purge valve duty cycle
+        0 [%] to 100 [%]        // "0x12", "ERROR_ECU_SUBFUNCTION_NOT_SUPPORTED__INVALID_FORMAT"
+
+
+$0500 RaceMAP SW // Sport switch has been activated
+        "0x0000", "Standard" / "0x00FF", "Sport" / "0xXYXY", "unknown"       // 0x0000
+$0501 High REV counter
+        0 [min] to 196605 [min]                                              // 0x0000
+$0502 High REV counter area 1
+        0 [min] to 196605 [min]                                              // 0x05d1
+$0503 High REV counter area 2
+        0 [min] to 196605 [min]                                              // 0x0038
+$0504 High REV counter area 3
+        0 [min] to 196605 [min]                                              // 0x0002
+$0505 High REV counter area 4
+        0 [min] to 196605 [min]                                              // 0x0083
+$0506 High REV counter area 5
+        0 [min] to 196605 [min]                                              // 0x0001
+$0507 High REV counter area 6
+        0 [min] to 196605 [min]                                              // 0x0001
+$0508 High REV counter area 7
+        0 [min] to 196605 [min]                                              // 0x009b
+$0509 High REV counter area 8
+        0 [min] to 196605 [min]                                              // 0x0008
+$0510 High REV counter area 9
+        0 [min] to 196605 [min]                                              // 0x0002
+
+
+$1000 TestStamp
+        3 bytes of TestStamp
+$1001 Engine RPM
+        0 [rpm] to 16384 [rpm]                                              // 0x0000
+$1002 Intake manifold pressure
+        0 [mBar] to 1834 [mBar]                                             // 0x0090
+$1004 Engine coolant temperature
+        -20 [DEGREES] to 120 [DEGREES]                                      // 0x0083
+$1005 Intake air temperature
+        -20 [DEGREES] to 120 [DEGREES]                                      // 0x0088
+$1006 Absolute throttle position sensor
+        0 [DEGREES] to 80 [DEGREES]                                         // 0x0027
+$1007 Short term fuel trim
+        0 [] to 2 []                                                        // 0x007e
+$1009 Heated Exhaust Oxygen sensor
+        0 [V] to 5 [V]                                                      // 0x0060
+$1012 2nd throttle position sensor
+        0 [DEGREES] to 80 [DEGREES]                                         // 0x0051
+$1013 Battery voltage
+        0 [V] to 25.6 [V]                                                   // 0x008a - 138 = 13.8V
+$1020 Injector On time
+        0 [microsec] to 65535 [microsec]                                    // 0x0000
+$1030 Ignition timing
+        -64 [GRAD] to 64 [GRAD]                                             // 0x0080
+$1100 DTC Diagnostic Trouble Code
+        Decimal value of the error code
+        Hexadecimal value of the error code                                 // 0x1615 (ignition or ecu error)
+        Error location as text - see table FOrtTexte
+    
+
+
+$2500 PRBHW*B
+    PRGREFB ProgramReferenceBackup
+    last executable program version
+        Format: ZZZPPPxVBBxh 12 Byte ASCII
+        ZZZ : Hardware supplier
+        PPP : Hardware relevance to the program version
+        x   : non-program-relevant hardware variants
+        V   : Project variant
+        BB  : Program status
+        x   : non-data-relevant change index
+        h : Program creator
+$2501 Times
+    Flash deletion time in seconds                                          // 04
+    Flash signature test time in seconds                                    // 00
+    Flash reset time in seconds                                             // 00
+    Flash authentication calculation time in seconds                        // 00
+$2502 HWREF
+    HARDWARE_REFERENCE 
+        Hardware reference
+        Format: ZZZPPPx 7 Byte ASCII
+        ZZZ : Hardware supplier
+        PPP : Hardware relevance to the program version
+        x   : non-program-relevant hardware variants
+$2503 Program Reference
+    ProgrammReference
+        last executable program version
+        Format: ZZZPPPxVBBxh 12 bytes ASCII
+        ZZZ : Hardware supplier
+        PPP : Hardware relevance to the program version
+        x   : non-program-relevant hardware variants
+        V   : Project variant
+        BB  : Program status
+        x   : non-data-relevant change index
+        h : Program creator
+$2504 DREF
+    Data Reference
+        Format: ZZZPPPx 7 bytes ASCII
+        ZZZ : Hardware supplier
+        PPP : Hardware relevance to the program version
+        x   : non-program-relevant hardware variants
+        V   : Project variant
+        BB  : Program status
+        x   : non-data-relevant change index
+        h   : Program creator
+        d   : Data creator
+        xxxx  : frei aber eindeutig belegt
+$2506 MaximumBlockLength
+    Flash block length including SID                                        // 00
+    Flash data length                                                       // 81

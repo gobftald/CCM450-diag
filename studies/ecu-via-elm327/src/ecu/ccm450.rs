@@ -47,6 +47,20 @@ impl<'a> Ecu for ECU<'a> {
         }
     }
 
+    async fn read_data(&mut self, ids: &[u8], reply: &mut [u8]) -> Result<usize, EcuError> {
+        match self.state {
+            State::Disconnected => {
+                //State::Connected => {
+                trace!("#### adapter.read_data_by_common_id({:x})", ids);
+                match self.adapter.read_data_by_common_id(ids, reply).await {
+                    Ok(size) => Ok(size),
+                    Err(err) => Err(EcuError::AdapterError(err)),
+                }
+            }
+            _ => Err(EcuError::InconsystentRequest),
+        }
+    }
+
     // we cannot shortcut async-await with future since here we convert errors
     async fn reply(&mut self, reply: &mut [u8]) -> Result<usize, EcuError> {
         self.adapter

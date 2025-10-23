@@ -23,20 +23,20 @@ mod udp;
 //use esp_hal::sync::RawMutex;
 use embassy_sync::{blocking_mutex::raw::NoopRawMutex, zerocopy_channel::Channel};
 
-const CHANNEL_ITEM_SIZE: usize = 64;
+const CHANNEL_ITEM_SIZE: usize = 64 - size_of::<usize>();
 const CHANNEL_ITEMS_MAX: usize = 1;
 
 #[derive(Clone, Copy)]
 pub struct ChannelItem {
     pub size: usize,
-    pub data: [u8; CHANNEL_ITEM_SIZE - size_of::<usize>()],
+    pub data: [u8; CHANNEL_ITEM_SIZE],
 }
 
 impl ChannelItem {
     const fn empty() -> Self {
         Self {
             size: 0,
-            data: [0; CHANNEL_ITEM_SIZE - size_of::<usize>()],
+            data: [0; CHANNEL_ITEM_SIZE],
         }
     }
 }

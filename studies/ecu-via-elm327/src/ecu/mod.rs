@@ -18,11 +18,12 @@ use crate::{ChannelItem, adapter::AdapterError};
 #[derive(strum_macros::FromRepr)]
 enum Request {
     Connect,
-    Disconnect,
+    ReadData,
     LiveDataStart,
     LiveDataStop,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 enum EcuError {
     Ok,
@@ -33,6 +34,7 @@ enum EcuError {
 
 trait Ecu {
     async fn connect(&mut self) -> Result<(), EcuError>;
+    async fn read_data(&mut self, ids: &[u8], reply: &mut [u8]) -> Result<usize, EcuError>;
     async fn reply(&mut self, reply: &mut [u8]) -> Result<usize, EcuError>;
 }
 
@@ -49,31 +51,60 @@ pub async fn server(
 
     loop {
         // get a fresh channel item to write to
-        let reply_item = sender.send().await;
+        let reply = sender.send().await;
 
         // waiting for request or reply
-        match select(receiver.receive(), ecu.reply(&mut reply_item.data)).await {
+        match select(receiver.receive(), ecu.reply(&mut reply.data)).await {
             // received an ecu request
-            Either::First(request_item) => {
-                trace!(
-                    "#### ECU: received: {}",
-                    request_item.data[..request_item.size]
-                );
+            Either::First(request) => {
+                trace!("#### ECU: received: {}", request.data[..request.size]);
 
-                if let Some(request) = Request::from_repr(request_item.data[1] as usize) {
-                    match request {
+                if let Some(reqst) = Request::from_repr(request.data[1] as usize) {
+                    match reqst {
                         Request::Connect => {
                             if let Err(err) = ecu.connect().await {
                                 error!("#### Request::Connect error: {}", err);
-                                ecu_reply(reply_item, err);
+                                ecu_reply(reply, err);
                             } else {
                                 trace!("#### Request::Connect Ok");
-                                ecu_reply(reply_item, EcuError::Ok);
+                                ecu_reply(reply, EcuError::Ok);
                             }
-                            trace!("#### ECU: reply: {}", &reply_item.data[..reply_item.size]);
+                            trace!("#### ECU: reply: {:a}", &reply.data[..reply.size]);
                             sender.send_done();
                         }
-                        Request::Disconnect => {}
+
+                        Request::ReadData => {
+                            // check that input(s) are 16-bit common identifier(s)
+                            if request.data.len() % 2 != 0 {
+                                error!("#### ECU #direct# error: {}", EcuError::InvalidRequest);
+                                ecu_reply(reply, EcuError::InvalidRequest);
+                            }
+
+                            match ecu
+                                .read_data(
+                                    // common identifier(s)
+                                    &request.data[2..request.size],
+                                    // borrow the full buffer
+                                    &mut reply.data[..(crate::CHANNEL_ITEM_SIZE)],
+                                )
+                                .await
+                            {
+                                Ok(size) => {
+                                    trace!("#### Request::ReadData Ok");
+                                    // copy the payload of ecu answer
+                                    ecu_reply(reply, EcuError::Ok);
+                                    // setting the size to sending the payload of got reply
+                                    reply.size = size;
+                                }
+                                Err(err) => {
+                                    error!("#### Request::ReadData error: {}", err);
+                                    ecu_reply(reply, err);
+                                }
+                            }
+
+                            trace!("#### ECU: reply: {:a}", &reply.data[..reply.size]);
+                            sender.send_done();
+                        }
                         Request::LiveDataStart => {}
                         Request::LiveDataStop => {}
                     }
@@ -81,25 +112,22 @@ pub async fn server(
                     receiver.receive_done();
                 } else {
                     // send invalid request error via udp immediately
-                    ecu_reply(reply_item, EcuError::InvalidRequest);
-                    trace!("#### ECU: reply: {}", &reply_item.data[..reply_item.size]);
+                    ecu_reply(reply, EcuError::InvalidRequest);
+                    trace!("#### ECU: reply: {:a}", &reply.data[..reply.size]);
                     sender.send_done();
                 }
             }
 
             // received reply from ecu
             Either::Second(result) => {
-                reply_item.size = result.unwrap_or_else(|_err| {
+                reply.size = result.unwrap_or_else(|_err| {
                     trace!("#### {}", _err);
                     0
                 });
 
                 // if not error forward reply to udp
-                if reply_item.size > 0 {
-                    trace!(
-                        "#### ECU #direct# reply: {:a}",
-                        &reply_item.data[..reply_item.size]
-                    );
+                if reply.size > 0 {
+                    trace!("#### ECU #direct# reply: {:a}", &reply.data[..reply.size]);
 
                     // wake receiver
                     sender.send_done();
@@ -107,43 +135,30 @@ pub async fn server(
             }
         }
 
-        fn ecu_reply(reply_item: &mut ChannelItem, error: EcuError) {
-            reply_item.data[0] = crate::udp::Subsystem::Ecu as u8;
-            reply_item.size = 2;
-            reply_item.data[1] = match error {
+        // start and size used when ecu payload should be moved inside reply.data
+        fn ecu_reply(reply: &mut ChannelItem, error: EcuError) {
+            reply.data[0] = crate::udp::Subsystem::Ecu as u8;
+            reply.size = 2;
+            reply.data[1] = match error {
                 EcuError::Ok => 0,
                 EcuError::InvalidRequest => 1,
                 EcuError::InconsystentRequest => 2,
-                EcuError::AdapterError(err) => match err {
-                    AdapterError::Tx(_) => {
-                        reply_item.data[2] = 0; // AdapterError::Tx
-                        reply_item.size = 3;
-                        3
-                    }
+                EcuError::AdapterError(error) => match error {
                     AdapterError::Rx(err) => {
-                        reply_item.data[2] = 1; // AdapterError::Rx
-                        reply_item.data[3] = err as u8;
-                        reply_item.size = 4;
+                        reply.data[2] = error.into();
+                        reply.data[3] = err as u8;
+                        reply.size = 4;
                         3
                     }
-                    AdapterError::Timeout => {
-                        reply_item.data[2] = 2; // AdapterError::Timeout
-                        reply_item.size = 3;
+                    AdapterError::EcuSpecificError(err) => {
+                        reply.data[2] = error.into();
+                        reply.data[3] = err;
+                        reply.size = 4;
                         3
                     }
-                    AdapterError::Elm327Nok => {
-                        reply_item.data[2] = 3; // AdapterError::Elm327Nok
-                        reply_item.size = 3;
-                        3
-                    }
-                    AdapterError::InitError => {
-                        reply_item.data[2] = 4; // AdapterError::InitError
-                        reply_item.size = 3;
-                        3
-                    }
-                    AdapterError::AuthError => {
-                        reply_item.data[2] = 5; // AdapterError::AuthError
-                        reply_item.size = 3;
+                    _ => {
+                        reply.data[2] = error.into();
+                        reply.size = 3;
                         3
                     }
                 },
