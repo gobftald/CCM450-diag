@@ -33,30 +33,32 @@ impl<'a> ECU<'a> {
 impl<'a> Ecu for ECU<'a> {
     // we cannot shortcut async-await with future since we convert errors
     async fn connect(&mut self) -> Result<(), EcuError> {
-        match self.state {
-            State::Disconnected => {
-                trace!("#### adapter.connect()");
-                self.adapter
-                    .connect(SECRET_KEY)
-                    .await
-                    .map_err(EcuError::AdapterError)?;
-                //self.state = State::Connected;
-                Ok(())
-            }
-            _ => Err(EcuError::InconsystentRequest),
-        }
+        self.adapter
+            .connect(SECRET_KEY)
+            .await
+            .map_err(EcuError::AdapterError)?;
+        self.state = State::Connected;
+        Ok(())
     }
 
     async fn read_data(&mut self, ids: &[u8], reply: &mut [u8]) -> Result<usize, EcuError> {
         match self.state {
-            State::Disconnected => {
-                //State::Connected => {
-                trace!("#### adapter.read_data_by_common_id({:x})", ids);
-                match self.adapter.read_data_by_common_id(ids, reply).await {
-                    Ok(size) => Ok(size),
-                    Err(err) => Err(EcuError::AdapterError(err)),
-                }
-            }
+            State::Connected => self
+                .adapter
+                .read_data_by_common_id(ids, reply)
+                .await
+                .map_err(EcuError::AdapterError),
+            _ => Err(EcuError::InconsystentRequest),
+        }
+    }
+
+    async fn read_dtc(&mut self, reply: &mut [u8]) -> Result<usize, EcuError> {
+        match self.state {
+            State::Connected => self
+                .adapter
+                .read_diagnostic_trouble_codes_by_status(reply)
+                .await
+                .map_err(EcuError::AdapterError),
             _ => Err(EcuError::InconsystentRequest),
         }
     }

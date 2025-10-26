@@ -206,11 +206,11 @@ impl<'a> Adapters for Adapter<'a> {
         }
 
         // Stop Diagnostic Session
-        //self.tx.write(b"AT 20\r").map_err(AdapterError::Tx);
+        //self.tx.write(b"AT 20\r").map_err(AdapterError::Tx)?;
         //self.wait_AT_prompt(&mut buf, 100, false).await?;
 
         // increase default timeout - ELM327 specific command
-        //self.tx.write(b"AT ST FF\r").map_err(AdapterError::Tx);
+        //self.tx.write(b"AT ST FF\r").map_err(AdapterError::Tx)?;
         //self.wait_AT_prompt(&mut buf, 100, true).await?;
         Ok(())
     }
@@ -241,7 +241,7 @@ impl<'a> Adapters for Adapter<'a> {
 
             trace!("read_data_by_common_id is sending: {:a}", &buf[..7]);
 
-            self.tx.write(&buf[..7]).map_err(AdapterError::Tx);
+            self.tx.write(&buf[..7]).map_err(AdapterError::Tx)?;
             let size = self.wait_AT_prompt(&mut buf, 500, false).await?;
 
             if buf[0] == b'6' && buf[1] == b'2' {
@@ -254,6 +254,45 @@ impl<'a> Adapters for Adapter<'a> {
         }
 
         Ok(ids.len() + 2)
+    }
+
+    async fn read_diagnostic_trouble_codes_by_status(
+        &mut self,
+        reply: &mut [u8],
+    ) -> Result<usize, AdapterError> {
+        // when I detached the ECU the max nmber of read DTC was 12
+        // which fits in a 117 bytes length response message
+        let mut buf: [u8; 128] = [0; 128];
+
+        // 0x18 - Read Diagnostic Trouble Codes By Status Request Service ID
+        // 0x02 - Request 2 byte hex DTC
+        // 0xFFFF - All DTCs
+        self.tx.write(b"18 02 FF FF\r").map_err(AdapterError::Tx)?;
+        let size = self.wait_AT_prompt(&mut buf, 500, false).await?;
+        let mut dtc_num = 0;
+
+        if buf[0] == b'5' && buf[1] == b'8' {
+            buf[1] = b'0';
+            buf[2] = b'0';
+            dtc_num = from_ascii_bytes_to_u16(&buf[1..5]) as usize;
+            // "58 XX " => 6 bytes
+            // "XX YY 68 " => 9 bytes (68 is 'h' - means hex)
+            // "\r\r>" => 3 bytes
+            if 6 + dtc_num * 9 + 3 != size {
+                // wrong length of response based on the given number of sent DTCs
+                return Err(AdapterError::EcuSpecificError(0));
+            }
+
+            for i in 0..dtc_num {
+                let dtc = from_ascii_bytes_to_u16(&buf[6 + i * 9..6 + i * 9 + 5]);
+                reply[2 + i * 2] = (dtc / 256) as u8;
+                reply[2 + i * 2 + 1] = (dtc % 256) as u8;
+            }
+        } else {
+            return Err(decode_err_status(&mut buf[..size]));
+        }
+
+        Ok(dtc_num * 2 + 2)
     }
 
     async fn write(&mut self, request: &[u8]) -> Result<usize, AdapterError> {

@@ -19,6 +19,7 @@ use crate::{ChannelItem, adapter::AdapterError};
 enum Request {
     Connect,
     ReadData,
+    ReadDTC,
     LiveDataStart,
     LiveDataStop,
 }
@@ -35,6 +36,7 @@ enum EcuError {
 trait Ecu {
     async fn connect(&mut self) -> Result<(), EcuError>;
     async fn read_data(&mut self, ids: &[u8], reply: &mut [u8]) -> Result<usize, EcuError>;
+    async fn read_dtc(&mut self, reply: &mut [u8]) -> Result<usize, EcuError>;
     async fn reply(&mut self, reply: &mut [u8]) -> Result<usize, EcuError>;
 }
 
@@ -63,20 +65,16 @@ pub async fn server(
                     match reqst {
                         Request::Connect => {
                             if let Err(err) = ecu.connect().await {
-                                error!("#### Request::Connect error: {}", err);
                                 ecu_reply(reply, err);
                             } else {
-                                trace!("#### Request::Connect Ok");
                                 ecu_reply(reply, EcuError::Ok);
                             }
-                            trace!("#### ECU: reply: {:a}", &reply.data[..reply.size]);
                             sender.send_done();
                         }
 
                         Request::ReadData => {
                             // check that input(s) are 16-bit common identifier(s)
                             if request.data.len() % 2 != 0 {
-                                error!("#### ECU #direct# error: {}", EcuError::InvalidRequest);
                                 ecu_reply(reply, EcuError::InvalidRequest);
                             }
 
@@ -90,19 +88,32 @@ pub async fn server(
                                 .await
                             {
                                 Ok(size) => {
-                                    trace!("#### Request::ReadData Ok");
                                     // copy the payload of ecu answer
                                     ecu_reply(reply, EcuError::Ok);
                                     // setting the size to sending the payload of got reply
                                     reply.size = size;
                                 }
                                 Err(err) => {
-                                    error!("#### Request::ReadData error: {}", err);
                                     ecu_reply(reply, err);
                                 }
                             }
-
-                            trace!("#### ECU: reply: {:a}", &reply.data[..reply.size]);
+                            sender.send_done();
+                        }
+                        Request::ReadDTC => {
+                            match ecu
+                                .read_dtc(&mut reply.data[..(crate::CHANNEL_ITEM_SIZE)])
+                                .await
+                            {
+                                Ok(size) => {
+                                    // copy the payload of ecu answer
+                                    ecu_reply(reply, EcuError::Ok);
+                                    // setting the size to sending the payload of got reply
+                                    reply.size = size;
+                                }
+                                Err(err) => {
+                                    ecu_reply(reply, err);
+                                }
+                            }
                             sender.send_done();
                         }
                         Request::LiveDataStart => {}

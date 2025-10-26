@@ -6,11 +6,18 @@ use esp_hal::uart::{RxError, TxError};
 
 pub trait Adapters {
     async fn connect(&mut self, secret_key: u32) -> Result<(), AdapterError>;
+
     async fn read_data_by_common_id(
         &mut self,
         ids: &[u8],
         reply: &mut [u8],
     ) -> Result<usize, AdapterError>;
+
+    async fn read_diagnostic_trouble_codes_by_status(
+        &mut self,
+        reply: &mut [u8],
+    ) -> Result<usize, AdapterError>;
+
     async fn write(&mut self, request: &[u8]) -> Result<usize, AdapterError>;
     async fn read(&mut self, response: &mut [u8]) -> Result<usize, AdapterError>;
 }
