@@ -18,6 +18,8 @@ pub trait Adapters {
         reply: &mut [u8],
     ) -> Result<usize, AdapterError>;
 
+    async fn clear_diagnostic_information(&mut self) -> Result<(), AdapterError>;
+
     async fn write(&mut self, request: &[u8]) -> Result<usize, AdapterError>;
     async fn read(&mut self, response: &mut [u8]) -> Result<usize, AdapterError>;
 }

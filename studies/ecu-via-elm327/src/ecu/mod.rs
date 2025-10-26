@@ -20,6 +20,7 @@ enum Request {
     Connect,
     ReadData,
     ReadDTC,
+    ClearDTC,
     LiveDataStart,
     LiveDataStop,
 }
@@ -37,6 +38,7 @@ trait Ecu {
     async fn connect(&mut self) -> Result<(), EcuError>;
     async fn read_data(&mut self, ids: &[u8], reply: &mut [u8]) -> Result<usize, EcuError>;
     async fn read_dtc(&mut self, reply: &mut [u8]) -> Result<usize, EcuError>;
+    async fn clear_dtc(&mut self) -> Result<(), EcuError>;
     async fn reply(&mut self, reply: &mut [u8]) -> Result<usize, EcuError>;
 }
 
@@ -113,6 +115,14 @@ pub async fn server(
                                 Err(err) => {
                                     ecu_reply(reply, err);
                                 }
+                            }
+                            sender.send_done();
+                        }
+                        Request::ClearDTC => {
+                            if let Err(err) = ecu.clear_dtc().await {
+                                ecu_reply(reply, err);
+                            } else {
+                                ecu_reply(reply, EcuError::Ok);
                             }
                             sender.send_done();
                         }

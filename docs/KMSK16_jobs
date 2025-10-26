@@ -111,6 +111,8 @@ LINE "0x0444", "Tankentlueftungsventil Kurzschluss nach Masse oder Leitungsunter
 LINE "0x0445", "Tankentlueftungsventil Kurzschluss nach Batterieplus"
                 // Tank vent valve short circuit to battery plus
 
+0x0480 - Cooling Fan Control Circuit
+
 LINE "0x0560", "Spannungsversorgung fehlerhaft"
                 // Power supply faulty
 
@@ -124,6 +126,8 @@ LINE "0x1231", "Kraftstoffpumpenrelais Kurzschluss nach Masse oder Leitungsunter
                 // Fuel pump relay short circuit to ground or open circuit
 LINE "0x1232", "Kraftstoffpumpenrelais Kurzschluss nach Batterieplus"
                 // Fuel pump relay short circuit to battery positive
+
+0x1615 - communication error between ECU and power management
 
 LINE "0xFFFF", "unbekannter Fehlerort"
                 // unknown error location
@@ -305,11 +309,13 @@ TEND
         F_WARNUNG_TEXT - Warning lights flag (standard error type) as text
                          table FArtTexte ARTTEXT
 
+// 0031 0108 0113 0118 0122 0201 0222 0351 0480 0638 1231 1615
+
 
 5 JOBNAME: FS_READ_DETAIL
     Read error log (one error / all details)
-    $17 ReadStatusOfDiagnosticTroubleCodes
-    ARG:F_CODE
+    $17 ReadStatusOfDiagnosticTroubleCodes          // no additional status info
+    ARG:F_CODE                                      // so we don't implement this
         selected error code
 
 6 JOBNAME: FS_DELETE

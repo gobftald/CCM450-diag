@@ -63,6 +63,17 @@ impl<'a> Ecu for ECU<'a> {
         }
     }
 
+    async fn clear_dtc(&mut self) -> Result<(), EcuError> {
+        match self.state {
+            State::Connected => self
+                .adapter
+                .clear_diagnostic_information()
+                .await
+                .map_err(EcuError::AdapterError),
+            _ => Err(EcuError::InconsystentRequest),
+        }
+    }
+
     // we cannot shortcut async-await with future since here we convert errors
     async fn reply(&mut self, reply: &mut [u8]) -> Result<usize, EcuError> {
         self.adapter

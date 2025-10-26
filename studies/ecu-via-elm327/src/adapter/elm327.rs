@@ -256,6 +256,7 @@ impl<'a> Adapters for Adapter<'a> {
         Ok(ids.len() + 2)
     }
 
+    #[allow(unused_assignments)]
     async fn read_diagnostic_trouble_codes_by_status(
         &mut self,
         reply: &mut [u8],
@@ -293,6 +294,19 @@ impl<'a> Adapters for Adapter<'a> {
         }
 
         Ok(dtc_num * 2 + 2)
+    }
+
+    async fn clear_diagnostic_information(&mut self) -> Result<(), AdapterError> {
+        let mut buf: [u8; 16] = [0; 16];
+
+        self.tx.write(b"14 FF FF\r").map_err(AdapterError::Tx)?;
+        let size = self.wait_AT_prompt(&mut buf, 500, false).await?;
+
+        if buf[0] != b'5' || buf[1] != b'4' {
+            return Err(decode_err_status(&mut buf[..size]));
+        }
+
+        Ok(())
     }
 
     async fn write(&mut self, request: &[u8]) -> Result<usize, AdapterError> {
