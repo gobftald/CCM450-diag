@@ -285,6 +285,10 @@ TEND
                     Only required for DS2 electrical system
                     For EWS-DME/DDE comparison
 
+1A 80
+5A 80 00 00 07 72 00 15 01 00 60 50 54 45 20 07 07 31 90 FF FF FF FF FF FF FF FF FF FF FF FF \r\r>
+               r              `  P  T  E  sp       1
+
 4 JOBNAME: FS_READ
     Read error memory (all errors / location and type)
     $18 ReadDiagnosticTroubleCodesByStatus
@@ -309,7 +313,7 @@ TEND
         F_WARNUNG_TEXT - Warning lights flag (standard error type) as text
                          table FArtTexte ARTTEXT
 
-// 0031 0108 0113 0118 0122 0201 0222 0351 0480 0638 1231 1615
+// DTCs: 0031 0108 0113 0118 0122 0201 0222 0351 0480 0638 1231 1615
 
 
 5 JOBNAME: FS_READ_DETAIL
@@ -392,7 +396,7 @@ TEND
 
 12 JOBNAME: READ_SERIAL_NUMBER
     $1A ReadECUIdentification
-    $89 SystemSupplierECUSerialNumber
+    $89 SystemSupplierECUSerialNumber               // 000000000
     or alternatively
     $1A ReadECUIdentification
     $80 ECUIdentificationDataTable
@@ -412,19 +416,33 @@ TEND
         PRGREFB ProgramReferenceBackup
         last executable program version
             Format: ZZZPPPxVBBxh 12 Byte ASCII
-            ZZZ : Hardware supplier
-            PPP : Hardware relevance to the program version
-            x   : non-program-relevant hardware variants
-            V   : Project variant
-            BB  : Program status
-            x   : non-data-relevant change index
-            h : Program creator
+            ZZZ : Hardware supplier                                 090
+            PPP : Hardware relevance to the program version         9CE
+            x   : non-program-relevant hardware variants            0
+            V   : Project variant                                   B
+            BB  : Program status                                    10
+            x   : non-data-relevant change index                    0
+            h : Program creator                                     K
         ZIF_BACKUP_SG_IDENTIFICATION - ZZZ
         ZIF_BACKUP_PROJEKT - PPPxV
         ZIF_BACKUP_PROGRAM_STAND - BBxh
         ZIF_BACKUP_STATUS - Data content not yet described at FF
         ZIF_BACKUP_BMW_HW - VMECUH*NB vehicleManufECUHW*NumberBackup
                             BMW Hardware* Nummer
+
+62 25 00 30 39 30 39 43 45 30 42 31 30 30 4B 30 39 30 39 43 45 30 42 31 30 30 4B 30 39 30 39 43 45 30 42 31 30 30 4B 
+         0  9  0  9  C  E  0  B  1  0  0  K  0  9  0  9  C  E  0  B  1  0  0  K  0  9  0  9  C  E  0  B  1  0  0  K
+00 00 07 71 41 02 00 00 07 71 41 02 00 00 07 71 41 02 \r\r>
+         q  A              q  A              q  A
+
+
+No such JOB in this soruce file (it is realy CCM specific, but I cannot identify a proper serial number)
+1A 86
+5A 86 01 34 41 31 30 30 33 37 01 33 54 99 4D 30 37 30 30 00 30 35 33 32 39 00 00 00 07 72 77 33 07 35 B1 9E
+         4  A  1  0  0  3  7     3  T     M  0  7  0  0     0  5  3  2  9                 w  3     5
+FF FF FF FF 00 43 43 4D 5F 47 50 34 35 30 5F 56 31 53 4D 5A 47 50 34 35 41 44 31 FF FF FF \r\r>
+               C  C  M  _  G  P  4  5  0  _  V  1  S  N  Z  G  P  4  5  A  D  1
+
 
 14 JOBNAME: READ_HARDWARE_REFERENCE
     $22   ReadDataByCommonIdentifier
@@ -436,12 +454,15 @@ TEND
         HARDWARE_REFERENCE 
             Hardware reference
             Format: ZZZPPPx 7 Byte ASCII
-            ZZZ : Hardware supplier
-            PPP : Hardware relevance to the program version
-            x   : non-program-relevant hardware variants
+            ZZZ : Hardware supplier                                 HU0
+            PPP : Hardware relevance to the program version         010
+            x   : non-program-relevant hardware variants            0
         HW_REF_SG_IDENTIFICATION - ZZZ
         HW_REF_PROJECT - PPPx
         HW_REF_STATUS - Data content not yet described at FF
+
+62 25 02 48 55 30 30 31 30 30 48 55 30 30 31 30 30 48 55 30 30 31 30 30 \r\r
+         H  U  0  0  1  0  0  H  U  0  0  1  0  0  H  U  0  0  1  0  0
 
         
 15 JOBNAME: READ_DATA_REFERENCE
@@ -451,20 +472,25 @@ TEND
         DATA_REFERENCE
             Data Reference
             Format: ZZZPPPx 7 bytes ASCII
-            ZZZ : Hardware supplier
-            PPP : Hardware relevance to the program version
-            x   : non-program-relevant hardware variants
-            V   : Project variant
-            BB  : Program status
-            x   : non-data-relevant change index
-            h   : Program creator
-            d   : Data creator
-            xxxx  : frei aber eindeutig belegt
+            ZZZ : Hardware supplier                                 090
+            PPP : Hardware relevance to the program version         9CE
+            x   : non-program-relevant hardware variants            0
+            V   : Project variant                                   B
+            BB  : Program status                                    13
+            x   : non-data-relevant change index                    0
+            h   : Program creator                                   K
+            d   : Data creator                                      4 
+            xxxx  : frei aber eindeutig belegt                      80BS
         DATA_REF_SG_IDENTIFICATION - ZZZ
         DATA_REF_PROJEKT - PPPxV
         DATA_REF_PROGRAM_STATUS - BBxh
         DATA_REF_DATA_SET - dxxxx
         DATA_REF_STATUS - Data content not yet described at FF
+
+62 25 04 30 39 30 39 43 45 30 42 31 33 30 4B 34 38 30 42 53 30 39 30 39 43 45 30 42 31 33 30 4B 34 38 30 42 53 30 39 
+         0  9  0  9  C  E  0  B  1  3  0  K  4  8  0  B  S  0  9  0  9  C  E  0  B  1  3  0  K  4  8  0  B  S  0  9 
+30 39 43 45 30 42 31 33 30 4B 34 38 30 42 53 \r\r>
+0  9  C  E  0  B  1  3  0  K  4  8  0  B  S
 
 16 JOBNAME: FLASH_TIMES_READING
     Reading the flash deletion time, signature test time,
@@ -472,17 +498,22 @@ TEND
     $22   ReadDataByCommonIdentifier
     $2501 Times
     RESULT
-        FLASH_LOESCHZEIT - Flash deletion time in seconds
-        FLASH_SIGNATURTESTZEIT - Flash signature test time in seconds
-        FLASH_RESETZEIT - Flash reset time in seconds
-        FLASH_AUTHENTISIERZEIT - Flash authentication calculation time in seconds
+        FLASH_LOESCHZEIT - Flash deletion time in seconds                           04              
+        FLASH_SIGNATURTESTZEIT - Flash signature test time in seconds               00
+        FLASH_RESETZEIT - Flash reset time in seconds                               00
+        FLASH_AUTHENTISIERZEIT - Flash authentication calculation time in seconds   00
+
+62 25 01 04 00 00 00 \r\r>
 
 
 17 JOBNAME: FLASH_BLOCK_LENGTH_READING
     $22   ReadDataByCommonIdentifier
     $2506 MaximumBlockLength
-    RESULTCOMMENT:Flash block length including SID
-    RESULTCOMMENT:Flash data length
+    RESULTCOMMENT:Flash block length including SID      // 00
+    RESULTCOMMENT:Flash data length                     // 81
+
+62 25 06 00 81 \r\r>
+
 
 18 JOBNAME: FLASH_PROGRAMMING_STATUS_READ
     $31 StartRoutineByLocalIdentifier
@@ -637,7 +668,7 @@ TEND
 28 JOBNAME: BAUDRATE_62500
     Switching to 62500 baud (and BMW-FAST due to fast initialization)
     
-29 JOBNAME: ZIF_READ
+29   ZIF_READ
     $22 ReadDataByCommonIdentifier
     $2503 ProgrammReferenz
     and
@@ -651,19 +682,25 @@ TEND
             PRGREF ProgrammReferenz
             last executable program version
             Format: ZZZPPPxVBBxh 12 bytes ASCII
-            ZZZ : Hardware supplier
-            PPP : Hardware relevance to the program version
-            x   : non-program-relevant hardware variants
-            V   : Project variant
-            BB  : Program status
-            x   : non-data-relevant change index
-            h : Program creator
+            ZZZ : Hardware supplier                                     HU0
+            PPP : Hardware relevance to the program version             010
+            x   : non-program-relevant hardware variants                0
+            V   : Project variant                                       1
+            BB  : Program status                                        13
+            x   : non-data-relevant change index                        0
+            h : Program creator                                         0
         ZIF_SG_IDENTIFICATION - ZZZ
         ZIF_PROJEKT - PPPxV
         ZIF_PROGRAM_STATUS - BBxh
         ZIF_STATUS - Data content not yet described at FF
         ZIF_BMW_HW - VMECUH*N vehicleManufacturerECUHardware*Number
                      BMW Hardware Nummer
+
+1A 91
+7F 1A 12 \r\r>  // no $91 service in $1A
+22 25 03
+62 25 03 48 55 30 30 31 30 30 31 31 33 30 30 48 55 30 30 31 30 30 31 31 33 30 30 48 55 30 30 31 30 30 31 31 33 30 30 \r\r>
+         H  U  0  0  1  0  0  1  1  3  0  0  H  U  0  0  1  0  0  1  1  3  0  0  H  U  0  0  1  0  0  1  1  3  0  0
     
 30 JOBNAME: CONTROL_IGNITION
     $31 StartRoutineByLocalIdentifier
@@ -702,6 +739,8 @@ TEND
 38 JOBNAME: STATUS_CHASSIS_NUMBER
     $1A ReadECUIdentification
     $90 Vehicle Identification Number
+1A 90
+5A 90 00 00 00 00 00 00 00 \r\r
     
 39 JOBNAME: CONTROL_THROTTLE_2_ENGINE_TEST
     $31 StartRoutineByLocalIdentifier

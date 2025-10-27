@@ -2,6 +2,8 @@
 mod adapter_implementation;
 pub use adapter_implementation::Adapter;
 
+mod utils;
+
 use esp_hal::uart::{RxError, TxError};
 
 pub trait Adapters {
@@ -19,6 +21,12 @@ pub trait Adapters {
     ) -> Result<usize, AdapterError>;
 
     async fn clear_diagnostic_information(&mut self) -> Result<(), AdapterError>;
+
+    async fn raw_request(
+        &mut self,
+        request: &[u8],
+        reply: &mut [u8],
+    ) -> Result<usize, AdapterError>;
 
     async fn write(&mut self, request: &[u8]) -> Result<usize, AdapterError>;
     async fn read(&mut self, response: &mut [u8]) -> Result<usize, AdapterError>;

@@ -13,7 +13,7 @@ use embassy_sync::{
 
 use crate::{ChannelItem, adapter::AdapterError};
 
-// arbitrary high-level ECU commands#[]
+#[allow(clippy::enum_variant_names)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(strum_macros::FromRepr)]
 enum Request {
@@ -21,6 +21,7 @@ enum Request {
     ReadData,
     ReadDTC,
     ClearDTC,
+    RawRequest,
     LiveDataStart,
     LiveDataStop,
 }
@@ -30,7 +31,7 @@ enum Request {
 enum EcuError {
     Ok,
     InvalidRequest,
-    InconsystentRequest,
+    NotConnected,
     AdapterError(AdapterError),
 }
 
@@ -39,6 +40,7 @@ trait Ecu {
     async fn read_data(&mut self, ids: &[u8], reply: &mut [u8]) -> Result<usize, EcuError>;
     async fn read_dtc(&mut self, reply: &mut [u8]) -> Result<usize, EcuError>;
     async fn clear_dtc(&mut self) -> Result<(), EcuError>;
+    async fn raw_request(&mut self, request: &[u8], reply: &mut [u8]) -> Result<usize, EcuError>;
     async fn reply(&mut self, reply: &mut [u8]) -> Result<usize, EcuError>;
 }
 
@@ -126,6 +128,26 @@ pub async fn server(
                             }
                             sender.send_done();
                         }
+                        Request::RawRequest => {
+                            match ecu
+                                .raw_request(
+                                    &request.data[2..request.size],
+                                    &mut reply.data[..(crate::CHANNEL_ITEM_SIZE)],
+                                )
+                                .await
+                            {
+                                Ok(size) => {
+                                    // copy the payload of ecu answer
+                                    ecu_reply(reply, EcuError::Ok);
+                                    // setting the size to sending the payload of got reply
+                                    reply.size = size;
+                                }
+                                Err(err) => {
+                                    ecu_reply(reply, err);
+                                }
+                            }
+                            sender.send_done();
+                        }
                         Request::LiveDataStart => {}
                         Request::LiveDataStop => {}
                     }
@@ -142,13 +164,16 @@ pub async fn server(
             // received reply from ecu
             Either::Second(result) => {
                 reply.size = result.unwrap_or_else(|_err| {
-                    trace!("#### {}", _err);
+                    trace!("#### ECU #direct/unwaited# error: {}", _err);
                     0
                 });
 
                 // if not error forward reply to udp
                 if reply.size > 0 {
-                    trace!("#### ECU #direct# reply: {:a}", &reply.data[..reply.size]);
+                    trace!(
+                        "#### ECU #direct/unwaited# reply: {:a}",
+                        &reply.data[..reply.size]
+                    );
 
                     // wake receiver
                     sender.send_done();
@@ -156,14 +181,14 @@ pub async fn server(
             }
         }
 
-        // start and size used when ecu payload should be moved inside reply.data
+        // complete the reply frame
         fn ecu_reply(reply: &mut ChannelItem, error: EcuError) {
             reply.data[0] = crate::udp::Subsystem::Ecu as u8;
             reply.size = 2;
             reply.data[1] = match error {
                 EcuError::Ok => 0,
                 EcuError::InvalidRequest => 1,
-                EcuError::InconsystentRequest => 2,
+                EcuError::NotConnected => 2,
                 EcuError::AdapterError(error) => match error {
                     AdapterError::Rx(err) => {
                         reply.data[2] = error.into();

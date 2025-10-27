@@ -48,7 +48,7 @@ impl<'a> Ecu for ECU<'a> {
                 .read_data_by_common_id(ids, reply)
                 .await
                 .map_err(EcuError::AdapterError),
-            _ => Err(EcuError::InconsystentRequest),
+            _ => Err(EcuError::NotConnected),
         }
     }
 
@@ -59,7 +59,7 @@ impl<'a> Ecu for ECU<'a> {
                 .read_diagnostic_trouble_codes_by_status(reply)
                 .await
                 .map_err(EcuError::AdapterError),
-            _ => Err(EcuError::InconsystentRequest),
+            _ => Err(EcuError::NotConnected),
         }
     }
 
@@ -70,7 +70,18 @@ impl<'a> Ecu for ECU<'a> {
                 .clear_diagnostic_information()
                 .await
                 .map_err(EcuError::AdapterError),
-            _ => Err(EcuError::InconsystentRequest),
+            _ => Err(EcuError::NotConnected),
+        }
+    }
+
+    async fn raw_request(&mut self, request: &[u8], reply: &mut [u8]) -> Result<usize, EcuError> {
+        match self.state {
+            State::Connected => self
+                .adapter
+                .raw_request(request, reply)
+                .await
+                .map_err(EcuError::AdapterError),
+            _ => Err(EcuError::NotConnected),
         }
     }
 

@@ -7,7 +7,9 @@ use esp_hal::{
 
 use embassy_futures::select::{Either, select};
 
-use super::{AdapterError, Adapters};
+use crate::CHANNEL_ITEM_SIZE;
+
+use super::{AdapterError, Adapters, utils::*};
 
 pub struct Adapter<'a> {
     pub(crate) rx: UartRx<'a>,
@@ -168,7 +170,7 @@ impl<'a> Adapters for Adapter<'a> {
                 // 03 - Access Mode - '02 secure mode' Request Seed
                 (buf[3] == b'0' && buf[4] == b'3')
             ) {
-                seed = from_ascii_bytes_to_u16(&buf[6..11]) as u32;
+                seed = from_ascii_bytes_to_u16(&buf[6..11])? as u32;
             }
             // in case of Negative response seed is wrong then the authentication will be failed
 
@@ -225,7 +227,7 @@ impl<'a> Adapters for Adapter<'a> {
             return Err(AdapterError::EcuSpecificError(0x12));
         }
 
-        let mut buf: [u8; 32] = [0; 32];
+        let mut buf: [u8; CHANNEL_ITEM_SIZE] = [0; CHANNEL_ITEM_SIZE];
         buf[1] = b'2';
 
         // we have already checked that the input buffer length is even
@@ -245,7 +247,7 @@ impl<'a> Adapters for Adapter<'a> {
             let size = self.wait_AT_prompt(&mut buf, 500, false).await?;
 
             if buf[0] == b'6' && buf[1] == b'2' {
-                let res = from_ascii_bytes_to_u16(&buf[9..14]);
+                let res = from_ascii_bytes_to_u16(&buf[9..14])?;
                 reply[2 + i * 2] = (res / 256) as u8;
                 reply[2 + i * 2 + 1] = (res % 256) as u8;
             } else {
@@ -273,9 +275,8 @@ impl<'a> Adapters for Adapter<'a> {
         let mut dtc_num = 0;
 
         if buf[0] == b'5' && buf[1] == b'8' {
-            buf[1] = b'0';
-            buf[2] = b'0';
-            dtc_num = from_ascii_bytes_to_u16(&buf[1..5]) as usize;
+            dtc_num = from_ascii_bytes_to_u8(&buf[3..5])? as usize;
+            trace!("dtc_num {}", dtc_num);
             // "58 XX " => 6 bytes
             // "XX YY 68 " => 9 bytes (68 is 'h' - means hex)
             // "\r\r>" => 3 bytes
@@ -285,10 +286,11 @@ impl<'a> Adapters for Adapter<'a> {
             }
 
             for i in 0..dtc_num {
-                let dtc = from_ascii_bytes_to_u16(&buf[6 + i * 9..6 + i * 9 + 5]);
+                let dtc = from_ascii_bytes_to_u16(&buf[6 + i * 9..6 + i * 9 + 5])?;
                 reply[2 + i * 2] = (dtc / 256) as u8;
                 reply[2 + i * 2 + 1] = (dtc % 256) as u8;
             }
+            trace!("reply {}", &reply[..dtc_num * 2 + 2]);
         } else {
             return Err(decode_err_status(&mut buf[..size]));
         }
@@ -309,6 +311,38 @@ impl<'a> Adapters for Adapter<'a> {
         Ok(())
     }
 
+    async fn raw_request(
+        &mut self,
+        request: &[u8],
+        reply: &mut [u8],
+    ) -> Result<usize, AdapterError> {
+        let mut buf: [u8; 128] = [0; 128];
+
+        for (i, byte) in request.iter().enumerate() {
+            from_u8_to_ascii_bytes(*byte, &mut buf[i * 2..i * 2 + 2])?;
+        }
+        buf[request.len() * 2] = b'\r';
+
+        self.tx
+            .write(&buf[..request.len() * 2 + 1])
+            .map_err(AdapterError::Tx)?;
+        let size = self.wait_AT_prompt(&mut buf, 500, false).await?;
+
+        let mut i = 0;
+        let mut flag = false;
+        for j in 0..size - 4 {
+            if buf[j] == b' ' || flag {
+                flag = false;
+                continue;
+            }
+            reply[2 + i] = from_ascii_bytes_to_u8(&buf[j..j + 2])?;
+            flag = true;
+            i += 1;
+        }
+
+        Ok(i + 2)
+    }
+
     async fn write(&mut self, request: &[u8]) -> Result<usize, AdapterError> {
         self.tx.write_async(request).await.map_err(AdapterError::Tx)
     }
@@ -321,73 +355,17 @@ impl<'a> Adapters for Adapter<'a> {
     }
 }
 
-/// convert 4 hexa ASCII bytes into its u16 value
-///
-/// if input is not 4 bytes ASCII hex values it panics with ParseIntError
-fn from_ascii_bytes_to_u16(buf: &[u8]) -> u16 {
-    fn char_to_digit(char: u8) -> Result<u16, AdapterError> {
-        if char.is_ascii_digit() {
-            Ok((char - b'0') as u16)
-        } else if (b'A'..=b'F').contains(&char) {
-            Ok((char - b'A' + 10) as u16)
-        } else {
-            Err(AdapterError::ParseIntError)
-        }
-    }
-
-    let mut val: u16 = 0;
-    let mut i: i16 = 16;
-    for char in buf {
-        if *char == b' ' {
-            continue;
-        }
-        val += unwrap!(char_to_digit(*char)) << (i - 4);
-        i -= 4;
-        if i < 0 {
-            unwrap!(Err(AdapterError::ParseIntError));
-        }
-    }
-    val
-}
-
-/// convert 16 bit value to its 4 bytes length hexa ASCII representation
-///
-/// if output buffer is small it panics with ParseIntError
-fn from_u16_to_ascii_bytes(value: u16, buf: &mut [u8]) {
-    if buf.len() < 4 {
-        unwrap!(Err(AdapterError::ParseIntError));
-    }
-    let digits = [
-        b'0', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9', b'A', b'B', b'C', b'D', b'E',
-        b'F',
-    ];
-    let mut val = value;
-    for (i, char) in buf.iter_mut().enumerate() {
-        *char = digits[(val / (4096 >> (i * 4))) as usize];
-        val %= 4096 >> (i * 4);
-    }
-}
-
-fn compare_bytes(one: &[u8], another: &[u8]) -> bool {
-    if one.len() != another.len() {
-        return false;
-    }
-    for (i, one) in one.iter().enumerate() {
-        if *one != another[i] {
-            return false;
-        }
-    }
-    true
-}
-
+#[allow(clippy::map_identity)]
+#[allow(clippy::needless_return)]
 fn decode_err_status(reply: &mut [u8]) -> AdapterError {
     if compare_bytes(b"NO DATA\r\r>", reply) {
         return AdapterError::Timeout;
     }
     if reply[0] == b'7' && reply[1] == b'F' {
-        reply[4] = b'0';
-        reply[5] = b'0';
-        AdapterError::EcuSpecificError(from_ascii_bytes_to_u16(&reply[4..8]) as u8)
+        let res = from_ascii_bytes_to_u8(&reply[6..8])
+            .map_err(|err| return err)
+            .unwrap();
+        AdapterError::EcuSpecificError(res)
     } else {
         // O means OK in Ecu's status values, but here it is only
         // used to indicate errors, to indicate an unknown error
