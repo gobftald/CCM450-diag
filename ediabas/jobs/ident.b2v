@@ -1,0 +1,241 @@
+job(name    : IDENT;
+    //comment :Identdaten;
+    comment : Identification data;
+    comment : KWP2000: $1A ReadECUIdentification;
+    comment : Modus  : Default;
+
+    result  : JOB_STATUS;
+    type    : string;
+    //comment : OKAY, wenn fehlerfrei;
+    comment : OKAY, if error-free;
+    comment : table JobResult STATUS_TEXT;
+    
+    result  : ID_BMW_NR;
+    type    : string;
+    //comment : BMW-Teilenummer;
+    comment : BMW part number;
+    
+    result  : ID_HW_NR;
+    type    : string;
+    //comment : BMW-Hardware-Versionsindex;
+    comment : BMW Hardware Version Index;
+    
+    result  : ID_COD_INDEX;
+    type    : int;
+    //comment : Codier-Index;
+    comment : Coding index;
+
+    result  : ID_DIAG_INDEX;
+    type    : int;
+    //comment : Diagnose-Index;
+    comment : Diagnostic Index;
+
+    result  : ID_VAR_INDEX;
+    type    : int;
+    //comment : Varianten-Index;
+    comment : Variant Index;
+
+    //result  : ID_DATUM_JAHR;
+    result  : ID_DATUM_YEAR;
+    type    : int;
+    //comment : Herstelldatum (Jahr);
+    comment : Date of manufacture (year);
+
+    //result  : ID_DATUM_MONAT;
+    result  : ID_DATUM_MONTH;
+    type    : int;
+    //comment : Herstelldatum (Monat);
+    comment : Date of manufacture (month);
+
+    //result  : ID_DATUM_TAG;
+    result  : ID_DATUM_DAY;
+    type    : int;
+    //comment : Herstelldatum (Tag)
+    comment : Date of manufacture (day);
+
+    result  : ID_DATUM;
+    type    : string;
+    //comment : Herstelldatum (TT.MM.JJJJ)
+    comment : Date of manufacture (DD.MM.YYYY);
+
+    //result  : ID_LIEF_NR;
+    result  : ID_SUPPL_NR;
+    type    : int;
+    //comment : Lieferanten-Nummer;
+    comment : Supplier number;
+
+    //result  : ID_LIEF_TEXT;
+    result  : ID_SUPPL_TEXT;
+    type    : string;
+    //comment : Lieferanten-Nummer;
+    comment : Supplier text;
+    //comment : table Lieferanten LIEF_TEXT;
+    comment : table suppliers LIEF_TEXT;
+
+    result  : ID_SW_NR_MCV;
+    type    : string;
+    //comment : Softwarenummer (message catalogue version);
+    comment : Software number (message catalog version);
+
+    result  : ID_SW_NR_FSV;
+    type    : string;
+    //comment : Softwarenummer (functional software version);
+    comment : Software number (functional catalog version);
+
+    result  : ID_SW_NR_OSV;
+    type    : string;
+    //comment : Softwarenummer (operating system version);
+    comment : Software number (operating system version);
+
+    result  : ID_SW_NR_RES;
+    type    : string;
+    //comment : Softwarenummer (reserved - currently unused);
+    comment : Software number (reserved - currently unused);
+
+    //result  : ID_SG_ADR;
+    result  : ID_CU_ADDR;
+    type    : long;
+    //comment : Steuergeraeteadresse;
+    comment : Control Unit address;
+    //comment : bzw. LIN Master Steuergeraeteadresse;
+    comment : or LIN Master Control Unit address;
+
+    //result  : ID_LIN_SLAVE_ADR;
+    result  : ID_LIN_SLAVE_ADDR;
+    type    : long;
+    //comment : LIN Slave Steuergeraeteadresse;
+    comment : LIN Slave Control Unit address;
+
+    //result  : ID_EWS_SS;
+    result  : ID_EWS_IF;
+    type    : int;
+    defrslt : 3;
+    //comment : Identifikation EWS-Schnittstelle;
+    comment : EWS interface identification;
+    //comment : Nur fuer DS2-Bordnetz benoetigt;
+    comment : Only required for DS2 on-board power supply;
+    //comment : Fuer EWS-DME/DDE Abgleich;
+    comment : For EWS-DME/DDE alignment;
+
+    //result  : _TEL_AUFTRAG;
+    result  : _TEL_REQUEST;
+    type    : data;
+    //comment : Hex-Auftrag an SG;
+    comment : Hex-Request to CY;
+
+    //result  : _TEL_ANTWORT;
+    result  : _TEL_ANSWER;
+    type    : data;
+    //comment : :Hex-Antwort von SG
+    comment : Hez-Answer from CU; ) {
+
+    unsigned char ECU_request[] = {0x82,0xFF,0xF1,0x1A,0x80};   // S2
+    unsigned char ECU_reply[];                                  // S3
+    unsigned char ECU_data[];                                   // S4
+    unsigned char shared_memory[];                              // S5
+
+    int busy_count = 2;
+
+
+    dataclear(shared_memory);                       // Clears a buffer
+    shdataget("", shared_memory);                   // Read (get) the global data memory
+
+    ECU_request[1] = shared_memory[TESTER_ADDRESS];
+
+    if (ID_CU_ADDR) {
+        ID_CU_ADDR = shared_memory[TESTER_ADDRESS]; 
+    }//__00002870
+
+    if (LIN_KWP2000 == TRUE) {
+        if (ID_LIN_SLAVE_ADDR) {
+            ID_LIN_SLAVE_ADDR = shared_memory[LIN_SLAVE_ADDRESS];
+        }//__00002933
+
+        if (!convert_kwp2000_to_lin_kwp2000(shared_memory[LIN_SLAVE_ADDRESS], ECU_request)) {
+            return;
+        }
+    }//__00002A46
+
+    switch (shared_memory[CONCEPT_NUM]) {   // __000031B3
+        case CONZEPT_KWP2000x:  // __00002A78
+            break;
+        case CONZEPT_DS2:   // __00002A78
+            break;
+        default: {  // __00002E0D
+            if (_TEL_REQUEST) {
+                _TEL_REQUEST = ECU_request;
+            }//__00002E61
+
+            if (!send_and_receive_kwp2000(ECU_reply, ECU_request, ECU_data, "_TEL_ANSWER", 2)) {
+                return;
+            }
+        }
+    }
+
+    if (LIN_KWP2000 == TRUE) {
+
+    }//__00003444
+
+    if (ID_BMW_NR) {
+
+    }//__000035BF
+
+    if (ID_HW_NR) {
+
+    }//__000039A6
+
+    if (ID_COD_INDEX) {
+
+    }//__00003A20
+
+    if (ID_DIAG_INDEX) {
+
+    }//__00003AEC
+
+    if (ID_VAR_INDEX) {
+
+    }//__00003BB6
+
+    if (ID_DATUM_YEAR) {
+
+    }//__00003C87
+
+    if (ID_DATUM_MONTH) {
+
+    }// __00003D5A
+
+    if (ID_DATUM_DAY) {
+
+    }//__00003E29
+
+    if (ID_DATUM) {
+
+    }//__00004090
+
+    if (ID_SUPPL_NR) {
+
+    }//__0000420A
+
+    if (ID_SUPPL_TEXT) {
+
+    }//__00004368
+
+    if (ID_SW_NR_MCV) {
+
+    }//__000045C2
+
+    if (ID_SW_NR_FSV) {
+        
+    }//__0000481C
+
+    if (ID_SW_NR_OSV) {
+
+    }//__00004A76
+
+    if (ID_SW_NR_RES) {
+
+    }//__00004CD0
+
+    JOB_STATUS = "OKAY";
+    return;
+}

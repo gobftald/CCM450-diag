@@ -1,0 +1,47 @@
+job(name    : INFO;
+    comment :Information SGBD;
+
+    result  : ECU;
+    type    : string;
+    //comment : Steuerger�t im Klartext;
+    comment : Control unit in plain language;
+
+    result  : ORIGIN;
+    type    : string;
+    //comment : Steuerger�te-Verantwortlicher;
+    comment : Control unit manager;
+
+    result  : REVISION;
+    type    : string;
+    //comment : Versions-Nummer;
+    comment : Version number;
+
+    result  : AUTHOR;
+    type    : string;
+    //comment : Namen aller Autoren;
+    comment : Names of all authors;
+
+    result  : COMMENT;
+    type    : string;
+    //comment : wichtige Hinweise;
+    comment : important instructions;
+
+    result  : PACKAGE;
+    type    : string;
+    //comment : Include-Paket-Nummer;
+    comment : Include package number;
+
+    //result  : SPRACHE;
+    result  : LANGUAGE;
+    type    : string;
+    //comment : deutsch, english;
+    comment : German, English; ) {
+    
+    ECU = "Keihin Motorsteuerng für K16";   
+    ORIGIN = "BMW UX-EA-5 Joachim Post";
+    REVISION = "1.021";
+    AUTHOR = "BMW_Motorrad UX-EE-1 Stefan_Krimmer";
+    COMMENT = "";
+    PACKAGE = "1.52";
+    LANGUAGE = "english";
+}

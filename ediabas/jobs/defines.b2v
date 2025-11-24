@@ -1,0 +1,42 @@
+#define FALSE 0
+#define FAILED 0
+#define TRUE 1
+#define SUCCESS 1
+#define FOUND 1
+
+#define LIN_KWP2000 FALSE
+
+#define SecurityLevel_1_normal 0x01
+#define SecurityLevel_ID1_normal 0x01
+#define SecurityLevel_ID1_response 0x02
+
+#define SecurityLevel_2_secure 0x02
+#define SecurityLevel_ID2_secure 0x03
+#define SecurityLevel_ID2_response 0x04
+
+#define AccessMode_position 4
+
+#define DIAGNOSEKONZEPT_1 1
+#define DIAGNOSEKONZEPT_2 2
+
+#define CONZEPT_DS2	     0x06
+#define CONZEPT_KWP2000x 0x0D
+#define CONZEPT_KWP2000	 0x0C
+#define CONZEPT_BMW_FAST 0x0F
+#define CONZEPT_D_CAN	 0x10
+
+#define TESTER_ADDRESS_VALUE 0x12                   // we call it Control Unit as well
+
+// global/shared memory
+#define CONCEPT_NUM     0x3E9		                // contains 0x0D = KWP2000
+#define TESTER_ADDRESS  0x3EA	                    // contains 0x012 = TESTET_ADDRESS_VALUE
+//#define >>> 0x3EB
+//#define >>> 0x3EC
+//#define >>> 0x3ED
+#define AUTH_TYPE_NUM   0x3EE
+#define LIN_SLAVE_ADDRESS 0x3EF
+
+#define TESTER_PRESENT_LENGTH_FIELD 9
+#define TESTER_PRESENT_ADDRESS_FIELD 11
+#define START_MESSAGE_LENGTH_FIELD 21
+#define START_TESTER_ADDRESS_FIELD 23

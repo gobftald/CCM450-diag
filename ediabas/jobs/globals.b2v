@@ -1,0 +1,58 @@
+unsigned long CONZEPT_PARAMS[] = {
+    0x0000010c,                                     // concept = KWP2000 BMW
+    0x000028A0,                                     // baud rate = 0x28A = 10.400
+    0x000000C8,                                     // timeout = 0xc8 = 200 ms 
+                                                    // within which the control unit must have replied to a telegram
+    0x0000003C,                                     // regeneration time = 60 ms
+                                                    // must pass after the control unit response before transmission
+                                                    // is again permitted
+    0x00000014,                                     // telegram termination time = 20 ms
+                                                    // after which a decision for telegram termination is made
+    0x00000002,                                     // time between bytes = 2 ms
+    0x00000002,                                     // maximum number of Negative response code 0x78 = 2
+    0x00001388,                                     // timeout Negative response code 0x78 = 5000 ms
+                                                    // within which the control unit must have responded after
+                                                    // Negative response code 0x78
+    0x00000fa0,                                     // TesterPresent Time = 0xfA0 = 4000
+                                                    // between the last control unit response and the next
+                                                    // Tester Present telegram
+    0x00000006,                                     // TesterPresent Telegram length = 6
+                                                    // the following 6 value is the bytes of TesterPresent Telegram
+                                                    // max would be length of 11
+                                                    // If the telegram has less than 11 characters,
+                                                    // the remaining characters must be 0.                                                    
+    0x00000082,                                     // 0x82 physical addressing
+                                                    //      message length = 2
+    0x00000000,                                     // 0x00 tester address placeholder
+    0x000000F1,                                     // 0xF1 ECU address
+    0x0000003E,                                     // 0x3E Service ID = 0x3E = TesterPresent
+    0x00000001,                                     // 0x01 need response
+    0x000000B2,                                     // 0xB2 checksum
+    0x00000000,                                     // padding 0s
+    0x00000000,
+    0x00000000,
+    0x00000000,
+    0x00000000,
+    0x00000005,                                     // StartCommunication Telegram length = 5
+    0x00000081,                              		// 0x81 physical addressing
+                                                    //      message length = 1
+    0x00000000, 	                                // 0x00 tester address placeholder
+    0x000000F1, 			                        // 0xF1 ECU address
+    0x00000081,                                		// 0x81 Service ID = 0x81 startCommunication
+    0x000000F3, 			                        // 0xF3 checksum
+    0x00000000,                                     // padding 0s
+    0x00000000,
+    0x00000000,
+    0x00000000,
+    0x00000000,
+    0x00000000,
+    0x00000001			                            // checksum calculated by the interface
+                                                    // checksum is checked
+};
+
+unsigned int LENGTH_PARAMS[] = {
+    0x0000,			                                // Control code/response length:
+				                                    // normal interchange 
+    0x0000			                                // Command/response offset:
+				                                    // normal interchange 
+};

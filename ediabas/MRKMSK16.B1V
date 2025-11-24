@@ -1,0 +1,3444 @@
+
+#DLINE 0 "MRKMSK16.B2V"
+#DLINE 0 "JOBS\TABLES.B2V"
+
+TBEG "DIAGMODE"
+HEAD "NR" ,"MODE" ,"MODE_TEXT"
+LINE "0x81" ,"DEFAULT" ,"DefaultMode"
+LINE "0x82" ,"PT" ,"PeriodicTransmissions"
+LINE "0x84" ,"EOLSSM" ,"EndOf{SystemSupplierMode"
+LINE "0x85" ,"ECUPM" ,"ECUProgrammingMode"
+LINE "0x86" ,"ECUDM" ,"ECUDevelopmentMode"
+LINE "0x87" ,"ECUAM" ,"ECUAdjustmentMode"
+LINE "0x88" ,"ECUVCM" ,"ECUVariantCodingMode"
+LINE "0x89" ,"ECUSM" ,"ECUSafetyMode"
+LINE "0xFA" ,"SSS_A" ,"SystemSupplierSpecific (A)"
+LINE "0xFB" ,"SSS_B" ,"SystemSupplierSpecific (B)"
+LINE "0xFC" ,"SSS_C" ,"SystemSupplierSpecific (C)"
+LINE "0xFD" ,"SSS_D" ,"SystemSupplierSpecific (D)"
+LINE "0xFE" ,"SSS_E" ,"SystemSupplierSpecific (E)"
+LINE "0xXY" ,"--" ,"unbekannter Diagnose-Mode"
+TEND
+
+
+TBEG "BAUDRATE"
+HEAD "NR" ,"BAUD" ,"BAUD_TEXT"
+LINE "0x01" ,"PC9600" ,"Baudrate 9.6 kBaud"
+LINE "0x02" ,"PC19200" ,"Baudrate 19.2 kBaud"
+LINE "0x03" ,"PC38400" ,"Baudrate 38.4 kBaud"
+LINE "0x04" ,"PC57600" ,"Baudrate 57.6 kBaud"
+LINE "0x05" ,"PC115200" ,"Baudrate 115.2 kBaud"
+LINE "0x06" ,"SB" ,"Specific Baudrate"
+LINE "0xXY" ,"--" ,"unbekannte Baudrate"
+TEND
+
+
+TBEG "PROGRAMMIERSTATUS"
+HEAD "SB" ,"STATUS_TEXT"
+LINE "0x00" ,"Anlieferzustand"
+LINE "0x01" ,"Normalbetrieb"
+LINE "0x02" ,"nicht benutzt"
+LINE "0x03" ,"Speicher gelï¿½scht"
+LINE "0x04" ,"nicht benutzt"
+LINE "0x05" ,"Signaturprï¿½fung PAF nicht durchgefï¿½hrt"
+LINE "0x06" ,"Signaturprï¿½fung DAF nicht durchgefï¿½hrt"
+LINE "0x07" ,"Programmprogrammiersitzung aktiv"
+LINE "0x08" ,"Datenprogrammiersitzung aktiv"
+LINE "0x09" ,"Hardwarereferenzeintrag fehlerhaft"
+LINE "0x0A" ,"Programmreferenzeintrag fehlerhaft"
+LINE "0x0B" ,"Referenzierungsfehler Hardware -> Programm"
+LINE "0x0C" ,"Programm nicht vorhanden oder nicht vollstï¿½ndig"
+LINE "0x0D" ,"Datenreferenzeintrag fehlerhaft"
+LINE "0x0E" ,"Referenzierungsfehler Programm -> Daten"
+LINE "0x0F" ,"Daten nicht vorhanden oder nicht vollstï¿½ndig"
+LINE "0x10" ,"Reserviert fuer BMW"
+LINE "0x80" ,"Reserviert fuer Zulieferer"
+LINE "0xXY" ,"unbekannter Programmierstatus"
+TEND
+
+
+TBEG "JOBRESULTEXTENDED"
+HEAD "SB" ,"STATUS_TEXT"
+LINE "0xXY" ,"ERROR_UNKNOWN"
+TEND
+
+
+TBEG "SG_DIAGNOSEKONZEPT"
+HEAD "RANG" ,"KONZEPT_TEXT"
+LINE "1" ,"KWP2000"
+TEND
+
+
+TBEG "FORTTEXTE"
+HEAD "ORT" ,"ORTTEXT"
+LINE "0x0031" ,"Lambdasonde Heizung Kurzschluss nach Masse oder Leitungsunterbrechung"
+LINE "0x0032" ,"Lambdasonde Heizung Kurzschluss nach Batterieplus"
+LINE "0x0105" ,"Ansaugdrucksensor defekt"
+LINE "0x0107" ,"Ansaugdrucksensor Kurzschluss nach Masse"
+LINE "0x0108" ,"Ansaugdrucksensor Kurzschluss nach Batterieplus oder Leitungsunterbrechung"
+LINE "0x0112" ,"Ansauglufttemperatursensor Kurzschluss nach Masse"
+LINE "0x0113" ,"Ansauglufttemperatursensor Kurzschluss nach Batterieplus oder Leitungsunterbrechung"
+LINE "0x0117" ,"Motortemperatursensor Kurzschluss nach Masse"
+LINE "0x0118" ,"Motortemperatursensor Kurzschluss nach Batterieplus oder Leitungsunterbrechung"
+LINE "0x0122" ,"Drosselklappensensor Kurzschluss nach Masse  oder Leitungsunterbrechung"
+LINE "0x0123" ,"Drosselklappensensor Kurzschluss nach Batterieplus"
+LINE "0x0130" ,"Lambdasonde defekt"
+LINE "0x0201" ,"Einspritzventil defekt"
+LINE "0x0222" ,"Drosselklappensensor 2 Kurzschluss nach Masse oder Leitungsunterbrechung"
+LINE "0x0223" ,"Drosselklappensensor 2 Kurzschluss nach Batterieplus"
+LINE "0x0335" ,"Kurbelwellensensor Kurschluss oder Leitungsunterbrechung"
+LINE "0x0351" ,"Zuendspule defekt"
+LINE "0x0444" ,"Tankentlueftungsventil Kurzschluss nach Masse oder Leitungsunterbrechung"
+LINE "0x0445" ,"Tankentlueftungsventil Kurzschluss nach Batterieplus"
+LINE "0x0560" ,"Spannungsversorgung fehlerhaft"
+LINE "0x0603" ,"EEPROM Fehler"
+LINE "0x0638" ,"Schrittmotor Drosselklappe 2 defekt"
+LINE "0x1231" ,"Kraftstoffpumpenrelais Kurzschluss nach Masse oder Leitungsunterbrechung"
+LINE "0x1232" ,"Kraftstoffpumpenrelais Kurzschluss nach Batterieplus"
+LINE "0xFFFF" ,"unbekannter Fehlerort"
+TEND
+
+
+TBEG "FDETAILSTRUKTUR"
+HEAD "NAME" ,"TYP"
+LINE "F_ART_IND" ,"nein"
+LINE "F_ART_ERW" ,"nein"
+LINE "F_PCODE" ,"ja"
+LINE "F_PCODE7" ,"nein"
+LINE "F_HFK" ,"nein"
+LINE "F_LZ" ,"nein"
+LINE "F_UWB_ERW" ,"nein"
+TEND
+
+
+TBEG "HORTTEXTE"
+HEAD "ORT" ,"ORTTEXT"
+LINE "0xFFFF" ,"unbekannter Fehlerort"
+TEND
+
+
+TBEG "IORTTEXTE"
+HEAD "ORT" ,"ORTTEXT"
+LINE "0xFFFF" ,"unbekannter Fehlerort"
+TEND
+
+
+TBEG "SPORTSCHALTER"
+HEAD "WERT" ,"TEXT"
+LINE "0x0000" ,"Standard"
+LINE "0x00FF" ,"Sport"
+LINE "0xXYXY" ,"unbekannt"
+TEND
+
+
+TBEG "EIN_AUS"
+HEAD "WERT" ,"TEXT"
+LINE "0x0000" ,"AUS"
+LINE "0x00FF" ,"EIN"
+LINE "0xXYXY" ,"unbekannt"
+TEND
+
+
+TBEG "NEUTRALSCHALTER"
+HEAD "WERT" ,"TEXT"
+LINE "0x0000" ,"Neutral"
+LINE "0x00FF" ,"Gang eingelegt"
+LINE "0xXYXY" ,"unbekannt"
+TEND
+
+
+TBEG "KENNLINIE_TEMPERATURSENSOR"
+HEAD "WERT" ,"TEMPERATUR"
+LINE "1" ,"120"
+LINE "2" ,"120"
+LINE "3" ,"120"
+LINE "4" ,"120"
+LINE "5" ,"120"
+LINE "6" ,"120"
+LINE "7" ,"120"
+LINE "8" ,"120"
+LINE "9" ,"120"
+LINE "10" ,"120"
+LINE "11" ,"120"
+LINE "12" ,"120"
+LINE "13" ,"120"
+LINE "14" ,"119"
+LINE "15" ,"117"
+LINE "16" ,"115"
+LINE "17" ,"113"
+LINE "18" ,"111"
+LINE "19" ,"109"
+LINE "20" ,"107"
+LINE "21" ,"105"
+LINE "22" ,"103"
+LINE "23" ,"102"
+LINE "24" ,"101"
+LINE "25" ,"99"
+LINE "26" ,"97"
+LINE "27" ,"96"
+LINE "28" ,"95"
+LINE "29" ,"94"
+LINE "30" ,"93"
+LINE "31" ,"92"
+LINE "32" ,"91"
+LINE "33" ,"90"
+LINE "34" ,"89"
+LINE "35" ,"87"
+LINE "36" ,"86"
+LINE "37" ,"85"
+LINE "38" ,"84"
+LINE "39" ,"83"
+LINE "40" ,"82"
+LINE "41" ,"81"
+LINE "42" ,"80"
+LINE "43" ,"79"
+LINE "44" ,"77"
+LINE "45" ,"76"
+LINE "46" ,"75"
+LINE "47" ,"74"
+LINE "48" ,"73"
+LINE "49" ,"72"
+LINE "50" ,"71"
+LINE "51" ,"70"
+LINE "52" ,"70"
+LINE "53" ,"69"
+LINE "54" ,"69"
+LINE "55" ,"68"
+LINE "56" ,"68"
+LINE "57" ,"67"
+LINE "58" ,"67"
+LINE "59" ,"66"
+LINE "60" ,"66"
+LINE "61" ,"65"
+LINE "62" ,"65"
+LINE "63" ,"64"
+LINE "64" ,"64"
+LINE "65" ,"63"
+LINE "66" ,"63"
+LINE "67" ,"62"
+LINE "68" ,"62"
+LINE "69" ,"61"
+LINE "70" ,"61"
+LINE "71" ,"60"
+LINE "72" ,"59"
+LINE "73" ,"59"
+LINE "74" ,"58"
+LINE "75" ,"57"
+LINE "76" ,"56"
+LINE "77" ,"55"
+LINE "78" ,"55"
+LINE "79" ,"54"
+LINE "80" ,"54"
+LINE "81" ,"53"
+LINE "82" ,"53"
+LINE "83" ,"52"
+LINE "84" ,"52"
+LINE "85" ,"51"
+LINE "86" ,"51"
+LINE "87" ,"50"
+LINE "88" ,"50"
+LINE "89" ,"49"
+LINE "90" ,"49"
+LINE "91" ,"48"
+LINE "92" ,"48"
+LINE "93" ,"47"
+LINE "94" ,"47"
+LINE "95" ,"46"
+LINE "96" ,"46"
+LINE "97" ,"45"
+LINE "98" ,"45"
+LINE "99" ,"44"
+LINE "100" ,"44"
+LINE "101" ,"43"
+LINE "102" ,"42"
+LINE "103" ,"42"
+LINE "104" ,"42"
+LINE "105" ,"41"
+LINE "106" ,"41"
+LINE "107" ,"40"
+LINE "108" ,"40"
+LINE "109" ,"40"
+LINE "110" ,"39"
+LINE "111" ,"39"
+LINE "112" ,"38"
+LINE "113" ,"38"
+LINE "114" ,"38"
+LINE "115" ,"37"
+LINE "116" ,"37"
+LINE "117" ,"36"
+LINE "118" ,"36"
+LINE "119" ,"36"
+LINE "120" ,"35"
+LINE "121" ,"35"
+LINE "122" ,"35"
+LINE "123" ,"34"
+LINE "124" ,"34"
+LINE "125" ,"34"
+LINE "126" ,"33"
+LINE "127" ,"33"
+LINE "128" ,"33"
+LINE "129" ,"32"
+LINE "130" ,"32"
+LINE "131" ,"32"
+LINE "132" ,"31"
+LINE "133" ,"31"
+LINE "134" ,"31"
+LINE "135" ,"30"
+LINE "136" ,"30"
+LINE "137" ,"30"
+LINE "138" ,"29"
+LINE "139" ,"29"
+LINE "140" ,"28"
+LINE "141" ,"28"
+LINE "142" ,"28"
+LINE "143" ,"27"
+LINE "144" ,"27"
+LINE "145" ,"26"
+LINE "146" ,"26"
+LINE "147" ,"26"
+LINE "148" ,"25"
+LINE "149" ,"25"
+LINE "150" ,"24"
+LINE "151" ,"24"
+LINE "152" ,"24"
+LINE "153" ,"23"
+LINE "154" ,"23"
+LINE "155" ,"23"
+LINE "156" ,"22"
+LINE "157" ,"22"
+LINE "158" ,"22"
+LINE "159" ,"21"
+LINE "160" ,"21"
+LINE "161" ,"20"
+LINE "162" ,"20"
+LINE "163" ,"20"
+LINE "164" ,"19"
+LINE "165" ,"19"
+LINE "166" ,"18"
+LINE "167" ,"18"
+LINE "168" ,"17"
+LINE "169" ,"17"
+LINE "170" ,"16"
+LINE "171" ,"16"
+LINE "172" ,"16"
+LINE "173" ,"15"
+LINE "174" ,"15"
+LINE "175" ,"14"
+LINE "176" ,"14"
+LINE "177" ,"14"
+LINE "178" ,"13"
+LINE "179" ,"13"
+LINE "180" ,"12"
+LINE "181" ,"12"
+LINE "182" ,"11"
+LINE "183" ,"11"
+LINE "184" ,"11"
+LINE "185" ,"10"
+LINE "186" ,"10"
+LINE "187" ,"10"
+LINE "188" ,"9"
+LINE "189" ,"9"
+LINE "190" ,"9"
+LINE "191" ,"8"
+LINE "192" ,"8"
+LINE "193" ,"7"
+LINE "194" ,"7"
+LINE "195" ,"6"
+LINE "196" ,"6"
+LINE "197" ,"6"
+LINE "198" ,"5"
+LINE "199" ,"5"
+LINE "200" ,"4"
+LINE "201" ,"4"
+LINE "202" ,"4"
+LINE "203" ,"3"
+LINE "204" ,"3"
+LINE "205" ,"2"
+LINE "206" ,"2"
+LINE "207" ,"1"
+LINE "208" ,"1"
+LINE "209" ,"0"
+LINE "210" ,"-1"
+LINE "211" ,"-1"
+LINE "212" ,"-2"
+LINE "213" ,"-3"
+LINE "214" ,"-4"
+LINE "215" ,"-4"
+LINE "216" ,"-5"
+LINE "217" ,"-6"
+LINE "218" ,"-7"
+LINE "219" ,"-7"
+LINE "220" ,"-8"
+LINE "221" ,"-9"
+LINE "222" ,"-10"
+LINE "223" ,"-10"
+LINE "224" ,"-11"
+LINE "225" ,"-12"
+LINE "226" ,"-13"
+LINE "227" ,"-13"
+LINE "228" ,"-14"
+LINE "229" ,"-15"
+LINE "230" ,"-15"
+LINE "231" ,"-16"
+LINE "232" ,"-17"
+LINE "233" ,"-18"
+LINE "234" ,"-19"
+LINE "235" ,"-20"
+LINE "236" ,"-20"
+LINE "237" ,"-20"
+LINE "238" ,"-20"
+LINE "239" ,"-20"
+LINE "240" ,"-20"
+LINE "241" ,"-20"
+LINE "242" ,"-20"
+LINE "243" ,"-20"
+LINE "244" ,"-20"
+LINE "245" ,"-20"
+LINE "246" ,"-20"
+LINE "247" ,"-20"
+LINE "248" ,"-20"
+LINE "249" ,"-20"
+LINE "250" ,"-20"
+LINE "251" ,"-20"
+LINE "252" ,"-20"
+LINE "253" ,"-20"
+LINE "254" ,"-20"
+LINE "255" ,"-20"
+TEND
+
+
+TBEG "JOBRESULT"
+HEAD "SB" ,"STATUS_TEXT"
+LINE "0x10" ,"ERROR_ECU_GENERAL_REJECT"
+LINE "0x11" ,"ERROR_ECU_SERVICE_NOT_SUPPORTED"
+LINE "0x12" ,"ERROR_ECU_SUBFUNCTION_NOT_SUPPORTED__INVALID_FORMAT"
+LINE "0x21" ,"ERROR_ECU_BUSY_REPEAT_REQUEST"
+LINE "0x22" ,"ERROR_ECU_CONDITIONS_NOT_CORRECT_OR_REQUEST_SEQUENCE_ERROR"
+LINE "0x23" ,"ERROR_ECU_ROUTINE_NOT_COMPLETE"
+LINE "0x31" ,"ERROR_ECU_REQUEST_OUT_OF_RANGE"
+LINE "0x33" ,"ERROR_ECU_SECURITY_ACCESS_DENIED__SECURITY_ACCESS_REQUESTED"
+LINE "0x36" ,"ERROR_ECU_EXCEED_NUMBER_OF_ATTEMPTS"
+LINE "0x37" ,"ERROR_ECU_REQUIRED_TIME_DELAY_NOT_EXPIRED"
+LINE "0x40" ,"ERROR_ECU_DOWNLOAD_NOT_ACCEPTED"
+LINE "0x41" ,"ERROR_ECU_IMPROPER_DOWNLOAD_TYPE"
+LINE "0x42" ,"ERROR_ECU_CANNOT_DOWNLOAD_TO_SPECIFIED_ADDRESS"
+LINE "0x43" ,"ERROR_ECU_CANNOT_DOWNLOAD_NUMBER_OF_BYTES_REQUESTED"
+LINE "0x50" ,"ERROR_ECU_UPLOAD_NOT_ACCEPTED"
+LINE "0x51" ,"ERROR_ECU_IMPROPER_UPLOAD_TYPE"
+LINE "0x52" ,"ERROR_ECU_CANNOT_UPLOAD_FROM_SPECIFIED_ADDRESS"
+LINE "0x53" ,"ERROR_ECU_CANNOT_UPLOAD_NUMBER_OF_BYTES_REQUESTED"
+LINE "0x71" ,"ERROR_ECU_TRANSFER_SUSPENDED"
+LINE "0x72" ,"ERROR_ECU_TRANSFER_ABORTED"
+LINE "0x74" ,"ERROR_ECU_ILLEGAL_ADDRESS_IN_BLOCK_TRANSFER"
+LINE "0x75" ,"ERROR_ECU_ILLEGAL_BYTE_COUNT_IN_BLOCK_TRANSFER"
+LINE "0x76" ,"ERROR_ECU_ILLEGAL_BLOCK_TRANSFER_TYPE"
+LINE "0x77" ,"ERROR_ECU_BLOCKTRANSFER_DATA_CHECKSUM_ERROR"
+LINE "0x78" ,"ERROR_ECU_REQUEST_CORRECTLY_RECEIVED__RESPONSE_PENDING"
+LINE "0x79" ,"ERROR_ECU_INCORRECT_BYTE_COUNT_DURING_BLOCK_TRANSFER"
+LINE "0x80" ,"ERROR_ECU_SERVICE_NOT_SUPPORTED_IN_ACTIVE_DIAGNOSTIC_MODE"
+LINE "?00?" ,"OKAY"
+LINE "?02?" ,"ERROR_ECU_INCORRECT_RESPONSE_ID"
+LINE "?03?" ,"ERROR_ECU_INCORRECT_LEN"
+LINE "?04?" ,"ERROR_ECU_INCORRECT_LIN_RESPONSE_ID"
+LINE "?05?" ,"ERROR_ECU_INCORRECT_LIN_LEN"
+LINE "?10?" ,"ERROR_F_CODE"
+LINE "?11?" ,"ERROR_TABLE"
+LINE "?12?" ,"ERROR_INTERPRETATION"
+LINE "?13?" ,"ERROR_F_POS"
+LINE "?20?" ,"ERROR_SEGMENT"
+LINE "?21?" ,"ERROR_ADDRESS"
+LINE "?22?" ,"ERROR_NUMBER"
+LINE "?30?" ,"ERROR_DATA"
+LINE "?40?" ,"ERROR_MODE"
+LINE "?41?" ,"ERROR_BAUDRATE"
+LINE "?50?" ,"ERROR_BYTE1"
+LINE "?51?" ,"ERROR_BYTE2"
+LINE "?52?" ,"ERROR_BYTE3"
+LINE "?60?" ,"ERROR_DATA_OUT_OF_RANGE"
+LINE "?70?" ,"ERROR_NUMBER_ARGUMENT"
+LINE "?71?" ,"ERROR_RANGE_ARGUMENT"
+LINE "?72?" ,"ERROR_VERIFY"
+LINE "?73?" ,"ERROR_NO_BIN_BUFFER"
+LINE "?74?" ,"ERROR_BIN_BUFFER"
+LINE "?75?" ,"ERROR_DATA_TYPE"
+LINE "?76?" ,"ERROR_CHECKSUM"
+LINE "?80?" ,"ERROR_FLASH_SIGNATURE_CHECK"
+LINE "?81?" ,"ERROR_VEHICLE_IDENTIFICATION_NR"
+LINE "?82?" ,"ERROR_PROGRAMMING_DATE"
+LINE "?83?" ,"ERROR_ASSEMBLY_NR"
+LINE "?84?" ,"ERROR_CALIBRATION_DATASET_NR"
+LINE "?85?" ,"ERROR_EXHAUST_REGULATION_OR_TYPE_APPROVAL_NR"
+LINE "?86?" ,"ERROR_REPAIR_SHOP_NR"
+LINE "?87?" ,"ERROR_TESTER_SERIAL_NR"
+LINE "?88?" ,"ERROR_MILAGE"
+LINE "?89?" ,"ERROR_PROGRAMMING_REFERENCE"
+LINE "?8A?" ,"ERROR_NO_FREE_UIF"
+LINE "?8B?" ,"ERROR_MAX_UIF"
+LINE "?8C?" ,"ERROR_SIZE_UIF"
+LINE "?8D?" ,"ERROR_LEVEL"
+LINE "?8E?" ,"ERROR_KEY"
+LINE "?8F?" ,"ERROR_AUTHENTICATION"
+LINE "?90?" ,"ERROR_NO_DREF"
+LINE "?91?" ,"ERROR_CHECK_PECUHN"
+LINE "?92?" ,"ERROR_CHECK_PRGREF"
+LINE "?93?" ,"ERROR_AIF_NR"
+LINE "?94?" ,"ERROR_CHECK_DREF"
+LINE "?95?" ,"ERROR_CHECK_HWREF"
+LINE "?96?" ,"ERROR_CHECK_HWREF"
+LINE "?97?" ,"ERROR_CHECK_PRGREFB"
+LINE "?98?" ,"ERROR_CHECK_VMECUH*NB"
+LINE "?99?" ,"ERROR_CHECK_PRGREFB"
+LINE "?9A?" ,"ERROR_CHECK_VMECUH*N"
+LINE "?9B?" ,"ERROR_MOST_CAN_GATEWAY_DISABLE"
+LINE "?9C?" ,"ERROR_NO_P2MIN"
+LINE "?9D?" ,"ERROR_NO_P2MAX"
+LINE "?9E?" ,"ERROR_NO_P3MIN"
+LINE "?9F?" ,"ERROR_NO_P3MAX"
+LINE "?A0?" ,"ERROR_NO_P4MIN"
+LINE "?B0?" ,"ERROR_DIAG_PROT"
+LINE "?B1?" ,"ERROR_SG_ADRESSE"
+LINE "?B2?" ,"ERROR_SG_MAXANZAHL_AIF"
+LINE "?B3?" ,"ERROR_SG_GROESSE_AIF"
+LINE "?B4?" ,"ERROR_SG_ENDEKENNUNG_AIF"
+LINE "?B5?" ,"ERROR_SG_AUTHENTISIERUNG"
+LINE "?C0?" ,"ERROR_TELEGRAM_LEN_OUT_OFF_RANGE"
+LINE "?F0?" ,"ERROR_ARGUMENT"
+LINE "0xXY" ,"ERROR_ECU_UNKNOWN_NEGATIVE_RESPONSE"
+TEND
+
+
+TBEG "LIEFERANTEN"
+HEAD "LIEF_NR" ,"LIEF_TEXT"
+LINE "0x01" ,"Reinshagen => Delphi"
+LINE "0x02" ,"Kostal"
+LINE "0x03" ,"Hella"
+LINE "0x04" ,"Siemens"
+LINE "0x05" ,"Eaton"
+LINE "0x06" ,"UTA"
+LINE "0x07" ,"Helbako"
+LINE "0x08" ,"Bosch"
+LINE "0x09" ,"Loewe => Lear"
+LINE "0x10" ,"VDO"
+LINE "0x11" ,"Valeo"
+LINE "0x12" ,"MBB"
+LINE "0x13" ,"Kammerer"
+LINE "0x14" ,"SWF"
+LINE "0x15" ,"Blaupunkt"
+LINE "0x16" ,"Philips"
+LINE "0x17" ,"Alpine"
+LINE "0x18" ,"Continental Teves"
+LINE "0x19" ,"Elektromatik Suedafrika"
+LINE "0x20" ,"Becker"
+LINE "0x21" ,"Preh"
+LINE "0x22" ,"Alps"
+LINE "0x23" ,"Motorola"
+LINE "0x24" ,"Temic"
+LINE "0x25" ,"Webasto"
+LINE "0x26" ,"MotoMeter"
+LINE "0x27" ,"Delphi PHI"
+LINE "0x28" ,"DODUCO => BERU"
+LINE "0x29" ,"DENSO"
+LINE "0x30" ,"NEC"
+LINE "0x31" ,"DASA"
+LINE "0x32" ,"Pioneer"
+LINE "0x33" ,"Jatco"
+LINE "0x34" ,"Fuba"
+LINE "0x35" ,"UK-NSI"
+LINE "0x36" ,"AABG"
+LINE "0x37" ,"Dunlop"
+LINE "0x38" ,"Sachs"
+LINE "0x39" ,"ITT"
+LINE "0x40" ,"FTE"
+LINE "0x41" ,"Megamos"
+LINE "0x42" ,"TRW"
+LINE "0x43" ,"Wabco"
+LINE "0x44" ,"ISAD Electronic Systems"
+LINE "0x45" ,"HEC (Hella Electronics Corporation)"
+LINE "0x46" ,"Gemel"
+LINE "0x47" ,"ZF"
+LINE "0x48" ,"GMPT"
+LINE "0x49" ,"Harman Kardon"
+LINE "0x50" ,"Remes"
+LINE "0x51" ,"ZF Lenksysteme"
+LINE "0x52" ,"Magneti Marelli"
+LINE "0x53" ,"Borg Instruments"
+LINE "0x54" ,"GETRAG"
+LINE "0x55" ,"BHTC (Behr Hella Thermocontrol)"
+LINE "0x56" ,"Siemens VDO Automotive"
+LINE "0x57" ,"Visteon"
+LINE "0x58" ,"Autoliv"
+LINE "0x59" ,"Haberl"
+LINE "0x60" ,"Magna Steyr"
+LINE "0x61" ,"Marquardt"
+LINE "0x62" ,"AB-Elektronik"
+LINE "0x63" ,"Siemens VDO Borg"
+LINE "0x64" ,"Hirschmann Electronics"
+LINE "0x65" ,"Hoerbiger Electronics"
+LINE "0x66" ,"Thyssen Krupp Automotive Mechatronics"
+LINE "0x67" ,"Gentex GmbH"
+LINE "0x68" ,"Atena GmbH"
+LINE "0x69" ,"Magna-Donelly"
+LINE "0x70" ,"Koyo Steering Europe"
+LINE "0x71" ,"NSI B.V"
+LINE "0x72" ,"AISIN AW CO.LTD"
+LINE "0x73" ,"Shorlock"
+LINE "0x74" ,"Schrader"
+LINE "0x75" ,"BERU Electronics GmbH"
+LINE "0x76" ,"CEL"
+LINE "0x77" ,"Audio Mobil"
+LINE "0x78" ,"rd electronic"
+LINE "0x79" ,"iSYS RTS GmbH"
+LINE "0x80" ,"Westfalia Automotive GmbH"
+LINE "0x81" ,"Tyco Electronics"
+LINE "0x82" ,"Paragon AG"
+LINE "0x83" ,"IEE S.A"
+LINE "0x84" ,"TEMIC AUTOMOTIVE of NA"
+LINE "0x85" ,"AKsys GmbH"
+LINE "0x86" ,"META System"
+LINE "0x87" ,"Hï¿½lsbeck & Fï¿½rst GmbH & Co KG"
+LINE "0x88" ,"Mann & Hummel Automotive GmbH"
+LINE "0x89" ,"Brose Fahrzeugteile GmbH & Co"
+LINE "0x90" ,"Keihin"
+LINE "0x91" ,"Vimercati S.p.A."
+LINE "0x92" ,"CRH"
+LINE "0x93" ,"TPO Display Corp."
+LINE "0x94" ,"Kï¿½STER Automotive Control"
+LINE "0x95" ,"Hitachi Automotive"
+LINE "0x96" ,"Continental Automotive"
+LINE "0x97" ,"TI-Automotive"
+LINE "0x98" ,"Hydro"
+LINE "0x99" ,"Johnson Controls"
+LINE "0x9A" ,"Takata- Petri"
+LINE "0x9B" ,"Mitsubishi Electric B.V. (Melco)"
+LINE "0x9C" ,"Autokabel"
+LINE "0x9D" ,"GKN-Drive"
+LINE "0x9E" ,"Zollner Elektronik AG"
+LINE "0x9F" ,"PEIKER acustics GmbH"
+LINE "0xA0" ,"Bosal-Oris"
+LINE "0xA1" ,"Cobasys"
+LINE "0xA2" ,"Lighting Reutlingen GmbH"
+LINE "0xA3" ,"CONTI VDO"
+LINE "0xA4" ,"ADC Automotive Distance Control Systems GmbH"
+LINE "0xA5" ,"Funkwerk Dabendorf GmbH"
+LINE "0xA6" ,"Lame"
+LINE "0xA7" ,"Magna/Closures"
+LINE "0xA8" ,"Wanyu"
+LINE "0xA9" ,"Thyssen Krupp Presta"
+LINE "0xAA" ,"ArvinMeritor"
+LINE "0xAB" ,"Kongsberg Automotive GmbH"
+LINE "0xAC" ,"SMR Automotive Mirrors"
+LINE "0xAD" ,"So.Ge.Mi."
+LINE "0xAE" ,"MTA"
+LINE "0xFF" ,"unbekannter Hersteller"
+TEND
+
+
+TBEG "FARTTEXTE"
+HEAD "ARTNR" ,"ARTTEXT"
+LINE "0x00" ,"kein passendes Fehlersymptom"
+LINE "0x01" ,"Signal oder Wert oberhalb Schwelle"
+LINE "0x02" ,"Signal oder Wert unterhalb Schwelle"
+LINE "0x04" ,"kein Signal oder Wert"
+LINE "0x08" ,"unplausibles Signal oder Wert"
+LINE "0x10" ,"Testbedingungen erfï¿½llt"
+LINE "0x11" ,"Testbedingungen noch nicht erfï¿½llt"
+LINE "0x20" ,"Fehler bisher nicht aufgetreten"
+LINE "0x21" ,"Fehler momentan nicht vorhanden, aber bereits gespeichert"
+LINE "0x22" ,"Fehler momentan vorhanden, aber noch nicht gespeichert (Entprellphase)"
+LINE "0x23" ,"Fehler momentan vorhanden und bereits gespeichert"
+LINE "0x30" ,"Fehler wï¿½rde kein Aufleuchten einer Warnlampe verursachen"
+LINE "0x31" ,"Fehler wï¿½rde das Aufleuchten einer Warnlampe verursachen"
+LINE "0xFF" ,"unbekannte Fehlerart"
+TEND
+
+
+TBEG "DIGITALARGUMENT"
+HEAD "TEXT" ,"WERT"
+LINE "ein" ,"1"
+LINE "aus" ,"0"
+LINE "ja" ,"1"
+LINE "nein" ,"0"
+LINE "auf" ,"1"
+LINE "ab" ,"0"
+LINE "an" ,"1"
+LINE "yes" ,"1"
+LINE "no" ,"0"
+LINE "on" ,"1"
+LINE "off" ,"0"
+LINE "up" ,"1"
+LINE "down" ,"0"
+LINE "true" ,"1"
+LINE "false" ,"0"
+LINE "1" ,"1"
+LINE "0" ,"0"
+TEND
+
+
+TBEG "AUTHENTISIERUNG"
+HEAD "AUTH_NR" ,"AUTH_TEXT"
+LINE "0x01" ,"Simple"
+LINE "0x02" ,"Symetrisch"
+LINE "0x03" ,"Asymetrisch"
+LINE "0xFF" ,"Keine"
+TEND
+
+
+TBEG "KONZEPT_TABELLE"
+HEAD "NR" ,"KONZEPT_TEXT"
+LINE "0x10" ,"D-CAN"
+LINE "0x0F" ,"BMW-FAST"
+LINE "0x0D" ,"KWP2000*"
+LINE "0x0C" ,"KWP2000"
+LINE "0x06" ,"DS2"
+TEND
+
+
+TBEG "I_STUFE_K1X"
+HEAD "NR" ,"I_STUFE_TEXT"
+LINE "0x00" ,""
+LINE "0x01" ,"K01X-08-08-500"
+LINE "0x02" ,"K01X-09-08-500"
+LINE "0xFE" ,""
+TEND
+
+#DLINE 0 "JOBS\DEFINES.B2V"
+#DLINE 0 "JOBS\GLOBALS.B2V"
+#DLINE 0 "JOBS\INFO.B2V"
+
+
+INFO#
+#DLINE 38 "JOBS\INFO.B2V"
+#DLINE 40 "JOBS\INFO.B2V"
+		clear		S1					; 
+		move		S1,"Keihin Motorsteuerng fÃ¼r K16"				; 
+		push		#1.L					; TRUE
+		ergs		"ECU",S1
+		pop 		L0					; cleanup stack
+#DLINE 41 "JOBS\INFO.B2V"
+		clear		S1					; 
+		move		S1,"BMW UX-EA-5 Joachim Post"				; 
+		push		#1.L					; TRUE
+		ergs		"ORIGIN",S1
+		pop 		L0					; cleanup stack
+#DLINE 42 "JOBS\INFO.B2V"
+		clear		S1					; 
+		move		S1,"1.021"				; 
+		push		#1.L					; TRUE
+		ergs		"REVISION",S1
+		pop 		L0					; cleanup stack
+#DLINE 43 "JOBS\INFO.B2V"
+		clear		S1					; 
+		move		S1,"BMW_Motorrad UX-EE-1 Stefan_Krimmer"				; 
+		push		#1.L					; TRUE
+		ergs		"AUTHOR",S1
+		pop 		L0					; cleanup stack
+#DLINE 44 "JOBS\INFO.B2V"
+		clear		S1					; 
+		move		S1,""				; 
+		push		#1.L					; TRUE
+		ergs		"COMMENT",S1
+		pop 		L0					; cleanup stack
+#DLINE 45 "JOBS\INFO.B2V"
+		clear		S1					; 
+		move		S1,"1.52"				; 
+		push		#1.L					; TRUE
+		ergs		"PACKAGE",S1
+		pop 		L0					; cleanup stack
+#DLINE 46 "JOBS\INFO.B2V"
+		clear		S1					; 
+		move		S1,"english"				; 
+		push		#1.L					; TRUE
+		ergs		"LANGUAGE",S1
+		pop 		L0					; cleanup stack
+#DLINE 47 "JOBS\INFO.B2V"
+		eoj							; 
+		eoj							; 
+#DLINE 0 "JOBS\INIT.B2V"
+
+
+INITIALISIERUNG#
+#DLINE 6 "JOBS\INIT.B2V"
+#DLINE 8 "JOBS\INIT.B2V"
+		clear		S1					; 
+		move		S1,{$82.B,$ff.B,$f1.B,$1a.B,$80.B}				; 
+		clear		S2			;ECU_request_1
+		move		S2,S1			;ECU_request_1
+#DVARB ECU_request_1 S2 0 0
+#DLINE 9 "JOBS\INIT.B2V"
+		clear		S1					; 
+		move		S1,{$b8.B,$ff.B,$f1.B,$2.B,$1a.B,$80.B}				; 
+		clear		S3			;ECU_request_2
+		move		S3,S1			;ECU_request_2
+#DVARB ECU_request_2 S3 0 0
+#DVARB receive_buffer S4 0 0
+#DVARB shared_memory S5 0 0
+#DVARB table_buffer S6 0 0
+#DVARB conzept_params S7 0 0
+#DVARB l0 S0 0 20
+#DVARB length S0 4 20
+#DVARB concept_number S0 8 1
+#DLINE 22 "JOBS\INIT.B2V"
+            xconnect
+            push        #1.L
+		pop 		L1					; 
+		push		L1					; 
+		pop 		L0					; cleanup stack
+#DLINE 23 "JOBS\INIT.B2V"
+            xstopf
+            push        #1.L
+		pop 		L1					; 
+		push		L1					; 
+		pop 		L0					; cleanup stack
+#DLINE 24 "JOBS\INIT.B2V"
+		move		L0,#$1				; 
+		push		L0					; 
+            xreps       #$1
+            push        #1.L
+		pop 		L1					; 
+		pop 		L0					; 
+		push		L1					; 
+		pop 		L0					; cleanup stack
+#DLINE 26 "JOBS\INIT.B2V"
+		clear		S1					; 
+		move		S1,S5			;shared_memory
+		push		#1.L					; TRUE
+            clear       S5
+            push        #1.L
+		pop 		L1					; 
+		pop 		L0					; 
+		push		L1					; 
+		pop 		L0					; cleanup stack
+#DLINE 27 "JOBS\INIT.B2V"
+		clear		S1					; 
+		move		S1,""				; 
+		push		#1.L					; TRUE
+		clear		S1					; 
+		move		S1,S5			;shared_memory
+		push		#1.L					; TRUE
+            shmget      S5,""         ;get shared data
+            jc          B2_5_1
+            push        #1.L            ;shared data found and copied
+            jump        B2_5_2
+B2_5_1:         push        #0.L            ;shared data not found
+B2_5_2:
+		pop 		L1					; 
+		pop 		L0					; 
+		pop 		L0					; 
+		push		L1					; 
+		pop 		L0					; cleanup stack
+#DLINE 29 "JOBS\INIT.B2V"
+		move		L0,#$0				; 
+		push		L0					; 
+		move		L0,#$1				; 
+		push		L0					; 
+		pop 		L1					; 
+		pop 		L0					; 
+		comp		L0,L1				; 
+		jz  		__B2_HD_00006					; if condition true then true
+		push		#0.L					; FALSE
+		jump		__B2_HD_00007					; 
+__B2_HD_00006:
+		push		#1.L					; TRUE
+__B2_HD_00007:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00008					; IF
+		nop 							; for debugging
+#DLINE 30 "JOBS\INIT.B2V"
+		move		L0,#$3ea				; 
+		push		L0					; 
+		move		L0,#$0				; 
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		move		S5[L1],B0			;shared_memory
+		pop 		L0					; cleanup stack
+#DLINE 31 "JOBS\INIT.B2V"
+		move		L0,#$3ef				; 
+		push		L0					; 
+		move		L0,#$0				; 
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		move		S5[L1],B0			;shared_memory
+		pop 		L0					; cleanup stack
+#DLINE 32 "JOBS\INIT.B2V"
+		jump		__B2_HD_00009					; ueber ELSE hinweg
+__B2_HD_00008:
+#DLINE 34 "JOBS\INIT.B2V"
+#DLINE 35 "JOBS\INIT.B2V"
+		move		L0,#$3ea				; 
+		push		L0					; 
+		move		L0,#$12				; 
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		move		S5[L1],B0			;shared_memory
+		pop 		L0					; cleanup stack
+#DLINE 36 "JOBS\INIT.B2V"
+		move		L0,#$3ef				; 
+		push		L0					; 
+		move		L0,#$0				; 
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		move		S5[L1],B0			;shared_memory
+		pop 		L0					; cleanup stack
+#DLINE 37 "JOBS\INIT.B2V"
+		move		L0,#$3eb				; 
+		push		L0					; 
+		move		L0,#$40				; 
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		move		S5[L1],B0			;shared_memory
+		pop 		L0					; cleanup stack
+#DLINE 38 "JOBS\INIT.B2V"
+		move		L0,#$3ec				; 
+		push		L0					; 
+		move		L0,#$2				; 
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		move		S5[L1],B0			;shared_memory
+		pop 		L0					; cleanup stack
+#DLINE 39 "JOBS\INIT.B2V"
+		move		L0,#$3ed				; 
+		push		L0					; 
+		move		L0,#$1				; 
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		move		S5[L1],B0			;shared_memory
+		pop 		L0					; cleanup stack
+#DLINE 41 "JOBS\INIT.B2V"
+		clear		S1					; 
+		move		S1,"Authentisierung"				; 
+		push		#1.L					; TRUE
+            tabset      "Authentisierung"
+            push        #1.L
+		pop 		L1					; 
+		pop 		L0					; 
+		push		L1					; 
+		pop 		L0					; cleanup stack
+#DLINE 42 "JOBS\INIT.B2V"
+		clear		S1					; 
+		move		S1,"AUTH_TEXT"				; 
+		push		#1.L					; TRUE
+		clear		S1					; 
+		move		S1,"keine"				; 
+		push		#1.L					; TRUE
+            move        s1,"keine"
+            tabseek     "AUTH_TEXT",s1
+            jz          B2_11_1
+            push        #1.L
+            jump        B2_11_2
+B2_11_1:         push        #0.L
+B2_11_2:
+		pop 		L1					; 
+		pop 		L0					; 
+		pop 		L0					; 
+		push		L1					; 
+		push		#0.L					; FALSE
+		pop 		L1					; 
+		pop 		L0					; 
+		comp		L0,L1				; 
+		jz  		__B2_HD_00012					; if condition true then true
+		push		#0.L					; FALSE
+		jump		__B2_HD_00013					; 
+__B2_HD_00012:
+		push		#1.L					; TRUE
+__B2_HD_00013:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00014					; IF
+		nop 							; for debugging
+#DLINE 43 "JOBS\INIT.B2V"
+		move		L0,#$0				; 
+		push		L0					; 
+		atsp		L0,#4				; 
+		ergi		"DONE",I0
+		pop 		L0					; cleanup stack
+#DLINE 44 "JOBS\INIT.B2V"
+		eoj 							; 
+#DLINE 45 "JOBS\INIT.B2V"
+__B2_HD_00014:
+#DLINE 47 "JOBS\INIT.B2V"
+		clear		S1					; 
+		move		S1,S6			;table_buffer
+		push		#1.L					; TRUE
+		clear		S1					; 
+		move		S1,"AUTH_NR"				; 
+		push		#1.L					; TRUE
+            tabget      S6,"AUTH_NR"
+            push        #1.L
+		pop 		L1					; 
+		pop 		L0					; 
+		pop 		L0					; 
+		push		L1					; 
+		pop 		L0					; cleanup stack
+#DLINE 48 "JOBS\INIT.B2V"
+		move		L0,#$3ee				; 
+		push		L0					; 
+		clear		S1					; 
+		move		S1,S6			;table_buffer
+		push		#1.L					; TRUE
+            a2fix       L0,S6
+            push        L0
+		pop 		L1					; 
+		pop 		L0					; 
+		push		L1					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		move		S5[L1],B0			;shared_memory
+		pop 		L0					; cleanup stack
+#DLINE 49 "JOBS\INIT.B2V"
+__B2_HD_00009:
+#DLINE 51 "JOBS\INIT.B2V"
+		clear		S1					; 
+		move		S1,"SG_DiagnoseKonzept"				; 
+		push		#1.L					; TRUE
+            tabset      "SG_DiagnoseKonzept"
+            push        #1.L
+		pop 		L1					; 
+		pop 		L0					; 
+		push		L1					; 
+		pop 		L0					; cleanup stack
+#DLINE 52 "JOBS\INIT.B2V"
+		clear		S1					; 
+		move		S1,"Rang"				; 
+		push		#1.L					; TRUE
+		move		L0,#$1				; 
+		push		L0					; 
+            tabseeku    "Rang",#$1
+            jz          B2_18_1
+            push        #1.L
+            jump        B2_18_2
+B2_18_1:         push        #0.L
+B2_18_2:
+		pop 		L1					; 
+		pop 		L0					; 
+		pop 		L0					; 
+		push		L1					; 
+		pop 		L0					; get expression
+		jz  		__B2_HD_00019					; IF
+		nop 							; for debugging
+#DLINE 53 "JOBS\INIT.B2V"
+		clear		S1					; 
+		move		S1,S6			;table_buffer
+		push		#1.L					; TRUE
+		clear		S1					; 
+		move		S1,"KONZEPT_TEXT"				; 
+		push		#1.L					; TRUE
+            tabget      S6,"KONZEPT_TEXT"
+            push        #1.L
+		pop 		L1					; 
+		pop 		L0					; 
+		pop 		L0					; 
+		push		L1					; 
+		pop 		L0					; cleanup stack
+#DLINE 55 "JOBS\INIT.B2V"
+		clear		S1					; 
+		move		S1,"Rang"				; 
+		push		#1.L					; TRUE
+		move		L0,#$2				; 
+		push		L0					; 
+            tabseeku    "Rang",#$2
+            jz          B2_21_1
+            push        #1.L
+            jump        B2_21_2
+B2_21_1:         push        #0.L
+B2_21_2:
+		pop 		L1					; 
+		pop 		L0					; 
+		pop 		L0					; 
+		push		L1					; 
+		push		#0.L					; FALSE
+		pop 		L1					; 
+		pop 		L0					; 
+		comp		L0,L1				; 
+		jz  		__B2_HD_00022					; if condition true then true
+		push		#0.L					; FALSE
+		jump		__B2_HD_00023					; 
+__B2_HD_00022:
+		push		#1.L					; TRUE
+__B2_HD_00023:
+        clear   L0
+        cfgig   I0,"SIMULATION"
+        push    L0
+		pop 		L1					; 
+		push		L1					; 
+		pop 		L1					; 
+		pop 		L0					; 
+		or  		L0,L1				; 
+		push		L0					; 
+		push		#0.L					; FALSE
+		pop 		L1					; 
+		pop 		L0					; 
+		comp		L0,L1				; 
+		jnz 		__B2_HD_00025					; if condition true then true
+		push		#0.L					; FALSE
+		jump		__B2_HD_00026					; 
+__B2_HD_00025:
+		push		#1.L					; TRUE
+__B2_HD_00026:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00027					; IF
+		nop 							; for debugging
+#DLINE 61 "JOBS\INIT.B2V"
+		clear		S1					; 
+		move		S1,"KONZEPT_TABELLE"				; 
+		push		#1.L					; TRUE
+            tabset      "KONZEPT_TABELLE"
+            push        #1.L
+		pop 		L1					; 
+		pop 		L0					; 
+		push		L1					; 
+		pop 		L0					; cleanup stack
+#DLINE 63 "JOBS\INIT.B2V"
+		clear		S1					; 
+		move		S1,"KONZEPT_TEXT"				; 
+		push		#1.L					; TRUE
+		clear		S1					; 
+		move		S1,S6			;table_buffer
+		push		#1.L					; TRUE
+            move        s1,S6
+            tabseek     "KONZEPT_TEXT",s1
+            jz          B2_29_1
+            push        #1.L
+            jump        B2_29_2
+B2_29_1:         push        #0.L
+B2_29_2:
+		pop 		L1					; 
+		pop 		L0					; 
+		pop 		L0					; 
+		push		L1					; 
+		pop 		L0					; get expression
+		jz  		__B2_HD_00030					; IF
+		nop 							; for debugging
+#DLINE 64 "JOBS\INIT.B2V"
+		clear		S1					; 
+		move		S1,S6			;table_buffer
+		push		#1.L					; TRUE
+		clear		S1					; 
+		move		S1,"NR"				; 
+		push		#1.L					; TRUE
+            tabget      S6,"NR"
+            push        #1.L
+		pop 		L1					; 
+		pop 		L0					; 
+		pop 		L0					; 
+		push		L1					; 
+		pop 		L0					; cleanup stack
+#DLINE 65 "JOBS\INIT.B2V"
+		clear		S1					; 
+		move		S1,S6			;table_buffer
+		push		#1.L					; TRUE
+            a2fix       L0,S6
+            push        L0
+		pop 		L1					; 
+		pop 		L0					; 
+		push		L1					; 
+		atsp		L0,#4				; 
+		move		S0[#8],B0			;concept_number
+		pop 		L0					; cleanup stack
+#DLINE 67 "JOBS\INIT.B2V"
+		clear		L0					; 
+		move		B0,S0[#8]			;concept_number
+		push		L0					; 
+		jump		__B2_HD_00034					; to selection
+#DLINE 68 "JOBS\INIT.B2V"
+__B2_HD_00035:
+#DLINE 69 "JOBS\INIT.B2V"
+		jump		__B2_HD_00033					; BREAK
+#DLINE 70 "JOBS\INIT.B2V"
+__B2_HD_00036:
+#DLINE 71 "JOBS\INIT.B2V"
+		jump		__B2_HD_00033					; BREAK
+#DLINE 72 "JOBS\INIT.B2V"
+__B2_HD_00037:
+#DLINE 73 "JOBS\INIT.B2V"
+		clear		S1					; 
+		move		S1,{$10c.L,$28a0.L,$c8.L,$3c.L,$14.L,$2.L,$2.L,$1388.L,$fa0.L,$6.L,$82.L,$0.L,$f1.L,$3e.L,$1.L,$b2.L,$0.L,$0.L,$0.L,$0.L,$0.L,$5.L,$81.L,$0.L,$f1.L,$81.L,$f3.L,$0.L,$0.L,$0.L,$0.L,$0.L,$0.L,$1.L}				; CONZEPT_PARAMS
+		push		#1.L					; TRUE
+		clear		S7			;conzept_params
+		move		S7,S1			;conzept_params
+		pop 		L0					; cleanup stack
+#DLINE 75 "JOBS\INIT.B2V"
+		move		L0,#$9				; 
+		push		L0					; 
+		atsp		L1,#4				; 
+		clear		S1				;clear indexed register
+		move		S1,S7			;conzept_params
+		lsl		L1,#2				; CORRECT INDEX
+		move		L0,S1[L1]
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		atsp		L0,#4				; 
+		move		S0[#4],B0			;length
+		move		S0[#5],B1			;length
+		move		S0[#6],B2			;length
+		move		S0[#7],B3			;length
+		pop 		L0					; cleanup stack
+#DLINE 76 "JOBS\INIT.B2V"
+		move		L0,S0[#4]			;length
+		push		L0					; 
+		move		L0,#$0				; 
+		push		L0					; 
+		pop 		L1					; 
+		pop 		L0					; 
+		comp		L0,L1				; 
+		jnz 		__B2_HD_00038					; if condition true then true
+		push		#0.L					; FALSE
+		jump		__B2_HD_00039					; 
+__B2_HD_00038:
+		push		#1.L					; TRUE
+__B2_HD_00039:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00040					; IF
+		nop 							; for debugging
+#DLINE 77 "JOBS\INIT.B2V"
+		move		L0,#$b				; 
+		push		L0					; 
+#DLINE 78 "JOBS\INIT.B2V"
+		move		L0,#$3ea				; 
+		push		L0					; 
+		atsp		L1,#4				; 
+		clear		S1				;clear indexed register
+		move		S1,S5			;shared_memory
+		clear		L0					; 
+		move		B0,S1[L1]
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		lsl		L1,#2				; CORRECT INDEX
+		move		S7[L1,#0],B0			;conzept_params
+		move		S7[L1,#1],B1			;conzept_params
+		move		S7[L1,#2],B2			;conzept_params
+		move		S7[L1,#3],B3			;conzept_params
+		pop 		L0					; cleanup stack
+#DLINE 80 "JOBS\INIT.B2V"
+		move		L0,S0[#4]			;length
+		push		L0					; 
+		move		L0,#$9				; 
+		push		L0					; 
+		pop 		L1					; 
+		pop 		L0					; 
+		adds		L0,L1				; 
+		push		L0					; 
+#DLINE 81 "JOBS\INIT.B2V"
+		move		L0,S0[#4]			;length
+		push		L0					; 
+		move		L0,#$9				; 
+		push		L0					; 
+		pop 		L1					; 
+		pop 		L0					; 
+		adds		L0,L1				; 
+		push		L0					; 
+		atsp		L1,#4				; 
+		clear		S1				;clear indexed register
+		move		S1,S7			;conzept_params
+		lsl		L1,#2				; CORRECT INDEX
+		move		L0,S1[L1]
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+#DLINE 82 "JOBS\INIT.B2V"
+		move		L0,#$3ea				; 
+		push		L0					; 
+		atsp		L1,#4				; 
+		clear		S1				;clear indexed register
+		move		S1,S5			;shared_memory
+		clear		L0					; 
+		move		B0,S1[L1]
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		pop 		L1					; 
+		pop 		L0					; 
+		adds		L0,L1				; 
+		push		L0					; 
+#DLINE 83 "JOBS\INIT.B2V"
+		move		L0,#$ff				; 
+		push		L0					; 
+		pop 		L1					; 
+		pop 		L0					; 
+		and 		L0,L1				; 
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		lsl		L1,#2				; CORRECT INDEX
+		move		S7[L1,#0],B0			;conzept_params
+		move		S7[L1,#1],B1			;conzept_params
+		move		S7[L1,#2],B2			;conzept_params
+		move		S7[L1,#3],B3			;conzept_params
+		pop 		L0					; cleanup stack
+#DLINE 84 "JOBS\INIT.B2V"
+__B2_HD_00040:
+#DLINE 86 "JOBS\INIT.B2V"
+		move		L0,#$15				; 
+		push		L0					; 
+		atsp		L1,#4				; 
+		clear		S1				;clear indexed register
+		move		S1,S7			;conzept_params
+		lsl		L1,#2				; CORRECT INDEX
+		move		L0,S1[L1]
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		atsp		L0,#4				; 
+		move		S0[#4],B0			;length
+		move		S0[#5],B1			;length
+		move		S0[#6],B2			;length
+		move		S0[#7],B3			;length
+		pop 		L0					; cleanup stack
+#DLINE 87 "JOBS\INIT.B2V"
+		move		L0,S0[#4]			;length
+		push		L0					; 
+		move		L0,#$0				; 
+		push		L0					; 
+		pop 		L1					; 
+		pop 		L0					; 
+		comp		L0,L1				; 
+		jnz 		__B2_HD_00041					; if condition true then true
+		push		#0.L					; FALSE
+		jump		__B2_HD_00042					; 
+__B2_HD_00041:
+		push		#1.L					; TRUE
+__B2_HD_00042:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00043					; IF
+		nop 							; for debugging
+#DLINE 88 "JOBS\INIT.B2V"
+		move		L0,#$17				; 
+		push		L0					; 
+#DLINE 89 "JOBS\INIT.B2V"
+		move		L0,#$3ea				; 
+		push		L0					; 
+		atsp		L1,#4				; 
+		clear		S1				;clear indexed register
+		move		S1,S5			;shared_memory
+		clear		L0					; 
+		move		B0,S1[L1]
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		lsl		L1,#2				; CORRECT INDEX
+		move		S7[L1,#0],B0			;conzept_params
+		move		S7[L1,#1],B1			;conzept_params
+		move		S7[L1,#2],B2			;conzept_params
+		move		S7[L1,#3],B3			;conzept_params
+		pop 		L0					; cleanup stack
+#DLINE 91 "JOBS\INIT.B2V"
+		move		L0,S0[#4]			;length
+		push		L0					; 
+		move		L0,#$15				; 
+		push		L0					; 
+		pop 		L1					; 
+		pop 		L0					; 
+		adds		L0,L1				; 
+		push		L0					; 
+#DLINE 92 "JOBS\INIT.B2V"
+		move		L0,S0[#4]			;length
+		push		L0					; 
+		move		L0,#$15				; 
+		push		L0					; 
+		pop 		L1					; 
+		pop 		L0					; 
+		adds		L0,L1				; 
+		push		L0					; 
+		atsp		L1,#4				; 
+		clear		S1				;clear indexed register
+		move		S1,S7			;conzept_params
+		lsl		L1,#2				; CORRECT INDEX
+		move		L0,S1[L1]
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+#DLINE 93 "JOBS\INIT.B2V"
+		move		L0,#$3ea				; 
+		push		L0					; 
+		atsp		L1,#4				; 
+		clear		S1				;clear indexed register
+		move		S1,S5			;shared_memory
+		clear		L0					; 
+		move		B0,S1[L1]
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		pop 		L1					; 
+		pop 		L0					; 
+		adds		L0,L1				; 
+		push		L0					; 
+#DLINE 94 "JOBS\INIT.B2V"
+		move		L0,#$ff				; 
+		push		L0					; 
+		pop 		L1					; 
+		pop 		L0					; 
+		and 		L0,L1				; 
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		lsl		L1,#2				; CORRECT INDEX
+		move		S7[L1,#0],B0			;conzept_params
+		move		S7[L1,#1],B1			;conzept_params
+		move		S7[L1,#2],B2			;conzept_params
+		move		S7[L1,#3],B3			;conzept_params
+		pop 		L0					; cleanup stack
+#DLINE 95 "JOBS\INIT.B2V"
+__B2_HD_00043:
+#DLINE 96 "JOBS\INIT.B2V"
+		clear		S1					; 
+		move		S1,S7			;conzept_params
+		push		#1.L					; TRUE
+            xsetpar     S7
+            push        #1.L
+		pop 		L1					; 
+		pop 		L0					; 
+		push		L1					; 
+		pop 		L0					; cleanup stack
+#DLINE 97 "JOBS\INIT.B2V"
+		clear		S1					; 
+		move		S1,{$0.I,$0.I}				; LENGTH_PARAMS
+		push		#1.L					; TRUE
+            xawlen      {$0.I,$0.I}
+            push        #1.L
+		pop 		L1					; 
+		pop 		L0					; 
+		push		L1					; 
+		pop 		L0					; cleanup stack
+#DLINE 98 "JOBS\INIT.B2V"
+		jump		__B2_HD_00033					; BREAK
+#DLINE 99 "JOBS\INIT.B2V"
+__B2_HD_00046:
+#DLINE 100 "JOBS\INIT.B2V"
+		jump		__B2_HD_00033					; BREAK
+#DLINE 101 "JOBS\INIT.B2V"
+__B2_HD_00047:
+#DLINE 102 "JOBS\INIT.B2V"
+		jump		__B2_HD_00033					; BREAK
+#DLINE 103 "JOBS\INIT.B2V"
+__B2_HD_00048:
+#DLINE 104 "JOBS\INIT.B2V"
+		move		L0,#$0				; 
+		push		L0					; 
+		atsp		L0,#4				; 
+		ergi		"DONE",I0
+		pop 		L0					; cleanup stack
+#DLINE 105 "JOBS\INIT.B2V"
+		eoj 							; 
+#DLINE 106 "JOBS\INIT.B2V"
+		jump		__B2_HD_00033					; end of switch
+__B2_HD_00034:
+		pop 		L0					; get expression
+		comp		L0,#$10				; 
+		jz  		__B2_HD_00047					; to case
+		comp		L0,#$f				; 
+		jz  		__B2_HD_00046					; to case
+		comp		L0,#$c				; 
+		jz  		__B2_HD_00037					; to case
+		comp		L0,#$d				; 
+		jz  		__B2_HD_00036					; to case
+		comp		L0,#$6				; 
+		jz  		__B2_HD_00035					; to case
+		jump		__B2_HD_00048					; to default
+__B2_HD_00033:
+#DLINE 108 "JOBS\INIT.B2V"
+		move		L0,#$3e9				; 
+		push		L0					; 
+		clear		L0					; 
+		move		B0,S0[#8]			;concept_number
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		move		S5[L1],B0			;shared_memory
+		pop 		L0					; cleanup stack
+#DLINE 109 "JOBS\INIT.B2V"
+		clear		S1					; 
+		move		S1,""				; 
+		push		#1.L					; TRUE
+		clear		S1					; 
+		move		S1,S5			;shared_memory
+		push		#1.L					; TRUE
+            shmset      "",S5         ;set shared data
+            push        #1.L
+		pop 		L1					; 
+		pop 		L0					; 
+		pop 		L0					; 
+		push		L1					; 
+		pop 		L0					; cleanup stack
+#DLINE 111 "JOBS\INIT.B2V"
+		move		L0,#$1				; 
+		push		L0					; 
+		atsp		L0,#4				; 
+		ergi		"DONE",I0
+		pop 		L0					; cleanup stack
+#DLINE 112 "JOBS\INIT.B2V"
+		eoj 							; 
+#DLINE 114 "JOBS\INIT.B2V"
+		jump		__B2_HD_00050					; ueber ELSE hinweg
+__B2_HD_00030:
+#DLINE 115 "JOBS\INIT.B2V"
+#DLINE 116 "JOBS\INIT.B2V"
+		move		L0,#$0				; 
+		push		L0					; 
+		atsp		L0,#4				; 
+		ergi		"DONE",I0
+		pop 		L0					; cleanup stack
+#DLINE 117 "JOBS\INIT.B2V"
+		eoj 							; 
+#DLINE 118 "JOBS\INIT.B2V"
+__B2_HD_00050:
+#DLINE 119 "JOBS\INIT.B2V"
+		jump		__B2_HD_00051					; ueber ELSE hinweg
+__B2_HD_00027:
+#DLINE 120 "JOBS\INIT.B2V"
+#DLINE 122 "JOBS\INIT.B2V"
+__B2_HD_00051:
+#DLINE 123 "JOBS\INIT.B2V"
+		jump		__B2_HD_00052					; ueber ELSE hinweg
+__B2_HD_00019:
+#DLINE 124 "JOBS\INIT.B2V"
+#DLINE 125 "JOBS\INIT.B2V"
+		move		L0,#$0				; 
+		push		L0					; 
+		atsp		L0,#4				; 
+		ergi		"DONE",I0
+		pop 		L0					; cleanup stack
+#DLINE 126 "JOBS\INIT.B2V"
+		eoj 							; 
+#DLINE 127 "JOBS\INIT.B2V"
+__B2_HD_00052:
+#DLINE 128 "JOBS\INIT.B2V"
+#DVARE concept_number
+#DVARE length
+#DVARE l0
+#DVARE conzept_params
+#DVARE table_buffer
+#DVARE shared_memory
+#DVARE receive_buffer
+#DVARE ECU_request_2
+#DVARE ECU_request_1
+		eoj							; 
+		eoj							; 
+#DLINE 0 "JOBS\IDENT.B2V"
+
+
+IDENT#
+		move		L0,#$3				; 
+		ergi		"ID_EWS_IF",I0
+#DLINE 130 "JOBS\IDENT.B2V"
+#DLINE 132 "JOBS\IDENT.B2V"
+		clear		S1					; 
+		move		S1,{$82.B,$ff.B,$f1.B,$1a.B,$80.B}				; 
+		clear		S2			;ECU_request
+		move		S2,S1			;ECU_request
+#DVARB ECU_request S2 0 0
+#DVARB ECU_reply S3 0 0
+#DVARB ECU_data S4 0 0
+#DVARB shared_memory S5 0 0
+#DLINE 137 "JOBS\IDENT.B2V"
+		move		L0,#$2				; 
+		push		L0					; 
+		atsp		L0,#4				; 
+		move		S0[#0],B0			;busy_count
+		move		S0[#1],B1			;busy_count
+		pop 		L0					; 
+#DVARB busy_count S0 0 18
+#DLINE 140 "JOBS\IDENT.B2V"
+		clear		S1					; 
+		move		S1,S5			;shared_memory
+		push		#1.L					; TRUE
+            clear       S5
+            push        #1.L
+		pop 		L1					; 
+		pop 		L0					; 
+		push		L1					; 
+		pop 		L0					; cleanup stack
+#DLINE 141 "JOBS\IDENT.B2V"
+		clear		S1					; 
+		move		S1,""				; 
+		push		#1.L					; TRUE
+		clear		S1					; 
+		move		S1,S5			;shared_memory
+		push		#1.L					; TRUE
+            shmget      S5,""         ;get shared data
+            jc          B2_54_1
+            push        #1.L            ;shared data found and copied
+            jump        B2_54_2
+B2_54_1:         push        #0.L            ;shared data not found
+B2_54_2:
+		pop 		L1					; 
+		pop 		L0					; 
+		pop 		L0					; 
+		push		L1					; 
+		pop 		L0					; cleanup stack
+#DLINE 143 "JOBS\IDENT.B2V"
+		move		L0,#$1				; 
+		push		L0					; 
+		move		L0,#$3ea				; 
+		push		L0					; 
+		atsp		L1,#4				; 
+		clear		S1				;clear indexed register
+		move		S1,S5			;shared_memory
+		clear		L0					; 
+		move		B0,S1[L1]
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		move		S2[L1],B0			;ECU_request
+		pop 		L0					; cleanup stack
+#DLINE 145 "JOBS\IDENT.B2V"
+		etag		__B2_HD_00055,"ID_CU_ADDR"		; REQUESTED
+		push		#1.L					; TRUE
+		jump		__B2_HD_00056					; 
+__B2_HD_00055:
+		push		#0.L					; FALSE
+__B2_HD_00056:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00057					; IF
+		nop 							; for debugging
+#DLINE 146 "JOBS\IDENT.B2V"
+		move		L0,#$3ea				; 
+		push		L0					; 
+		atsp		L1,#4				; 
+		clear		S1				;clear indexed register
+		move		S1,S5			;shared_memory
+		clear		L0					; 
+		move		B0,S1[L1]
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		atsp		L0,#4				; 
+		ergl		"ID_CU_ADDR",L0
+		pop 		L0					; cleanup stack
+#DLINE 147 "JOBS\IDENT.B2V"
+__B2_HD_00057:
+#DLINE 149 "JOBS\IDENT.B2V"
+		move		L0,#$0				; 
+		push		L0					; 
+		move		L0,#$1				; 
+		push		L0					; 
+		pop 		L1					; 
+		pop 		L0					; 
+		comp		L0,L1				; 
+		jz  		__B2_HD_00058					; if condition true then true
+		push		#0.L					; FALSE
+		jump		__B2_HD_00059					; 
+__B2_HD_00058:
+		push		#1.L					; TRUE
+__B2_HD_00059:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00060					; IF
+		nop 							; for debugging
+#DLINE 150 "JOBS\IDENT.B2V"
+		etag		__B2_HD_00061,"ID_LIN_SLAVE_ADDR"		; REQUESTED
+		push		#1.L					; TRUE
+		jump		__B2_HD_00062					; 
+__B2_HD_00061:
+		push		#0.L					; FALSE
+__B2_HD_00062:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00063					; IF
+		nop 							; for debugging
+#DLINE 151 "JOBS\IDENT.B2V"
+		move		L0,#$3ef				; 
+		push		L0					; 
+		atsp		L1,#4				; 
+		clear		S1				;clear indexed register
+		move		S1,S5			;shared_memory
+		clear		L0					; 
+		move		B0,S1[L1]
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		atsp		L0,#4				; 
+		ergl		"ID_LIN_SLAVE_ADDR",L0
+		pop 		L0					; cleanup stack
+#DLINE 152 "JOBS\IDENT.B2V"
+__B2_HD_00063:
+#DLINE 154 "JOBS\IDENT.B2V"
+		move		L0,#$3ef				; 
+		push		L0					; 
+		atsp		L1,#4				; 
+		clear		S1				;clear indexed register
+		move		S1,S5			;shared_memory
+		clear		L0					; 
+		move		B0,S1[L1]
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		clear		S1					; 
+		move		S1,S2			;ECU_request
+		push		#1.L					; TRUE
+		atsp		L2,#8					;FROM STACK INDEXED
+            slen        I0,S2           ; temp = datalen(Auftrag)
+            comp        I0,#0            ; temp == 0 ?
+            jz          B2_64_0nio             ; ja -> Fehler
+
+            move        B0,S2[#0]       ; temp = Auftrag[0]
+            and         B0,#$3F          ; temp = temp & 0x3F
+            comp        B0,#0            ; temp == 0 ?
+            jz          B2_64_0nio             ; ja -> Fehler
+            comp        B0,#60           ; temp > 60 ?
+            jg          B2_64_0nio             ; ja -> Fehler
+
+            clear       S1               ; Puffer loeschen
+            move        S1[#0],#$A6      ; Puffer[0] = 0xA6
+            move        S1[#1],L2       ; Puffer[1] = SLAVE_ADRESSE 
+            move        S1[#2],B0        ; Puffer[2] = temp 
+            spaste      S2[#3],s1       ; datainsert(Auftrag,Puffer,3);
+            adds        S2[#0],#3       ; Auftrag[0] = Auftrag[0] + 3
+
+B2_64_0io:        push        #1.L             ; TRUE
+            jump        B2_64_0end
+
+B2_64_0nio:       push        #0.L             ; FALSE
+            ergs        "JOB_STATUS","ERROR_TELEGRAM_LEN_OUT_OFF_RANGE"
+;           jump        %end
+
+B2_64_0end:
+		pop 		L1					; 
+		pop 		L0					; 
+		pop 		L0					; 
+		push		L1					; 
+		push		#0.L					; FALSE
+		pop 		L1					; 
+		pop 		L0					; 
+		comp		L0,L1				; 
+		jz  		__B2_HD_00065					; if condition true then true
+		push		#0.L					; FALSE
+		jump		__B2_HD_00066					; 
+__B2_HD_00065:
+		push		#1.L					; TRUE
+__B2_HD_00066:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00067					; IF
+		nop 							; for debugging
+#DLINE 155 "JOBS\IDENT.B2V"
+		eoj 							; 
+#DLINE 156 "JOBS\IDENT.B2V"
+__B2_HD_00067:
+#DLINE 157 "JOBS\IDENT.B2V"
+__B2_HD_00060:
+#DLINE 159 "JOBS\IDENT.B2V"
+		move		L0,#$3e9				; 
+		push		L0					; 
+		atsp		L1,#4				; 
+		clear		S1				;clear indexed register
+		move		S1,S5			;shared_memory
+		clear		L0					; 
+		move		B0,S1[L1]
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		jump		__B2_HD_00069					; to selection
+#DLINE 160 "JOBS\IDENT.B2V"
+__B2_HD_00070:
+#DLINE 161 "JOBS\IDENT.B2V"
+		jump		__B2_HD_00068					; BREAK
+#DLINE 162 "JOBS\IDENT.B2V"
+__B2_HD_00071:
+#DLINE 163 "JOBS\IDENT.B2V"
+		jump		__B2_HD_00068					; BREAK
+#DLINE 164 "JOBS\IDENT.B2V"
+__B2_HD_00072:
+#DLINE 165 "JOBS\IDENT.B2V"
+		etag		__B2_HD_00073,"_TEL_REQUEST"		; REQUESTED
+		push		#1.L					; TRUE
+		jump		__B2_HD_00074					; 
+__B2_HD_00073:
+		push		#0.L					; FALSE
+__B2_HD_00074:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00075					; IF
+		nop 							; for debugging
+#DLINE 166 "JOBS\IDENT.B2V"
+		clear		S1					; 
+		move		S1,S2			;ECU_request
+		push		#1.L					; TRUE
+		ergy		"_TEL_REQUEST",S1
+		pop 		L0					; cleanup stack
+#DLINE 167 "JOBS\IDENT.B2V"
+__B2_HD_00075:
+#DLINE 169 "JOBS\IDENT.B2V"
+		clear		S1					; 
+		move		S1,S3			;ECU_reply
+		push		#1.L					; TRUE
+		clear		S1					; 
+		move		S1,S2			;ECU_request
+		push		#1.L					; TRUE
+		clear		S1					; 
+		move		S1,S4			;ECU_data
+		push		#1.L					; TRUE
+		clear		S1					; 
+		move		S1,"_TEL_ANSWER"				; 
+		push		#1.L					; TRUE
+		move		L0,#$2				; 
+		push		L0					; 
+            gettmr      L6               ; trapmask=get_trap_mask()
+            move        BD,#0            ; BusyCount = 0 ( high )
+            move        BC,#$2           ; BusyCount = Wiederholzaehler
+            adds        I6,#1            ; BusyCount = BusyCount + 1
+B2_76_1a:        clear       S3              ; antwort loeschen
+            clear       S4              ; daten loeschen
+            xsend       S3,S2          ; senden
+            slen        I3,S2           ; datalen_auftrag = datalen(auftrag)
+            slen        I4,S3           ; datalen_antwort = datalen(antwort)
+            comp        I4,#0            ; datalen_antwort == 0 ?
+            jz          B2_76_0endnio          ; ja -> Fehler
+
+            move        S1,"_TEL_ANSWER"
+            scmp        S1,""            ; RESULT <4> == "" ?
+            jz          B2_76_1               ; ja -> goto %1
+            etag        B2_76_1,"_TEL_ANSWER"           ; wenn RESULT <4> angefordert
+            ergy        "_TEL_ANSWER",S3          ; antwort nach RESULT <4>
+
+B2_76_1:         move        B2,#3            ; offset = 3
+            move        B0,S3[#0]       ; temp = antwort[0]
+            and         B0,#$C0          ; temp = temp & 0xC0
+            comp        B0,#0            ; temp == 0 ?
+            jnz         B2_76_2               ; nein -> goto %2
+            move        B2,#1            ; offset = 1
+
+B2_76_2:         move        I2,S3[#0]       ; len = antwort[0]
+            and         I2,#$3F          ; len = len & 0x3F
+            comp        I2,#0            ; len == 0 ?
+            jnz         B2_76_3               ; nein -> goto %3
+            move        I2,S3[B2]       ; len = antwort[offset]
+            and         I2,#$FF          ; len = len & 0xFF
+            adds        B2,#1            ; offset = offset + 1
+
+B2_76_3:         move        I5,#1            ; len_check = 1 ( Checksumme )
+            adds        BA,B2            ; len_check = len_check + offset
+            adds        I5,I2            ; len_check = len_check + len
+            comp        I5,I4            ; len_check == datalen_antwort ?
+            jz          B2_76_4               ; ja -> goto %4
+            ergs        "JOB_STATUS","ERROR_ECU_INCORRECT_LEN"
+            jump        B2_76_0endnio          ; Fehler !
+
+B2_76_4:         move        S4,S3[B2]I2    ; daten=antwort[offset] len
+            settmr      #$400.L          ; set_trap_mask(0x400)
+            tabset      "JobResult"      ; tabset("JobResult")
+            jt          B2_76_0nio_table,#10   ; Tabelle nicht gefunden ?
+            comp        S3[B2],#$7F     ; antwort[offset] == 0x7F ?
+            jnz         B2_76_5               ; nein -> goto %5
+
+            move        B0,B2            ; temp = offset ( antwort )
+            adds        B0,#2            ; temp = temp + 2
+
+            comp        I3,#0            ; datalen_auftrag == 0 ?
+            jz          B2_76_4a              ; ja -> goto %4a
+
+            move        BE,S2[#0]       ; temp2 = auftrag[0]
+            and         BE,#$C0          ; temp2 = temp2 & 0xC0
+            comp        BE,#$C0          ; temp2 == 0xC0 ?
+            jz          B2_76_4a              ; ja -> goto %4a
+
+            comp        S3[B0],#$21     ; NegResponseCode == BusyRepeatRequest ?
+            jz          B2_76_4c              ; ja -> goto %4c
+            comp        S3[B0],#$23     ; NegResponseCode == RoutineNotComplete ?
+            jz          B2_76_4c              ; ja -> goto %4c
+            jump        B2_76_4a              ; goto %4a
+
+B2_76_4c:        comp        I6,#1            ; BusyCount == 1 ?
+            jz          B2_76_4b              ; ja -> goto %4b
+            wait        #1               ; wait (1)
+
+B2_76_4b:        subb        I6,#1            ; BusyCount --
+            jnz         B2_76_1a              ; BusyCount > 0 -> goto %1a
+
+B2_76_4a:        fix2hex     S1,S3[B0]       ;
+            tabseek     "SB",S1          ; tab_suche_index("SB",antwort[offset+2])
+            tabget      S1,"STATUS_TEXT" ;
+            ergs        "JOB_STATUS",S1  ;
+            jump        B2_76_0endnio          ; Fehler !
+
+B2_76_5:         comp        I3,#0            ; datalen_auftrag == 0 ?
+            jz          B2_76_8               ; ja -> goto %8
+
+            move        B3,#3            ; PosSID = 3
+            move        B0,S2[#0]       ; temp = auftrag[0]
+            and         B0,#$C0          ; temp = temp & 0xC0
+            comp        B0,#0            ; temp == 0 ?
+            jnz         B2_76_6               ; nein -> goto %6
+            move        B3,#1            ; PosSID = 1
+
+B2_76_6:         move        B0,S2[#0]       ; temp = auftrag[0]
+            and         B0,#$3F          ; temp = temp & 0x3F
+            comp        B0,#0            ; temp == 0 ?
+            jnz         B2_76_7               ; nein -> goto %7
+            adds        B3,#1            ; PosSID = PosSID + 1
+
+B2_76_7:         move        B1,S2[B3]       ; SID = auftrag[PosSID]
+            adds        B1,#$40          ; SID = SID + 0x40
+            comp        S3[B2],B1       ; antwort[offset] == SID ?
+            jz          B2_76_8               ; ja -> goto %8
+            ergs        "JOB_STATUS","ERROR_ECU_INCORRECT_RESPONSE_ID"
+            jump        B2_76_0endnio          ; Fehler !
+
+B2_76_8:         push        #1.L             ; TRUE
+            jump        B2_76_0end
+
+B2_76_0nio_table: push        #0.L             ; FALSE
+            ergs        "JOB_MESSAGE","Table JobResult not found"
+            ergs        "JOB_STATUS","ERROR_TABLE"
+            clrt                         ; clear_error
+            jump        B2_76_0end
+
+B2_76_0endnio:    push        #0.L             ; FALSE
+B2_76_0end:       settmr      L6               ; set_trap_mask(trapmask)
+		pop 		L1					; 
+		pop 		L0					; 
+		pop 		L0					; 
+		pop 		L0					; 
+		pop 		L0					; 
+		pop 		L0					; 
+		push		L1					; 
+		push		#0.L					; FALSE
+		pop 		L1					; 
+		pop 		L0					; 
+		comp		L0,L1				; 
+		jz  		__B2_HD_00077					; if condition true then true
+		push		#0.L					; FALSE
+		jump		__B2_HD_00078					; 
+__B2_HD_00077:
+		push		#1.L					; TRUE
+__B2_HD_00078:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00079					; IF
+		nop 							; for debugging
+#DLINE 170 "JOBS\IDENT.B2V"
+		eoj 							; 
+#DLINE 171 "JOBS\IDENT.B2V"
+__B2_HD_00079:
+#DLINE 172 "JOBS\IDENT.B2V"
+#DLINE 173 "JOBS\IDENT.B2V"
+		jump		__B2_HD_00068					; end of switch
+__B2_HD_00069:
+		pop 		L0					; get expression
+		comp		L0,#$6				; 
+		jz  		__B2_HD_00071					; to case
+		comp		L0,#$d				; 
+		jz  		__B2_HD_00070					; to case
+		jump		__B2_HD_00072					; to default
+__B2_HD_00068:
+#DLINE 175 "JOBS\IDENT.B2V"
+		move		L0,#$0				; 
+		push		L0					; 
+		move		L0,#$1				; 
+		push		L0					; 
+		pop 		L1					; 
+		pop 		L0					; 
+		comp		L0,L1				; 
+		jz  		__B2_HD_00080					; if condition true then true
+		push		#0.L					; FALSE
+		jump		__B2_HD_00081					; 
+__B2_HD_00080:
+		push		#1.L					; TRUE
+__B2_HD_00081:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00082					; IF
+		nop 							; for debugging
+#DLINE 177 "JOBS\IDENT.B2V"
+__B2_HD_00082:
+#DLINE 179 "JOBS\IDENT.B2V"
+		etag		__B2_HD_00083,"ID_BMW_NR"		; REQUESTED
+		push		#1.L					; TRUE
+		jump		__B2_HD_00084					; 
+__B2_HD_00083:
+		push		#0.L					; FALSE
+__B2_HD_00084:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00085					; IF
+		nop 							; for debugging
+#DLINE 181 "JOBS\IDENT.B2V"
+__B2_HD_00085:
+#DLINE 183 "JOBS\IDENT.B2V"
+		etag		__B2_HD_00086,"ID_HW_NR"		; REQUESTED
+		push		#1.L					; TRUE
+		jump		__B2_HD_00087					; 
+__B2_HD_00086:
+		push		#0.L					; FALSE
+__B2_HD_00087:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00088					; IF
+		nop 							; for debugging
+#DLINE 185 "JOBS\IDENT.B2V"
+__B2_HD_00088:
+#DLINE 187 "JOBS\IDENT.B2V"
+		etag		__B2_HD_00089,"ID_COD_INDEX"		; REQUESTED
+		push		#1.L					; TRUE
+		jump		__B2_HD_00090					; 
+__B2_HD_00089:
+		push		#0.L					; FALSE
+__B2_HD_00090:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00091					; IF
+		nop 							; for debugging
+#DLINE 189 "JOBS\IDENT.B2V"
+__B2_HD_00091:
+#DLINE 191 "JOBS\IDENT.B2V"
+		etag		__B2_HD_00092,"ID_DIAG_INDEX"		; REQUESTED
+		push		#1.L					; TRUE
+		jump		__B2_HD_00093					; 
+__B2_HD_00092:
+		push		#0.L					; FALSE
+__B2_HD_00093:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00094					; IF
+		nop 							; for debugging
+#DLINE 193 "JOBS\IDENT.B2V"
+__B2_HD_00094:
+#DLINE 195 "JOBS\IDENT.B2V"
+		etag		__B2_HD_00095,"ID_VAR_INDEX"		; REQUESTED
+		push		#1.L					; TRUE
+		jump		__B2_HD_00096					; 
+__B2_HD_00095:
+		push		#0.L					; FALSE
+__B2_HD_00096:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00097					; IF
+		nop 							; for debugging
+#DLINE 197 "JOBS\IDENT.B2V"
+__B2_HD_00097:
+#DLINE 199 "JOBS\IDENT.B2V"
+		etag		__B2_HD_00098,"ID_DATUM_YEAR"		; REQUESTED
+		push		#1.L					; TRUE
+		jump		__B2_HD_00099					; 
+__B2_HD_00098:
+		push		#0.L					; FALSE
+__B2_HD_00099:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00100					; IF
+		nop 							; for debugging
+#DLINE 201 "JOBS\IDENT.B2V"
+__B2_HD_00100:
+#DLINE 203 "JOBS\IDENT.B2V"
+		etag		__B2_HD_00101,"ID_DATUM_MONTH"		; REQUESTED
+		push		#1.L					; TRUE
+		jump		__B2_HD_00102					; 
+__B2_HD_00101:
+		push		#0.L					; FALSE
+__B2_HD_00102:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00103					; IF
+		nop 							; for debugging
+#DLINE 205 "JOBS\IDENT.B2V"
+__B2_HD_00103:
+#DLINE 207 "JOBS\IDENT.B2V"
+		etag		__B2_HD_00104,"ID_DATUM_DAY"		; REQUESTED
+		push		#1.L					; TRUE
+		jump		__B2_HD_00105					; 
+__B2_HD_00104:
+		push		#0.L					; FALSE
+__B2_HD_00105:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00106					; IF
+		nop 							; for debugging
+#DLINE 209 "JOBS\IDENT.B2V"
+__B2_HD_00106:
+#DLINE 211 "JOBS\IDENT.B2V"
+		etag		__B2_HD_00107,"ID_DATUM"		; REQUESTED
+		push		#1.L					; TRUE
+		jump		__B2_HD_00108					; 
+__B2_HD_00107:
+		push		#0.L					; FALSE
+__B2_HD_00108:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00109					; IF
+		nop 							; for debugging
+#DLINE 213 "JOBS\IDENT.B2V"
+__B2_HD_00109:
+#DLINE 215 "JOBS\IDENT.B2V"
+		etag		__B2_HD_00110,"ID_SUPPL_NR"		; REQUESTED
+		push		#1.L					; TRUE
+		jump		__B2_HD_00111					; 
+__B2_HD_00110:
+		push		#0.L					; FALSE
+__B2_HD_00111:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00112					; IF
+		nop 							; for debugging
+#DLINE 217 "JOBS\IDENT.B2V"
+__B2_HD_00112:
+#DLINE 219 "JOBS\IDENT.B2V"
+		etag		__B2_HD_00113,"ID_SUPPL_TEXT"		; REQUESTED
+		push		#1.L					; TRUE
+		jump		__B2_HD_00114					; 
+__B2_HD_00113:
+		push		#0.L					; FALSE
+__B2_HD_00114:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00115					; IF
+		nop 							; for debugging
+#DLINE 221 "JOBS\IDENT.B2V"
+__B2_HD_00115:
+#DLINE 223 "JOBS\IDENT.B2V"
+		etag		__B2_HD_00116,"ID_SW_NR_MCV"		; REQUESTED
+		push		#1.L					; TRUE
+		jump		__B2_HD_00117					; 
+__B2_HD_00116:
+		push		#0.L					; FALSE
+__B2_HD_00117:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00118					; IF
+		nop 							; for debugging
+#DLINE 225 "JOBS\IDENT.B2V"
+__B2_HD_00118:
+#DLINE 227 "JOBS\IDENT.B2V"
+		etag		__B2_HD_00119,"ID_SW_NR_FSV"		; REQUESTED
+		push		#1.L					; TRUE
+		jump		__B2_HD_00120					; 
+__B2_HD_00119:
+		push		#0.L					; FALSE
+__B2_HD_00120:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00121					; IF
+		nop 							; for debugging
+#DLINE 229 "JOBS\IDENT.B2V"
+__B2_HD_00121:
+#DLINE 231 "JOBS\IDENT.B2V"
+		etag		__B2_HD_00122,"ID_SW_NR_OSV"		; REQUESTED
+		push		#1.L					; TRUE
+		jump		__B2_HD_00123					; 
+__B2_HD_00122:
+		push		#0.L					; FALSE
+__B2_HD_00123:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00124					; IF
+		nop 							; for debugging
+#DLINE 233 "JOBS\IDENT.B2V"
+__B2_HD_00124:
+#DLINE 235 "JOBS\IDENT.B2V"
+		etag		__B2_HD_00125,"ID_SW_NR_RES"		; REQUESTED
+		push		#1.L					; TRUE
+		jump		__B2_HD_00126					; 
+__B2_HD_00125:
+		push		#0.L					; FALSE
+__B2_HD_00126:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00127					; IF
+		nop 							; for debugging
+#DLINE 237 "JOBS\IDENT.B2V"
+__B2_HD_00127:
+#DLINE 239 "JOBS\IDENT.B2V"
+		clear		S1					; 
+		move		S1,"OKAY"				; 
+		push		#1.L					; TRUE
+		ergs		"JOB_STATUS",S1
+		pop 		L0					; cleanup stack
+#DLINE 240 "JOBS\IDENT.B2V"
+		eoj 							; 
+#DLINE 241 "JOBS\IDENT.B2V"
+#DVARE busy_count
+#DVARE shared_memory
+#DVARE ECU_data
+#DVARE ECU_reply
+#DVARE ECU_request
+		eoj							; 
+		eoj							; 
+#DLINE 0 "JOBS\SEED_KEY.B2V"
+
+
+SEED_KEY#
+#DVARB SECURITY_LEVEL P1 18 0
+#DLINE 47 "JOBS\SEED_KEY.B2V"
+#DLINE 49 "JOBS\SEED_KEY.B2V"
+		clear		S1					; 
+		move		S1,{$82.B,$ff.B,$f1.B,$27.B,$1.B}				; 
+		clear		S2			;seed_request
+		move		S2,S1			;seed_request
+#DVARB seed_request S2 0 0
+#DLINE 50 "JOBS\SEED_KEY.B2V"
+		clear		S1					; 
+		move		S1,{$84.B,$ff.B,$f1.B,$27.B,$2.B,$0.B,$0.B}				; 
+		clear		S3			;key_answer
+		move		S3,S1			;key_answer
+#DVARB key_answer S3 0 0
+#DVARB seed S0 0 2
+#DVARB long_secret S0 2 4
+#DVARB secret S0 6 2
+#DVARB key S0 8 2
+#DLINE 56 "JOBS\SEED_KEY.B2V"
+		move		L0,#$5106				; 
+		push		L0					; 
+		atsp		L0,#4				; 
+		move		S0[#10],B0			;key_level_1
+		move		S0[#11],B1			;key_level_1
+		pop 		L0					; 
+#DVARB key_level_1 S0 10 2
+#DLINE 58 "JOBS\SEED_KEY.B2V"
+		move		L0,#$1ec3				; 
+		push		L0					; 
+		atsp		L0,#4				; 
+		move		S0[#12],B0			;key_level_2
+		move		S0[#13],B1			;key_level_2
+		pop 		L0					; 
+#DVARB key_level_2 S0 12 2
+#DVARB ECU_reply_request S4 0 0
+#DVARB ECU_reply_answer S5 0 0
+#DVARB payload S6 0 0
+#DVARB global_data S7 0 0
+#DLINE 65 "JOBS\SEED_KEY.B2V"
+		clear		L0					; 
+		parw		I0,#1		;SECURITY_LEVEL
+		push		L0					; 
+		pop 		L0					; get expression
+		jz  		__B2_HD_00128					; IF
+		nop 							; for debugging
+#DLINE 66 "JOBS\SEED_KEY.B2V"
+		clear		L0					; 
+		parw		I0,#1		;SECURITY_LEVEL
+		push		L0					; 
+		move		L0,#$1				; 
+		push		L0					; 
+		pop 		L1					; 
+		pop 		L0					; 
+		comp		L0,L1				; 
+		jnz 		__B2_HD_00129					; if condition true then true
+		push		#0.L					; FALSE
+		jump		__B2_HD_00130					; 
+__B2_HD_00129:
+		push		#1.L					; TRUE
+__B2_HD_00130:
+#DLINE 67 "JOBS\SEED_KEY.B2V"
+		clear		L0					; 
+		parw		I0,#1		;SECURITY_LEVEL
+		push		L0					; 
+		move		L0,#$2				; 
+		push		L0					; 
+		pop 		L1					; 
+		pop 		L0					; 
+		comp		L0,L1				; 
+		jnz 		__B2_HD_00131					; if condition true then true
+		push		#0.L					; FALSE
+		jump		__B2_HD_00132					; 
+__B2_HD_00131:
+		push		#1.L					; TRUE
+__B2_HD_00132:
+		pop 		L1					; 
+		pop 		L0					; 
+		and 		L0,L1				; 
+		push		L0					; 
+		push		#0.L					; FALSE
+		pop 		L1					; 
+		pop 		L0					; 
+		comp		L0,L1				; 
+		jnz 		__B2_HD_00133					; if condition true then true
+		push		#0.L					; FALSE
+		jump		__B2_HD_00134					; 
+__B2_HD_00133:
+		push		#1.L					; TRUE
+__B2_HD_00134:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00135					; IF
+		nop 							; for debugging
+#DLINE 68 "JOBS\SEED_KEY.B2V"
+		clear		S1					; 
+		move		S1,"ERROR ARGUMENT"				; 
+		push		#1.L					; TRUE
+		ergs		"JOB_STATUS",S1
+		pop 		L0					; cleanup stack
+#DLINE 69 "JOBS\SEED_KEY.B2V"
+		eoj 							; 
+#DLINE 70 "JOBS\SEED_KEY.B2V"
+__B2_HD_00135:
+#DLINE 72 "JOBS\SEED_KEY.B2V"
+		clear		L0					; 
+		parw		I0,#1		;SECURITY_LEVEL
+		push		L0					; 
+		move		L0,#$1				; 
+		push		L0					; 
+		pop 		L1					; 
+		pop 		L0					; 
+		comp		L0,L1				; 
+		jz  		__B2_HD_00136					; if condition true then true
+		push		#0.L					; FALSE
+		jump		__B2_HD_00137					; 
+__B2_HD_00136:
+		push		#1.L					; TRUE
+__B2_HD_00137:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00138					; IF
+		nop 							; for debugging
+#DLINE 73 "JOBS\SEED_KEY.B2V"
+		move		L0,#$4				; 
+		push		L0					; 
+		move		L0,#$1				; 
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		move		S2[L1],B0			;seed_request
+		pop 		L0					; cleanup stack
+#DLINE 74 "JOBS\SEED_KEY.B2V"
+		move		L0,#$4				; 
+		push		L0					; 
+		move		L0,#$2				; 
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		move		S3[L1],B0			;key_answer
+		pop 		L0					; cleanup stack
+#DLINE 76 "JOBS\SEED_KEY.B2V"
+		clear		L0					; 
+		move		I0,S0[#10]			;key_level_1
+		push		L0					; 
+		atsp		L0,#4				; 
+		move		S0[#8],B0			;key
+		move		S0[#9],B1			;key
+		pop 		L0					; cleanup stack
+#DLINE 78 "JOBS\SEED_KEY.B2V"
+__B2_HD_00138:
+#DLINE 80 "JOBS\SEED_KEY.B2V"
+		clear		L0					; 
+		parw		I0,#1		;SECURITY_LEVEL
+		push		L0					; 
+		move		L0,#$2				; 
+		push		L0					; 
+		pop 		L1					; 
+		pop 		L0					; 
+		comp		L0,L1				; 
+		jz  		__B2_HD_00139					; if condition true then true
+		push		#0.L					; FALSE
+		jump		__B2_HD_00140					; 
+__B2_HD_00139:
+		push		#1.L					; TRUE
+__B2_HD_00140:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00141					; IF
+		nop 							; for debugging
+#DLINE 81 "JOBS\SEED_KEY.B2V"
+		move		L0,#$4				; 
+		push		L0					; 
+		move		L0,#$3				; 
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		move		S2[L1],B0			;seed_request
+		pop 		L0					; cleanup stack
+#DLINE 82 "JOBS\SEED_KEY.B2V"
+		move		L0,#$4				; 
+		push		L0					; 
+		move		L0,#$4				; 
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		move		S3[L1],B0			;key_answer
+		pop 		L0					; cleanup stack
+#DLINE 84 "JOBS\SEED_KEY.B2V"
+		clear		L0					; 
+		move		I0,S0[#12]			;key_level_2
+		push		L0					; 
+		atsp		L0,#4				; 
+		move		S0[#8],B0			;key
+		move		S0[#9],B1			;key
+		pop 		L0					; cleanup stack
+#DLINE 85 "JOBS\SEED_KEY.B2V"
+__B2_HD_00141:
+#DLINE 86 "JOBS\SEED_KEY.B2V"
+		jump		__B2_HD_00142					; ueber ELSE hinweg
+__B2_HD_00128:
+#DLINE 88 "JOBS\SEED_KEY.B2V"
+#DLINE 90 "JOBS\SEED_KEY.B2V"
+		move		L0,#$4				; 
+		push		L0					; 
+		move		L0,#$1				; 
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		move		S2[L1],B0			;seed_request
+		pop 		L0					; cleanup stack
+#DLINE 91 "JOBS\SEED_KEY.B2V"
+		move		L0,#$4				; 
+		push		L0					; 
+		move		L0,#$2				; 
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		move		S3[L1],B0			;key_answer
+		pop 		L0					; cleanup stack
+#DLINE 93 "JOBS\SEED_KEY.B2V"
+		clear		L0					; 
+		move		I0,S0[#10]			;key_level_1
+		push		L0					; 
+		atsp		L0,#4				; 
+		move		S0[#8],B0			;key
+		move		S0[#9],B1			;key
+		pop 		L0					; cleanup stack
+#DLINE 95 "JOBS\SEED_KEY.B2V"
+__B2_HD_00142:
+#DLINE 97 "JOBS\SEED_KEY.B2V"
+		clear		S1					; 
+		move		S1,S7			;global_data
+		push		#1.L					; TRUE
+            clear       S7
+            push        #1.L
+		pop 		L1					; 
+		pop 		L0					; 
+		push		L1					; 
+		pop 		L0					; cleanup stack
+#DLINE 98 "JOBS\SEED_KEY.B2V"
+		clear		S1					; 
+		move		S1,S7			;global_data
+		push		#1.L					; TRUE
+            shmget      S7,""          ;read global data
+            push        #1.L
+		pop 		L1					; 
+		pop 		L0					; 
+		push		L1					; 
+		pop 		L0					; cleanup stack
+#DLINE 100 "JOBS\SEED_KEY.B2V"
+		move		L0,#$1				; 
+		push		L0					; 
+		move		L0,#$3ea				; 
+		push		L0					; 
+		atsp		L1,#4				; 
+		clear		S1				;clear indexed register
+		move		S1,S7			;global_data
+		clear		L0					; 
+		move		B0,S1[L1]
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		move		S2[L1],B0			;seed_request
+		pop 		L0					; cleanup stack
+#DLINE 102 "JOBS\SEED_KEY.B2V"
+		move		L0,#$0				; 
+		push		L0					; 
+		move		L0,#$1				; 
+		push		L0					; 
+		pop 		L1					; 
+		pop 		L0					; 
+		comp		L0,L1				; 
+		jz  		__B2_HD_00145					; if condition true then true
+		push		#0.L					; FALSE
+		jump		__B2_HD_00146					; 
+__B2_HD_00145:
+		push		#1.L					; TRUE
+__B2_HD_00146:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00147					; IF
+		nop 							; for debugging
+#DLINE 103 "JOBS\SEED_KEY.B2V"
+		move		L0,#$3ef				; 
+		push		L0					; 
+		atsp		L1,#4				; 
+		clear		S1				;clear indexed register
+		move		S1,S7			;global_data
+		clear		L0					; 
+		move		B0,S1[L1]
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		clear		S1					; 
+		move		S1,S2			;seed_request
+		push		#1.L					; TRUE
+		atsp		L2,#8					;FROM STACK INDEXED
+            slen        I0,S2           ; temp = datalen(Auftrag)
+            comp        I0,#0            ; temp == 0 ?
+            jz          B2_148_0nio             ; ja -> Fehler
+
+            move        B0,S2[#0]       ; temp = Auftrag[0]
+            and         B0,#$3F          ; temp = temp & 0x3F
+            comp        B0,#0            ; temp == 0 ?
+            jz          B2_148_0nio             ; ja -> Fehler
+            comp        B0,#60           ; temp > 60 ?
+            jg          B2_148_0nio             ; ja -> Fehler
+
+            clear       S1               ; Puffer loeschen
+            move        S1[#0],#$A6      ; Puffer[0] = 0xA6
+            move        S1[#1],L2       ; Puffer[1] = SLAVE_ADRESSE 
+            move        S1[#2],B0        ; Puffer[2] = temp 
+            spaste      S2[#3],s1       ; datainsert(Auftrag,Puffer,3);
+            adds        S2[#0],#3       ; Auftrag[0] = Auftrag[0] + 3
+
+B2_148_0io:        push        #1.L             ; TRUE
+            jump        B2_148_0end
+
+B2_148_0nio:       push        #0.L             ; FALSE
+            ergs        "JOB_STATUS","ERROR_TELEGRAM_LEN_OUT_OFF_RANGE"
+;           jump        %end
+
+B2_148_0end:
+		pop 		L1					; 
+		pop 		L0					; 
+		pop 		L0					; 
+		push		L1					; 
+		push		#0.L					; FALSE
+		pop 		L1					; 
+		pop 		L0					; 
+		comp		L0,L1				; 
+		jz  		__B2_HD_00149					; if condition true then true
+		push		#0.L					; FALSE
+		jump		__B2_HD_00150					; 
+__B2_HD_00149:
+		push		#1.L					; TRUE
+__B2_HD_00150:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00151					; IF
+		nop 							; for debugging
+#DLINE 104 "JOBS\SEED_KEY.B2V"
+		eoj 							; 
+__B2_HD_00151:
+#DLINE 105 "JOBS\SEED_KEY.B2V"
+__B2_HD_00147:
+#DLINE 107 "JOBS\SEED_KEY.B2V"
+		move		L0,#$3e9				; 
+		push		L0					; 
+		atsp		L1,#4				; 
+		clear		S1				;clear indexed register
+		move		S1,S7			;global_data
+		clear		L0					; 
+		move		B0,S1[L1]
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		jump		__B2_HD_00153					; to selection
+#DLINE 109 "JOBS\SEED_KEY.B2V"
+__B2_HD_00154:
+#DLINE 110 "JOBS\SEED_KEY.B2V"
+		jump		__B2_HD_00152					; BREAK
+#DLINE 111 "JOBS\SEED_KEY.B2V"
+__B2_HD_00155:
+#DLINE 112 "JOBS\SEED_KEY.B2V"
+		jump		__B2_HD_00152					; BREAK
+#DLINE 114 "JOBS\SEED_KEY.B2V"
+__B2_HD_00156:
+#DLINE 115 "JOBS\SEED_KEY.B2V"
+		etag		__B2_HD_00157,"_TEL_REQUEST"		; REQUESTED
+		push		#1.L					; TRUE
+		jump		__B2_HD_00158					; 
+__B2_HD_00157:
+		push		#0.L					; FALSE
+__B2_HD_00158:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00159					; IF
+		nop 							; for debugging
+#DLINE 116 "JOBS\SEED_KEY.B2V"
+		clear		S1					; 
+		move		S1,S2			;seed_request
+		push		#1.L					; TRUE
+		ergy		"_TEL_REQUEST",S1
+		pop 		L0					; cleanup stack
+__B2_HD_00159:
+#DLINE 118 "JOBS\SEED_KEY.B2V"
+#DLINE 119 "JOBS\SEED_KEY.B2V"
+		clear		S1					; 
+		move		S1,S4			;ECU_reply_request
+		push		#1.L					; TRUE
+		clear		S1					; 
+		move		S1,S2			;seed_request
+		push		#1.L					; TRUE
+		clear		S1					; 
+		move		S1,S6			;payload
+		push		#1.L					; TRUE
+		clear		S1					; 
+		move		S1,"_TEL_ANSWER"				; 
+		push		#1.L					; TRUE
+		move		L0,#$2				; 
+		push		L0					; 
+            gettmr      L6               ; trapmask=get_trap_mask()
+            move        BD,#0            ; BusyCount = 0 ( high )
+            move        BC,#$2           ; BusyCount = Wiederholzaehler
+            adds        I6,#1            ; BusyCount = BusyCount + 1
+B2_160_1a:        clear       S4              ; antwort loeschen
+            clear       S6              ; daten loeschen
+            xsend       S4,S2          ; senden
+            slen        I3,S2           ; datalen_auftrag = datalen(auftrag)
+            slen        I4,S4           ; datalen_antwort = datalen(antwort)
+            comp        I4,#0            ; datalen_antwort == 0 ?
+            jz          B2_160_0endnio          ; ja -> Fehler
+
+            move        S1,"_TEL_ANSWER"
+            scmp        S1,""            ; RESULT <4> == "" ?
+            jz          B2_160_1               ; ja -> goto %1
+            etag        B2_160_1,"_TEL_ANSWER"           ; wenn RESULT <4> angefordert
+            ergy        "_TEL_ANSWER",S4          ; antwort nach RESULT <4>
+
+B2_160_1:         move        B2,#3            ; offset = 3
+            move        B0,S4[#0]       ; temp = antwort[0]
+            and         B0,#$C0          ; temp = temp & 0xC0
+            comp        B0,#0            ; temp == 0 ?
+            jnz         B2_160_2               ; nein -> goto %2
+            move        B2,#1            ; offset = 1
+
+B2_160_2:         move        I2,S4[#0]       ; len = antwort[0]
+            and         I2,#$3F          ; len = len & 0x3F
+            comp        I2,#0            ; len == 0 ?
+            jnz         B2_160_3               ; nein -> goto %3
+            move        I2,S4[B2]       ; len = antwort[offset]
+            and         I2,#$FF          ; len = len & 0xFF
+            adds        B2,#1            ; offset = offset + 1
+
+B2_160_3:         move        I5,#1            ; len_check = 1 ( Checksumme )
+            adds        BA,B2            ; len_check = len_check + offset
+            adds        I5,I2            ; len_check = len_check + len
+            comp        I5,I4            ; len_check == datalen_antwort ?
+            jz          B2_160_4               ; ja -> goto %4
+            ergs        "JOB_STATUS","ERROR_ECU_INCORRECT_LEN"
+            jump        B2_160_0endnio          ; Fehler !
+
+B2_160_4:         move        S6,S4[B2]I2    ; daten=antwort[offset] len
+            settmr      #$400.L          ; set_trap_mask(0x400)
+            tabset      "JobResult"      ; tabset("JobResult")
+            jt          B2_160_0nio_table,#10   ; Tabelle nicht gefunden ?
+            comp        S4[B2],#$7F     ; antwort[offset] == 0x7F ?
+            jnz         B2_160_5               ; nein -> goto %5
+
+            move        B0,B2            ; temp = offset ( antwort )
+            adds        B0,#2            ; temp = temp + 2
+
+            comp        I3,#0            ; datalen_auftrag == 0 ?
+            jz          B2_160_4a              ; ja -> goto %4a
+
+            move        BE,S2[#0]       ; temp2 = auftrag[0]
+            and         BE,#$C0          ; temp2 = temp2 & 0xC0
+            comp        BE,#$C0          ; temp2 == 0xC0 ?
+            jz          B2_160_4a              ; ja -> goto %4a
+
+            comp        S4[B0],#$21     ; NegResponseCode == BusyRepeatRequest ?
+            jz          B2_160_4c              ; ja -> goto %4c
+            comp        S4[B0],#$23     ; NegResponseCode == RoutineNotComplete ?
+            jz          B2_160_4c              ; ja -> goto %4c
+            jump        B2_160_4a              ; goto %4a
+
+B2_160_4c:        comp        I6,#1            ; BusyCount == 1 ?
+            jz          B2_160_4b              ; ja -> goto %4b
+            wait        #1               ; wait (1)
+
+B2_160_4b:        subb        I6,#1            ; BusyCount --
+            jnz         B2_160_1a              ; BusyCount > 0 -> goto %1a
+
+B2_160_4a:        fix2hex     S1,S4[B0]       ;
+            tabseek     "SB",S1          ; tab_suche_index("SB",antwort[offset+2])
+            tabget      S1,"STATUS_TEXT" ;
+            ergs        "JOB_STATUS",S1  ;
+            jump        B2_160_0endnio          ; Fehler !
+
+B2_160_5:         comp        I3,#0            ; datalen_auftrag == 0 ?
+            jz          B2_160_8               ; ja -> goto %8
+
+            move        B3,#3            ; PosSID = 3
+            move        B0,S2[#0]       ; temp = auftrag[0]
+            and         B0,#$C0          ; temp = temp & 0xC0
+            comp        B0,#0            ; temp == 0 ?
+            jnz         B2_160_6               ; nein -> goto %6
+            move        B3,#1            ; PosSID = 1
+
+B2_160_6:         move        B0,S2[#0]       ; temp = auftrag[0]
+            and         B0,#$3F          ; temp = temp & 0x3F
+            comp        B0,#0            ; temp == 0 ?
+            jnz         B2_160_7               ; nein -> goto %7
+            adds        B3,#1            ; PosSID = PosSID + 1
+
+B2_160_7:         move        B1,S2[B3]       ; SID = auftrag[PosSID]
+            adds        B1,#$40          ; SID = SID + 0x40
+            comp        S4[B2],B1       ; antwort[offset] == SID ?
+            jz          B2_160_8               ; ja -> goto %8
+            ergs        "JOB_STATUS","ERROR_ECU_INCORRECT_RESPONSE_ID"
+            jump        B2_160_0endnio          ; Fehler !
+
+B2_160_8:         push        #1.L             ; TRUE
+            jump        B2_160_0end
+
+B2_160_0nio_table: push        #0.L             ; FALSE
+            ergs        "JOB_MESSAGE","Table JobResult not found"
+            ergs        "JOB_STATUS","ERROR_TABLE"
+            clrt                         ; clear_error
+            jump        B2_160_0end
+
+B2_160_0endnio:    push        #0.L             ; FALSE
+B2_160_0end:       settmr      L6               ; set_trap_mask(trapmask)
+		pop 		L1					; 
+		pop 		L0					; 
+		pop 		L0					; 
+		pop 		L0					; 
+		pop 		L0					; 
+		pop 		L0					; 
+		push		L1					; 
+		push		#0.L					; FALSE
+		pop 		L1					; 
+		pop 		L0					; 
+		comp		L0,L1				; 
+		jz  		__B2_HD_00161					; if condition true then true
+		push		#0.L					; FALSE
+		jump		__B2_HD_00162					; 
+__B2_HD_00161:
+		push		#1.L					; TRUE
+__B2_HD_00162:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00163					; IF
+		nop 							; for debugging
+#DLINE 121 "JOBS\SEED_KEY.B2V"
+		eoj 							; 
+__B2_HD_00163:
+#DLINE 123 "JOBS\SEED_KEY.B2V"
+		jump		__B2_HD_00152					; BREAK
+#DLINE 124 "JOBS\SEED_KEY.B2V"
+		jump		__B2_HD_00152					; end of switch
+__B2_HD_00153:
+		pop 		L0					; get expression
+		comp		L0,#$6				; 
+		jz  		__B2_HD_00155					; to case
+		comp		L0,#$d				; 
+		jz  		__B2_HD_00154					; to case
+		jump		__B2_HD_00156					; to default
+__B2_HD_00152:
+#DLINE 126 "JOBS\SEED_KEY.B2V"
+		move		L0,#$0				; 
+		push		L0					; 
+		move		L0,#$1				; 
+		push		L0					; 
+		pop 		L1					; 
+		pop 		L0					; 
+		comp		L0,L1				; 
+		jz  		__B2_HD_00164					; if condition true then true
+		push		#0.L					; FALSE
+		jump		__B2_HD_00165					; 
+__B2_HD_00164:
+		push		#1.L					; TRUE
+__B2_HD_00165:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00166					; IF
+		nop 							; for debugging
+#DLINE 127 "JOBS\SEED_KEY.B2V"
+		clear		S1					; 
+		move		S1,S6			;payload
+		push		#1.L					; TRUE
+		clear		S1					; 
+		move		S1,S2			;seed_request
+		push		#1.L					; TRUE
+            gettmr      L6               ; trapmask=get_trap_mask()
+            slen        I2,S6           ; datalen_daten = datalen(daten)
+            comp        I2,#0            ; datalen_daten = 0 ?
+            jz          B2_167_0io              ; ja -> iO
+            comp        I2,#4            ; datalen_daten < 4 ?
+            jl          B2_167_0nio_1           ; ja -> Fehler
+
+            move        I0,#0            ; temp = 0
+            move        B0,S6[#2]       ; temp = LLEN
+            adds        B0,#3            ; temp = temp + 3
+            comp        I0,I2            ; temp <> datalen_daten ?
+            jnz         B2_167_0nio_1           ; ja -> Fehler
+
+            serase      S6[#0],#3       ; Erste 3 Byte löschen
+
+            settmr      #$400.L          ; set_trap_mask(0x400)
+            tabset      "JobResult"      ; tabset("JobResult")
+            jt          B2_167_0nio_table,#10   ; Tabelle nicht gefunden ?
+            comp        S6[#0],#$7F     ; daten[0] == 0x7F ?
+            jnz         B2_167_1               ; nein -> goto %1
+
+            fix2hex     S1,S6[#2]       ;
+            tabseek     "SB",S1          ; tab_suche_index("SB",daten[2])
+            tabget      S1,"STATUS_TEXT" ;
+            ergs        "JOB_STATUS",S1  ;
+            jump        B2_167_0endnio          ; Fehler !
+
+B2_167_1:         slen        I0,S2           ; temp = datalen(auftrag)
+            comp        I0,#0            ; temp = 0 ?
+            jz          B2_167_0io              ; ja -> Keine SID Überprüfung
+            comp        S2[#0],#$B8     ; auftrag[0] == 0xB8 ?
+            jz          B2_167_2               ; ja -> goto %2
+
+            comp        I0,#7            ; temp < 7 ?
+            jl          B2_167_0io              ; ja -> Keine SID Überprüfung
+            move        B2,S2[#6]       ; SID = auftrag[6]
+            adds        B2,#$40          ; SID = SID + 0x40
+            comp        S6[#0],B2       ; daten[0] <> SID ?
+            jnz         B2_167_0nio_2           ; ja -> Fehler
+            jump        B2_167_0io              ; io
+
+B2_167_2:         comp        I0,#8            ; temp < 8 ?
+            jl          B2_167_0io              ; ja -> Keine SID Überprüfung
+            move        B2,S2[#7]       ; SID = auftrag[7]
+            adds        B2,#$40          ; SID = SID + 0x40
+            comp        S6[#0],B2       ; daten[0] <> SID ?
+            jnz         B2_167_0nio_2           ; ja -> Fehler
+;           jump        %io              ; io
+
+B2_167_0io:        push        #1.L             ; TRUE
+            jump        B2_167_0end
+
+B2_167_0nio_table: ergs        "JOB_MESSAGE","Table JobResult not found"
+            ergs        "JOB_STATUS","ERROR_TABLE"
+            clrt                         ; clear_error
+            jump        B2_167_0endnio          ; Fehler !
+
+B2_167_0nio_1:     ergs        "JOB_STATUS","ERROR_ECU_INCORRECT_LIN_LEN"
+            jump        B2_167_0endnio          ; Fehler !
+
+B2_167_0nio_2:     ergs        "JOB_STATUS","ERROR_ECU_INCORRECT_LIN_RESPONSE_ID"
+            jump        B2_167_0endnio          ; Fehler !
+
+B2_167_0endnio:    push        #0.L             ; FALSE
+;           jump        %end
+
+B2_167_0end:       settmr      L6               ; set_trap_mask(trapmask)
+		pop 		L1					; 
+		pop 		L0					; 
+		pop 		L0					; 
+		push		L1					; 
+		push		#0.L					; FALSE
+		pop 		L1					; 
+		pop 		L0					; 
+		comp		L0,L1				; 
+		jz  		__B2_HD_00168					; if condition true then true
+		push		#0.L					; FALSE
+		jump		__B2_HD_00169					; 
+__B2_HD_00168:
+		push		#1.L					; TRUE
+__B2_HD_00169:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00170					; IF
+		nop 							; for debugging
+#DLINE 128 "JOBS\SEED_KEY.B2V"
+		eoj 							; 
+__B2_HD_00170:
+#DLINE 129 "JOBS\SEED_KEY.B2V"
+__B2_HD_00166:
+#DLINE 134 "JOBS\SEED_KEY.B2V"
+		move		L0,#$2				; 
+		push		L0					; 
+		atsp		L1,#4				; 
+		clear		S1				;clear indexed register
+		move		S1,S6			;payload
+		clear		L0					; 
+		move		B0,S1[L1]
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		move		L0,#$100				; 
+		push		L0					; 
+		pop 		L1					; 
+		pop 		L0					; 
+		mult		L0,L1				; 
+		push		L0					; 
+		move		L0,#$3				; 
+		push		L0					; 
+		atsp		L1,#4				; 
+		clear		S1				;clear indexed register
+		move		S1,S6			;payload
+		clear		L0					; 
+		move		B0,S1[L1]
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		pop 		L1					; 
+		pop 		L0					; 
+		adds		L0,L1				; 
+		push		L0					; 
+		atsp		L0,#4				; 
+		move		S0[#0],B0			;seed
+		move		S0[#1],B1			;seed
+		pop 		L0					; cleanup stack
+#DLINE 135 "JOBS\SEED_KEY.B2V"
+		clear		L0					; 
+		move		I0,S0[#0]			;seed
+		push		L0					; 
+		clear		L0					; 
+		move		I0,S0[#8]			;key
+		push		L0					; 
+		pop 		L1					; 
+		pop 		L0					; 
+		mult		L0,L1				; 
+		push		L0					; 
+		atsp		L0,#4				; 
+		move		S0[#2],B0			;long_secret
+		move		S0[#3],B1			;long_secret
+		move		S0[#4],B2			;long_secret
+		move		S0[#5],B3			;long_secret
+		pop 		L0					; cleanup stack
+#DLINE 136 "JOBS\SEED_KEY.B2V"
+		move		L0,S0[#2]			;long_secret
+		push		L0					; 
+		move		L0,#$10000				; 
+		push		L0					; 
+		pop 		L1					; 
+		pop 		L0					; 
+		divs		L0,L1				; 
+		push		L1					; 
+		atsp		L0,#4				; 
+		move		S0[#6],B0			;secret
+		move		S0[#7],B1			;secret
+		pop 		L0					; cleanup stack
+#DLINE 138 "JOBS\SEED_KEY.B2V"
+		clear		S1					; 
+		move		S1,S6			;payload
+		push		#1.L					; TRUE
+            clear       S6
+            push        #1.L
+		pop 		L1					; 
+		pop 		L0					; 
+		push		L1					; 
+		pop 		L0					; cleanup stack
+#DLINE 140 "JOBS\SEED_KEY.B2V"
+		clear		S1					; 
+		move		S1,S7			;global_data
+		push		#1.L					; TRUE
+            clear       S7
+            push        #1.L
+		pop 		L1					; 
+		pop 		L0					; 
+		push		L1					; 
+		pop 		L0					; cleanup stack
+#DLINE 141 "JOBS\SEED_KEY.B2V"
+		clear		S1					; 
+		move		S1,S7			;global_data
+		push		#1.L					; TRUE
+            shmget      S7,""          ;read global data
+            push        #1.L
+		pop 		L1					; 
+		pop 		L0					; 
+		push		L1					; 
+		pop 		L0					; cleanup stack
+#DLINE 143 "JOBS\SEED_KEY.B2V"
+		move		L0,#$1				; 
+		push		L0					; 
+		move		L0,#$3ea				; 
+		push		L0					; 
+		atsp		L1,#4				; 
+		clear		S1				;clear indexed register
+		move		S1,S7			;global_data
+		clear		L0					; 
+		move		B0,S1[L1]
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		move		S3[L1],B0			;key_answer
+		pop 		L0					; cleanup stack
+#DLINE 145 "JOBS\SEED_KEY.B2V"
+		move		L0,#$5				; 
+		push		L0					; 
+		clear		L0					; 
+		move		I0,S0[#6]			;secret
+		push		L0					; 
+		move		L0,#$8				; 
+		push		L0					; 
+		pop 		L1					; 
+		pop 		L0					; 
+		lsr 		L0,L1				; 
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		move		S3[L1],B0			;key_answer
+		pop 		L0					; cleanup stack
+#DLINE 146 "JOBS\SEED_KEY.B2V"
+		move		L0,#$6				; 
+		push		L0					; 
+		clear		L0					; 
+		move		I0,S0[#6]			;secret
+		push		L0					; 
+		move		L0,#$ff				; 
+		push		L0					; 
+		pop 		L1					; 
+		pop 		L0					; 
+		and 		L0,L1				; 
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		move		S3[L1],B0			;key_answer
+		pop 		L0					; cleanup stack
+#DLINE 148 "JOBS\SEED_KEY.B2V"
+		move		L0,#$0				; 
+		push		L0					; 
+		move		L0,#$1				; 
+		push		L0					; 
+		pop 		L1					; 
+		pop 		L0					; 
+		comp		L0,L1				; 
+		jz  		__B2_HD_00174					; if condition true then true
+		push		#0.L					; FALSE
+		jump		__B2_HD_00175					; 
+__B2_HD_00174:
+		push		#1.L					; TRUE
+__B2_HD_00175:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00176					; IF
+		nop 							; for debugging
+#DLINE 149 "JOBS\SEED_KEY.B2V"
+		move		L0,#$3ef				; 
+		push		L0					; 
+		atsp		L1,#4				; 
+		clear		S1				;clear indexed register
+		move		S1,S7			;global_data
+		clear		L0					; 
+		move		B0,S1[L1]
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		clear		S1					; 
+		move		S1,S2			;seed_request
+		push		#1.L					; TRUE
+		atsp		L2,#8					;FROM STACK INDEXED
+            slen        I0,S2           ; temp = datalen(Auftrag)
+            comp        I0,#0            ; temp == 0 ?
+            jz          B2_177_0nio             ; ja -> Fehler
+
+            move        B0,S2[#0]       ; temp = Auftrag[0]
+            and         B0,#$3F          ; temp = temp & 0x3F
+            comp        B0,#0            ; temp == 0 ?
+            jz          B2_177_0nio             ; ja -> Fehler
+            comp        B0,#60           ; temp > 60 ?
+            jg          B2_177_0nio             ; ja -> Fehler
+
+            clear       S1               ; Puffer loeschen
+            move        S1[#0],#$A6      ; Puffer[0] = 0xA6
+            move        S1[#1],L2       ; Puffer[1] = SLAVE_ADRESSE 
+            move        S1[#2],B0        ; Puffer[2] = temp 
+            spaste      S2[#3],s1       ; datainsert(Auftrag,Puffer,3);
+            adds        S2[#0],#3       ; Auftrag[0] = Auftrag[0] + 3
+
+B2_177_0io:        push        #1.L             ; TRUE
+            jump        B2_177_0end
+
+B2_177_0nio:       push        #0.L             ; FALSE
+            ergs        "JOB_STATUS","ERROR_TELEGRAM_LEN_OUT_OFF_RANGE"
+;           jump        %end
+
+B2_177_0end:
+		pop 		L1					; 
+		pop 		L0					; 
+		pop 		L0					; 
+		push		L1					; 
+		push		#0.L					; FALSE
+		pop 		L1					; 
+		pop 		L0					; 
+		comp		L0,L1				; 
+		jz  		__B2_HD_00178					; if condition true then true
+		push		#0.L					; FALSE
+		jump		__B2_HD_00179					; 
+__B2_HD_00178:
+		push		#1.L					; TRUE
+__B2_HD_00179:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00180					; IF
+		nop 							; for debugging
+#DLINE 150 "JOBS\SEED_KEY.B2V"
+		eoj 							; 
+__B2_HD_00180:
+#DLINE 151 "JOBS\SEED_KEY.B2V"
+__B2_HD_00176:
+#DLINE 153 "JOBS\SEED_KEY.B2V"
+		move		L0,#$3e9				; 
+		push		L0					; 
+		atsp		L1,#4				; 
+		clear		S1				;clear indexed register
+		move		S1,S7			;global_data
+		clear		L0					; 
+		move		B0,S1[L1]
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		jump		__B2_HD_00182					; to selection
+#DLINE 155 "JOBS\SEED_KEY.B2V"
+__B2_HD_00183:
+#DLINE 156 "JOBS\SEED_KEY.B2V"
+		jump		__B2_HD_00181					; BREAK
+#DLINE 157 "JOBS\SEED_KEY.B2V"
+__B2_HD_00184:
+#DLINE 158 "JOBS\SEED_KEY.B2V"
+		jump		__B2_HD_00181					; BREAK
+#DLINE 160 "JOBS\SEED_KEY.B2V"
+__B2_HD_00185:
+#DLINE 161 "JOBS\SEED_KEY.B2V"
+		etag		__B2_HD_00186,"_TEL_REQUEST_2"		; REQUESTED
+		push		#1.L					; TRUE
+		jump		__B2_HD_00187					; 
+__B2_HD_00186:
+		push		#0.L					; FALSE
+__B2_HD_00187:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00188					; IF
+		nop 							; for debugging
+#DLINE 162 "JOBS\SEED_KEY.B2V"
+		clear		S1					; 
+		move		S1,S3			;key_answer
+		push		#1.L					; TRUE
+		ergy		"_TEL_REQUEST_2",S1
+		pop 		L0					; cleanup stack
+#DLINE 163 "JOBS\SEED_KEY.B2V"
+__B2_HD_00188:
+#DLINE 165 "JOBS\SEED_KEY.B2V"
+#DLINE 166 "JOBS\SEED_KEY.B2V"
+		clear		S1					; 
+		move		S1,S5			;ECU_reply_answer
+		push		#1.L					; TRUE
+		clear		S1					; 
+		move		S1,S3			;key_answer
+		push		#1.L					; TRUE
+		clear		S1					; 
+		move		S1,S6			;payload
+		push		#1.L					; TRUE
+		clear		S1					; 
+		move		S1,"_TEL_ANSWER_2"				; 
+		push		#1.L					; TRUE
+		move		L0,#$2				; 
+		push		L0					; 
+            gettmr      L6               ; trapmask=get_trap_mask()
+            move        BD,#0            ; BusyCount = 0 ( high )
+            move        BC,#$2           ; BusyCount = Wiederholzaehler
+            adds        I6,#1            ; BusyCount = BusyCount + 1
+B2_189_1a:        clear       S5              ; antwort loeschen
+            clear       S6              ; daten loeschen
+            xsend       S5,S3          ; senden
+            slen        I3,S3           ; datalen_auftrag = datalen(auftrag)
+            slen        I4,S5           ; datalen_antwort = datalen(antwort)
+            comp        I4,#0            ; datalen_antwort == 0 ?
+            jz          B2_189_0endnio          ; ja -> Fehler
+
+            move        S1,"_TEL_ANSWER_2"
+            scmp        S1,""            ; RESULT <4> == "" ?
+            jz          B2_189_1               ; ja -> goto %1
+            etag        B2_189_1,"_TEL_ANSWER_2"           ; wenn RESULT <4> angefordert
+            ergy        "_TEL_ANSWER_2",S5          ; antwort nach RESULT <4>
+
+B2_189_1:         move        B2,#3            ; offset = 3
+            move        B0,S5[#0]       ; temp = antwort[0]
+            and         B0,#$C0          ; temp = temp & 0xC0
+            comp        B0,#0            ; temp == 0 ?
+            jnz         B2_189_2               ; nein -> goto %2
+            move        B2,#1            ; offset = 1
+
+B2_189_2:         move        I2,S5[#0]       ; len = antwort[0]
+            and         I2,#$3F          ; len = len & 0x3F
+            comp        I2,#0            ; len == 0 ?
+            jnz         B2_189_3               ; nein -> goto %3
+            move        I2,S5[B2]       ; len = antwort[offset]
+            and         I2,#$FF          ; len = len & 0xFF
+            adds        B2,#1            ; offset = offset + 1
+
+B2_189_3:         move        I5,#1            ; len_check = 1 ( Checksumme )
+            adds        BA,B2            ; len_check = len_check + offset
+            adds        I5,I2            ; len_check = len_check + len
+            comp        I5,I4            ; len_check == datalen_antwort ?
+            jz          B2_189_4               ; ja -> goto %4
+            ergs        "JOB_STATUS","ERROR_ECU_INCORRECT_LEN"
+            jump        B2_189_0endnio          ; Fehler !
+
+B2_189_4:         move        S6,S5[B2]I2    ; daten=antwort[offset] len
+            settmr      #$400.L          ; set_trap_mask(0x400)
+            tabset      "JobResult"      ; tabset("JobResult")
+            jt          B2_189_0nio_table,#10   ; Tabelle nicht gefunden ?
+            comp        S5[B2],#$7F     ; antwort[offset] == 0x7F ?
+            jnz         B2_189_5               ; nein -> goto %5
+
+            move        B0,B2            ; temp = offset ( antwort )
+            adds        B0,#2            ; temp = temp + 2
+
+            comp        I3,#0            ; datalen_auftrag == 0 ?
+            jz          B2_189_4a              ; ja -> goto %4a
+
+            move        BE,S3[#0]       ; temp2 = auftrag[0]
+            and         BE,#$C0          ; temp2 = temp2 & 0xC0
+            comp        BE,#$C0          ; temp2 == 0xC0 ?
+            jz          B2_189_4a              ; ja -> goto %4a
+
+            comp        S5[B0],#$21     ; NegResponseCode == BusyRepeatRequest ?
+            jz          B2_189_4c              ; ja -> goto %4c
+            comp        S5[B0],#$23     ; NegResponseCode == RoutineNotComplete ?
+            jz          B2_189_4c              ; ja -> goto %4c
+            jump        B2_189_4a              ; goto %4a
+
+B2_189_4c:        comp        I6,#1            ; BusyCount == 1 ?
+            jz          B2_189_4b              ; ja -> goto %4b
+            wait        #1               ; wait (1)
+
+B2_189_4b:        subb        I6,#1            ; BusyCount --
+            jnz         B2_189_1a              ; BusyCount > 0 -> goto %1a
+
+B2_189_4a:        fix2hex     S1,S5[B0]       ;
+            tabseek     "SB",S1          ; tab_suche_index("SB",antwort[offset+2])
+            tabget      S1,"STATUS_TEXT" ;
+            ergs        "JOB_STATUS",S1  ;
+            jump        B2_189_0endnio          ; Fehler !
+
+B2_189_5:         comp        I3,#0            ; datalen_auftrag == 0 ?
+            jz          B2_189_8               ; ja -> goto %8
+
+            move        B3,#3            ; PosSID = 3
+            move        B0,S3[#0]       ; temp = auftrag[0]
+            and         B0,#$C0          ; temp = temp & 0xC0
+            comp        B0,#0            ; temp == 0 ?
+            jnz         B2_189_6               ; nein -> goto %6
+            move        B3,#1            ; PosSID = 1
+
+B2_189_6:         move        B0,S3[#0]       ; temp = auftrag[0]
+            and         B0,#$3F          ; temp = temp & 0x3F
+            comp        B0,#0            ; temp == 0 ?
+            jnz         B2_189_7               ; nein -> goto %7
+            adds        B3,#1            ; PosSID = PosSID + 1
+
+B2_189_7:         move        B1,S3[B3]       ; SID = auftrag[PosSID]
+            adds        B1,#$40          ; SID = SID + 0x40
+            comp        S5[B2],B1       ; antwort[offset] == SID ?
+            jz          B2_189_8               ; ja -> goto %8
+            ergs        "JOB_STATUS","ERROR_ECU_INCORRECT_RESPONSE_ID"
+            jump        B2_189_0endnio          ; Fehler !
+
+B2_189_8:         push        #1.L             ; TRUE
+            jump        B2_189_0end
+
+B2_189_0nio_table: push        #0.L             ; FALSE
+            ergs        "JOB_MESSAGE","Table JobResult not found"
+            ergs        "JOB_STATUS","ERROR_TABLE"
+            clrt                         ; clear_error
+            jump        B2_189_0end
+
+B2_189_0endnio:    push        #0.L             ; FALSE
+B2_189_0end:       settmr      L6               ; set_trap_mask(trapmask)
+		pop 		L1					; 
+		pop 		L0					; 
+		pop 		L0					; 
+		pop 		L0					; 
+		pop 		L0					; 
+		pop 		L0					; 
+		push		L1					; 
+		push		#0.L					; FALSE
+		pop 		L1					; 
+		pop 		L0					; 
+		comp		L0,L1				; 
+		jz  		__B2_HD_00190					; if condition true then true
+		push		#0.L					; FALSE
+		jump		__B2_HD_00191					; 
+__B2_HD_00190:
+		push		#1.L					; TRUE
+__B2_HD_00191:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00192					; IF
+		nop 							; for debugging
+#DLINE 168 "JOBS\SEED_KEY.B2V"
+		eoj 							; 
+__B2_HD_00192:
+#DLINE 170 "JOBS\SEED_KEY.B2V"
+		jump		__B2_HD_00181					; BREAK
+#DLINE 171 "JOBS\SEED_KEY.B2V"
+		jump		__B2_HD_00181					; end of switch
+__B2_HD_00182:
+		pop 		L0					; get expression
+		comp		L0,#$6				; 
+		jz  		__B2_HD_00184					; to case
+		comp		L0,#$d				; 
+		jz  		__B2_HD_00183					; to case
+		jump		__B2_HD_00185					; to default
+__B2_HD_00181:
+#DLINE 173 "JOBS\SEED_KEY.B2V"
+		move		L0,#$0				; 
+		push		L0					; 
+		move		L0,#$1				; 
+		push		L0					; 
+		pop 		L1					; 
+		pop 		L0					; 
+		comp		L0,L1				; 
+		jz  		__B2_HD_00193					; if condition true then true
+		push		#0.L					; FALSE
+		jump		__B2_HD_00194					; 
+__B2_HD_00193:
+		push		#1.L					; TRUE
+__B2_HD_00194:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00195					; IF
+		nop 							; for debugging
+#DLINE 174 "JOBS\SEED_KEY.B2V"
+		clear		S1					; 
+		move		S1,S6			;payload
+		push		#1.L					; TRUE
+		clear		S1					; 
+		move		S1,S3			;key_answer
+		push		#1.L					; TRUE
+            gettmr      L6               ; trapmask=get_trap_mask()
+            slen        I2,S6           ; datalen_daten = datalen(daten)
+            comp        I2,#0            ; datalen_daten = 0 ?
+            jz          B2_196_0io              ; ja -> iO
+            comp        I2,#4            ; datalen_daten < 4 ?
+            jl          B2_196_0nio_1           ; ja -> Fehler
+
+            move        I0,#0            ; temp = 0
+            move        B0,S6[#2]       ; temp = LLEN
+            adds        B0,#3            ; temp = temp + 3
+            comp        I0,I2            ; temp <> datalen_daten ?
+            jnz         B2_196_0nio_1           ; ja -> Fehler
+
+            serase      S6[#0],#3       ; Erste 3 Byte löschen
+
+            settmr      #$400.L          ; set_trap_mask(0x400)
+            tabset      "JobResult"      ; tabset("JobResult")
+            jt          B2_196_0nio_table,#10   ; Tabelle nicht gefunden ?
+            comp        S6[#0],#$7F     ; daten[0] == 0x7F ?
+            jnz         B2_196_1               ; nein -> goto %1
+
+            fix2hex     S1,S6[#2]       ;
+            tabseek     "SB",S1          ; tab_suche_index("SB",daten[2])
+            tabget      S1,"STATUS_TEXT" ;
+            ergs        "JOB_STATUS",S1  ;
+            jump        B2_196_0endnio          ; Fehler !
+
+B2_196_1:         slen        I0,S3           ; temp = datalen(auftrag)
+            comp        I0,#0            ; temp = 0 ?
+            jz          B2_196_0io              ; ja -> Keine SID Überprüfung
+            comp        S3[#0],#$B8     ; auftrag[0] == 0xB8 ?
+            jz          B2_196_2               ; ja -> goto %2
+
+            comp        I0,#7            ; temp < 7 ?
+            jl          B2_196_0io              ; ja -> Keine SID Überprüfung
+            move        B2,S3[#6]       ; SID = auftrag[6]
+            adds        B2,#$40          ; SID = SID + 0x40
+            comp        S6[#0],B2       ; daten[0] <> SID ?
+            jnz         B2_196_0nio_2           ; ja -> Fehler
+            jump        B2_196_0io              ; io
+
+B2_196_2:         comp        I0,#8            ; temp < 8 ?
+            jl          B2_196_0io              ; ja -> Keine SID Überprüfung
+            move        B2,S3[#7]       ; SID = auftrag[7]
+            adds        B2,#$40          ; SID = SID + 0x40
+            comp        S6[#0],B2       ; daten[0] <> SID ?
+            jnz         B2_196_0nio_2           ; ja -> Fehler
+;           jump        %io              ; io
+
+B2_196_0io:        push        #1.L             ; TRUE
+            jump        B2_196_0end
+
+B2_196_0nio_table: ergs        "JOB_MESSAGE","Table JobResult not found"
+            ergs        "JOB_STATUS","ERROR_TABLE"
+            clrt                         ; clear_error
+            jump        B2_196_0endnio          ; Fehler !
+
+B2_196_0nio_1:     ergs        "JOB_STATUS","ERROR_ECU_INCORRECT_LIN_LEN"
+            jump        B2_196_0endnio          ; Fehler !
+
+B2_196_0nio_2:     ergs        "JOB_STATUS","ERROR_ECU_INCORRECT_LIN_RESPONSE_ID"
+            jump        B2_196_0endnio          ; Fehler !
+
+B2_196_0endnio:    push        #0.L             ; FALSE
+;           jump        %end
+
+B2_196_0end:       settmr      L6               ; set_trap_mask(trapmask)
+		pop 		L1					; 
+		pop 		L0					; 
+		pop 		L0					; 
+		push		L1					; 
+		push		#0.L					; FALSE
+		pop 		L1					; 
+		pop 		L0					; 
+		comp		L0,L1				; 
+		jz  		__B2_HD_00197					; if condition true then true
+		push		#0.L					; FALSE
+		jump		__B2_HD_00198					; 
+__B2_HD_00197:
+		push		#1.L					; TRUE
+__B2_HD_00198:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00199					; IF
+		nop 							; for debugging
+#DLINE 175 "JOBS\SEED_KEY.B2V"
+		eoj 							; 
+__B2_HD_00199:
+#DLINE 176 "JOBS\SEED_KEY.B2V"
+__B2_HD_00195:
+#DLINE 178 "JOBS\SEED_KEY.B2V"
+		etag		__B2_HD_00200,"STAT_SEED_KEY"		; REQUESTED
+		push		#1.L					; TRUE
+		jump		__B2_HD_00201					; 
+__B2_HD_00200:
+		push		#0.L					; FALSE
+__B2_HD_00201:
+		pop 		L0					; get expression
+		jz  		__B2_HD_00202					; IF
+		nop 							; for debugging
+#DLINE 179 "JOBS\SEED_KEY.B2V"
+		move		L0,#$1				; 
+		push		L0					; 
+		atsp		L1,#4				; 
+		clear		S1				;clear indexed register
+		move		S1,S6			;payload
+		clear		L0					; 
+		move		B0,S1[L1]
+		push		L0					; 
+		pop 		L0					; 
+		pop 		L1					; 
+		push		L0					; 
+		atsp		L0,#4				; 
+		ergi		"STAT_SEED_KEY",I0
+		pop 		L0					; cleanup stack
+#DLINE 180 "JOBS\SEED_KEY.B2V"
+__B2_HD_00202:
+#DLINE 182 "JOBS\SEED_KEY.B2V"
+		clear		S1					; 
+		move		S1,"OKAY"				; 
+		push		#1.L					; TRUE
+		ergs		"JOB_STATUS",S1
+		pop 		L0					; cleanup stack
+#DLINE 183 "JOBS\SEED_KEY.B2V"
+#DVARE global_data
+#DVARE payload
+#DVARE ECU_reply_answer
+#DVARE ECU_reply_request
+#DVARE key_level_2
+#DVARE key_level_1
+#DVARE key
+#DVARE secret
+#DVARE long_secret
+#DVARE seed
+#DVARE key_answer
+#DVARE seed_request
+#DVARE SECURITY_LEVEL
+		eoj							; 
+		eoj							; 
+
+
+

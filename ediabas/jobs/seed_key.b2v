@@ -1,0 +1,183 @@
+job(name    : SEED_KEY;
+    //comment :Identdaten;
+    comment : Security Access;
+    comment : KWP2000: $27 Security Access Request;
+    //comment : $01 ot $04 Access Mode;
+    comment : $01 or $04 Access Mode;
+
+    argument: SECURITY_LEVEL;
+    type    : int;
+    comment : default: 0x01 > Security Level 1 > Access to "normal";
+    comment : services, immediately active after initialization;
+    comment : 0x02 > Security Level 2 > Access to "secure";
+    comment : services for service and dealer purposes;
+
+    result  : JOB_STATUS;
+    type    : string;
+    //comment : OKAY, wenn fehlerfrei;
+    comment : OKAY, if error-free;
+    comment : table JobResult STATUS_TEXT;
+    
+    result  : STAT_SEED_KEY;
+    type    : int;
+    comment : Answer from the ECU, Access Mode;
+    
+    //result  : _TEL_AUFTRAG;
+    result  : _TEL_REQUEST;
+    type    : data;
+    //comment : Hex-Auftrag an SG;
+    comment : Hex-Request to CY;
+
+    //result  : _TEL_ANTWORT;
+    result  : _TEL_ANSWER;
+    type    : data;
+    //comment : :Hex-Antwort von SG
+    comment : Hez-Answer from CU;
+
+    //result  : _TEL_AUFTRAG_2;
+    result  : _TEL_REQUEST_2;
+    type    : data;
+    //comment : Hex-Auftrag an SG;
+    comment : Hex-Request to CY;
+
+    //result  : _TEL_ANTWORT_2;
+    result  : _TEL_ANSWER_2;
+    type    : data;
+    //comment : :Hex-Antwort von SG
+    comment : Hez-Answer from CU; ) {
+
+    unsigned char seed_request[] = {0x82,0xFF,0xF1,0x27,0x01};             // S2
+    unsigned char key_answer[] = {0x84,0xFF,0xF1,0x27,0x02,0x00,0x00};     // S3
+
+    unsigned int seed;                              // S0[#0-#1]
+	unsigned long long_secret;                      // S0[#2-#5]
+	unsigned int secret;                            // S0[#6-#7]
+	unsigned int key;                               // S0[#8-#9]
+	unsigned int key_level_1 = 0x5106;		        // key for security level 1
+	//unsigned int key_level_2 = 0x1923;		    // key for security level 2
+    unsigned int key_level_2 = 0x1EC3;		        // key for security level 2 for CCM and Husqvarna
+
+	unsigned char ECU_reply_request[];              // S4
+	unsigned char ECU_reply_answer[];               // S5
+	unsigned char payload[];                        // S6
+	unsigned char global_data[];                    // S7
+
+    if( SECURITY_LEVEL ){
+        if( SECURITY_LEVEL != SecurityLevel_1_normal &&
+	        SECURITY_LEVEL != SecurityLevel_2_secure    ){
+            JOB_STATUS = "ERROR ARGUMENT";
+            return;
+        }//__00029254:
+
+        if( SECURITY_LEVEL == SecurityLevel_1_normal ){
+            seed_request[ AccessMode_position ] = SecurityLevel_ID1_normal;	
+            key_answer[ AccessMode_position ] = SecurityLevel_ID1_response;
+
+            key = key_level_1;			            // key for security level 1
+
+        }//__00029302
+
+        if( SECURITY_LEVEL == SecurityLevel_2_secure ){
+            seed_request[ AccessMode_position ] = SecurityLevel_ID2_secure;	
+            key_answer[ AccessMode_position ] = SecurityLevel_ID2_response;
+
+            key = key_level_2;					    // key for security level 2
+        }//__000293B0
+    }//__000293B6
+
+    else {
+        // default request = SecurityLevel_ID1_normal
+        seed_request[ AccessMode_position ] = SecurityLevel_ID1_normal;
+        key_answer[ AccessMode_position ] = SecurityLevel_ID1_response;
+
+        key = key_level_1;  				        // key for security level 1
+    
+    }//__00029422:
+
+    dataclear( global_data );
+    read_global_data( global_data );
+
+    seed_request[ 1 ] = global_data[ TESTER_ADDRESS ];
+
+    if( LIN_KWP2000 == TRUE ){
+        if( !convert_kwp2000_to_lin_kwp2000( global_data[ LIN_SLAVE_ADDRESS ], seed_request ) )
+            return;
+    }//__00029604
+
+    switch( global_data[ CONCEPT_NUM ] ) {
+        //__00029D71
+        case CONZEPT_KWP2000x:                      //__00029636
+            break;
+        case CONZEPT_DS2:                           // __00029636
+            break;
+        
+        default:    // KWP2000                      // __000299CB
+            if( _TEL_REQUEST )
+	            _TEL_REQUEST = seed_request;
+            
+            if( !send_and_receive_kwp2000(
+	            ECU_reply_request, seed_request, payload, "_TEL_ANSWER", 2 ) )
+	            
+                return;
+            
+            break;
+    }//__00029D94
+
+    if( LIN_KWP2000 == TRUE ){
+        if( !generate_data_lin_kwp2000_to_kwp2000( payload, seed_request ) )
+            return;
+    }//__0002A002:
+
+
+    // Calculate key response
+
+    seed = payload[2] * 0x100 + payload[3];
+    long_secret = seed * key;
+    secret = long_secret % 0x10000;
+
+    dataclear( payload );
+    
+    dataclear( global_data );
+    read_global_data( global_data );
+
+    key_answer[ 1 ] = global_data[ TESTER_ADDRESS ];
+
+    key_answer[5] = secret >> 8;
+    key_answer[6] = secret & 0xFF;
+
+    if( LIN_KWP2000 == TRUE ){
+        if( !convert_kwp2000_to_lin_kwp2000( global_data[ LIN_SLAVE_ADDRESS ], seed_request ) )
+            return;
+    }//__0002A391
+
+    switch( global_data[ CONCEPT_NUM ] ) {
+        //__0002AB16
+        case CONZEPT_KWP2000x:                      //__0002A3C3
+            break;
+        case CONZEPT_DS2:                           // __0002A3C3
+            break;
+        
+        default:    // KWP2000                      // __0002A764
+            if( _TEL_REQUEST_2 ) {
+                _TEL_REQUEST_2 = key_answer;
+            }
+
+            if( !send_and_receive_kwp2000(
+	            ECU_reply_answer, key_answer, payload, "_TEL_ANSWER_2", 2 ) )
+	            
+                return;
+            
+            break;
+    }
+
+    if( LIN_KWP2000 == TRUE ){
+        if( !generate_data_lin_kwp2000_to_kwp2000( payload, key_answer ) )
+            return;
+    }//__0002ADA7:
+
+    if (STAT_SEED_KEY) {
+        STAT_SEED_KEY = payload[1];
+    }
+
+    JOB_STATUS = "OKAY";
+}

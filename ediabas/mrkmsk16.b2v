@@ -1,0 +1,13 @@
+ecu     : KMSK16;
+origin  : Keihin;
+revision:	 1.0;
+author  : gobftald;
+comment : reverse engineering;
+
+#include "jobs\tables.b2v"
+#include "jobs\defines.b2v"
+#include "jobs\globals.b2v"
+#include "jobs\info.b2v"
+#include "jobs\init.b2v"
+#include "jobs\ident.b2v"
+#include "jobs\seed_key.b2v"

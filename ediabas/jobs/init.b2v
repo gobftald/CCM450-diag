@@ -1,0 +1,128 @@
+job(name    : INITIALISIERUNG;
+    comment : Initialization and communication parameters;
+
+    result  : DONE;
+    type    : int;
+    comment : 1, wenn Okay; ) {
+
+    unsigned char ECU_request_1[] = {0x82,0xFF,0xF1,0x1A,0x80};         // S2
+    unsigned char ECU_request_2[] = {0xB8,0xFF,0xF1,0x02,0x1A,0x80};    // S3
+
+    unsigned char receive_buffer[];                 // S4
+    unsigned char shared_memory[];                  // S5
+    unsigned char table_buffer[];			        // S6
+    unsigned long conzept_params[];		            // S7
+
+    long l0;
+    long length;
+    unsigned char concept_number;
+
+
+
+    open_communication();                           // Opens the communication channel to the interface
+    stop_frequent();                                // Terminates the frequent mode
+    set_repeat_counter( 1 );                        // Sets the repeat counter for repeats in the event of an error
+    
+    dataclear(shared_memory);                       // Clears a buffer
+    shdataget("", shared_memory);                   // Read (get) the global data memory
+
+    if( LIN_KWP2000 == TRUE ) {
+        shared_memory[ TESTER_ADDRESS ] = 0;	
+        shared_memory[ LIN_SLAVE_ADDRESS] = 0;	
+    }//__00000326:
+
+    else {
+        shared_memory[ TESTER_ADDRESS ] = TESTER_ADDRESS_VALUE;	
+        shared_memory[ LIN_SLAVE_ADDRESS ] = 0x00;
+        shared_memory[ 0x3EB ] = 0x40;	            // 0x3EB ?  0x40 ?
+        shared_memory[ 0x3EC ] = 0x02;	            // 0x3EC ?  0x02 ?
+        shared_memory[ 0x3ED ] = 0x01;              // 0x3ED ?  0x01 ?
+
+        tabset( "Authentisierung" );		        // Simple/Symetrisch/Asymetrisch/Keine
+        if( !tabseek( "AUTH_TEXT", "keine" ) ){	    // check for "keine"
+            DONE = FAILED;
+            return;
+        }//__000004E0:
+
+        tabget( table_buffer, "AUTH_NR" );		    // value is "0xFF" for "keine"
+        shared_memory[ AUTH_TYPE_NUM ] = atoi( table_buffer );  // initial value is "keine"
+    }//__0000055D:
+
+    tabset( "SG_DiagnoseKonzept");		                    // only one item: DIAGNOSEKONZEPT_1 = KWP2000
+    if( tab_suche_unsigned( "Rang", DIAGNOSEKONZEPT_1 ) ){  // serach for DIAGNOSEKONZEPT_1 
+        tabget( table_buffer, "KONZEPT_TEXT" );	            // found and get "KWP2000"
+
+        if( !tab_suche_unsigned( "Rang", DIAGNOSEKONZEPT_2 ) || isSimulation() ){
+                                                            // if there are no DIAGNOSEKONZEPT_2 in the table
+                                                            // or isSimulation
+                                                            // in our case no DIAGNOSEKONZEPT_2 in our table
+                                                            // so it is TRUE, we get here
+                                                            // Simulation always get here
+            tabset( "KONZEPT_TABELLE" );		            // D-CAN/BMW-FAST/KWP2000*/KWP2000/DS2
+            
+            if( tabseek( "KONZEPT_TEXT", table_buffer ) ){
+                tabget( table_buffer, "NR" );
+                concept_number = atoi( table_buffer );    // concept_number = 0x0C = KWP2000
+
+                switch( concept_number ) {
+                    case CONZEPT_DS2://__00000848:
+                        break;
+                    case CONZEPT_KWP2000x://__000008C2:
+                        break;
+                    case CONZEPT_KWP2000://__00000958:
+                        conzept_params = CONZEPT_PARAMS;
+                        
+                        length = conzept_params[ TESTER_PRESENT_LENGTH_FIELD ];
+                        if( length != 0 ) {
+                            conzept_params[ TESTER_PRESENT_ADDRESS_FIELD ] =
+                                shared_memory[TESTER_ADDRESS];                              // 0x12
+
+                            conzept_params[ length + TESTER_PRESENT_LENGTH_FIELD ] =        // checksum param 
+                                (conzept_params[ length + TESTER_PRESENT_LENGTH_FIELD ] +   // original checksum
+                                shared_memory[ TESTER_ADDRESS ]) &                          // increase   
+                                0xFF; 				                                        // mask
+                        }
+
+                        length = conzept_params[ START_MESSAGE_LENGTH_FIELD ];
+                        if( length != 0 ) {
+                            conzept_params[ START_TESTER_ADDRESS_FIELD ] =
+		                        shared_memory[ TESTER_ADDRESS];                             // 0x12
+
+                            conzept_params[ length + START_MESSAGE_LENGTH_FIELD ] =         // checksum param 
+                                (conzept_params[ length + START_MESSAGE_LENGTH_FIELD ] +    // original checksum
+                                shared_memory[ TESTER_ADDRESS ]) &                          // increase
+                                0xFF;                                                       // mask
+                        }
+                        set_communication_pars( conzept_params );   // Sets the communication parameters
+                        set_answer_length( LENGTH_PARAMS );         // Sets the telegram parameters/response length
+                        break;
+                    case CONZEPT_BMW_FAST://__00000E04:
+                        break;
+                    case CONZEPT_D_CAN://__00000E92:
+                        break;
+                    default://__00000FD8:
+                        DONE = FAILED;
+      	                return;
+                }//__00001048
+
+            shared_memory[ CONCEPT_NUM ] = concept_number; 
+            shdataset("", shared_memory); 
+
+            DONE = SUCCESS;
+      	    return;
+
+            }//__000010BA            
+            else {
+                DONE = FAILED;
+      	        return;
+            }
+        }//__000010DA
+        else {
+            // we have DIAGNOSEKONZEPT_2 in the table as well AND no Simulation
+        }
+    }//__000010E0
+    else {
+        DONE = FAILED;
+        return;
+    }
+}

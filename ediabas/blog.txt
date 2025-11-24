@@ -1,0 +1,125 @@
+After finishing implemantation of the basic ELM327 functions in studies/ecu-via-ELM327,
+    like 'connect' (fast init and authentication), 'read_data_by_common_id',
+    'read_diagnostic_trouble_codes_by_status' and 'clear_diagnostic_information' I've implement
+    a 'raw_request' function enabling to play sending different request to the ECU.
+    But I had problems with flash write service IDs, so I started to install the EDIABAS environment
+    to learn the fine details of those jobs/functions in the mrmksk16.prg ecu descrition file.
+
+I had a cheap KKL409 cable (with USB-A in one side and OBD on the other)
+    I didn't want to bother wiring my ECU (which was disconected and dismantled from my motorcycle)
+    via that specific OBD connector so I unscrewed the KKL409 box and soldered 3 wires to
+        GND (OBD pin 4 and/or 5 (generally 4 and 5 are connected/soldered together))
+        BAT (+12V) (OBD pin 16)
+        K-Line (both input and output signal) (OBD pin 7)
+    internally only 4 pins are connected to the PCB (GND, BAT, K-Line and L-Line (OBD pin 15))
+        they have good soldering points inside, so these points were to which I soldered my wires
+        if we view these soldering points from OBD socket they are from left to right:
+            1 GND
+            2 BAT
+            3 L-Line (not needed)
+            4 K-Line
+
+    This KKL cable is no more than an USB-serial converter plus an L9637 bus driver which join
+    the RX/TX signal of serial port, making this common (K-Line) to two direction, and providing
+    the signals voltage level conversion between RX/TX and the 12V bidirectional K-Line.
+    https://www.blafusel.de/bilder/obd2/usb_sch1.png
+    In my final (not ELM327) version I will also want to connect only this L9637 chip to RX/TX of
+    my ESP32C3, and its K-Line to my motorcycle's ECU.
+
+I've installed an EDIABAS on a windows32 virtual machine
+    it was EDIABAS version 6.4.3 (this version is close to the date of this GX450 era)
+        it is hard to find a proper version so I attached it (ediabas/ediabas-6.4.3-full.iso)
+        INPA and other file are not, but only EDIABAS needed
+        I think copying into the root folder (C:\) is enough for the installation
+        ini files in bin folder: 
+    ediabas.ini -> Interface =STD:OBD
+    obd.ini -> Port=Com1
+               Hardware=USB
+               RETRY=ON
+               Tracelevel=0
+    
+
+Since I use an A1 MacBook for development I need to use UTM emulator
+    and installing a Windows 7 Pro virtual machine on this platform
+    I had already has this stuff in VirtualBox image on an older MacBook from that time
+    when I originally brake in and got the secret key for athentication level 2
+
+I also need to install the FTDMI driver (a virtual COM port) for the KKL cable
+    EDIABAS 'likes' only Com1 port (see in obd.ini) so it needed to reconfigure the installed
+    COM port (ftdi default is COM3) to COM1 in Device Manager
+    Regarding this COM port there are some other settings doucmented in C:\EDIABAS\Hardware\OBD folder
+
+PRG files (like mrkmsk16.prg) can be disassembled by bestdis.exe program into *.b1v file/format.
+You can get bestdis disassmbler from https://github.com/uholeschak/ediabaslib/tree/master/Tools.
+To not need to compile it I've also attached a win32 version of this bestdis.exe disassembler in
+my EDIABAS folder.
+
+Reading the disassembled mrkmsk16.b1v file can give many information. It was my basic source of
+    information accessing to my Keihin ECU (e.g. adresses, request packets) till now. But for
+    furhter details I need the original source file (*.b2v). I was not able to find any of such
+    b2v sorce file on the internet.
+    So finally I developed my mrkmsk16.b2v (or parts of it) by a painfull reverse engineering. Based
+    on the disassembled b1v file assembler instructions and the two ediabas runtime libraries
+    (C:\EDIABAS\bin\B2runtim.lib and C:\EDIABAS\bin\B2BMW.lib; both of them are text files), with "try
+    and error" method, I wrote my 'best' own BEST language program (is is a basic version of C language)
+    a *.b2v file, then compile it with C:\EDIABAS\bin\best2.exe 'best'compiler:
+    (best2 -L C:\EDIABAS\bin\B2BMW.lib -L C:\EDIABAS\bin\B2runtim.lib -A mrkmsk16.b2v). Because of the
+    '-A' flag BEST compiler makes only this intermediate assmbler source file and not the final .prg
+    binary. Then based on the comparision of my compled *.b1v file and the originally disassembled *.b1v
+    file and finding why those a re different I can modify my *.b2v soruce file. My .b2v sorce file was
+    edited on my Mac with VisualStudio, sharing my EDIABAS folder with the UTM Windows7 machine where
+    the compiler was run.
+    I also modifed a *b1v file, called it mrkmsk16.b1v.traced, to track my advance in these reverse
+    engineering.
+
+Without -A flag best2.exe compiler generates the final *.prg file, which can be run by BestVw32.exe or
+    Tools32.exe. If both *.b2v and *.prg file exist, BestVw32.exe can open the b2v source file, then it
+    is able to run, debug (set breakpoint, show, modify, watch variables, step by program lines). When I
+    finished with a job the I went to Tool32.exe to run my *.prg file.
+    (If you get warning messages about buffers when starting BestVw32.exe, execute OBDSetup.exe from
+    c:\EDIABAS\Hardware\OBD)
+
+Unfortunately (maybe bacause of using virtual machine) the fast init sequence is not precise. I think
+    the serial communization, based on the serial chip HW buffer is OK, but for the FAST INIT sequence 
+    ediabas ouputs a "break" command for the serial chip and measure the 25ms FAST INIT low level signal
+    in a wait loop. Seeing that in an oscilloscope the time length of this FAST INIT low level(s) had a 
+    verly large variance (from 25ms to even 200 ms). So edibas communication with my ECU was rarely
+    successfull. But for testing purposes, tracing the jobs' workflow and communincation I had to endure 
+    this instablilty. Ist is why I use Tool32.exe, since there is a function to repeat a job in a loop.
+    Sometime I needed to wait several seconds whey finally there was a successfull communication between
+    KKl interface and my ecu sitting on my table.
+    (You can not load *.prg file from a shared/network drive. So you need to copy to C:\....)
+
+In ediabas file there is the orginal mrkmsk16 object file (mrkmsk16.prg.orig), there is its disassembled
+version (mrkmsk16_disassembled.b1v).
+
+When I got some more experience (e.g. with reverse engineering the SEED_KEY job), finding the original
+BMWGX450 seceret keys, and the algorithm with which it uses the provided "seed" values, even in those 
+old time I wrote a Python script and patched mrkmsk16.prg.orig. The only trick I needed, that the *.prg
+object file had been "encrypted" after it was assmebled from *.b1v assembler imtermediate format
+by BEST.exe. The encription is basicallY XOR-ing for all its bytes with a 0xF7 value. So for patchin,
+the simple seraching of the original secret keys in the original *prg file was not succsesfull. I
+need to use this XOR trick and based on the bytes evinronment of the found "secret keys" it needed to
+verify that it was a real matching with the keys and not other assembled byte code.
+
+I attached my old Python script which was implemented based on the soruce code of BESTDIS disassembler
+source code. So the pathced *.prg file is the mrkmsk16.prg.patched. Its disassembled version is
+mrkmsk16.b1V.patched file. If you make a diff between mrkmsk16.prg.orig and mrkmsk16.prg.patched you
+can see where those secret keys were replaced in the code. Practically this happens in all jobs which
+uses/needs authentication.
+
+But finally this whole project was not able to help me to understand the strucure of files which
+can be dowloaded into the flash. E.g. the fule map files.
+
+I thought that I also reverse engineer the TuneEcu.apk. Since it surely needs to understand that
+machanism, when it reads and writes fuel map file. But finally I drop this project. I'm not really
+want to modify my fuel maps, which needs other silencer without filter, and to switfh "the sport 
+switch" on. It provides bigger power, but increas the fuel consumption.
+I don't want to pay for a new TuneEcu.apk, since I think Alain Fontaine, its developer, knows and
+sells these programs not only for BMW, but also for CCM ECUs, because I shared with her the secret
+key I found.
+
+So I finished this side project with ediabas *.b2v files, and continue to implement the "test" and
+maybe some ecu "info" jobs. Maybe I will return here when I start to implement my direct (L9637) chip
+adapter, since at that time I need to imeplement the functions (framing the messages, append checksums,
+sending the TesterPresent message periodically, etc) of ELM327.

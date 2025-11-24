@@ -184,7 +184,7 @@ impl<'a> Adapters for Adapter<'a> {
         let key = (seed * secret_key) % 0x10000;
 
         buf[0] = b'2'; // Security Access Request Service ID
-        buf[4] = b'4'; // 04 - Access Mode - '04 secure mode' Send Key
+        buf[4] = b'4'; // 04 - Access Mode - '02 secure mode' Send Key
 
         from_u16_to_ascii_bytes(key as u16, &mut buf[6..10]);
 
@@ -200,7 +200,7 @@ impl<'a> Adapters for Adapter<'a> {
         if (
             // 67 - Security Access Positive Response Service ID
             (buf[0] != b'6' || buf[1] != b'7') ||
-            // 04 - Access Mode - '02 secure mode' Request Seed
+            // 04 - Access Mode - '02 secure mode' Request Seed Accepted
             (buf[3] != b'0' || buf[4] != b'4')
         ) {
             error!("AuthError");
