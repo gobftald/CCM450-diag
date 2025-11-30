@@ -29,6 +29,8 @@
         *(.text.esp_fill_random)
 
         *(.text.*esp_wifi*compat*timer_compat*TimerQueue*remove*)
+        *(.text.*esp_wifi*compat*timer_compat*compat_timer_arm*)
+        *(.text.*esp_wifi*compat*timer_compat*compat_timer_arm_us*)
 
         *(.text.*esp_wifi*preempt*enable*)
         *(.text.*esp_wifi*preempt*yield_task*)
@@ -92,7 +94,8 @@
         *(.text.*esp_wifi*wifi*os_adapter*wifi_reset_mac*)
         *(.text.*esp_wifi*wifi*os_adapter*get_random*)
 
-        *(.text.esp_timer_get_time)
+        *(.text.*esp_wifi*time*systimer_count*)
+
         *(.text.esp_wifi_internal_free_rx_buffer)
         *(.text.esp_wifi_init_internal)
         *(.text.esp_wifi_wpa_ptk_init_done_internal)

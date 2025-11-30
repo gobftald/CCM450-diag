@@ -34,7 +34,7 @@
         *(.text.*esp_hal*TIMG0*)
 
         *(.text.*esp_hal*uart*UartBuilder*init*)
-        *(.text.*esp_hal*uart*UartTx*flush_last_byte*)
+        *(.text.*esp_hal*uart*UartTx*write*)
         *(.text.*esp_hal*uart*UartRx*apply_config*)
         *(.text.*esp_hal*uart*Uart*apply_config*)
         *(.text.*esp_hal*uart*Uart*set_at_cmd*)
@@ -46,9 +46,8 @@
         *(.text.*esp_hal*uart*Info*tx_fifo_count*)
         *(.text.*esp_hal*uart*Info*rx_fifo_count*)
         *(.text.*esp_hal*uart*Info*read_buffered*)
-        *(.text.*esp_hal*uart*UartRxFuture*as*core*future*future*Future*poll*)
-        *(.text.*esp_hal*uart*UartTxFuture*as*core*future*future*Future*poll*)
-        *(.text.*esp_hal*uart*UartTxFuture*as*core*ops*drop*Drop*drop*)
+        *(.text.*esp_hal*uart*UartRxFuture*)
+        *(.text.*esp_hal*uart*UartRx*)
 
         *(.text.*esp_hal*gpio*GpioBank*write_out_en*)
         *(.text.*esp_hal*gpio*GpioBank*write_output*)
@@ -64,6 +63,8 @@
         *(.text.*esp_hal*soc*implementation*)
 
         *(.text.*esp_hal*sync*)
+
+        *(.text.*esp_hal*system*PeripheralGuard*as*core*ops*drop*Drop*drop*)
 
     } > ROTEXT
 
@@ -159,9 +160,8 @@ INCLUDE "debug_smoltcp.x"
         *(.text.*core*cell*panic_already_borrowed*)
         *(.text.*core*cell*panic_already_mutably_borrowed*)
 
-        *(.text.*core*slice*index*slice_start_index_len_fail*do_panic*runtime*)
-        *(.text.*core*slice*index*slice_end_index_len_fail*do_panic*runtime*)
-        *(.text.*core*slice*index*slice_index_order_fail*do_panic*runtime*)
+        *(.text.*core*slice*index*slice_index_fail*)
+        *(.text.*core*slice*index*slice_index_fail*do_panic*runtime*)
 
         /* it takes 544 bytes, so we use only in udp test server */
         *(.text.*core*str*converts*from_utf8*)

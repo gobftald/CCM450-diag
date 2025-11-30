@@ -1,8 +1,8 @@
-DEFMT_LOG=off,ecu_via_elm327=trace,esp_hal=debug,esp_wifi=info cargo build
-#cargo build --release
+#DEFMT_LOG=off,ecu_via_elm327=trace,esp_hal=debug,esp_wifi=info cargo build
+cargo build --release
 
-sshpass -p haho-piv scp target/riscv32imc-unknown-none-elf/debug/ecu-via-elm327 dietpi@192.168.2.100:
-#sshpass -p haho-piv scp target/riscv32imc-unknown-none-elf/release/ecu-via-elm327 dietpi@192.168.2.100:
+#sshpass -p haho-piv scp target/riscv32imc-unknown-none-elf/debug/ecu-via-elm327 dietpi@192.168.2.100:
+sshpass -p haho-piv scp target/riscv32imc-unknown-none-elf/release/ecu-via-elm327 dietpi@192.168.2.100:
 
-sshpass -p haho-piv ssh -t dietpi@192.168.2.100 'espflash flash --monitor --log-format defmt ecu-via-elm327'
-#sshpass -p haho-piv ssh -t dietpi@192.168.2.100 'espflash flash --monitor ecu-via-elm327'
+#sshpass -p haho-piv ssh -t dietpi@192.168.2.100 'espflash flash --monitor --log-format defmt ecu-via-elm327'
+sshpass -p haho-piv ssh -t dietpi@192.168.2.100 'espflash flash --monitor ecu-via-elm327'

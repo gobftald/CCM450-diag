@@ -12,6 +12,7 @@ PROVIDE(__post_init = default_post_init);
 SECTIONS {
   .trap : ALIGN(4)
   {
+    KEEP(*(.trap.vector));  /* if this is the first one, we can save space due to padding */
     KEEP(*(.trap));
     *(.trap.*);
     . = ALIGN(4);

@@ -671,7 +671,7 @@ abort:
     Interrupt vector table (_vector_table)
 */
 
-.section .trap, "ax"
+.section .trap.vector, "ax"
 .weak _vector_table
 .type _vector_table, @function
 

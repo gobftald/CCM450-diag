@@ -11,6 +11,12 @@ SECTIONS {
             KEEP(*(.text.abort));
         #ENDIF
 
+        /* application */
+        *(.text.*embassy_executor*raw*TaskStorage*poll*)
+        *(.text.*ecu_via_elm327*adapter*)
+        *(.text.*___rustc35___rust_no_alloc_shim_is_unstable_v2)
+        *(.text.main)
+
         *(.literal .text .literal.* .text.*)
         _etext = ABSOLUTE(.);
 

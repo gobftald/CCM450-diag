@@ -1,5 +1,6 @@
 .smoltcp : ALIGN(4)
 {
+    *(.text.*smoltcp*iface*interface*Interface*new*)
     *(.text.*smoltcp*iface*interface*Interface*poll*)
     *(.text.*smoltcp*iface*interface*Interface*poll_at*)
     *(.text.*smoltcp*iface*interface*Interface*set_hardware_addr*)
@@ -21,6 +22,7 @@
     *(.text.*smoltcp*iface*route*Routes*lookup*)
     *(.text.*smoltcp*iface*socket_set*SocketSet*add*put*)
     *(.text.*smoltcp*iface*socket_set*SocketSet*remove*)
+    *(.text.*smoltcp*iface*socket_meta*Meta*poll_at*)
     
     *(.text.*smoltcp*socket*dhcpv4*Socket*dispatch*)
     *(.text.*smoltcp*socket*dhcpv4*Socket*parse_ack*)
@@ -31,6 +33,7 @@
     *(.text.*core*ptr*drop_in_place*smoltcp*socket*dhcpv4*ClientState*)
     *(.text.*smoltcp*socket*udp*Socket*accepts*)
     *(.text.*smoltcp*socket*udp*Socket*process*)
+    *(.text.*smoltcp*socket*udp*Socket*recv17*)
     *(.text.*smoltcp*socket*udp*Socket*recv_slice*)
     *(.text.*smoltcp*socket*udp*Socket*register_recv_waker*)
     *(.text.*smoltcp*socket*udp*Socket*register_send_waker*)
