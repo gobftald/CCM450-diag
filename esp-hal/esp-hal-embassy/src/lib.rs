@@ -42,8 +42,11 @@
 #![feature(once_cell_get_mut)]
 #![allow(static_mut_refs)]
 
-#[macro_use(unreachable, unwrap, assert_ne, panic, info)]
-extern crate console;
+// MUST be the first module
+mod fmt;
+
+//#[macro_use(unreachable, unwrap, assert_ne, panic, info)]
+//extern crate console;
 
 use core::marker::PhantomData;
 

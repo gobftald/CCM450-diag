@@ -1,666 +1,429 @@
-macro_rules! driver_configs {
-    (@ignore $t:tt) => {};
-    (@property (u32)           $self:ident, $config:ident) => { Value::Number($self.$config) };
-    (@property (bool)          $self:ident, $config:ident) => { Value::Boolean($self.$config) };
-    (@property (Option<u32>)   $self:ident, $config:ident) => { Value::from($self.$config) };
-    (@property ($($other:ty)*) $self:ident, $config:ident) => { Value::Unset };  // Not a property
+cargo xtask update-metadata
+    // esp-hal/xtask/src/lib.rs
+    fn update_metadata
+        fn generate_metadata
+            ...
+            for chip in Chip::iter()
+                let config = esp_metadata::Config::for_chip(&chip);
+                    // esp-metadata/src/lib.rs
+                    /// reads the content of esp-metadata/devices/esp32xx.toml
+                    Chip::Espxx => include_toml!(Config, "../devices/espxx.toml"),
+                config.generate_metadata() -> and write to esp-metadata-generated/src/_generated_{chip}.rs
+                
+macro_rules! chip -> "esp32xx"
+macro_rules! property
+    // based on [device] segment in esp-metadata/devices/esp32xx.toml
+    ("chip") => "esp32xx"
+    ("arch") => "riscv"/"xtensa"
+    ("cores") => 1/2
+    ("cores", str) => stringify!(1/2)
+    ("trm") => "https://www.espressif.com/sites/default/files/documentation/esp32-xx_technical_reference_manual_en.pdf"
 
-    // Creates a single struct
-    (@one
-        $struct:ident $(<$instance_config:ident>)? ($group:ident) {
-            $(
-                $(#[$meta:meta])? $config:ident: $ty:tt $(<$generic:tt>)?,
-            )*
-        }
-    ) => {
-        #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-        pub(crate) struct $struct {
-            #[serde(default)]
-            pub support_status: SupportStatus,
-            // The list of peripherals for which this driver is implemented.
-            // If empty, the driver supports a single instance only.
-            #[serde(default)]
-            pub instances: Vec<PeriInstance $(<$instance_config>)?>,
-            $(
-                $(#[$meta])?
-                pub $config: $ty $(<$generic>)?
-            ),*
-        }
+    // based on esp-hal/esp-metadata/src/cfg.rs/driver_configs! "templates":
+        e.g.
+            SocProperties
+            AdcProperties
+            ...
+            I2cMasterProperties<I2cMasterInstanceConfig>
+            ...
+            PhyProperties
+    // and the deserialized/input of esp-metadata/devices/esp32xx.toml
+        e.g.
+            [device.soc]
+            [device.adc]
+            ...
+            [device.i2c_master]
+            ...
+            [device.phy]
+    // properties of devices/drivers follow:
+    e.g.
+        ("soc.cpu_has_csr_pc") => true
+        ...
+        ("soc.rc_slow_clock") => 136000
+        ("soc.rc_slow_clock", str) => stringify!(136000)
+        ...
+        ("i2c_master.has_fsm_timeouts") => true
+        ...
+        ("i2c_master.max_bus_timeout") => 31
+        ("i2c_master.max_bus_timeout", str) => stringify!(31)
+        ...
+        ("phy.backed_up_digital_register_count") => 21
+        ("phy.backed_up_digital_register_count", str) => stringify!(21)
 
-        impl $struct {
-            fn properties(&self) -> impl Iterator<Item = (&str, Value)> {
-                [$( // for each property, generate a tuple
-                    (
-                        /* name: */  concat!(stringify!($group), ".", stringify!($config)),
-                        /* value: */ driver_configs!(@property ($ty $(<$generic>)?) self, $config),
-                    ),
-                )*].into_iter()
-            }
-        }
-    };
-
-    // Repeat pattern for multiple structs
-    ($(
-        $struct:ident $(<$instance_config:ident>)? {
-            // This name will be emitted as a cfg symbol, to activate a driver.
-            driver: $driver:ident,
-            // Driver name, used in the generated documentation.
-            name: $name:literal,
-            $(has_computed_properties: $computed:literal,)?
-            properties: $tokens:tt
-        },
-    )+) => {
-        // Implement the config driver and DriverConfig trait for each driver
-        $(
-            driver_configs!(@one $struct $(<$instance_config>)? ($driver) $tokens);
-        )+
-
-        // Generate a single PeriConfig struct that contains all the drivers. Each of the
-        // drivers is optional to support devices that may not have all peripherals.
-        #[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize)]
-        pub(crate) struct PeriConfig {
-            $(
-                // Each driver is an optional struct.
-                #[serde(default)]
-                pub(crate) $driver: Option<$struct>,
-            )+
-        }
-
-        impl PeriConfig {
-            pub fn drivers() -> &'static [SupportItem] {
-                &[
-                    $(
-                        SupportItem {
-                            name: $name,
-                            config_group: stringify!($driver),
-                        },
-                    )+
-                ]
-            }
-
-            /// Returns an iterator over all driver names, that are
-            /// available on the selected device.
-            pub fn driver_names(&self) -> impl Iterator<Item = &str> {
-                [$(
-                    self.$driver.as_ref().and_then(|d| {
-                        match d.support_status {
-                            SupportStatus::NotSupported => None,
-                            _ => Some(stringify!($driver)),
-                        }
-                    }),
-                )*].into_iter().flatten()
-            }
-
-            pub fn driver_instances(&self) -> impl Iterator<Item = String> {
-                // Collect into a vector. This compiles faster than chaining iterators.
-                let mut instances = vec![];
-                $(
-                    if let Some(driver) = &self.$driver {
-                        instances.extend(driver.instances.iter().map(|i| {
-                            format!("{}.{}", stringify!($driver), i.name)
-                        }));
-                    }
-                )*
-                instances.into_iter()
-            }
-
-            /// Returns an iterator over all properties of all peripherals.
-            pub fn properties(&self) -> impl Iterator<Item = (&str, Value)> {
-                // Collect into a vector. This compiles faster than chaining iterators.
-                let mut properties = vec![];
-                $(
-                    if let Some(driver) = &self.$driver {
-                        properties.extend(driver.properties());
-                        $(
-                            driver_configs!(@ignore $computed);
-                            properties.extend(driver.computed_properties());
-                        )?
-                    }
-                )*
-                properties.into_iter()
-            }
-
-            /// Returns the support status of a peripheral by its name.
-            pub fn support_status(&self, driver: &str) -> Option<SupportStatus> {
-                match driver {
-                    $(stringify!($driver) => self.$driver.as_ref().map(|p| p.support_status),)*
-                    _ => None, // If the peripheral is not found, return None.
-                }
-            }
-
-            /// Returns the peripheral instances used by the given driver.
-            pub fn driver_peris<'a>(&'a self, driver: &str) -> Vec<&'a str> {
-                match driver {
-                    $(stringify!($driver) => self.$driver.iter().flat_map(|p| p.instances.iter().map(|i| i.name.as_str())).collect::<Vec<_>>(),)*
-                    _ => vec![],
-                }
-            }
-        }
-    };
-}
-
-driver_configs![
-    GpioProperties {
-        driver: gpio,
-        name: "GPIO",
-        has_computed_properties: true,
-        properties: {
-            #[serde(default)]
-            has_bank_1: bool,
-            gpio_function: u32,
-            constant_0_input: u32,
-            constant_1_input: u32,
-            #[serde(default)]
-            remap_iomux_pin_registers: bool,
-            #[serde(default)] // currently 0 in all devices
-            func_in_sel_offset: u32,
-
-            #[serde(flatten)]
-            pins_and_signals: GpioPinsAndSignals,
-        }
-    },
-    ...
-    UartProperties<UartInstanceConfig> {
-        driver: uart,
-        name: "UART",
-        properties: {}
-    },
-];
-
-// GpioProperties
-
-pub(crate) struct GpioProperties {
-    #[serde(default)]
-    pub support_status: SupportStatus,
-    #[serde(default)]
-    pub instances: Vec<PeriInstance>,
-    #[serde(default)]
-    pub has_bank_1: bool,
-    pub gpio_function: u32,
-    pub constant_0_input: u32,
-    pub constant_1_input: u32,
-    #[serde(default)]
-    pub remap_iomux_pin_registers: bool,
-    #[serde(default)]
-    pub func_in_sel_offset: u32,
-    #[serde(flatten)]
-    pub pins_and_signals: GpioPinsAndSignals,
-}
-#[automatically_derived]
-impl ::core::fmt::Debug for GpioProperties {
-    ...
-}
-#[automatically_derived]
-impl ::core::clone::Clone for GpioProperties {
-    ...
-}
+// for vector of numbers generate a function
+[device.soc]
 ...
-const _: () = {
-        #[allow(unused_extern_crates, clippy::useless_attribute)]
-        extern crate serde as _serde;
-        #[automatically_derived]
-        impl<'de> _serde::Deserialize<'de> for GpioProperties {
+xtal_options = [40]
+    macro_rules! for_each_soc_xtal_options
+    
+// clock (clock_tree) section was made a bit overcomplicatedf by "bugadani" (it is a Hungarian name)
+// e.g. using "somni-parser" of his "own somni language" used to describe all the relations of the clocks
+// on the chips (clock sources, dividers, muxes) generating tons of macros for getting clock frequncies,
+// configure (if possible) those clocks, muxes, dividers, furthermore grabbing, releasing, enabling and
+// resetting
+// there is also "trees"of those clocks, interating and making relations between/through them
+
+macro_rules! define_clock_tree_types
+    pub enum XtalClkConfig {
+        /// 40 MHz
+        _40,
+    }
+    impl XtalClkConfig {
+    pub fn value(&self) -> u32 {
+            match self {
+                XtalClkConfig::_40 => 40000000,
+            }
+        }
+    }
+    ...
+    pub enum SystemPreDivInConfig {
+        /// Selects `XTAL_CLK`.
+        Xtal,
+        /// Selects `RC_FAST_CLK`.
+        RcFast,
+    }
+    impl SystemPreDivConfig {
+        pub const fn new(divisor: u32) -> Self {
+            ::core::assert!(
+                divisor <= 1023u32,
+                "`SYSTEM_PRE_DIV` divisor value must be between 0 and 1023 (inclusive)."
+            );
+            Self(divisor)
+        }
+        fn value(self) -> u32 {
+            self.0
+        }
+    }
+    ...
+    pub struct ClockTree {
+        xtal_clk: Option<XtalClkConfig>,
+        pll_clk: Option<PllClkConfig>,
+        system_pre_div_in: Option<SystemPreDivInConfig>,
+        system_pre_div: Option<SystemPreDivConfig>,
+        cpu_pll_div_out: Option<CpuPllDivOutConfig>,
+        apb_clk: Option<ApbClkConfig>,
+        crypto_clk: Option<CryptoClkConfig>,
+        cpu_clk: Option<CpuClkConfig>,
+        rc_fast_clk_div_n: Option<RcFastClkDivNConfig>,
+        rtc_slow_clk: Option<RtcSlowClkConfig>,
+        rtc_fast_clk: Option<RtcFastClkConfig>,
+        low_power_clk: Option<LowPowerClkConfig>,
+        timg0_function_clock: Option<Timg0FunctionClockConfig>,
+        timg0_calibration_clock: Option<Timg0CalibrationClockConfig>,
+        timg1_function_clock: Option<Timg0FunctionClockConfig>,
+        timg1_calibration_clock: Option<Timg0CalibrationClockConfig>,
+        rc_fast_clk_refcount: u32,
+        xtal32k_clk_refcount: u32,
+        rc_slow_clk_refcount: u32,
+        rc_fast_div_clk_refcount: u32,
+        apb_clk_refcount: u32,
+        crypto_clk_refcount: u32,
+        rtc_fast_clk_refcount: u32,
+        low_power_clk_refcount: u32,
+        timg0_function_clock_refcount: u32,
+        timg0_calibration_clock_refcount: u32,
+        timg1_function_clock_refcount: u32,
+        timg1_calibration_clock_refcount: u32,
+    }
+    impl ClockTree {
+        ...
+            pub fn xtal_clk(&self) -> Option<XtalClkConfig> {
+            self.xtal_clk
+        }
+        ...
+    }
+    static CLOCK_TREE: ::esp_sync::NonReentrantMutex<ClockTree> =
+        ::esp_sync::NonReentrantMutex::new(ClockTree {
+            xtal_clk: None,
+            ...
+        });
+    pub fn configure_xtal_clk(clocks: &mut ClockTree, config: XtalClkConfig) {
+        clocks.xtal_clk = Some(config);
+        configure_xtal_clk_impl(clocks, config);    // implemented in esp-hal/src/soc/esp32xx/clocks.rs
+    }
+    fn request_xtal_clk(_clocks: &mut ClockTree) {}
+    fn release_xtal_clk(_clocks: &mut ClockTree) {}
+    pub fn xtal_clk_frequency(clocks: &mut ClockTree) -> u32 {
+        unwrap!(clocks.xtal_clk).value()
+    }
+    
+    pub fn configure_pll_clk(clocks: &mut ClockTree, config: PllClkConfig) {
+        clocks.pll_clk = Some(config);
+        configure_pll_clk_impl(clocks, config);     // implemented in esp-hal/src/soc/esp32xx/clocks.rs
+    }
+    pub fn request_pll_clk(clocks: &mut ClockTree) {
+        request_xtal_clk(clocks);
+        enable_pll_clk_impl(clocks, true);          // implemented in esp-hal/src/soc/esp32xx/clocks.rs
+    }
+    pub fn release_pll_clk(clocks: &mut ClockTree) {
+        enable_pll_clk_impl(clocks, false);
+        release_xtal_clk(clocks);                   // implemented in esp-hal/src/soc/esp32xx/clocks.rs
+    }
+    pub fn pll_clk_frequency(clocks: &mut ClockTree) -> u32 {
+        unwrap!(clocks.pll_clk).value()
+    }
+    ...
+    pub fn configure_cpu_clk(clocks: &mut ClockTree, new_selector: CpuClkConfig) {
+        let old_selector = clocks.cpu_clk.replace(new_selector);
+        match new_selector {
+            CpuClkConfig::Xtal => {
+                configure_apb_clk(clocks, ApbClkConfig::Cpu);   // implemented in esp-hal/src/soc/esp32xx/clocks.rs
+                configure_crypto_clk(clocks, CryptoClkConfig::Cpu);     // also
+                configure_system_pre_div_in(clocks, SystemPreDivInConfig::Xtal);    // also
+            }
+            CpuClkConfig::RcFast => {
+                configure_apb_clk(clocks, ApbClkConfig::Cpu);
+                configure_crypto_clk(clocks, CryptoClkConfig::Cpu);
+                configure_system_pre_div_in(clocks, SystemPreDivInConfig::RcFast);
+            }
+            CpuClkConfig::Pll => {
+                configure_apb_clk(clocks, ApbClkConfig::Pll80m);
+                configure_crypto_clk(clocks, CryptoClkConfig::Pll160m);
+            }
+        }
+        cpu_clk_request_upstream(clocks, new_selector);             // implemented here
+        configure_cpu_clk_impl(clocks, old_selector, new_selector); // implemented in esp-hal/src/soc/esp32xx/clocks.rs
+        if let Some(old_selector) = old_selector {
+            cpu_clk_release_upstream(clocks, old_selector);         // implemented here
+        }
+    }
+    fn cpu_clk_request_upstream(clocks: &mut ClockTree, selector: CpuClkConfig) {
+        match selector {
+            CpuClkConfig::Xtal => request_system_pre_div(clocks),   // implemented here
+            CpuClkConfig::RcFast => request_system_pre_div(clocks), // also
+            CpuClkConfig::Pll => request_cpu_pll_div_out(clocks),   // also
+        }
+    }
+    fn cpu_clk_release_upstream(clocks: &mut ClockTree, selector: CpuClkConfig) {
+        match selector {
+            CpuClkConfig::Xtal => release_system_pre_div(clocks),   // implemented here
+            CpuClkConfig::RcFast => release_system_pre_div(clocks), // also
+            CpuClkConfig::Pll => release_cpu_pll_div_out(clocks),   // also
+        }
+    }
+    fn request_cpu_clk(_clocks: &mut ClockTree) {}
+    fn release_cpu_clk(_clocks: &mut ClockTree) {}
+    pub fn cpu_clk_frequency(clocks: &mut ClockTree) -> u32 {
+        match unwrap!(clocks.cpu_clk) {
+            CpuClkConfig::Xtal => system_pre_div_frequency(clocks), // implemented here
+            CpuClkConfig::RcFast => system_pre_div_frequency(clocks),   // also
+            CpuClkConfig::Pll => cpu_pll_div_out_frequency(clocks),     // also
+        }
+    }
+    ...
+EOF macro_rules! define_clock_tree_types
+
+macro_rules! implement_peripheral_clocks
+    pub enum Peripheral {
+        Aes,
+        ApbSarAdc,
+        Dma,
+        ...
+        Sha,
+        ...
+        Systimer,
+        Timg0,
+        ...
+        Uart0,
+        ...
+    }
+    impl Peripheral {
+        const KEEP_ENABLED: &[Peripheral] = &[
+            Self::Systimer,
+            Self::Timg0,
+            Self::Uart0,
+            Self::UartMem,
+            Self::UsbDevice,
+        ];
+        const COUNT: usize = Self::ALL.len();
+        const ALL: &[Self] = &[
+            Self::Aes,
+            Self::ApbSarAdc,
+            Self::Dma,
+            ...
+            Self::Sha,
+            ...
+            Self::Systimer,
+            Self::Timg0,
+            ...
+            Self::Uart0,
+            ...
+        ]
+    }
+    unsafe fn enable_internal_racey(peripheral: Peripheral, enable: bool) {
+    match peripheral {
+        Peripheral::Aes => {
+            crate::peripherals::SYSTEM::regs()
+                .perip_clk_en1()
+                .modify(|_, w| w.crypto_aes_clk_en().bit(enable));
+        }
+        Peripheral::ApbSarAdc => {
+            crate::peripherals::SYSTEM::regs()
+                .perip_clk_en0()
+                .modify(|_, w| w.apb_saradc_clk_en().bit(enable));
+        }
+        ...
+        Peripheral::Timg0 => {
+            crate::peripherals::SYSTEM::regs()
+                .perip_clk_en0()
+                .modify(|_, w| w.timergroup_clk_en().bit(enable));
+        }
+        ...
+        Peripheral::Uart0 => {
+        crate::peripherals::SYSTEM::regs()
+                .perip_clk_en0()
+                .modify(|_, w| w.uart_clk_en().bit(enable));
+        }
+        ...
+    }
+
+    unsafe fn assert_peri_reset_racey(peripheral: Peripheral, reset: bool) {
+        match peripheral {
+            Peripheral::Aes => {
+                crate::peripherals::SYSTEM::regs()
+                    .perip_rst_en1()
+                    .modify(|_, w| w.crypto_aes_rst().bit(reset));
+            }
+            ...
+            Peripheral::Timg0 => {
+                crate::peripherals::SYSTEM::regs()
+                    .perip_rst_en0()
+                    .modify(|_, w| w.timergroup_rst().bit(reset));
+            }
+            ...
+            Peripheral::Uart0 => {
+            crate::peripherals::SYSTEM::regs()
+                    .perip_rst_en0()
+                    .modify(|_, w| w.uart_rst().bit(reset));
+            }
             ...
         }
-}
-const _: () = {
-        #[allow(unused_extern_crates, clippy::useless_attribute)]
-        extern crate serde as _serde;
-        #[automatically_derived]
-        impl _serde::Serialize for GpioPropertie {
-            ...
-        }
-}
-impl GpioProperties {
+    }
+EOF macro_rules! implement_peripheral_clocks
 
-....
+macro_rules! memory_range {
+    ("DRAM") => {
+        0x3FC80000..0x3FCE0000
+    };
+    (size as str, "DRAM") => {
+        "393216"
+    };
+    ("DRAM2_UNINIT") => {
+        0x3FCCE400..0x3FCDE710
+    };
+    (size as str, "DRAM2_UNINIT") => {
+        "66320"
+    };
+}
 
+// for all vectors (represented by Value::NumberList) and also for
+// computed_properties' Value::NumberList there is a for_each_<device name>_<vector>
 // e.g.
-pub(crate) struct PeriConfig {
-    #[serde(default)]
-    pub(crate) gpio: Option<GpioProperties>,
-    #[serde(default)]
-    pub(crate) interrupts: Option<InterruptProperties>,
-    #[serde(default)]
-    pub(crate) io_mux: Option<IoMuxProperties>,
-    #[serde(default)]
-    pub(crate) rng: Option<RngProperties>,
-    #[serde(default)]
-    pub(crate) systimer: Option<SysTimerProperties>,
-    #[serde(default)]
-    pub(crate) timergroup: Option<TimersProperties>,
-    #[serde(default)]
-    pub(crate) uart: Option<UartProperties>,
-    #[serde(default)]
-    pub(crate) wifi: Option<WifiProperties>,
-}
-
-#[automatically_derived]
-impl ::core::default::Default for PeriConfig {
-    #[inline]
-    fn default() -> PeriConfig {
-        PeriConfig {
-            gpio: ::core::default::Default::default(),
-            interrupts: ::core::default::Default::default(),
-            io_mux: ::core::default::Default::default(),
-            rng: ::core::default::Default::default(),
-            systimer: ::core::default::Default::default(),
-            timergroup: ::core::default::Default::default(),
-            uart: ::core::default::Default::default(),
-            wifi: ::core::default::Default::default(),
-        }
-    }
-}
-
-#[automatically_derived]
-impl ::core::fmt::Debug for PeriConfig {
-    #[inline]
-    fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-        let names: &'static _ = &[
-            "gpio",
-            "interrupts",
-            "io_mux",
-            "rng",
-            "systimer",
-            "timergroup",
-            "uart",
-            "wifi",
-        ];
-        let values: &[&dyn ::core::fmt::Debug] = &[
-            &self.gpio,
-            &self.interrupts,
-            &self.io_mux,
-            &self.rng,
-            &self.systimer,
-            &self.timergroup,
-            &self.uart,
-            &&self.wifi,
-        ];
-        ::core::fmt::Formatter::debug_struct_fields_finish(
-            f,
-            "PeriConfig",
-            names,
-            values,
-        )
-    }
-}
-
-#[automatically_derived]
-impl ::core::clone::Clone for PeriConfig {
-    #[inline]
-    fn clone(&self) -> PeriConfig {
-        PeriConfig {
-            gpio: ::core::clone::Clone::clone(&self.gpio),
-            interrupts: ::core::clone::Clone::clone(&self.interrupts),
-            io_mux: ::core::clone::Clone::clone(&self.io_mux),
-            rng: ::core::clone::Clone::clone(&self.rng),
-            systimer: ::core::clone::Clone::clone(&self.systimer),
-            timergroup: ::core::clone::Clone::clone(&self.timergroup),
-            uart: ::core::clone::Clone::clone(&self.uart),
-            wifi: ::core::clone::Clone::clone(&self.wifi),
-        }
-    }
-}
-
-const _: () = {
-        #[allow(unused_extern_crates, clippy::useless_attribute)]
-        extern crate serde as _serde;
-        #[automatically_derived]
-        impl<'de> _serde::Deserialize<'de> for PeriConfig {
+    macro_rules! for_each_aes_key_length
+    macro_rules! for_each_rmt_channel
+    macro_rules! for_each_rmt_clock_source
+    macro_rules! for_each_rsa_exponentiation
+    macro_rules! for_each_rsa_multiplication
+    ...
+    macro_rules! for_each_peripheral
+        ($($pattern:tt => $code:tt;)*) => {
+            macro_rules! _for_each_inner { $(($pattern) => $code;)* ($other : tt) => {} }
+            _for_each_inner!((@ peri_type GPIO0 <= virtual()));
+            _for_each_inner!((@ peri_type GPIO1 <= virtual()));
             ...
-        }
-}
-
-const _: () = {
-        #[allow(unused_extern_crates, clippy::useless_attribute)]
-        extern crate serde as _serde;
-        #[automatically_derived]
-        impl _serde::Serialize for PeriConfig {
+            _for_each_inner!((@peri_type GPIO21 <= virtual()));
+            _for_each_inner!((@ peri_type AES <= AES(AES : { bind_peri_interrupt, enable_peri_interrupt, disable_peri_interrupt }) (unstable)));
+            _for_each_inner!((@ peri_type APB_CTRL <= APB_CTRL() (unstable)));
             ...
-        }
-}
+            _for_each_inner!((@ peri_type INTERRUPT_CORE0 <= INTERRUPT_CORE0() (unstable)));
+            ...
+            _for_each_inner!((@ peri_type LPWR <= RTC_CNTL() (unstable)));
+            ...
+            _for_each_inner!((@ peri_type UART0 <= UART0(UART0 : { bind_peri_interrupt, enable_peri_interrupt, disable_peri_interrupt })));
+            ...
+            _for_each_inner!((@ peri_type DMA_CH0 <= virtual() (unstable)));
+            ...
+            _for_each_inner!((@ peri_type WIFI <= virtual() (unstable)));            ...
 
-impl PeriConfig {
-    pub fn drivers() -> &'static [SupportItem] {
-        &[
-            SupportItem {
-                name: "GPIO",
-                config_group: "gpio",
-            },
-            SupportItem {
-                name: "Interrupts",
-                config_group: "interrupts",
-            },
-            SupportItem {
-                name: "IOMUX",
-                config_group: "io_mux",
-            },
-            SupportItem {
-                name: "RNG",
-                config_group: "rng",
-            },
-            SupportItem {
-                name: "SYSTIMER",
-                config_group: "systimer",
-            },
-            SupportItem {
-                name: "Timers",
-                config_group: "timergroup",
-            },
-            SupportItem {
-                name: "UART",
-                config_group: "uart",
-            },
-            SupportItem {
-                name: "WIFI",
-                config_group: "wifi",
-            },
-        ]
+            _for_each_inner!((GPIO0));
+            _for_each_inner!((GPIO1));
+            ...
+            _for_each_inner!((AES(unstable)));
+            _for_each_inner!((APB_CTRL(unstable)));
+            ...
+            _for_each_inner!((INTERRUPT_CORE0(unstable)));
+            ...
+            _for_each_inner!((LPWR(unstable)));
+            ...
+            _for_each_inner!((UART0));
+            ...
+            _for_each_inner!((DMA_CH0(unstable))); 
+            ...
+            _for_each_inner!((WIFI(unstable)));
+
+            _for_each_inner!((all(@ peri_type GPIO0 <= virtual()),
+                (@ peri_type GPIO1 <= virtual()),
+                (@ peri_type GPIO2 <= virtual()),
+                ...
+                (@ peri_type AES <= AES(AES : { bind_peri_interrupt, enable_peri_interrupt, disable_peri_interrupt }) (unstable)),
+                ...
+                (@ peri_type WIFI <= virtual()(unstable))
+            ));
+
+            _for_each_inner!((singletons(GPIO0),
+                (GPIO1),
+                ...
+                (AES(unstable)),
+                ...
+                (WIFI(unstable))));
+            ));
+        } 
+    EOF macro_rules! for_each_peripheral
+
+    macro_rules! for_each_gpio
+    macro_rules! for_each_analog_function
+    macro_rules! for_each_lp_function
+
+// there is custom generation of other macros in esp-hal/esp-metadata/src/cfg/<device name>.rs
+// some output of them  (e.g. esp-metadata/src/cfg/gpio.rs)
+macro_rules! define_io_mux_signals {
+    pub enum InputSignal {
+        SPIQ             = 0,
+        SPID             = 1,
+        SPIHD            = 2,
+        SPIWP            = 3,
+        U0RXD            = 6,
+        U0CTS            = 7,
+        U0DSR            = 8,
+        ...
+        SIG_FUNC_99      = 99,
+            SIG_FUNC_100     = 100,
+        MTCK,
+        MTMS,
+        MTDI,
     }
-
-    /// Returns an iterator over all driver names, that are
-    /// available on the selected device.
-    pub fn driver_names(&self) -> impl Iterator<Item = &str> {
-        [
-            self
-                .gpio
-                .as_ref()
-                .and_then(|d| {
-                    match d.support_status {
-                        SupportStatus::NotSupported => None,
-                        _ => Some("gpio"),
-                    }
-                }),
-            self
-                .interrupts
-                .as_ref()
-                .and_then(|d| {
-                    match d.support_status {
-                        SupportStatus::NotSupported => None,
-                        _ => Some("interrupts"),
-                    }
-                }),
-            self
-                .io_mux
-                .as_ref()
-                .and_then(|d| {
-                    match d.support_status {
-                        SupportStatus::NotSupported => None,
-                        _ => Some("io_mux"),
-                    }
-                }),
-            self
-                .rng
-                .as_ref()
-                .and_then(|d| {
-                    match d.support_status {
-                        SupportStatus::NotSupported => None,
-                        _ => Some("rng"),
-                    }
-                }),
-            self
-                .systimer
-                .as_ref()
-                .and_then(|d| {
-                    match d.support_status {
-                        SupportStatus::NotSupported => None,
-                        _ => Some("systimer"),
-                    }
-                }),
-            self
-                .timergroup
-                .as_ref()
-                .and_then(|d| {
-                    match d.support_status {
-                        SupportStatus::NotSupported => None,
-                        _ => Some("timergroup"),
-                    }
-                }),
-            self
-                .uart
-                .as_ref()
-                .and_then(|d| {
-                    match d.support_status {
-                        SupportStatus::NotSupported => None,
-                        _ => Some("uart"),
-                    }
-                }),
-            self
-                .wifi
-                .as_ref()
-                .and_then(|d| {
-                    match d.support_status {
-                        SupportStatus::NotSupported => None,
-                        _ => Some("wifi"),
-                    }
-                }),
-        ]
-            .into_iter()
-            .flatten()
-    }
-
-    pub fn driver_instances(&self) -> impl Iterator<Item = String> {
-        let mut instances = ::alloc::vec::Vec::new();
-        if let Some(driver) = &self.gpio {
-            instances
-                .extend(
-                    driver
-                        .instances
-                        .iter()
-                        .map(|i| {
-                            ::alloc::__export::must_use({
-                                ::alloc::fmt::format(
-                                    format_args!("{0}.{1}", "gpio", i.name),
-                                )
-                            })
-                        }),
-                );
-        }
-        if let Some(driver) = &self.interrupts {
-            instances
-                .extend(
-                    driver
-                        .instances
-                        .iter()
-                        .map(|i| {
-                            ::alloc::__export::must_use({
-                                ::alloc::fmt::format(
-                                    format_args!("{0}.{1}", "interrupts", i.name),
-                                )
-                            })
-                        }),
-                );
-        }
-        if let Some(driver) = &self.io_mux {
-            instances
-                .extend(
-                    driver
-                        .instances
-                        .iter()
-                        .map(|i| {
-                            ::alloc::__export::must_use({
-                                ::alloc::fmt::format(
-                                    format_args!("{0}.{1}", "io_mux", i.name),
-                                )
-                            })
-                        }),
-                );
-        }
-        if let Some(driver) = &self.rng {
-            instances
-                .extend(
-                    driver
-                        .instances
-                        .iter()
-                        .map(|i| {
-                            ::alloc::__export::must_use({
-                                ::alloc::fmt::format(format_args!("{0}.{1}", "rng", i.name))
-                            })
-                        }),
-                );
-        }
-        if let Some(driver) = &self.systimer {
-            instances
-                .extend(
-                    driver
-                        .instances
-                        .iter()
-                        .map(|i| {
-                            ::alloc::__export::must_use({
-                                ::alloc::fmt::format(
-                                    format_args!("{0}.{1}", "systimer", i.name),
-                                )
-                            })
-                        }),
-                );
-        }
-        if let Some(driver) = &self.timergroup {
-            instances
-                .extend(
-                    driver
-                        .instances
-                        .iter()
-                        .map(|i| {
-                            ::alloc::__export::must_use({
-                                ::alloc::fmt::format(
-                                    format_args!("{0}.{1}", "timergroup", i.name),
-                                )
-                            })
-                        }),
-                );
-        }
-        if let Some(driver) = &self.uart {
-            instances
-                .extend(
-                    driver
-                        .instances
-                        .iter()
-                        .map(|i| {
-                            ::alloc::__export::must_use({
-                                ::alloc::fmt::format(
-                                    format_args!("{0}.{1}", "uart", i.name),
-                                )
-                            })
-                        }),
-                );
-        }
-        if let Some(driver) = &self.wifi {
-            instances
-                .extend(
-                    driver
-                        .instances
-                        .iter()
-                        .map(|i| {
-                            ::alloc::__export::must_use({
-                                ::alloc::fmt::format(
-                                    format_args!("{0}.{1}", "wifi", i.name),
-                                )
-                            })
-                        }),
-                );
-        }
-        instances.into_iter()
-    }
-
-    /// Returns an iterator over all properties of all peripherals.
-    pub fn properties(&self) -> impl Iterator<Item = (&str, Value)> {
-        let mut properties = ::alloc::vec::Vec::new();
-        if let Some(driver) = &self.gpio {
-            properties.extend(driver.properties());
-            properties.extend(driver.computed_properties());
-        }
-        if let Some(driver) = &self.interrupts {
-            properties.extend(driver.properties());
-        }
-        if let Some(driver) = &self.io_mux {
-            properties.extend(driver.properties());
-        }
-        if let Some(driver) = &self.rng {
-            properties.extend(driver.properties());
-        }
-        if let Some(driver) = &self.systimer {
-            properties.extend(driver.properties());
-        }
-        if let Some(driver) = &self.timergroup {
-            properties.extend(driver.properties());
-        }
-        if let Some(driver) = &self.uart {
-            properties.extend(driver.properties());
-        }
-        if let Some(driver) = &self.wifi {
-            properties.extend(driver.properties());
-        }
-        properties.into_iter()
-    }
-
-    /// Returns the support status of a peripheral by its name.
-    pub fn support_status(&self, driver: &str) -> Option<SupportStatus> {
-        match driver {
-            "gpio" => self.gpio.as_ref().map(|p| p.support_status),
-            "interrupts" => self.interrupts.as_ref().map(|p| p.support_status),
-            "io_mux" => self.io_mux.as_ref().map(|p| p.support_status),
-            "rng" => self.rng.as_ref().map(|p| p.support_status),
-            "systimer" => self.systimer.as_ref().map(|p| p.support_status),
-            "timergroup" => self.timergroup.as_ref().map(|p| p.support_status),
-            "uart" => self.uart.as_ref().map(|p| p.support_status),
-            "wifi" => self.wifi.as_ref().map(|p| p.support_status),
-            _ => None,
-        }
-    }
-
-    pub fn driver_peris<'a>(&'a self, driver: &str) -> Vec<&'a str> {
-        match driver {
-            "gpio" => {
-                self.gpio
-                    .iter()
-                    .flat_map(|p| p.instances.iter().map(|i| i.name.as_str()))
-                    .collect::<Vec<_>>()
-            }
-            "interrupts" => {
-                self.interrupts
-                    .iter()
-                    .flat_map(|p| p.instances.iter().map(|i| i.name.as_str()))
-                    .collect::<Vec<_>>()
-            }
-            "io_mux" => {
-                self.io_mux
-                    .iter()
-                    .flat_map(|p| p.instances.iter().map(|i| i.name.as_str()))
-                    .collect::<Vec<_>>()
-            }
-            "rng" => {
-                self.rng
-                    .iter()
-                    .flat_map(|p| p.instances.iter().map(|i| i.name.as_str()))
-                    .collect::<Vec<_>>()
-            }
-            "systimer" => {
-                self.systimer
-                    .iter()
-                    .flat_map(|p| p.instances.iter().map(|i| i.name.as_str()))
-                    .collect::<Vec<_>>()
-            }
-            "timergroup" => {
-                self.timergroup
-                    .iter()
-                    .flat_map(|p| p.instances.iter().map(|i| i.name.as_str()))
-                    .collect::<Vec<_>>()
-            }
-            "uart" => {
-                self.uart
-                    .iter()
-                    .flat_map(|p| p.instances.iter().map(|i| i.name.as_str()))
-                    .collect::<Vec<_>>()
-            }
-            "wifi" => {
-                self.wifi
-                    .iter()
-                    .flat_map(|p| p.instances.iter().map(|i| i.name.as_str()))
-                    .collect::<Vec<_>>()
-            }
-            _ => ::alloc::vec::Vec::new(),
-        }
+    pub enum OutputSignal {
+        SPIQ             = 0,
+        SPID             = 1,
+        SPIHD            = 2,
+        SPIWP            = 3,
+        ...
+        USB_JTAG_TRST    = 127,
+        GPIO             = 128,
+        MTDO,
     }
 }
+macro_rules! define_io_mux_reg {
+    () => {
+        pub(crate) fn io_mux_reg(gpio_num: u8) -> &'static crate::pac::io_mux::GPIO {
+            crate::peripherals::IO_MUX::regs().gpio(gpio_num as usize)
+        }
+    };
+}
+EOF esp-hal/esp-metadata-generated/src/_generated_esp32xx.rs
 
+// back to fn generate_metadata in esp-hal/xtask/src/lib.rs
 ...
+esp_metadata::generate_build_script_utils() -> and write to esp-metadata-generated/_build_script_utils.rs
+// it generate all typed of cfg definition from "symbols = [...] in esp-hal/esp-metadata/devices/esp32xx.toml
+// and also from the metadata above

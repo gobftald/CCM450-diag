@@ -1,9 +1,12 @@
 #![no_std]
 #![cfg_attr(feature = "sys-logs", feature(c_variadic))]
 
-#[allow(unused_imports)]
-#[macro_use(info, unwrap)]
-extern crate console;
+// This mod MUST go first, so that the others see its macros.
+pub(crate) mod fmt;
+
+//#[allow(unused_imports)]
+//#[macro_use(info, unwrap)]
+//extern crate console;
 
 // 5
 pub mod c_types;

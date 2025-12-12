@@ -1,7 +1,10 @@
 #![no_std]
 
-#[macro_use(unwrap)]
-extern crate console;
+// This mod MUST go first, so that the others see its macros.
+pub(crate) mod fmt;
+
+//#[macro_use(unwrap)]
+//extern crate console;
 
 // 14
 mod duration;

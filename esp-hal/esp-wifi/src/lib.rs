@@ -47,9 +47,12 @@
 #![cfg_attr(feature = "sys-logs", feature(c_variadic))]
 #![allow(static_mut_refs)]
 
-#[allow(unused_imports)]
-#[macro_use(info, warn, debug, trace, panic, unwrap, debug_assert, debug_assert_eq)]
-extern crate console;
+// MUST be the first module
+mod fmt;
+
+//#[allow(unused_imports)]
+//#[macro_use(info, warn, debug, trace, panic, unwrap, debug_assert, debug_assert_eq)]
+//extern crate console;
 
 // 103
 extern crate alloc;

@@ -6,12 +6,15 @@
 #![allow(static_mut_refs)]
 #![feature(ascii_char)]
 
+// This mod MUST go first, so that the others see its macros.
+pub(crate) mod fmt;
+
 // panic_handler
 mod panic;
 
-#[macro_use(core_println, unwrap, debug, trace, error)]
-// core_println for panic_handler in mod panic
-extern crate console;
+//#[macro_use(core_println, unwrap, debug, trace, error)]
+//// core_println for panic_handler in mod panic
+//extern crate console;
 
 mod adapter;
 mod debug_pin;
@@ -146,8 +149,10 @@ async fn main(spawner: embassy_executor::Spawner) {
 async fn run() {
     loop {
         //info!("Hello world from embassy using esp-hal-async!");
-        use core::fmt::Write;
-        core_println!("0");
+        //use core::fmt::Write;
+        //core_println!("0");
+        esp_println::println!("0");
+
         embassy_time::Timer::after(embassy_time::Duration::from_millis(1_000)).await;
     }
 }

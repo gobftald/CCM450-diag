@@ -4,8 +4,11 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-console = { path = "../../console" }
-defmt = { version = "0.3.10", optional = true }
+#console = { path = "../../console" }
+esp-println = "0.16.1"
+#defmt = { version = "0.3.10", optional = true }
+defmt = { version = "1.0.1", optional = true }
+log = { version = "0.4.14", optional = true }
 esp-hal = { path = "../../esp-hal/esp-hal" }
 esp-alloc = { path = "../../esp-hal/esp-alloc" }
 strum_macros = "0.27"
@@ -30,12 +33,13 @@ esp-wifi = { path = "../../esp-hal/esp-wifi", features = ["wifi"] }
 [features]
 default = [
     "esp32c3",
-    "console/jtag_serial",
-    #"defmt",
+    #"esp-println/jtag-serial", # default in auto features
+    ##"defmt",
     "ecu",
 ]
 
 esp32c3 = [
+    "esp-println/esp32c3",
     "esp-hal/esp32c3",
     "esp-hal-embassy/esp32c3",
     "embassy-executor/nightly",     # for 'task' embassy-executor-macro
@@ -44,7 +48,7 @@ esp32c3 = [
 
 defmt = [
     "dep:defmt",
-    "console/defmt",
+    "esp-println/defmt-espflash",
     "esp-hal/defmt",
     "esp-hal-embassy/defmt",
     "embassy-executor/defmt",

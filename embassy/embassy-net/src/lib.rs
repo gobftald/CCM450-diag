@@ -3,9 +3,12 @@
 #[cfg(not(any(feature = "proto-ipv4", feature = "proto-ipv6")))]
 compile_error!("You must enable at least one of the following features: proto-ipv4, proto-ipv6");
 
-#[allow(unused_imports)]
-#[macro_use(unwrap, debug, info, trace)]
-extern crate console;
+// This mod MUST go first, so that the others see its macros.
+pub(crate) mod fmt;
+
+//#[allow(unused_imports)]
+//#[macro_use(unwrap, debug, info, trace)]
+//extern crate console;
 
 // 17
 mod driver_util;

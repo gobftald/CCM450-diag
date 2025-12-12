@@ -1,7 +1,10 @@
 #![no_std]
 
-#[macro_use(panic, unwrap)]
-extern crate console;
+// This mod MUST go first, so that the others see its macros.
+pub(crate) mod fmt;
+
+//#[macro_use(panic, unwrap)]
+//extern crate console;
 
 //12
 pub use embassy_executor_macros::task;

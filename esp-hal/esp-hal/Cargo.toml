@@ -4,8 +4,12 @@ version = "1.0.0-beta.1"
 edition = "2021"
 
 [dependencies]
-console = { path = "../../console" }
-defmt = { version = "0.3.10", optional = true }
+#console = { path = "../../console" }
+#defmt = { version = "0.3.10", optional = true }
+# Logging interfaces, they are mutually exclusive so they need to be behind separate features.
+defmt = { version = "1.0.1", optional = true }
+log-04 = { package = "log", version = "0.4", optional = true }
+
 esp-config = { path = "../esp-config" }
 #critical-section = { version = "1.2.0" }
 critical-section = { version = "1.2.0", features = ["restore-state-u32"] }

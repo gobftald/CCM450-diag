@@ -1,6 +1,10 @@
 #![no_std]
 #![allow(mismatched_lifetime_syntaxes)]
 
+// This mod MUST go first, so that the others see its macros.
+pub(crate) mod fmt;
+
+/*
 #[allow(unused_imports)]
 #[macro_use(
     assert,
@@ -13,6 +17,7 @@
     unreachable
 )]
 extern crate console;
+*/
 
 #[macro_use]
 // 128

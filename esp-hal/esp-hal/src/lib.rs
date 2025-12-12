@@ -70,8 +70,11 @@
 #![feature(variant_count)]
 #![allow(static_mut_refs)]
 
-#[macro_use(assert, unreachable, panic, debug, info, unwrap)]
-extern crate console;
+// MUST be the first module
+mod fmt;
+
+//#[macro_use(assert, unreachable, panic, debug, info, unwrap)]
+//extern crate console;
 
 #[cfg(riscv)]
 // 192

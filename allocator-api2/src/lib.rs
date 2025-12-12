@@ -1,8 +1,11 @@
 #![no_std]
 
-#[allow(unused_imports)]
-#[macro_use(panic, unreachable, debug_assert, debug_assert_eq)]
-extern crate console;
+// This mod MUST go first, so that the others see its macros.
+pub(crate) mod fmt;
+
+//#[allow(unused_imports)]
+//#[macro_use(panic, unreachable, debug_assert, debug_assert_eq)]
+//extern crate console;
 
 // 9
 extern crate alloc as alloc_crate;
