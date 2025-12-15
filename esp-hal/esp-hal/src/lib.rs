@@ -80,7 +80,7 @@ mod fmt;
 // 192
 pub use esp_riscv_rt::riscv;
 
-#[cfg(efuse)]
+//#[cfg(efuse)]
 // 201
 pub use self::soc::efuse;
 
@@ -89,7 +89,8 @@ pub use self::soc::peripherals;
 pub(crate) use self::soc::peripherals::pac;
 
 // 217
-#[cfg(system)]
+//#[cfg(system)]
+#[cfg(soc_has_system)]
 pub mod clock;
 
 #[cfg(gpio)]
@@ -108,7 +109,8 @@ mod macros;
 
 // 230
 //#[cfg(any(uart0, uart1))]
-#[cfg(uart1)]
+//#[cfg(uart1)]
+#[cfg(soc_has_uart1)]
 pub mod uart;
 
 // 234
@@ -124,7 +126,8 @@ pub mod config;
 // 294
 pub mod sync;
 
-#[cfg(interrupt_core0)]
+//#[cfg(interrupt_core0)]
+#[cfg(soc_has_interrupt_core0)]
 // 291
 pub mod interrupt;
 pub mod rom;
@@ -133,7 +136,8 @@ pub mod rom;
 // 299
 pub mod timer;
 
-#[cfg(rtc_cntl)]
+//#[cfg(rtc_cntl)]
+#[cfg(soc_has_lpwr)]
 // 301
 pub mod rtc_cntl;
 

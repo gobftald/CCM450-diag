@@ -1873,7 +1873,8 @@ crate::any_peripheral! {
         #[cfg(uart0)]
         Uart0(crate::peripherals::UART0<'d>),
         */
-        #[cfg(uart1)]
+        //#[cfg(uart1)]
+        #[cfg(soc_has_uart1)]
         Uart1(crate::peripherals::UART1<'d>),
     }
 }
@@ -1888,7 +1889,8 @@ impl Instance for AnyUart<'_> {
             #[cfg(uart0)]
             AnyUartInner::Uart0(uart) => uart.parts(),
             */
-            #[cfg(uart1)]
+            //#[cfg(uart1)]
+            #[cfg(soc_has_uart1)]
             AnyUartInner::Uart1(uart) => uart.parts(),
         }
     }

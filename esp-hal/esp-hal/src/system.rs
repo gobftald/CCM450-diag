@@ -15,7 +15,8 @@ use crate::peripherals::SYSTEM;
 // 20
 pub enum Peripheral {
     /// Timer Group 0 peripheral.
-    #[cfg(timg0)]
+    //#[cfg(timg0)]
+    #[cfg(timergroup)]
     // 77
     Timg0,
 
@@ -26,7 +27,8 @@ pub enum Peripheral {
 
     /// UART1 peripheral.
     // 91
-    #[cfg(uart1)]
+    //#[cfg(uart1)]
+    #[cfg(soc_has_uart1)]
     Uart1,
 
     /// Systimer peripheral.
@@ -48,13 +50,15 @@ impl Peripheral {
 
     // 140
     const ALL: &[Self] = &[
-        #[cfg(timg0)]
+        //#[cfg(timg0)]
+        #[cfg(timergroup)]
         // 178
         Self::Timg0,
         //#[cfg(uart0)]
         // 186
         //Self::Uart0,
-        #[cfg(uart1)]
+        //#[cfg(uart1)]
+        #[cfg(soc_has_uart1)]
         // 188
         Self::Uart1,
         #[cfg(systimer)]
@@ -132,7 +136,8 @@ impl PeripheralClockControl {
         let perip_clk_en0 = &system.perip_clk_en0();
 
         match peripheral {
-            #[cfg(timg0)]
+            //#[cfg(timg0)]
+            #[cfg(timergroup)]
             // 419
             Peripheral::Timg0 => {
                 #[cfg(any(esp32c3, esp32s2, esp32s3))]
@@ -147,7 +152,8 @@ impl PeripheralClockControl {
                 perip_clk_en0.modify(|_, w| w.uart_clk_en().bit(enable));
             }
             */
-            #[cfg(uart1)]
+            //#[cfg(uart1)]
+            #[cfg(soc_has_uart1)]
             // 448
             Peripheral::Uart1 => {
                 perip_clk_en0.modify(|_, w| w.uart1_clk_en().bit(enable));
@@ -172,7 +178,8 @@ impl PeripheralClockControl {
         let perip_rst_en0 = system.perip_rst_en0();
 
         critical_section::with(|_cs| match peripheral {
-            #[cfg(timg0)]
+            //#[cfg(timg0)]
+            #[cfg(timergroup)]
             // 618
             Peripheral::Timg0 => {
                 /* reset is not called for Timg0
@@ -192,7 +199,8 @@ impl PeripheralClockControl {
                 perip_rst_en0.modify(|_, w| w.uart_rst().set_bit());
                 perip_rst_en0.modify(|_, w| w.uart_rst().clear_bit());
             */
-            #[cfg(uart1)]
+            //#[cfg(uart1)]
+            #[cfg(soc_has_uart1)]
             // 658
             Peripheral::Uart1 => {
                 perip_rst_en0.modify(|_, w| w.uart1_rst().set_bit());

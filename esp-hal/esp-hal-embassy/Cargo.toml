@@ -16,8 +16,10 @@ embassy-executor = { path = "../../embassy/embassy-executor", optional = true }
 embassy-time-driver = { path = "../../embassy/embassy-time-driver", features = [ "tick-hz-1_000_000" ] }
 
 [build-dependencies]
-esp-metadata = { path = "../esp-metadata" }
-esp-config = { path = "../esp-config", features = ["build"]}
+#esp-config = { path = "../esp-config", features = ["build"]}
+esp-config = { version = "0.6.1", features = ["build"] }
+#esp-metadata = { path = "../esp-metadata" }
+esp-metadata-generated = { version = "0.3.0", features = ["build-script"] }
 
 [features]
 default = ["executors"]

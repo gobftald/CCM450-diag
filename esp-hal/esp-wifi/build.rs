@@ -2,18 +2,30 @@
 use std::error::Error;
 
 // 3
-use esp_config::{generate_config, ConfigOption};
-use esp_metadata::{Chip, Config};
+//use esp_config::{generate_config, ConfigOption};
+use esp_config::generate_config_from_yaml_definition;
+//use esp_metadata::{Chip, Config};
 
 // 6
 fn main() -> Result<(), Box<dyn Error>> {
     // Load the configuration file for the configured device:
-    let chip = Chip::from_cargo_feature()?;
-    let config = Config::for_chip(&chip);
+    //let chip = Chip::from_cargo_feature()?;
+    let chip = esp_metadata_generated::Chip::from_cargo_feature()?;
+    //let config = Config::for_chip(&chip);
+    chip.define_cfgs();
 
+    // emit config
+    println!("cargo:rerun-if-changed=./esp_config.yml");
+    let cfg_yaml = std::fs::read_to_string("./esp_config.yml")
+        .expect("Failed to read esp_config.yml for esp-hal");
+    generate_config_from_yaml_definition(&cfg_yaml, true, true, Some(chip)).unwrap();
+
+    /*
     // Define all necessary configuration symbols for the configured device:
     config.define_symbols();
+    */
 
+    /*
     assert!(
         !cfg!(feature = "wifi") || config.contains("wifi"),
         r#"
@@ -22,6 +34,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         "#
     );
+    */
 
     if let Ok(level) = std::env::var("OPT_LEVEL") {
         if level != "2" && level != "3" && level != "s" {
@@ -35,6 +48,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     println!("cargo:rustc-check-cfg=cfg(coex)");
 
+    /*
     // emit config
     //
     // keep the defaults aligned with `esp_wifi_sys::include::*` e.g.
@@ -191,6 +205,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             ),
         ],
     );
+    */
 
     Ok(())
 }

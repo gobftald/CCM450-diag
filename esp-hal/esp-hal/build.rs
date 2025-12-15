@@ -9,8 +9,9 @@ use std::{
 };
 
 // 11
-use esp_config::{generate_config, ConfigOption, Value};
-use esp_metadata::{Chip, Config};
+//use esp_config::{generate_config, ConfigOption, Value};
+use esp_config::{generate_config_from_yaml_definition, Value};
+//use esp_metadata::{Chip, Config};
 
 // 14
 fn main() -> Result<(), Box<dyn Error>> {
@@ -27,7 +28,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     // Ensure that exactly one chip has been specified:
-    let chip: Chip = Chip::from_cargo_feature()?;
+    //let chip: Chip = Chip::from_cargo_feature()?;
+    let chip = esp_metadata_generated::Chip::from_cargo_feature()?;
 
     if chip.target() != std::env::var("TARGET").unwrap_or_default().as_str() {
         panic!("
@@ -39,16 +41,26 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     // Load the configuration file for the configured device:
-    let config = Config::for_chip(&chip);
+    //let config = Config::for_chip(&chip);
+    chip.define_cfgs();
 
+    // emit config
+    println!("cargo:rerun-if-changed=./esp_config.yml");
+    let cfg_yaml = std::fs::read_to_string("./esp_config.yml")
+        .expect("Failed to read esp_config.yml for esp-hal");
+    let cfg = generate_config_from_yaml_definition(&cfg_yaml, true, true, Some(chip)).unwrap();
+
+    /*
     // Define all necessary configuration symbols for the configured device:
     config.define_symbols();
+    */
 
     // Place all linker scripts in `OUT_DIR`, and instruct Cargo how to find these
     // files:
     let out = PathBuf::from(env::var_os("OUT_DIR").unwrap());
     println!("cargo:rustc-link-search={}", out.display());
 
+    /*
     // emit config
     let cfg = generate_config(
         "esp_hal",
@@ -130,16 +142,20 @@ fn main() -> Result<(), Box<dyn Error>> {
             ),
         ],
     );
+    */
 
     // RISC-V and Xtensa devices each require some special handling and processing
     // of linker scripts:
 
     #[allow(unused_mut)]
-    let mut config_symbols = config.all().collect::<Vec<_>>();
+    //let mut config_symbols = config.all().collect::<Vec<_>>();
+    let mut config_symbols: Vec<String> =
+        chip.all_symbols().iter().map(|c| c.to_string()).collect();
 
     for (key, value) in &cfg {
         if let Value::Bool(true) = value {
-            config_symbols.push(key);
+            //config_symbols.push(key);
+            config_symbols.push(key.clone());
         }
     }
 
@@ -170,7 +186,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     copy_dir_all(
         &config_symbols,
         &cfg,
-        format!("ld/{chip}").to_lowercase(),
+        //format!("ld/{chip}").to_lowercase(),
+        format!("ld/{}", chip.name()),
         &out,
     )?;
 
@@ -183,7 +200,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 // 231
 fn copy_dir_all(
-    config_symbols: &[&str],
+    //config_symbols: &[&str],
+    config_symbols: &[String],
     cfg: &HashMap<String, Value>,
     src: impl AsRef<Path>,
     dst: impl AsRef<Path>,
@@ -214,7 +232,8 @@ fn copy_dir_all(
 /// A naive pre-processor for linker scripts
 // 261
 fn preprocess_file(
-    config: &[&str],
+    //config: &[&str],
+    config: &[String],
     cfg: &HashMap<String, Value>,
     src: impl AsRef<Path>,
     dst: impl AsRef<Path>,
@@ -233,7 +252,8 @@ fn preprocess_file(
 
         if let Some(condition) = trimmed.strip_prefix("#IF ") {
             let should_take = take.iter().all(|v| *v);
-            let should_take = should_take && config.contains(&condition);
+            //let should_take = should_take && config.contains(&condition);
+            let should_take = should_take && config.iter().any(|c| c == condition);
             take.push(should_take);
             continue;
         } else if trimmed == "#ELSE" {

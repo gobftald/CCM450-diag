@@ -12,8 +12,9 @@ use crate::{interrupt::InterruptHandler, time::Duration};
 #[cfg(systimer)]
 // 62
 pub mod systimer;
-#[cfg(any(timg0, /*timg1*/))]
-#[cfg(timg0)]
+//#[cfg(any(timg0, /*timg1*/))]
+//#[cfg(timg0)]
+#[cfg(timergroup)]
 pub mod timg;
 
 /// Timer errors.

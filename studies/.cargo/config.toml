@@ -17,18 +17,6 @@ rustflags = [
                                             # when making frame for every real (not inlined) function call
 ]
 
-
-# this needs for "panic_immediate_abort"
-[profile.dev]
-panic = 'abort'
-
-# this needs for "panic_immediate_abort"
-[profile.release]
-panic = 'abort'
-
-[env]
-GATEWAY_IP = "192.168.3.1"
-
 [unstable]
 # this will codegen every panic as an abort instruction without any panic message formatting.
 build-std-features = ["panic_immediate_abort"]

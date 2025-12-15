@@ -14,8 +14,9 @@ esp-hal = { path = "../esp-hal" }
 rand_core = { path = "../../rand_core" }
 cfg-if = "1.0.0"
 esp-alloc = { path = "../esp-alloc", optional = true }
-# instead of esp-config
-esp-config = { path = "../esp-config" }
+#esp-config = { path = "../esp-config" }
+esp-config = { version = "0.6.1" }
+esp-metadata-generated   = { version = "0.3.0" }
 allocator-api2 = { path = "../../allocator-api2"}
 esp-wifi-sys = { path = "../../esp-wifi-sys" }
 num-derive = { version = "0.4.2" }
@@ -28,8 +29,10 @@ portable-atomic = { path = "../../portable-atomic", default-features = false }
 portable-atomic-enum = { path = "../../portable-atomic-enum", features = ["portable-atomic"] }
 
 [build-dependencies]
-esp-metadata = { path = "../esp-metadata" }
-esp-config = { path = "../esp-config", features = ["build"]}
+#esp-config = { path = "../esp-config", features = ["build"]}
+esp-config = { version = "0.6.1", features = ["build"] }
+#esp-metadata = { path = "../esp-metadata" }
+esp-metadata-generated = { version = "0.3.0", features = ["build-script"] }
 
 [features]
 default = ["builtin-scheduler", "esp-alloc"]

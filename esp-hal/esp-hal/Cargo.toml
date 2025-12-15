@@ -10,7 +10,9 @@ edition = "2021"
 defmt = { version = "1.0.1", optional = true }
 log-04 = { package = "log", version = "0.4", optional = true }
 
-esp-config = { path = "../esp-config" }
+#esp-config = { path = "../esp-config" }
+esp-config = { version = "0.6.1" }
+esp-metadata-generated   = { version = "0.3.0" }
 #critical-section = { version = "1.2.0" }
 critical-section = { version = "1.2.0", features = ["restore-state-u32"] }
 fugit = "0.3.7"
@@ -73,5 +75,7 @@ esp-riscv-rt = { path = "../esp-riscv-rt" }
 
 [build-dependencies]
 cfg-if       = "1.0.0"
-esp-metadata = { path = "../esp-metadata" }
-esp-config = { path = "../esp-config", features = ["build"]}
+#esp-config = { path = "../esp-config", features = ["build"]}
+esp-config = { version = "0.6.1", features = ["build"] }
+#esp-metadata = { path = "../esp-metadata" }
+esp-metadata-generated = { version = "0.3.0", features = ["build-script"] }

@@ -1,5 +1,6 @@
 #DEFMT_LOG=off,ecu_via_elm327=trace,esp_hal=debug,esp_wifi=info cargo build
 cargo build --release
+#cargo build
 
 #sshpass -p haho-piv scp target/riscv32imc-unknown-none-elf/debug/ecu-via-elm327 dietpi@192.168.2.100:
 sshpass -p haho-piv scp target/riscv32imc-unknown-none-elf/release/ecu-via-elm327 dietpi@192.168.2.100:
