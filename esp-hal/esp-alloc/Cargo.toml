@@ -11,7 +11,8 @@ test = false
 #defmt = { version = "0.3.10", optional = true }
 defmt  = { version = "1.0.1", optional = true }
 critical-section = { version = "1.2.0" }
-linked-list-allocator = { path = "../../linked-list-allocator" }
+#linked-list-allocator = { path = "../../linked-list-allocator" }
+linked_list_allocator = { version = "0.10.5", default-features = false, features = ["const_mut_refs"] }
 allocator-api2 = { path = "../../allocator-api2", features = ["alloc"]}
 
 [features]
@@ -24,4 +25,4 @@ allocator-api2 = { path = "../../allocator-api2", features = ["alloc"]}
 ## ⚠️ Note: Enabling this feature will require extra computation every time alloc/dealloc is called.
 internal-heap-stats = []
 
-defmt = ["dep:defmt", "linked-list-allocator/defmt", "allocator-api2/defmt"]
+defmt = ["dep:defmt", "allocator-api2/defmt"]

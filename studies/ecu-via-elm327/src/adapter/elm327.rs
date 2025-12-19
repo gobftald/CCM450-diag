@@ -60,8 +60,8 @@ impl<'a> Adapter<'a> {
                 Either::Second(_) => return Err(AdapterError::Timeout),
             }
         }
-        panic!("haho");
-        //Ok(size)
+        //panic!("haho");
+        Ok(size)
     }
 }
 
