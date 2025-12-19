@@ -4,9 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-#console = { path = "../../console" }
-esp-println = "0.16.1"
-#defmt = { version = "0.3.10", optional = true }
+esp-println = { version = "0.16.1", default-features = false, features = ["critical-section"] }
+esp-backtrace = { version = "0.18.1",features = ["panic-handler"], optional = true }
 defmt = { version = "1.0.1", optional = true }
 log = { version = "0.4.14", optional = true }
 esp-hal = { path = "../../esp-hal/esp-hal" }
@@ -24,22 +23,18 @@ embassy-futures = { path = "../../embassy/embassy-futures" }
 
 esp-wifi = { path = "../../esp-hal/esp-wifi", features = ["wifi"] }
 
-[dependencies.esp-backtrace]
-    version = "0.16.0"
-    features = ["panic-handler", "exception-handler"]
-    path = "../../esp-hal/esp-backtrace"
-    optional = true
 
 [features]
 default = [
     "esp32c3",
-    #"esp-println/jtag-serial", # default in auto features
     #"defmt",
     "ecu",
 ]
 
 esp32c3 = [
     "esp-println/esp32c3",
+    "esp-println/jtag-serial",
+    "esp-backtrace?/esp32c3",
     "esp-hal/esp32c3",
     "esp-hal-embassy/esp32c3",
     "embassy-executor/nightly",     # for 'task' embassy-executor-macro
@@ -49,6 +44,7 @@ esp32c3 = [
 defmt = [
     "dep:defmt",
     "esp-println/defmt-espflash",
+    "esp-backtrace?/defmt",
     "esp-hal/defmt",
     "esp-hal-embassy/defmt",
     "embassy-executor/defmt",
@@ -60,7 +56,7 @@ defmt = [
 ]
 
 backtrace = ["dep:esp-backtrace"]       # needs "-C", "force-frame-pointers" rustflag in config.toml
-                                        # needs to comment build-std-features = ["panic_immediate_abort"] out
+                                        # needs to comment build-std-features = ["panic_immediate_abort"] out                                        
 
 ## ECU related features
 ##

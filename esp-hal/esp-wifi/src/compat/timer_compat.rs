@@ -110,7 +110,7 @@ impl TimerQueue {
             let before = {
                 let mut found = None;
                 while let Some(before) = current {
-                    if core::ptr::eq(before.next.as_mut().unwrap().ets_timer, ets_timer) {
+                    if core::ptr::eq(unwrap!(before.next.as_mut()).ets_timer, ets_timer) {
                         found = Some(before);
                         break;
                     }
@@ -120,7 +120,7 @@ impl TimerQueue {
             };
 
             if let Some(before) = before {
-                let to_remove = before.next.take().unwrap();
+                let to_remove = unwrap!(before.next.take());
                 let to_remove = Box::into_raw(to_remove);
                 unsafe {
                     crate::compat::malloc::free(to_remove as *mut _);

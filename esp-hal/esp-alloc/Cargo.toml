@@ -24,4 +24,4 @@ allocator-api2 = { path = "../../allocator-api2", features = ["alloc"]}
 ## ⚠️ Note: Enabling this feature will require extra computation every time alloc/dealloc is called.
 internal-heap-stats = []
 
-defmt = ["dep:defmt", "allocator-api2/defmt"]
+defmt = ["dep:defmt", "linked-list-allocator/defmt", "allocator-api2/defmt"]

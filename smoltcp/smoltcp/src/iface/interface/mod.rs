@@ -492,7 +492,8 @@ impl Interface {
                     // neighbor.
                     item.meta.neighbor_missing(
                         self.inner.now,
-                        neighbor_addr.expect("non-IP response packet"),
+                        //neighbor_addr.expect("non-IP response packet"),
+                        unwrap!(neighbor_addr, "non-IP response packet"),
                     );
                 }
                 Ok(()) => {}

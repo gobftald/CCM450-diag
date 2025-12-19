@@ -1,7 +1,7 @@
 use core::alloc::{Layout, LayoutError};
 use core::mem;
-use core::ptr::null_mut;
 use core::ptr::NonNull;
+use core::ptr::null_mut;
 
 // 7
 use crate::align_up_size;
@@ -9,6 +9,8 @@ use crate::align_up_size;
 use crate::{align_down_size, align_up};
 
 /// A sorted list of holes. It uses the the holes itself to store its nodes.
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 //12
 pub struct HoleList {
     pub(crate) first: Hole, // dummy
@@ -25,6 +27,8 @@ pub(crate) struct Cursor {
 }
 
 /// A block containing free memory. It points to the next hole and thus forms a linked list.
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 // 26
 pub(crate) struct Hole {
     pub size: usize,
@@ -32,8 +36,6 @@ pub(crate) struct Hole {
 }
 
 /// Basic information about a hole.
-#[derive(Debug, Clone, Copy)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 // 33
 struct HoleInfo {
     addr: *mut u8,
@@ -306,10 +308,12 @@ impl HoleList {
         let aligned_hole_size = align_down_size(requested_hole_size, align_of::<Hole>());
 
         let ptr = aligned_hole_addr as *mut Hole;
-        ptr.write(Hole {
-            size: aligned_hole_size,
-            next: None,
-        });
+        unsafe {
+            ptr.write(Hole {
+                size: aligned_hole_size,
+                next: None,
+            });
+        }
 
         /*
         assert_eq!(
@@ -317,15 +321,16 @@ impl HoleList {
             aligned_hole_addr.wrapping_add(requested_hole_size)
         );
         */
-
-        HoleList {
-            first: Hole {
-                size: 0,
-                next: Some(NonNull::new_unchecked(ptr)),
-            },
-            bottom: aligned_hole_addr,
-            top: aligned_hole_addr.wrapping_add(aligned_hole_size),
-            pending_extend: (requested_hole_size - aligned_hole_size) as u8,
+        unsafe {
+            HoleList {
+                first: Hole {
+                    size: 0,
+                    next: Some(NonNull::new_unchecked(ptr)),
+                },
+                bottom: aligned_hole_addr,
+                top: aligned_hole_addr.wrapping_add(aligned_hole_size),
+                pending_extend: (requested_hole_size - aligned_hole_size) as u8,
+            }
         }
     }
 
@@ -393,9 +398,13 @@ impl HoleList {
     /// returns the aligned layout.
     // 421
     pub unsafe fn deallocate(&mut self, ptr: NonNull<u8>, layout: Layout) -> Layout {
-        let aligned_layout = Self::align_layout(layout).unwrap();
-        deallocate(self, ptr.as_ptr(), aligned_layout.size());
-        aligned_layout
+        //let aligned_layout = Self::align_layout(layout).unwrap();
+        if let Ok(aligned_layout) = Self::align_layout(layout) {
+            deallocate(self, ptr.as_ptr(), aligned_layout.size());
+            aligned_layout
+        } else {
+            panic!("LayoutError");
+        }
     }
 
     /// Returns the minimal allocation size. Smaller allocations or deallocations are not allowed.
@@ -414,8 +423,10 @@ unsafe fn make_hole(addr: *mut u8, size: usize) -> NonNull<Hole> {
         "Hole address not aligned!",
     );
 
-    hole_addr.write(Hole { size, next: None });
-    NonNull::new_unchecked(hole_addr)
+    unsafe {
+        hole_addr.write(Hole { size, next: None });
+        NonNull::new_unchecked(hole_addr)
+    }
 }
 
 // 492
@@ -596,9 +607,15 @@ fn deallocate(list: &mut HoleList, addr: *mut u8, size: usize) {
         Err(mut cursor) => {
             // Nope. It lives somewhere else. Advance the list until we find its home
             while let Err(()) = cursor.try_insert_after(hole) {
+                /*
                 cursor = cursor
                     .next()
                     .expect("Reached end of holes without finding deallocation hole!");
+                */
+                cursor = unwrap!(
+                    cursor.next(),
+                    "Reached end of holes without finding deallocation hole!"
+                )
             }
             // Great! We found a home for it, our cursor is now JUST BEFORE the new
             // node we inserted, so we need to try to merge up to twice: One to combine

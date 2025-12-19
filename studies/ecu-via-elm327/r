@@ -1,4 +1,6 @@
 #DEFMT_LOG=off,ecu_via_elm327=trace,esp_hal=debug,esp_wifi=info cargo build
+#cargo build --release --features=backtrace,defmt
+#cargo build --release --features=backtrace
 cargo build --release
 #cargo build
 

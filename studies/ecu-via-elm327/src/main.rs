@@ -148,9 +148,6 @@ async fn main(spawner: embassy_executor::Spawner) {
 #[embassy_executor::task]
 async fn run() {
     loop {
-        //info!("Hello world from embassy using esp-hal-async!");
-        //use core::fmt::Write;
-        //core_println!("0");
         esp_println::println!("0");
 
         embassy_time::Timer::after(embassy_time::Duration::from_millis(1_000)).await;

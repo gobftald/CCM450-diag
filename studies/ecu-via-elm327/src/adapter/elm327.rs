@@ -60,7 +60,8 @@ impl<'a> Adapter<'a> {
                 Either::Second(_) => return Err(AdapterError::Timeout),
             }
         }
-        Ok(size)
+        panic!("haho");
+        //Ok(size)
     }
 }
 
@@ -362,9 +363,7 @@ fn decode_err_status(reply: &mut [u8]) -> AdapterError {
         return AdapterError::Timeout;
     }
     if reply[0] == b'7' && reply[1] == b'F' {
-        let res = from_ascii_bytes_to_u8(&reply[6..8])
-            .map_err(|err| return err)
-            .unwrap();
+        let res = unwrap!(from_ascii_bytes_to_u8(&reply[6..8]).map_err(|err| return err));
         AdapterError::EcuSpecificError(res)
     } else {
         // O means OK in Ecu's status values, but here it is only

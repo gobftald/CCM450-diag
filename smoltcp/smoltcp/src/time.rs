@@ -168,9 +168,15 @@ impl ops::Sub<Duration> for Duration {
 
     fn sub(self, rhs: Duration) -> Duration {
         Duration::from_micros(
+            /*
             self.micros
                 .checked_sub(rhs.total_micros())
                 .expect("overflow when subtracting durations"),
+            */
+            unwrap!(
+                self.micros.checked_sub(rhs.total_micros()),
+                "overflow when subtracting durations"
+            ),
         )
     }
 }

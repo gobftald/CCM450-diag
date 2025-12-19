@@ -141,16 +141,13 @@ impl Cache {
                     .expect("empty neighbor cache storage")
                     .0;
                 */
-                let old_protocol_addr: IpAddress;
-                if let Some(some_addr) = self
-                    .storage
-                    .iter()
-                    .min_by_key(|(_, neighbor)| neighbor.expires_at)
-                {
-                    old_protocol_addr = *some_addr.0;
-                } else {
-                    panic!("empty neighbor cache storage");
-                };
+                let old_protocol_addr = *unwrap!(
+                    self.storage
+                        .iter()
+                        .min_by_key(|(_, neighbor)| neighbor.expires_at),
+                    "empty neighbor cache storage"
+                )
+                .0;
 
                 //let _old_neighbor = self.storage.remove(&old_protocol_addr).unwrap();
                 let _old_neighbor = unwrap!(self.storage.remove(&old_protocol_addr));

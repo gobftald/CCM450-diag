@@ -19,6 +19,8 @@ use hole::HoleList;
 pub mod hole;
 
 /// A fixed size heap backed by a linked list of free memory blocks.
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 // 34
 pub struct Heap {
     used: usize,
@@ -39,7 +41,9 @@ impl Heap {
     // 90
     pub unsafe fn init(&mut self, heap_bottom: *mut u8, heap_size: usize) {
         self.used = 0;
-        self.holes = HoleList::new(heap_bottom, heap_size);
+        unsafe {
+            self.holes = HoleList::new(heap_bottom, heap_size);
+        }
     }
 
     /// Allocates a chunk of the given size with the given alignment. Returns a pointer to the
@@ -74,7 +78,9 @@ impl Heap {
     /// identical layout. Undefined behavior may occur for invalid arguments.
     // 203
     pub unsafe fn deallocate(&mut self, ptr: NonNull<u8>, layout: Layout) {
-        self.used -= self.holes.deallocate(ptr, layout).size();
+        unsafe {
+            self.used -= self.holes.deallocate(ptr, layout).size();
+        }
     }
 
     /// Returns the bottom address of the heap.

@@ -60,7 +60,7 @@ pub async fn server(
         &mut ap_udp_server_tx_meta,
         &mut ap_udp_server_tx_buffer,
     );
-    ap_udp_server_socket.bind(19924).unwrap();
+    unwrap!(ap_udp_server_socket.bind(19924));
     let mut end_point: Option<UdpMetadata> = None;
 
     loop {
@@ -76,7 +76,7 @@ pub async fn server(
         {
             // UDP request arrived
             Either::First(result) => {
-                let (n, ep) = result.unwrap();
+                let (n, ep) = unwrap!(result);
 
                 trace!(
                     "#### UDP: ap_udp_server_socket.recv_from(): {}",
@@ -96,11 +96,12 @@ pub async fn server(
                         Subsystem::Gps => {}
                     }
                 } else {
-                    ap_udp_server_socket
-                        // error sending subsystem is the system itself, which is 0 as u8
-                        .send_to(&[Subsystem::System as u8, Reply::InvalidSubystem as u8], ep)
-                        .await
-                        .unwrap();
+                    unwrap!(
+                        ap_udp_server_socket
+                            // error sending subsystem is the system itself, which is 0 as u8
+                            .send_to(&[Subsystem::System as u8, Reply::InvalidSubystem as u8], ep)
+                            .await
+                    );
                     debug!("#### ap_udp_server_socket.send_to() returned");
                 }
 
@@ -116,10 +117,11 @@ pub async fn server(
 
                 // forward response via UDP
                 if let Some(end_point) = end_point {
-                    ap_udp_server_socket
-                        .send_to(&received_item.data[..received_item.size], end_point)
-                        .await
-                        .unwrap();
+                    unwrap!(
+                        ap_udp_server_socket
+                            .send_to(&received_item.data[..received_item.size], end_point)
+                            .await
+                    );
                     debug!("#### ap_udp_server_socket.send_to() returned");
                 }
 
