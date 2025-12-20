@@ -16,7 +16,6 @@ esp-metadata-generated   = { version = "0.3.0" }
 #critical-section = { version = "1.2.0" }
 critical-section = { version = "1.2.0", features = ["restore-state-u32"] }
 fugit = "0.3.7"
-rand_core-09 = { package = "rand_core", path = "../../rand_core" }
 bytemuck = "1.22.0"
 strum = { version = "0.27.1", default-features = false, features = ["derive"] }
 portable-atomic = { path = "../../portable-atomic", default-features = false }

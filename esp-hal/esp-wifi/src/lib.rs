@@ -238,7 +238,7 @@ where
 /// A marker trait for suitable Rng sources for esp-wifi
 // 336
 //pub trait EspWifiRngSource: rand_core::RngCore + private::Sealed {}
-pub trait EspWifiRngSource: rand_core::RngCore {}
+pub trait EspWifiRngSource {}
 
 // 338
 impl EspWifiRngSource for Rng {}
