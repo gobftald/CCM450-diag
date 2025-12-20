@@ -14,6 +14,7 @@ pub struct ECU<'a> {
     state: State,
 }
 
+#[allow(unused)]
 impl<'a> ECU<'a> {
     pub fn new(adapter: Adapter<'a>) -> Self {
         Self {

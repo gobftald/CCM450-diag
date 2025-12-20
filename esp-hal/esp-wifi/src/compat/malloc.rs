@@ -59,13 +59,13 @@ pub unsafe extern "C" fn calloc(number: u32, size: usize) -> *mut u8 {
 #[unsafe(no_mangle)]
 // 86
 pub extern "C" fn esp_wifi_allocate_from_internal_ram(size: usize) -> *mut u8 {
-    use core::alloc::GlobalAlloc;
+    //use core::alloc::GlobalAlloc;
 
     let total_size = size + 4;
     unsafe {
-        //let ptr = esp_alloc::HEAP.alloc_caps(
-        let ptr = esp_alloc::HEAP.alloc(
-            //esp_alloc::MemoryCapability::Internal.into(),
+        let ptr = esp_alloc::HEAP.alloc_caps(
+            //let ptr = esp_alloc::HEAP.alloc(
+            esp_alloc::MemoryCapability::Internal.into(),
             core::alloc::Layout::from_size_align_unchecked(total_size, 4),
         );
 

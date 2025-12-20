@@ -5,7 +5,7 @@ pub use adapter_implementation::Adapter;
 mod utils;
 
 use esp_hal::uart::{RxError, TxError};
-
+#[allow(unused)]
 pub trait Adapters {
     async fn connect(&mut self, secret_key: u32) -> Result<(), AdapterError>;
 

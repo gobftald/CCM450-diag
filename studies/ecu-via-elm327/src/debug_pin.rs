@@ -8,7 +8,7 @@ pub fn init_debug_pin(pin: impl OutputPin + 'static) {
         DEBUG_PIN.get_mut_or_init(|| Output::new(pin, Level::High, OutputConfig::default()));
     }
 }
-
+#[allow(unused)]
 pub fn debug_pin(level: u8) {
     unsafe {
         DEBUG_PIN

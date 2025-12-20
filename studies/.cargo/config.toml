@@ -24,11 +24,12 @@ build-std-features = ["panic_immediate_abort"]
 build-std = ["core", "alloc"]
 
 [patch.crates-io]
-esp-println = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
+esp-alloc = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 esp-backtrace = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
-esp-sync = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 esp-config = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 esp-metadata-generated = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
+esp-println = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
+esp-sync = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 
 #esp-println = { path = "../../esp-hal/esp-println" }
 #esp-backtrace = { path = "../../esp-hal/esp-backtrace" }

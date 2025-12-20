@@ -1,0 +1,261 @@
+// esp-hal/esp-alloc/src/lib.rs
+/// The global allocator instance
+#[global_allocator]
+pub static HEAP: EspHeap = EspHeap::empty();
+
+pub struct EspHeap {
+    inner: NonReentrantMutex<EspHeapInner>,
+}
+
+// esp-hal/esp-sync/src/lib.rs
+/// A non-reentrant (panicking) mutex.
+///
+/// This is largely equivalent to a `critical_section::Mutex<RefCell<T>>`, but accessing the inner
+/// data doesn't hold a critical section on multi-core systems.
+pub struct NonReentrantMutex<T> {
+    lock_state: RawMutex,
+    data: UnsafeCell<T>,
+}
+
+// esp-hal/esp-alloc/src/lib.rs
+struct EspHeapInner {
+    heap: [Option<HeapRegion>; 3],
+    #[cfg(feature = "internal-heap-stats")]
+    internal_heap_stats: InternalHeapStats,
+}
+
+pub struct HeapRegion {
+    heap: Heap,
+    capabilities: EnumSet<MemoryCapability>,
+}
+
+##############
+
+// esp-hal/esp-alloc/src/macros.rs
+#[macro_export]
+macro_rules! heap_allocator {
+    ($(#[$m:meta])* size: $size:expr) => {{
+        $(#[$m])*
+        static mut HEAP: core::mem::MaybeUninit<[u8; $size]> = core::mem::MaybeUninit::uninit();
+
+        unsafe {
+            $crate::HEAP.add_region($crate::HeapRegion::new(
+                HEAP.as_mut_ptr() as *mut u8,
+                $size,
+                $crate::MemoryCapability::Internal.into(),
+            ));
+        }
+    }};
+}
+// this HEAP is not the HEAP from above!!!
+// but calling this macro will put this HeapRegion into the FIRST slot of EspHeapInner,
+// so into EspHeapm, so into the HEAP above
+
+// esp-hal/esp-alloc/src/lib.rs
+impl HeapRegion {
+    pub unsafe fn new(
+        heap_bottom: *mut u8,
+        size: usize,
+        capabilities: EnumSet<MemoryCapability>,
+    ) -> Self {
+        Self {
+            heap: unsafe { Heap::new(heap_bottom, size) },
+            capabilities,
+        }
+    }
+}
+
+impl EspHeapInner {
+    pub unsafe fn add_region(&mut self, region: HeapRegion) {
+        let free = self
+            .heap
+            .iter()
+            .enumerate()
+            .find(|v| v.1.is_none())
+            .map(|v| v.0);
+
+        if let Some(free) = free {
+            self.heap[free] = Some(region);
+        } else {
+            panic!(
+                "Exceeded the maximum of {} heap memory regions",
+                self.heap.len()
+            );
+        }
+    }
+}
+
+
+###########
+// esp-hal/esp-alloc/src/lib.rs
+unsafe impl GlobalAlloc for EspHeap {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        unsafe { self.alloc_caps(EnumSet::empty(), layout) }        ### empty -> the first slot in EspHeap
+                                                                    ### which was created by heap_allocator!()
+    }
+
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        let Some(ptr) = NonNull::new(ptr) else {
+            return;
+        };
+
+        self.inner.with(|this| {
+            #[cfg(feature = "internal-heap-stats")]
+            let before = this.used();
+            let mut iter = this.heap.iter_mut();
+
+            while let Some(Some(region)) = iter.next() {
+                if unsafe { region.try_deallocate(ptr, layout) } {
+                    break;
+                }
+            }
+
+            #[cfg(feature = "internal-heap-stats")]
+            {
+                // We need to call `used()` because [linked_list_allocator::Heap] does internal
+                // size alignment so we cannot use the size provided by the
+                // layout.
+                this.internal_heap_stats.total_freed += before - this.used();
+            }
+        })
+    }
+}
+
+impl EspHeap {
+    pub unsafe fn alloc_caps(
+        &self,
+        capabilities: EnumSet<MemoryCapability>,
+        layout: Layout,
+    ) -> *mut u8 {
+        self.inner
+            .with(|heap| unsafe { heap.alloc_caps(capabilities, layout) })
+    }
+}
+
+// .with locks EspHeapInner (all HeapRegion)
+impl EspHeapInner {
+    unsafe fn alloc_caps(
+        &mut self,
+        capabilities: EnumSet<MemoryCapability>,
+        layout: Layout,
+    ) -> *mut u8 {
+        #[cfg(feature = "internal-heap-stats")]
+        let before = self.used();
+        let mut iter = self
+            .heap
+            .iter_mut()
+            .filter_map(|region| region.as_mut())
+            .filter(|region| region.capabilities.is_superset(capabilities));
+
+        let allocation = loop {
+            let Some(region) = iter.next() else {
+                return ptr::null_mut();
+            };
+
+            if let Some(res) = region.allocate(layout) {
+                break res;
+            }
+        };
+        allocation.as_ptr()
+    }
+}
+
+// region.capabilities.is_superset(capabilities)); empty capability is the superset of all types of capabilities
+// so iter gives the first existing HeapRegion and ask it for allocation
+
+impl HeapRegion {
+    fn allocate(&mut self, layout: Layout) -> Option<NonNull<u8>> {
+        self.heap.allocate(layout)
+    }
+}
+
+// this heap the HEAP of linked_list_allocator::Heap
+// so by calling the heap_allocator!() first time we imeplement the global_allocator
+
+// How can we use it?
+// either calling standard Box, Vec, collections
+// or calling them from allocator_api2 with a richer functionality
+// how allocator_api2 can use global_allocator?
+// we need to enable "alloc" feature in its Cargo.toml (e.g. in esp-radio [earlier it was esp-wifi])
+// allocator-api2 = { version = "0.3.0", default-features = false, features = ["alloc"] }
+
+
+
+
+// allocator-api2/src/alloc/global.rs
+
+use alloc_crate::alloc::{alloc, alloc_zeroed, dealloc, realloc};
+
+@@@@@@@@@@@@@ in allocator-api2/src/lib.rs
+#[cfg(feature = "alloc")]
+extern crate alloc as alloc_crate;          # this is the 'core' alloc
+@@@@@@@@@@@@@
+
+/// The global memory allocator.
+///
+/// This type implements the [`Allocator`] trait by forwarding calls
+/// to the allocator registered with the `#[global_allocator]` attribute
+/// if there is one, or the `std` crate’s default.
+#[derive(Copy, Clone, Default, Debug)]
+pub struct Global;
+
+impl Global {
+    #[inline(always)]
+    fn alloc_impl(&self, layout: Layout, zeroed: bool) -> Result<NonNull<[u8]>, AllocError> [
+        match layout.size() {
+            0 => Ok(unsafe {
+                NonNull::new_unchecked(core::ptr::slice_from_raw_parts_mut(
+                    invalid_mut(layout.align()),
+                    0,
+                ))
+            }),
+            // SAFETY: `layout` is non-zero in size,
+            size => unsafe {
+                let raw_ptr = if zeroed {
+                    alloc_zeroed(layout)            // 'core' alloc
+                } else {
+                    alloc(layout)                   // 'core' alloc 
+                };
+                let ptr = NonNull::new(raw_ptr).ok_or(AllocError)?;
+                Ok(NonNull::new_unchecked(core::ptr::slice_from_raw_parts_mut(
+                    ptr.as_ptr(),
+                    size,
+                )))
+            },
+        }
+    ]
+}
+
+// allocator-api2 provides funcionality based on its Allocator trait
+
+// allocator-api2/src/alloc/mod.rs
+pub unsafe trait Allocator {
+    fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError>;
+    fn allocate_zeroed(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {...}
+    unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout);
+    unsafe fn grow(
+        &self,
+        ptr: NonNull<u8>,
+        old_layout: Layout,
+        new_layout: Layout,
+    ) -> Result<NonNull<[u8]>, AllocError> {...}
+    unsafe fn grow_zeroed(
+        &self,
+        ptr: NonNull<u8>,
+        old_layout: Layout,
+        new_layout: Layout,
+    ) -> Result<NonNull<[u8]>, AllocError> {...}
+    unsafe fn shrink(
+        &self,
+        ptr: NonNull<u8>,
+        old_layout: Layout,
+        new_layout: Layout,
+    ) -> Result<NonNull<[u8]>, AllocError> {...}
+    fn by_ref(&self) -> &Self
+}
+
+// it also provides Box, Vec, slice with "endless" functionalities
+// we use the followings in our original hand made implementation:
+// Vec: Vec::<>::with_capacity(), Vec::push_within_capacity(), Vec::iter(),
+// Box: Box::new_zeroed_slice() then [] access, Box::into_raw(), Box::as_mut_ptr(),
+
