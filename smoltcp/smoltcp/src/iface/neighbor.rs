@@ -1,6 +1,6 @@
 // 4
-//use heapless::LinearMap;
-use allocator_api2::linear_map::LinearMap;
+// instead of heapless::LinearMap we use our own version based on allocator_api2::vec::Vec
+use linear_map::LinearMap;
 
 // 6
 use crate::config::IFACE_NEIGHBOR_CACHE_COUNT;

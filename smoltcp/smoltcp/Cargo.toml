@@ -10,7 +10,9 @@ rust-version = "1.81"
 #defmt = { version = "1.0.1", optional = true }
 defmt = { version = "1.0.1", optional = true, features = ["ip_in_core"] }
 log = { version = "0.4.14", optional = true }
-allocator-api2 = { path = "../../allocator-api2", features = ["alloc"] }
+#allocator-api2 = { path = "../../allocator-api2", features = ["alloc"] }
+allocator-api2 = { version = "0.3.0", default-features = false, features = ["alloc"] }
+linear-map = { path = "../linear-map" }
 managed = { path = "../managed", default-features = false }
 byteorder = { version = "1.0", default-features = false }
 bitflags = { version = "1.0", default-features = false }

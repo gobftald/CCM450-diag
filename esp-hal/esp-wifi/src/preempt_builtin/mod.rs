@@ -16,6 +16,7 @@ use timer::setup_multitasking;
 
 // 13
 use crate::{
+    compat::malloc::InternalMemory,
     hal::{sync::Locked, trapframe::TrapFrame},
     preempt::Scheduler,
 };
@@ -25,8 +26,8 @@ struct Context {
     trap_frame: TrapFrame,
     pub thread_semaphore: u32,
     pub next: *mut Context,
-    //pub _allocated_stack: Box<[MaybeUninit<u8>], InternalMemory>,
-    pub _allocated_stack: Box<[MaybeUninit<u8>]>,
+    pub _allocated_stack: Box<[MaybeUninit<u8>], InternalMemory>,
+    //pub _allocated_stack: Box<[MaybeUninit<u8>]>,
 }
 
 // 27
@@ -38,8 +39,8 @@ impl Context {
     ) -> Self {
         trace!("task_create {:?} {:?} {}", task_fn, param, task_stack_size);
 
-        //let mut stack = Box::<[u8], _>::new_uninit_slice_in(task_stack_size, InternalMemory);
-        let mut stack = Box::<[u8], _>::new_uninit_slice(task_stack_size);
+        let mut stack = Box::<[u8], _>::new_uninit_slice_in(task_stack_size, InternalMemory);
+        //let mut stack = Box::<[u8], _>::new_uninit_slice(task_stack_size);
 
         let stack_top = unsafe { stack.as_mut_ptr().add(task_stack_size).cast() };
 
@@ -152,8 +153,8 @@ impl Scheduler for BuiltinScheduler {
         param: *mut c_void,
         task_stack_size: usize,
     ) -> *mut c_void {
-        //let task = Box::new_in(Context::new(task, param, task_stack_size), InternalMemory);
-        let task = Box::new(Context::new(task, param, task_stack_size));
+        let task = Box::new_in(Context::new(task, param, task_stack_size), InternalMemory);
+        //let task = Box::new(Context::new(task, param, task_stack_size));
         let task_ptr = Box::into_raw(task);
 
         SCHEDULER_STATE.with(|state| unsafe {
@@ -190,16 +191,16 @@ impl Scheduler for BuiltinScheduler {
 // 181
 fn allocate_main_task() {
     // This context will be filled out by the first context switch.
-    //let context = Box::new_in(
-    let context = Box::new(
+    let context = Box::new_in(
+        //let context = Box::new(
         Context {
             trap_frame: TrapFrame::default(),
             thread_semaphore: 0,
             next: core::ptr::null_mut(),
-            //_allocated_stack: Box::<[u8], _>::new_uninit_slice_in(0, InternalMemory),
-            _allocated_stack: Box::<[u8]>::new_uninit_slice(0),
+            _allocated_stack: Box::<[u8], _>::new_uninit_slice_in(0, InternalMemory),
+            //_allocated_stack: Box::<[u8]>::new_uninit_slice(0),
         },
-        //InternalMemory,
+        InternalMemory,
     );
 
     let context_ptr = Box::into_raw(context);

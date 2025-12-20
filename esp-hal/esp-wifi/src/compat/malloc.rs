@@ -94,3 +94,6 @@ pub extern "C" fn esp_wifi_deallocate_internal_ram(ptr: *mut u8) {
         )
     }
 }
+
+// 151
+pub(crate) use esp_alloc::InternalMemory;

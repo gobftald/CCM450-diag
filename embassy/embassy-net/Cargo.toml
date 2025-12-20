@@ -12,10 +12,12 @@ embassy-net-driver = { path = "../embassy-net-driver" }
 embassy-time = { path = "../embassy-time" }
 embassy-sync = { path = "../embassy-sync" }
 smoltcp = { path = "../../smoltcp/smoltcp", default-features = false, features = ["socket", "async"] }
-allocator-api2 = { path = "../../allocator-api2", features = ["alloc"] }
+#allocator-api2 = { path = "../../allocator-api2", features = ["alloc"] }
+allocator-api2 = { version = "0.3.0", default-features = false, features = ["alloc"] }
 
 [features]
-defmt = ["dep:defmt", "embassy-net-driver/defmt", "smoltcp/defmt", "allocator-api2/defmt"]
+#defmt = ["dep:defmt", "embassy-net-driver/defmt", "smoltcp/defmt", "allocator-api2/defmt"]
+defmt = ["dep:defmt", "embassy-net-driver/defmt", "smoltcp/defmt"]
 
 ## Trace all raw received and transmitted packets using defmt or log.
 packet-trace = []

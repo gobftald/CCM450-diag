@@ -8,6 +8,7 @@ use esp_wifi_sys::{c_types::c_char, include::malloc};
 use super::malloc::free;
 use crate::{
     binary::c_types::{c_int, c_void},
+    compat::malloc::InternalMemory,
     hal::sync::Locked,
     memory_fence::memory_fence,
     preempt::{current_task, yield_task},
@@ -60,8 +61,8 @@ pub struct RawQueue {
     capacity: usize,
     current_read: usize,
     current_write: usize,
-    //storage: Box<[u8], InternalMemory>,
-    storage: Box<[u8]>,
+    storage: Box<[u8], InternalMemory>,
+    //storage: Box<[u8]>,
 }
 
 // 71
@@ -70,8 +71,8 @@ impl RawQueue {
     // 73
     pub fn new(capacity: usize, item_size: usize) -> Self {
         let storage =
-            //unsafe { Box::new_zeroed_slice_in(capacity * item_size, InternalMemory).assume_init() };
-            unsafe { Box::new_zeroed_slice(capacity * item_size).assume_init() };
+            unsafe { Box::new_zeroed_slice_in(capacity * item_size, InternalMemory).assume_init() };
+        //unsafe { Box::new_zeroed_slice(capacity * item_size).assume_init() };
 
         Self {
             item_size,

@@ -1,4 +1,4 @@
 [workspace]
 resolver = "2"
 
-members = [ "managed","smoltcp"]
+members = [ "linear-map", "managed","smoltcp"]
