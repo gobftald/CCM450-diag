@@ -3,6 +3,7 @@
 //! CPU interrupts 1 through 15 are reserved for each of the possible interrupt
 //! priorities.
 
+#[cfg(feature = "rt")]
 // 15
 pub use esp_riscv_rt::TrapFrame;
 use riscv::register::{mcause, mtvec};
@@ -205,7 +206,8 @@ pub unsafe extern "C" fn start_trap_rust_hal(trap_frame: *mut TrapFrame) {
 // 230
 pub fn _setup_interrupts() {
     unsafe extern "C" {
-        unsafe static _vector_table: *const u32;
+        //unsafe static _vector_table: *const u32;
+        static _vector_table: u32;
     }
 
     unsafe {
@@ -224,8 +226,17 @@ pub fn _setup_interrupts() {
             disable(peripheral_interrupt);
         }
 
+        /*
         let vec_table = &_vector_table as *const _ as usize;
         mtvec::write(vec_table, mtvec::TrapMode::Vectored);
+        */
+        let vec_table = (&_vector_table as *const u32).addr();
+        mtvec::write({
+            let mut mtvec = mtvec::Mtvec::from_bits(0);
+            mtvec.set_trap_mode(mtvec::TrapMode::Vectored);
+            mtvec.set_address(vec_table);
+            mtvec
+        });
 
         crate::interrupt::init_vectoring();
     }

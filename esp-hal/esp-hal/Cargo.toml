@@ -14,7 +14,8 @@ log-04 = { package = "log", version = "0.4", optional = true }
 esp-config = { version = "0.6.1" }
 esp-metadata-generated   = { version = "0.3.0" }
 #critical-section = { version = "1.2.0" }
-critical-section = { version = "1.2.0", features = ["restore-state-u32"] }
+critical-section = { version = "1.2.0", features = ["restore-state-u32"], optional = true }
+esp-sync = "0.1.1"
 fugit = "0.3.7"
 bytemuck = "1.22.0"
 strum = { version = "0.27.1", default-features = false, features = ["derive"] }
@@ -44,6 +45,9 @@ esp32c2 = []
 # Target the ESP32-C3.
 esp32c3 = [
     "dep:esp32c3",
+    "rt",
+    "critical-section",
+    "esp-sync/esp32c3",
     "portable-atomic/unsafe-assume-single-core",
 ]
 
@@ -59,18 +63,30 @@ esp32s3 = []
 defmt   = [
     "dep:defmt",
     "esp-riscv-rt/defmt",
-    "riscv/defmt",
+    #"riscv/defmt",
     "esp32c3/defmt",
+    "esp-sync/defmt",
     "enumset/defmt",
 ]
 
 ## Enables APIs that are not stable and thus come with no stability guarantees.
 unstable = []
 
+#! ### Runtime support
+#! These features are meant to be enabled by firmware projects. If you are writing a library that
+#! depends on `esp-hal`, you should *not* enable these features under any circumstance.
+
+## Enable code necessary to run the firmware.
+rt = [
+    "dep:esp-riscv-rt",
+    "critical-section",
+]
+
 [target.'cfg(target_arch = "riscv32")'.dependencies]
 #riscv = { path = "../../riscv/riscv", features = ["critical-section-single-hart"] }
-riscv = { path = "../../riscv/riscv" }
-esp-riscv-rt = { path = "../esp-riscv-rt" }
+#riscv = { path = "../../riscv/riscv" }
+riscv = "0.15.0"
+esp-riscv-rt = { path = "../esp-riscv-rt", optional = true }
 
 [build-dependencies]
 cfg-if       = "1.0.0"

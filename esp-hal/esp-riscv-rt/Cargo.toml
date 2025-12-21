@@ -5,8 +5,10 @@ edition = "2024"
 
 [dependencies]
 defmt = { version = "0.3.10", optional = true }
-riscv-rt-macros = { path = "../../riscv/riscv-rt/macros" }
-riscv = { path = "../../riscv/riscv" }
+#riscv-rt-macros = { path = "../../riscv/riscv-rt/macros" }
+riscv-rt-macros   = "0.4.0"
+#riscv = { path = "../../riscv/riscv" }
+riscv = "0.15.0"
 
 
 
