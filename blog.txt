@@ -210,3 +210,9 @@ sudo ifconfig
 sudo systemctl status ifup@wlan0
 journalctl -xeu ifup@wlan0.service
 sudo wpa_cli -i wlan0
+
+cargo tree --format '{p} {f}' // to see the enabled features
+
+//when you lost commit message because of vi failure:
+less .git/COMMIT_EDITMSG
+git commit -F .git/COMMIT_EDITMSG

@@ -1,0 +1,370 @@
+Rc - single-threaded reference-counting pointer
+    The type Rc<T> provides shared ownership of a value of type T, allocated in the heap. Invoking clone on Rc
+    produces a new pointer to the same allocation in the heap. When the last Rc pointer to a given allocation is
+    destroyed, the value stored in that allocation (often referred to as “inner value”) is also dropped.
+    
+    Shared references in Rust disallow mutation by default, and Rc is no exception: you cannot generally obtain a 
+    mutable reference to something inside an Rc. If you need mutability, put a Cell or RefCell inside the Rc;
+
+    So Rc isn't Send because its internal reference counter is not atomic, meaning multiple threads trying to 
+    increment/decrement it simultaneously would cause data races, leading to memory corruption (leaks or use-after-free).
+
+    Since Rc uses non-atomic reference counting. This means that overhead is very low, but an Rc cannot be sent between 
+    threads, and consequently Rc does not implement Send. As a result, the Rust compiler will check at compile time that 
+    you are not sending Rcs between threads. If you need multi-threaded, atomic reference counting, uses Arc.
+
+    impl<T: ?Sized, A: Allocator> !Send for Rc<T, A> {}
+    impl<T: ?Sized, A: Allocator> !Sync for Rc<T, A> {}
+
+    Shared ownership of read-only data for single-threaded only
+
+Arc - thread-safe reference-counting pointer. ‘Arc’ stands for ‘Atomically Reference Counted’.
+    The type Arc<T> provides shared ownership of a value of type T, allocated in the heap. Invoking clone on Arc 
+    produces a new Arc instance, which points to the same allocation on the heap as the source Arc, while increasing 
+    a reference count. When the last Arc pointer to a given allocation is destroyed, the value stored in that allocation
+    (often referred to as “inner value”) is also dropped.
+
+    Shared references in Rust disallow mutation by default, and Arc is no exception: you cannot generally obtain a 
+    mutable reference to something inside an Arc. If you do need to mutate through an Arc, you have several options:
+    - Use interior mutability with synchronization primitives like Mutex, RwLock, or one of the Atomic types.
+    - Use clone-on-write semantics with Arc::make_mut which provides efficient mutation without requiring interior 
+    mutability. This approach clones the data only when needed (when there are multiple references) and can be more 
+    efficient when mutations are infrequent.
+    -  Use Arc::get_mut when you know your Arc is not shared (has a reference count of 1), which provides direct mutable 
+    access to the inner value without any cloning.
+
+    Unlike Rc<T>, Arc<T> uses atomic operations for its reference counting. This means that it is thread-safe.
+    The disadvantage is that atomic operations are more expensive than ordinary memory accesses. If you are not sharing 
+    reference-counted allocations between threads, consider using Rc<T> for lower overhead. Rc<T> is a safe default, 
+    because the compiler will catch any attempt to send an Rc<T> between threads. 
+
+    Arc<T> will implement Send and Sync as long as the T implements Send and Sync. Why can’t you put a non-thread-safe 
+    type T in an Arc<T> to make it thread-safe? This may be a bit counter-intuitive at first: after all, isn’t the 
+    point of Arc<T> thread safety? The key is this: Arc<T> makes it thread safe to have multiple ownership of the same
+    data, but it  doesn’t add thread safety to its data. Consider Arc<RefCell<T>>. RefCell<T> isn’t Sync, and if Arc<T> 
+    was always Send, Arc<RefCell<T>> would be as well. But then we’d have a problem: RefCell<T> is not thread safe; it 
+    keeps track of the borrowing count using non-atomic operations.
+
+    unsafe impl<T: ?Sized + Sync + Send, A: Allocator + Send> Send for Arc<T, A> {}
+    unsafe impl<T: ?Sized + Sync + Send, A: Allocator + Sync> Sync for Arc<T, A> {}
+
+    Shared ownership of read-only data for multi-threaded.
+
+Standard reference-counted smart pointers in Rust—specifically Rc<T> and Arc<T>—always allocate the managed data on 
+the heap.
+- The Inner Value: When you call Rc::new(value) or Arc::new(value), the value is moved from its current location 
+(often the stack) into a new allocation on the heap. 
+- The Metadata: The heap allocation contains not just your data (T), but also the reference counts (strong and weak) 
+used to manage the data's lifetime.
+- The Pointer: The smart pointer itself (Rc<T> or Arc<T>) is typically stored on the stack. It is a small structure, 
+usually the size of a single pointer, that points to the heap-allocated data.
+Why Heap Allocation is Necessary
+- Shared Ownership: Reference counting allows multiple parts of a program to "own" the same data. Because the data 
+must outlive the scope of any single owner, it cannot stay on the stack, which is automatically cleared when a 
+function ends.
+- Indirection: Heap allocation provides a stable memory address that multiple smart pointers can safely reference even 
+as they are passed around or cloned.
+Exceptions and Nuances
+- Zero-Sized Types (ZSTs): For types that take up zero bytes of memory (like ()), Rc and Arc may avoid a real heap 
+allocation because there is no data to store.
+- Alternative Smart Pointers: While the standard library's Rc and Arc use the heap, custom crates or specialized 
+"static" reference counting implementations can exist that use pre-allocated buffers or global memory, though these 
+are rare in standard but common in embedded development.
+
+Cell, RefCell, OnceCell - Shareable mutable containers to permit mutability in a controlled manner, even in the presence
+                        of aliasing (unmutable share).
+
+Cell - implements interior mutability by moving values in and out of the cell.
+    That is, an &mut T to the inner value can never be obtained, and the value itself cannot be directly obtained without
+    replacing it with something else. Both of these rules ensure that there is never more than one reference pointing to 
+    the inner value. This type provides the following methods:
+    - For types that implement Copy, the get method retrieves the current interior value by duplicating it.
+    - For types that implement Default, the take method replaces the current interior value with Default::default() and 
+    returns the replaced value.
+    - All types have:
+        - replace: replaces the current interior value and returns the replaced value.
+        - into_inner: this method consumes the Cell<T> and returns the interior value.
+        - set: this method replaces the interior value, dropping the replaced value.
+    
+    Cell<T> is typically used for more simple types where copying or moving values isn’t too resource intensive (e.g. 
+    numbers), and should usually be preferred over other cell types when possible. For larger and non-copy types, 
+    RefCell provides some advantages.
+
+    Cell owns its data (alone), so transferring ownership (moving it) is safe. But not Sync because its interior 
+    mutability (changing data through an immutable &Cell<T>) isn't thread-safe, leading to potential data races if 
+    shared and mutated concurrently without locks.
+
+    unsafe impl<T: ?Sized> Send for Cell<T> where T: Send {}
+    impl<T: ?Sized> !Sync for Cell<T> {}
+
+    Shared mutation (checked at compile time) for single-threaded only.
+
+Refcell - a mutable memory location with dynamically checked borrow rules
+    Uses Rust’s lifetimes to implement “dynamic borrowing”, a process whereby one can claim temporary, exclusive, 
+    mutable access to the inner value. Borrows for RefCell<T>s are tracked at runtime, unlike Rust’s native reference 
+    types which are entirely tracked statically, at compile time.
+    An immutable reference to a RefCell’s inner value (&T) can be obtained with borrow, and a mutable borrow (&mut T) 
+    can be obtained with borrow_mut. When these functions are called, they first verify that Rust’s borrow rules will 
+    be satisfied: any number of immutable borrows are allowed or a single mutable borrow is allowed, but never both. 
+    If a borrow is attempted that would violate these rules, the thread will panic.
+
+    The corresponding Sync version of RefCell<T> is RwLock<T>.
+
+    unsafe impl<T: ?Sized> Send for RefCell<T> where T: Send {}
+    impl<T: ?Sized> !Sync for RefCell<T> {}
+
+    Shared mutation (checked at runtime) for single-threaded only. Single-threaded Mutex.
+    RefCell is Send (you can move the whole container to another thread), but it is !Sync (you cannot share it because 
+    its internal borrow counter is not atomic and would cause a race condition if multiple threads accessed it 
+    simultaneously).
+
+OnceCell - is somewhat of a hybrid of Cell and RefCell that works for values that typically only need to be set once.
+    This means that a reference &T can be obtained without moving or copying the inner value (unlike Cell) but also 
+    without runtime checks (unlike RefCell). However, its value can also not be updated once set unless you have a 
+    mutable reference to the OnceCell.
+    OnceCell provides the following methods:
+    - get: obtain a reference to the inner value
+    - set: set the inner value if it is unset (returns a Result)
+    - get_or_init: return the inner value, initializing it if needed
+    - get_mut: provide a mutable reference to the inner value, only available if you have a mutable reference to the 
+    cell itself.
+
+    std::sync::OnceCell (and once_cell::sync::OnceCell) is Send if its inner type T is Send
+    once_cell::unsync::OnceCell is not Send and shouldn't be moved or shared between threads, 
+    impl<T> !Sync for std::sync::OnceCell<T> {}
+    Sync version of std::sync::OnceCell is std::sync::OnceLock
+  
+LazyCell - A value which is initialized on the first access.
+    A common pattern with OnceCell is, for a given OnceCell, to use the same function on every call to 
+    OnceCell::get_or_init with that cell. This is what is offered by LazyCell, which pairs cells of T with functions 
+    of F, and always calls F before it yields &T. This happens implicitly by simply attempting to dereference 
+    the LazyCell to get its contents, so its use is much more transparent with a place which has been initialized 
+    by a constant.
+
+    std::cell::LazyCell is not Send (thread-safe) because it's for single-threaded lazy initialization, like RefCell
+    std::cell::LazyCell is not Sync; it's designed for single-threaded lazy initialization,
+    Sync version of LazyCell<T, F> is LazyLock<T, F>.
+
+     Use LazyCell for thread-local statics where performance matters.
+     Use LazyLock for global/shared statics needing thread safety. 
+
+Introducing mutability ‘inside’ of something immutable
+    Many shared smart pointer types, including Rc<T> and Arc<T>, provide containers that can be cloned and shared 
+    between multiple parties. Because the contained values may be multiply-aliased, they can only be borrowed 
+    with &, not &mut. Without cells it would be impossible to mutate data inside of these smart pointers at all.
+
+    It’s very common then to put a RefCell<T> inside shared pointer types to reintroduce mutability. But RefCell<T>s 
+    are for single-threaded scenarios.
+    Consider using RwLock<T> or Mutex<T> if you need shared mutability in a multi-threaded situation.
+
+Send and Sync definitions
+    The Send marker trait indicates that ownership of values of the type implementing Send can be transferred between 
+    threads. Almost every Rust type implements Send, but there are some exceptions, including Rc<T>: This cannot 
+    implement Send because if you cloned an Rc<T> value and tried to transfer ownership of the clone to another thread, 
+    both threads might update the reference count at the same time. For this reason, Rc<T> is implemented for use in 
+    single-threaded situations where you don’t want to pay the thread-safe performance penalty.
+
+    Any type composed entirely of Send types is automatically marked as Send as well. Almost all primitive types 
+    are Send, aside from raw pointers.
+
+    The Sync marker trait indicates that it is safe for the type implementing Sync to be referenced from multiple 
+    threads. In other words, any type T implements Sync if &T (an immutable reference to T) implements Send, meaning 
+    the reference can be sent safely to another thread. Similar to Send, primitive types all implement Sync, and types 
+    composed entirely of types that implement Sync also implement Sync.
+    Even more elegant definition: The data can be safely shared between threads via references. A type is Sync 
+    if multiple threads can safely read it at the same time. 
+
+
+    The smart pointer Rc<T> also doesn’t implement Sync for the same reasons that it doesn’t implement Send. 
+    The RefCell<T> type and the family of related Cell<T> types don’t implement  Sync. The implementation of borrow 
+    checking that RefCell<T> does at runtime is not thread-safe. The smart pointer Mutex<T> implements Sync and can 
+    be used to share access with multiple threads.
+
+Thread-safe cells
+    Thread-safe "cells" in Rust provide interior mutability across threads, differing from single-threaded Cell/RefCell, 
+    and include std::sync::Mutex/RwLock (often with Arc), std::sync::atomic types for primitives, OnceCell/OnceLock 
+    for one-time initialization, and external crates like atomic_cell or sync_cell for more specialized needs, all 
+    leveraging Rust's Send & Sync traits for safe sharing.
+
+    Core Standard Library Types:
+    - std::sync::Mutex<T> & std::sync::RwLock<T>: The fundamental way to get thread-safe mutable access to any data T. 
+    You wrap your data in Mutex or RwLock and often share it via Arc<Mutex<T>> for shared ownership across threads.
+    - std::sync::atomic: Provides thread-safe, lock-free primitive types (like AtomicUsize, AtomicBool, AtomicI32) 
+    for simple, high-performance operations on basic data without needing explicit locks. See also PortableAtomic.
+    - OnceCell<T> / OnceLock<T>: Allows a value to be initialized exactly once, thread-safely, and then read by multiple 
+    threads, establishing memory visibility.
+
+    Crate-Provided Cells:
+    - AtomicCell<T> (from atomic_cell crate): A thread-safe mutable cell, similar to Cell but for multiple threads, 
+    using underlying atomic storage.
+    - SyncCell<T> (from sync_cell crate): An ergonomic wrapper around RwLock that offers Cell-like usage for thread-safe 
+    interior mutability, panicking on poisoned locks.
+
+    How to Choose:
+    - For simple primitives: Use std::sync::atomic types (e.g., AtomicUsize).
+    - For general shared mutability: Use Arc<Mutex<T>> or Arc<RwLock<T>>.
+    - For one-time initialization: Use OnceCell<T> or OnceLock<T>.
+    - For Cell-like ergonomics with atomics: Explore crates like atomic_cell or sync_cell. 
+
+Mutex,T> (std) - ensures "mutual exclusion.
+    Even if many threads have access to the Mutex, only one thread at a time can lock it and modify the data inside.
+    
+    Shared mutation (guaranteed by locking)	for multi-threaded. Mutex is a multhreaded RefCell.
+
+RwLock<T> (std) - a "Read-Write lock
+    allows many readers simultaneously but grants exclusive access to exactly one writer.
+
+Arc<T> (std)  again releated to Mutex and RwLock
+    allows multiple threads to own the same piece of data simultaneously. It is often combined with a Mutex 
+    (e.g., Arc<Mutex<T>>) to provide shared ownership and safe, synchronized mutation.
+
+How to make a !Sync type thread-safe
+    f you have a type that is !Sync and you need to use it across threads, you typically wrap it in a synchronization 
+    primitive that implements Sync:
+    - Mutex: Provides mutual exclusion, making a !Sync type safe to share.
+    - RwLock: Allows multiple readers or one writer, also providing thread safety for !Sync types.
+    - Arc: Used to share ownership; Arc<T> is Send and Sync only if T is both Send and Sync (or wrapped in a Mutex). 
+
+
+
+#![no_std]
+StaticCell - provides a no-std-compatible, no-alloc way to reserve memory at compile time for a value, but initialize 
+    it at runtime, and get a 'static reference to it.
+
+    This is useful in the following scenarios:
+    - You need &'static T, but T can’t be constructed in const context so you can’t simply use a static.
+    - You need &'static mut T, not just &'static T.
+
+    Alternatives
+    - If you can use alloc, you can use Box::leak().
+    - If you’re OK with unsafe, you can use static mut THING: MaybeUninit<T>.
+    - If you need just &'static T (instead of &'static mut T), there’s OnceCell (not thread-safe though) or OnceLock 
+    (thread-safe, but requires std).
+
+    unsafe impl<T> Send for StaticCell<T> {}
+    unsafe impl<T> Sync for StaticCell<T> {}
+
+    since:
+        pub struct StaticCell<T> {
+            used: AtomicBool,
+            val: UnsafeCell<MaybeUninit<T>>,
+        }
+
+static_cell vs once_cell
+    static-cell and once_cell serve related purposes of one-time initialization, but static-cell is designed specifically 
+    for embedded, #no_std environments and guarantees that the initialized data is placed at a truly static memory 
+    location (typically in the .data or .bss section of the binary), while once_cell typically involves a runtime check 
+    and potentially dynamic allocation or static memory in a helper function. 
+
+    static-cell
+    The static-cell crate is a niche utility for embedded systems or very low-level programming where dynamic allocation 
+    (like Box::leak()) or standard library features (std::sync::OnceLock) are unavailable or undesirable.
+    - Memory Location: It ensures the data lives at a fixed, known memory address for its entire lifetime (static 
+    lifetime, 'static), which is crucial in no_std environments where a heap might not exist.
+    - Usage: It is primarily used to safely initialize non-Sync types in a static-like context without relying on 
+    standard library synchronization primitives or a memory allocator.
+    - Thread Safety: It often relies on a critical-section implementation for safety on targets without native atomics, 
+    providing a mechanism to ensure initialization is an atomic operation for the target architecture.
+
+    once_cell
+    The once_cell crate (which is largely integrated into the standard library as std::cell::OnceCell and 
+    std::sync::OnceLock) is a more general-purpose solution for one-time initialization in standard Rust environments.
+    - Flexibility: It offers both thread-safe (OnceLock) and non-thread-safe (OnceCell) versions, suitable for various 
+    contexts (e.g., standard library usage, or thread_local! statics for the unsync version).
+    - Implementation: It handles the complexities of initialization internally, often using synchronization primitives 
+    (std::sync::Once) or a mutex.
+    Memory Location: While it's great for lazily initializing statics, it doesn't guarantee the data is stored in a 
+    simple, direct static memory location in the same way static-cell does, and might use dynamic mechanisms or helper 
+    functions with encapsulated internal statics.
+
+Global singleton
+    A pattern used to ensure a specific type has only one instance that is accessible from anywhere in the program. 
+    Unlike languages like Java or C++, Rust's strict ownership and thread-safety rules make "traditional" singletons 
+    (like global mutable variables) more complex to implement.
+    Core Implementation Approaches
+        - std::sync::LazyLock (Recommended for Rust 1.80+) provides thread-safe, lazy initialization for static variables. 
+          The instance is only created when first accessed.
+        - std::sync::OnceLock is used when you want to initialize a global variable exactly once at runtime, often inside 
+          a function like main.
+        - lazy_static or once_cell (Crates) Before these features were in the standard library, external crates like 
+          lazy_static and once_cell were the standard. While still widely used in legacy code, modern projects typically 
+          use the built-in LazyLock. 
+    Key Characteristics in Rust
+        - Thread Safety: Any global singleton must implement the Sync trait so it can be safely shared between threads.
+        - Interior Mutability: To modify a singleton at runtime, you must wrap it in a synchronization primitive like a 
+          Mutex or RwLock, as direct mutation of static variables is considered unsafe.
+        - Lazy Initialization: Most Rust singletons are "lazy," meaning they don't consume memory or resources until 
+          they are actually used. 
+    Common Use Cases
+        - Logging: A global logger instance (e.g., the log crate).
+        - Configuration: Global app settings loaded once.
+        - Resource Pools: Shared database connections or thread pools.
+        - Hardware Peripherals: In embedded Rust, singletons are often used to represent unique hardware registers to 
+          prevent multiple parts of the code from controlling them simultaneously. 
+
+Global data which is not singleton
+    In Rust, "global data" refers to data with a 'static lifetime, but it is not always a singleton.
+    A singleton is a pattern that restricts a type to exactly one instance program-wide.
+    You can have global data that isn't a singleton by using Thread-Local Storage (TLS) or immutable constants:
+    -  Thread-Local Storage (Multiple Instances) - The thread_local! macro creates global-access data where each thread 
+    gets its own unique instance. Because every thread has its own separate copy, it is not a singleton.
+    - Global Constants (Inlined Templates) - Using the const keyword defines a value that is technically global but acts 
+    as a template. The compiler may copy its value into every location where it is used, meaning there isn't necessarily 
+    one single memory address for the data.
+
+
+What it means making a read-only reference to a static variable safe
+    making a read-only reference to a static variable safe depends primarily on the variable's type and how it handles 
+    thread safety.
+    1. Requirements for a Safe Reference
+        Accessing a non-mutable static variable is inherently safe if it meets two criteria:
+        - The Sync Trait Bound: The type of the static must implement the Sync trait. This guarantees that the data 
+          can be safely shared across multiple threads without data races.
+        -- No Interior Mutability: For the compiler to treat the variable as truly "read-only" and potentially place 
+          it in read-only memory, the type must not contain an UnsafeCell (the building block for interior mutability 
+          types like RefCell).
+
+    2. Handling Static Variables with Interior Mutability
+        If you need to store data that might change but still want to access it safely via a read-only reference 
+        (shared reference &T), you should use thread-safe interior mutability wrappers instead of static mut:
+        - Atomic Types: For simple primitives (e.g., AtomicU32), these are inherently Sync and safe to reference.
+        - Mutex<T> or RwLock<T>: These primitives allow safe, synchronized access to the data they wrap while being 
+          stored in a non-mutable static.
+        - OnceLock<T> / LazyLock<T>: Use these for one-time initialization of global variables that must be computed 
+          at runtime.
+    3. Safety Summary
+    - static VAR: T: Safe to access and reference if T: Sync.
+    - static mut VAR: T: Inherently unsafe. In Rust 2024 and later, taking a reference to a static mut variable is an 
+      error or heavily restricted because it is extremely difficult to guarantee that no other thread is mutating the 
+      value at the same time.
+    - Recommendation: Always prefer static with a thread-safe container (like Mutex or Atomic) over static mut to ensure 
+      references remain safe and sound.
+
+Static variable must implement the Sync trait
+    Because the compiler cannot guarantee that your program will remain single-core or free of interrupts over time.
+    Even if your current hardware or environment is strictly single-core, the language rules for static are designed 
+    to prevent Undefined Behavior (UB) in any context where data could be shared.
+    
+    Here is why this requirement persists even in a single core and interrupt free environment:
+    1. The "Worst-Case Scenario" Assumption
+        Rust's type system is designed to be sound regardless of the underlying hardware. A static variable is globally 
+        accessible from any part of the program. If Rust allowed non-Sync types in static locations, moving that same 
+        code to a multi-core system or adding an interrupt handler later would instantly create data races.
+    2. Interrupts are "Threads" 
+        In embedded or low-level environments, interrupts are effectively separate threads of execution. If an interrupt 
+        triggers while your main loop is halfway through modifying a non-Sync global variable, the interrupt handler 
+        could read that variable in an inconsistent, corrupted state. 
+    3. Safety against Aliasing
+        The Sync trait ensures that multiple immutable references (&T) to the same data can exist safely across different 
+        contexts. Without Sync, a type might use interior mutability (like Cell or RefCell) which is not safe to alias 
+        if there is any chance of concurrent access, as it could lead to multiple "mutable" views of the same memory.
+    4. Alternatives for Single-Core Environments
+        If you are certain your environment is single-threaded and you want to avoid complex synchronization:
+        - thread_local!: Use this macro for variables that should only be accessible within a single thread;
+          it does not require Sync
+        - Atomics: For simple types (integers, booleans), use AtomicUsize or AtomicBool. These are Sync and performant 
+          even on single-core microcontrollers.
+        - Critical Sections: In embedded Rust, you can use a Mutex from a crate like critical-section to safely wrap 
+          data. It implements Sync by disabling interrupts during access, ensuring safety on single-core hardware.
+        - static mut (Unsafe): You can use static mut, which does not require Sync, but accessing it is unsafe and 
+          highly discouraged because it is easy to accidentally trigger Undefined Behavior.

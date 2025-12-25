@@ -1,0 +1,116 @@
+ThreadModeRawMutex impls Sync, and NoopRawMutex doesn't Sync.
+
+
+This means that ThreadModeRawMutex can be put in a static, or StaticCell, allowing resources to be shared with 
+any code that is in "Thread Mode" (non-interrupt context) on a single-core chip. If it is accessed by an interrupt, 
+it will panic.
+
+Conversely, NoopRawMutex cannot be put in a static (directly), and since you can't pass borrowed data to other tasks,
+it can't be used to share data across tasks. You can use NoopRawMutex locally within a task, shared across multiple 
+futures  potentially.
+You can share this with tasks ON THE SAME (embassy) EXECUTOR, because that does not require that futures are Send. 
+However, if you were to try and share that with another executor (eg: if you are using InteruptExecutors), or with 
+another core (eg: on RP2xxx), then it will not work because &'static Mutex<NoopRawMutex, T> is not Send, because 
+NoopRawMutex is not Send.
+
+The use case for NoopRawMutex would be if you are using something like a shared i2c/spi port within a single task, 
+and you need a mutex for guarding access to the bus.
+
+The "Raw" part of the mutex is what guards the Mutex's state itself:
+- Checking if the Mutex is locked (yielding if so, continuing if not)
+- Marking the Mutex as locked when gaining access
+- Marking the Mutex as unlocked when the guard is dropped
+
+With ANY Raw mutex, the outer Mutex acts the same: If the resource is locked, we yield and await. If the resource 
+is not, we take exclusive access and continue. The Raw Mutex guarantees only take place at lock/unlock, NOT the 
+entire time the outer Mutex is locked.
+
+In general:
+- CriticalSectionRawMutex needs to take a critical section while checking if the Mutex is already "locked" or not, 
+so it has the highest "cost".
+- ThreadModeRawMutex just needs to check "are we in interrupt context" while checking if the Mutex is already "locked" 
+or not (using the VECTACTIVE register), so it's cheaper than a critical section.
+- NoopRawMutex knows that we are in a single core, non-interupt context, so it can freely check if the Mutex is 
+already "locked" or not by just checking a boolean in the mutex, so it is the cheapest (only by an extremely little 
+bit under ThreadModeRawMutex, mostly because there's no potential panicking branch).
+
+In general:
+- If you want to put your Mutex in a static, AND an interrupt (or async code in an Interrupt Executor) might touch it: 
+Use a CriticalSectionRawMutex.
+- If you want to put your Mutex in a static, ONLY with non-interrupts/InterruptExecutor tasks: Use a ThreadModeRawMutex.
+- If you ONLY use your Mutex locally, and never put it in a static (directly), Use a NoopRawMutex.
+
+
+
+In the context of a single thread-mode executor, NoopMutex satisfies the compiler’s requirements for shared access 
+by acting as an interior mutability wrapper.
+A Mutex (even the NoopMutex) allows you to store and modify data in a non-mutable static by utilizing Interior 
+Mutability and the Sync trait.
+1. The Sync Requirement for Statics
+    In Rust, any type stored in a standard static (without the mut keyword) must implement the Sync trait.
+    - The Rule: A type is Sync if it is safe to share (aliased) between multiple threads.
+    - The Conflict: Normal interior mutability types like RefCell are not Sync because they don't have thread-safe 
+      locking. Therefore, you cannot put a RefCell in a static.
+2. How Mutex Solves This
+    A Mutex<T> is a wrapper that "promises" the compiler it will manage concurrent access safely.
+    - Implementing Sync: The Mutex type itself implements Sync (provided the data inside it is Send). This satisfies 
+      the requirement for the variable to be a static.
+    - Interior Mutability: Internally, the Mutex uses an UnsafeCell, which is the only legal way in Rust to obtain a 
+      mutable reference (&mut T) from an immutable reference (&Mutex<T>). 
+3. Why a "Noop" Mutex?
+    In the Embassy crate, different "Raw Mutex" implementations provide different levels of safety for this Sync promise:
+    - ThreadModeMutex: Implements Sync but includes a runtime check to ensure it is only accessed from the processor's 
+      "Thread Mode". It satisfies the compiler's safety requirements for a static while being optimized for single-core 
+      use.
+    - CriticalSectionMutex: Implements Sync by disabling interrupts during access, making it safe to share even with 
+      interrupt handlers.
+    - NoopMutex: This is actually a bit unique. In Embassy, NoopRawMutex does not implement Sync.
+        - Because it is not Sync, you cannot put a NoopMutex in a global static.
+        - It is intended for use within a single task or shared across multiple sub-futures where you don't need to 
+          cross the Sync boundary of a global static.
+
+4. Why T must be Send for making its wrapper Mutex Sync
+    The reason it requires T: Send to implement Sync is rooted in how the Mutex transitions data between those threads.
+    Even though the threads are "sharing" the Mutex via a reference (&Mutex<T>), the thread that successfully locks the 
+    Mutex effectively "takes ownership" of the ability to mutate T for a period of time.
+    If T were not Send, it would be illegal to access or mutate it on any thread other than the one where it was created.
+    For example: 
+    - The Rc<T> Counter-Example: An Rc is not Send because its reference count is not atomic. If you put Rc inside a 
+      Mutex and shared it across threads, two threads could lock the Mutex at different times, but both would end up 
+      modifying the same non-atomic reference count from different threads, leading to a race condition and memory 
+      corruption.
+
+Mutex Summary
+    - Mutex<T> is Sync (shareable) because its locking mechanism prevents simultaneous access.
+    - It requires T: Send because locking the Mutex allows a different thread to mutably access the data, which is 
+      only safe if that data is allowed to "cross" thread boundaries. (In NoopMutex T is not needed to be Sent because
+      the data does not cross thread boundaries. In ThreadModeMutex this "crossing" is checked via checking interrupt
+      free context)
+
+embassy-sync::Mutex uses RefCell for locking State ((contrary to esp-sync which uses only Cell)). It is more effective
+to wrap a bigger (maybe !Copy) type into RefCell. In a case when this locking is re-reentrant RefCell will panic. If you 
+try to lock a Mutex<RefCell<T>> while you already hold a lock (re-entrancy), the code will attempt a second .borrow_mut(). 
+Since the first borrow is still active, RefCell triggers a panic.
+In single-threaded embedded environments, if a Mutex simply blocked (waited) for a lock it already held, it would 
+deadlock forever because the same thread is waiting for itself. A panic is preferred as it immediately reveals the 
+logic error. 
+In esp-sync where Cell is used for locking this mechanism does not work. In case of reentrancy Cell would be overwrite
+and does not panic. It is why esp-sync use a seperate flag and mechanism to manage reentrancy.
+
+// esp-sync implements embassy-sync::RawMutex trait, so when we call lock on/of embassy-sync::Mutex and earlier
+// we gave them not embassy-sync::RawMutex, but esp-syn::RawMutex, then embassy-sync::Mutex will use the ESP
+// specific and more sophisticated locking mechanism and not use the critical-section crate pure interrupt disabling
+//
+// while esp-sync provides this optimzation for embassy Mutex, embassy is very general and don't feature gates for ESP
+// multicore chips (e.g. esp32s3) to use esp-sync::RawMutex for embassy-sync::Mutex
+
+// there is a similar situation for embassy-sync::AtomicWaker. By default it uses CriticalSectionRawMutex which comes 
+// from embassy-sync using critical-section crate,
+// it can be customized to use esp-sync::RawMutex, but as Mutex below in embassy there is no such distinction/
+// feature gated sutomization
+// Furthermore there is a new embassy like rtos in esp (esp-rtos) and there are this and many other customizations
+
+// there is also a sync module in esp-hal which defines a new PriorityLimitedMutex
+// imeplements embassy_sync::blocking_mutex::raw::RawMutex on it, so it can be used by embassy
+// and implements critical-section plugin functions (acquire and release) which use esp-sync::Mutex
+// which can handle both single and multi core ESP chips

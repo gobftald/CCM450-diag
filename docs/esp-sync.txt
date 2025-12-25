@@ -96,6 +96,11 @@ mod single_core {
             }
         }
 
+// We use Cell for managing locking (contrary to embassy-sync which uses RefCell). It is more effective to wrap
+// a simple bool type (which is Copy) into Cell. But in such a case when this locking is re-reentrant Cell type
+// is simple overwrite its earlier value (contrary with RefCell which panics in that case) So RefCell are able to
+// manage (signal) a reentrancy, but Cell are not. This is why we need to manage reentry with a seprate mechanism.
+
         pub fn lock(&self, lock: &impl crate::RawLock) -> crate::RestoreState {
             let mut tkn = unsafe { lock.enter() };
             let was_locked = self.locked.replace(true);
@@ -295,3 +300,21 @@ pub fn with<R>(f: impl FnOnce(LockToken) -> R) -> R {
     #[cfg(not(feature = "critical-section"))]
     f(unsafe { LockToken::conjure() })
 }
+
+// esp-sync implements embassy-sync::RawMutex trait, so when we call lock on/of embassy-sync::Mutex and earlier
+// we gave them not embassy-sync::RawMutex, but esp-syn::RawMutex, then embassy-sync::Mutex will use the ESP
+// specific and more sophisticated locking mechanism and not use the critical-section crate pure interrupt disabling
+//
+// while esp-sync provides this optimzation for embassy Mutex, embassy is very general and don't feature gates for ESP
+// multicore chips (e.g. esp32s3) to use esp-sync::RawMutex for embassy-sync::Mutex
+
+// there is a similar situation for embassy-sync::AtomicWaker. By default it uses CriticalSectionRawMutex which comes 
+// from embassy-sync using critical-section crate,
+// it can be customized to use esp-sync::RawMutex, but as Mutex below in embassy there is no such distinction/
+// feature gated sutomization
+// Furthermore there is a new embassy like rtos in esp (esp-rtos) and there are this and many other customizations
+
+// there is also a sync module in esp-hal which defines a new PriorityLimitedMutex
+// imeplements embassy_sync::blocking_mutex::raw::RawMutex on it, so it can be used by embassy
+// and implements critical-section plugin functions (acquire and release) which use esp-sync::Mutex
+// which can handle both single and multi core ESP chips
