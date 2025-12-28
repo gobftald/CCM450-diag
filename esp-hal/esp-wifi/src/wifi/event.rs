@@ -2,7 +2,7 @@
 use alloc::boxed::Box;
 
 // 3
-use esp_hal::sync::Locked;
+use esp_hal::sync::NonReentrantMutex;
 
 // 5
 use super::WifiEvent;
@@ -10,7 +10,7 @@ use super::WifiEvent;
 // 10
 pub trait Event {
     /// Get the static reference to the handler for this event.
-    fn handler() -> &'static Locked<Option<Box<Handler<Self>>>>;
+    fn handler() -> &'static NonReentrantMutex<Option<Box<Handler<Self>>>>;
     /// # Safety
     /// `ptr` must be a valid for casting to this event's inner event data.
     unsafe fn from_raw_event_data(ptr: *mut crate::binary::c_types::c_void) -> Self;
@@ -76,8 +76,9 @@ macro_rules! impl_wifi_event {
             unsafe fn from_raw_event_data(_: *mut crate::binary::c_types::c_void) -> Self {
                 Self
             }
-            fn handler() -> &'static Locked<Option<Box<Handler<Self>>>> {
-                static HANDLE: Locked<Option<Box<Handler<$newtype>>>> = Locked::new(None);
+            fn handler() -> &'static NonReentrantMutex<Option<Box<Handler<Self>>>> {
+                static HANDLE: NonReentrantMutex<Option<Box<Handler<$newtype>>>> =
+                    NonReentrantMutex::new(None);
                 &HANDLE
             }
         }
@@ -92,8 +93,9 @@ macro_rules! impl_wifi_event {
             unsafe fn from_raw_event_data(ptr: *mut crate::binary::c_types::c_void) -> Self {
                 Self(unsafe { *ptr.cast() })
             }
-            fn handler() -> &'static Locked<Option<Box<Handler<Self>>>> {
-                static HANDLE: Locked<Option<Box<Handler<$newtype>>>> = Locked::new(None);
+            fn handler() -> &'static NonReentrantMutex<Option<Box<Handler<Self>>>> {
+                static HANDLE: NonReentrantMutex<Option<Box<Handler<$newtype>>>> =
+                    NonReentrantMutex::new(None);
                 &HANDLE
             }
         }

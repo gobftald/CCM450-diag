@@ -20,13 +20,16 @@ use crate::{
         malloc::calloc,
     },
     hal::{
-        clock::RadioClockController,
-        peripherals::RADIO_CLK,
-        sync::{Locked, RawMutex},
+        //clock::RadioClockController,
+        clock::ModemClockController,
+        //peripherals::RADIO_CLK,
+        peripherals::WIFI,
+        sync::NonReentrantMutex,
     },
     memory_fence::memory_fence,
     preempt::yield_task,
 };
+use esp_sync::RawMutex;
 
 // 41
 static WIFI_LOCK: RawMutex = RawMutex::new();
@@ -37,8 +40,8 @@ static mut QUEUE_HANDLE: *mut ConcurrentQueue = core::ptr::null_mut();
 // useful for waiting for events - clear and wait for the event bit to be set
 // again
 // 47
-pub(crate) static WIFI_EVENTS: Locked<RefCell<EnumSet<WifiEvent>>> =
-    Locked::new(RefCell::new(enumset::enum_set!()));
+pub(crate) static WIFI_EVENTS: NonReentrantMutex<RefCell<EnumSet<WifiEvent>>> =
+    NonReentrantMutex::new(RefCell::new(enumset::enum_set!()));
 
 /// **************************************************************************
 /// Name: wifi_env_is_chip
@@ -178,7 +181,8 @@ pub unsafe extern "C" fn wifi_int_disable(
     //trace!("wifi_int_disable");
     // TODO: can we use wifi_int_mux?
     let token = unsafe { WIFI_LOCK.acquire() };
-    unsafe { core::mem::transmute::<esp_hal::sync::RestoreState, u32>(token) }
+    //unsafe { core::mem::transmute::<esp_hal::sync::RestoreState, u32>(token) }
+    unsafe { core::mem::transmute::<esp_sync::RestoreState, u32>(token) }
 }
 
 /// **************************************************************************
@@ -202,7 +206,8 @@ pub unsafe extern "C" fn wifi_int_restore(
     tmp: u32,
 ) {
     //trace!("wifi_int_restore");
-    let token = unsafe { core::mem::transmute::<u32, esp_hal::sync::RestoreState>(tmp) };
+    //let token = unsafe { core::mem::transmute::<u32, esp_hal::sync::RestoreState>(tmp) };
+    let token = unsafe { core::mem::transmute::<u32, esp_sync::RestoreState>(tmp) };
     unsafe { WIFI_LOCK.release(token) }
 }
 
@@ -708,10 +713,15 @@ pub unsafe extern "C" fn phy_update_country_info(
 // 1059
 pub unsafe extern "C" fn wifi_reset_mac() {
     trace!("wifi_reset_mac");
+    /*
     // stealing RADIO_CLK is safe since it is passed (as mutable reference or by
     // value) into `init`
     let radio_clocks = unsafe { RADIO_CLK::steal() };
-    RadioClockController::new(radio_clocks).reset_mac();
+    RadioClockController::new(radio_clocks).reset_wifi_mac();
+    */
+    // stealing WIFI is safe, since it is passed into the initialization function of the BLE
+    // controller.
+    unsafe { WIFI::steal() }.reset_wifi_mac();
 }
 
 /// **************************************************************************
@@ -730,10 +740,15 @@ pub unsafe extern "C" fn wifi_reset_mac() {
 // 1080
 pub unsafe extern "C" fn wifi_clock_enable() {
     trace!("wifi_clock_enable");
+    /*
     // stealing RADIO_CLK is safe since it is passed (as mutable reference or by
     // value) into `init`
     let radio_clocks = unsafe { RADIO_CLK::steal() };
     RadioClockController::new(radio_clocks).enable_wifi(true);
+    */
+    // stealing WIFI is safe, since it is passed into the initialization function of the BLE
+    // controller.
+    unsafe { WIFI::steal() }.enable_modem_clock(true);
 }
 
 /// **************************************************************************

@@ -13,9 +13,11 @@
 pub mod efuse;
 
 // 16
-pub mod gpio;
-pub mod peripherals;
+//pub mod gpio;
+//pub mod peripherals; // moved into root folder
 pub(crate) mod regi2c;
+
+pub(crate) use esp32c3 as pac;
 
 #[allow(unused)]
 // 36

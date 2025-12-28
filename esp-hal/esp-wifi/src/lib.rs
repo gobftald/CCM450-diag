@@ -62,9 +62,10 @@ use core::marker::PhantomData;
 
 // 111
 use esp_config::{esp_config_bool, esp_config_int, esp_config_str};
-use esp_hal::{self as hal, clock::RadioClockController, peripherals::RADIO_CLK};
+use esp_hal::{self as hal /*, clock::RadioClockController, peripherals::RADIO_CLK*/};
 use hal::{
-    clock::Clocks,
+    //clock::Clocks,
+    clock::{init_radio_clocks, Clocks},
     rng::Rng,
     time::Rate,
     timer::{AnyTimer, PeriodicTimer},
@@ -218,7 +219,7 @@ pub trait EspWifiTimerSource {
 impl<T> EspWifiTimerSource for T
 where
     //T: esp_hal::timer::IntoAnyTimer + private::Sealed,
-    T: esp_hal::timer::IntoAnyTimer,
+    T: esp_hal::timer::any::Degrade,
 {
     // 321
     unsafe fn timer(self) -> TimeBase {
@@ -260,7 +261,7 @@ impl EspWifiRngSource for Rng {}
 pub fn init<'d>(
     timer: impl EspWifiTimerSource + 'd,
     _rng: impl EspWifiRngSource + 'd,
-    _radio_clocks: RADIO_CLK<'d>,
+    //_radio_clocks: RADIO_CLK<'d>,
 ) -> Result<EspWifiController<'d>, InitializationError> {
     if is_interrupts_disabled() {
         return Err(InitializationError::InterruptsDisabled);
@@ -283,6 +284,7 @@ pub fn init<'d>(
     // Enable timer tick interrupt
     #[cfg(feature = "builtin-scheduler")]
     // 365
+    //preempt_builtin::setup_timer(unsafe { timer.timer() });
     preempt_builtin::setup_timer(unsafe { timer.timer() });
 
     // This initializes the task switcher
@@ -292,7 +294,8 @@ pub fn init<'d>(
     yield_task(); // don't wait for the next builtin scheduler tick IRQ
 
     wifi_set_log_verbose();
-    init_clocks();
+    //init_clocks();
+    init_radio_clocks();
 
     Ok(EspWifiController {
         _inner: PhantomData,
@@ -339,8 +342,10 @@ pub fn wifi_set_log_verbose() {
     }
 }
 
+/*
 // 520
 fn init_clocks() {
     let radio_clocks = unsafe { RADIO_CLK::steal() };
     RadioClockController::new(radio_clocks).init_clocks();
 }
+*/

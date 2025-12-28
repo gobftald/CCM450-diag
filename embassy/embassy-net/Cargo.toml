@@ -11,7 +11,8 @@ log = { version = "0.4.14", optional = true }
 embassy-net-driver = { path = "../embassy-net-driver" }
 embassy-time = { path = "../embassy-time" }
 #embassy-sync = { path = "../embassy-sync" }
-embassy-sync = { path = "../embassy-sync.me" }
+#embassy-sync = { path = "../embassy-sync.me" }
+embassy-sync = "0.7"
 smoltcp = { path = "../../smoltcp/smoltcp", default-features = false, features = ["socket", "async"] }
 #allocator-api2 = { path = "../../allocator-api2", features = ["alloc"] }
 allocator-api2 = { version = "0.3.0", default-features = false, features = ["alloc"] }

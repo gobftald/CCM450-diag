@@ -19,7 +19,7 @@ use super::InterruptStatus;
 // 24
 use crate::{
     pac,
-    peripherals::{Interrupt, INTERRUPT_CORE0},
+    peripherals::{INTERRUPT_CORE0, Interrupt},
 };
 
 /// Interrupt Error
@@ -175,8 +175,8 @@ pub static RESERVED_INTERRUPTS: &[usize] = PRIORITY_TO_INTERRUPT;
 /// # Safety
 ///
 /// This function is called from an assembly trap handler.
-#[link_section = ".trap.rust"]
-#[export_name = "_start_trap_rust_hal"]
+#[unsafe(link_section = ".trap.rust")]
+#[unsafe(export_name = "_start_trap_rust_hal")]
 // 215
 pub unsafe extern "C" fn start_trap_rust_hal(trap_frame: *mut TrapFrame) {
     // if assert failed and if build-std-features = ["panic_immediate_abort"]
@@ -263,8 +263,8 @@ pub fn disable(interrupt: u8) {
 // 302
 pub fn status() -> InterruptStatus {
     InterruptStatus::from(
-        INTERRUPT_CORE0::regs().intr_status_reg_0().read().bits(),
-        INTERRUPT_CORE0::regs().intr_status_reg_1().read().bits(),
+        INTERRUPT_CORE0::regs().core_0_intr_status(0).read().bits(),
+        INTERRUPT_CORE0::regs().core_0_intr_status(1).read().bits(),
     )
 }
 

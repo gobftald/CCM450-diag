@@ -1,8 +1,10 @@
 // 1
+use std::error::Error;
+//2
+#[cfg(feature = "rt")]
 use std::{
     collections::HashMap,
     env,
-    error::Error,
     fs::{self, File},
     io::{BufRead, Write},
     path::{Path, PathBuf},

@@ -2,7 +2,8 @@
 use alloc::boxed::Box;
 
 // 3
-use esp_hal::sync::Locked;
+//use esp_hal::sync::Locked;
+use esp_hal::sync::NonReentrantMutex;
 
 // 5
 use crate::binary::{c_types, include::ets_timer};
@@ -150,7 +151,7 @@ impl TimerQueue {
 }
 
 // 145
-pub(crate) static TIMERS: Locked<TimerQueue> = Locked::new(TimerQueue::new());
+pub(crate) static TIMERS: NonReentrantMutex<TimerQueue> = NonReentrantMutex::new(TimerQueue::new());
 
 // 147
 pub(crate) fn compat_timer_arm(ets_timer: *mut ets_timer, tmout: u32, repeat: bool) {

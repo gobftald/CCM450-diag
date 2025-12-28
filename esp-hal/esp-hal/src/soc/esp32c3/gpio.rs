@@ -15,6 +15,7 @@
 // 39
 use crate::{gpio::AlternateFunction, pac::io_mux, peripherals::IO_MUX};
 
+/*
 // 48
 pub(crate) const FUNC_IN_SEL_OFFSET: usize = 0;
 

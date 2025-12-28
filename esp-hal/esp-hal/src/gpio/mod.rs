@@ -7,16 +7,21 @@
 
 // 55
 pub mod interconnect;
+use interconnect::PeripheralOutput;
 
 // 69
-pub(crate) mod interrupt;
+//pub(crate) mod interrupt;
 
 // 74
-use interrupt::*;
+//use interrupt::*; // we define GPIO_LOCK here
+pub(crate) static GPIO_LOCK: RawMutex = RawMutex::new();
+
+use esp_sync::RawMutex;
 
 // 80
-use crate::peripherals::{handle_gpio_input, handle_gpio_output, GPIO};
-pub use crate::soc::gpio::*;
+use crate::peripherals::{GPIO /*, handle_gpio_input, handle_gpio_output*/};
+//pub use crate::soc::gpio::*; // everything is defined on metadata-generated
+define_io_mux_signals!();
 
 /// Represents a pin-peripheral connection that, when dropped, disconnects the
 /// peripheral from the pin.
@@ -28,24 +33,24 @@ pub use crate::soc::gpio::*;
 // 95
 pub(crate) struct PinGuard {
     pin: u8,
-    signal: OutputSignal,
+    //signal: OutputSignal,
 }
 
 // 102
 impl PinGuard {
     // 103
-    pub(crate) fn new(pin: AnyPin<'_>, signal: OutputSignal) -> Self {
+    pub(crate) fn new(pin: AnyPin<'_> /* , signal: OutputSignal*/) -> Self {
         Self {
             pin: pin.number(),
-            signal,
+            //signal,
         }
     }
 
     // 110
-    pub(crate) fn new_unconnected(signal: OutputSignal) -> Self {
+    pub(crate) fn new_unconnected(/*signal: OutputSignal*/) -> Self {
         Self {
             pin: u8::MAX,
-            signal,
+            //signal,
         }
     }
 }
@@ -55,7 +60,8 @@ impl Drop for PinGuard {
     fn drop(&mut self) {
         if self.pin != u8::MAX {
             let pin = unsafe { AnyPin::steal(self.pin) };
-            self.signal.disconnect_from(&pin);
+            //self.signal.disconnect_from(&pin);
+            pin.disconnect_from_peripheral_output();
         }
     }
 }
@@ -144,6 +150,33 @@ pub enum AlternateFunction {
     _4 = 4,
     /// Alternate function 5.
     _5 = 5,
+}
+
+impl AlternateFunction {
+    const GPIO: Self = match Self::const_try_from(property!("gpio.gpio_function")) {
+        Ok(func) => func,
+        Err(_) => ::core::panic!("Invalid GPIO function"),
+    };
+
+    const fn const_try_from(value: usize) -> Result<Self, ()> {
+        match value {
+            0 => Ok(Self::_0),
+            1 => Ok(Self::_1),
+            2 => Ok(Self::_2),
+            3 => Ok(Self::_3),
+            4 => Ok(Self::_4),
+            5 => Ok(Self::_5),
+            _ => Err(()),
+        }
+    }
+}
+
+impl TryFrom<usize> for AlternateFunction {
+    type Error = ();
+
+    fn try_from(value: usize) -> Result<Self, Self::Error> {
+        Self::const_try_from(value)
+    }
 }
 
 /// Common trait implemented by pins
@@ -345,6 +378,7 @@ macro_rules! io_type {
     };
 }
 
+/*
 #[doc(hidden)]
 #[macro_export]
 // 767
@@ -528,6 +562,7 @@ macro_rules! gpio {
         }
     };
 }
+*/
 
 /// The drive mode of the output pin.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -759,17 +794,19 @@ impl<'lt> AnyPin<'lt> {
     // 1794
     pub(crate) fn init_gpio(&self) {
         self.set_output_enable(false); // if ouptut -> disable
-                                       // if input -> enable
+        // if input -> enable
 
         GPIO::regs()
             // set func_out_sel_cfg to GPIO -> periheral output signal will be connected to GPIO output
             .func_out_sel_cfg(self.number() as usize)
-            .modify(|_, w| unsafe { w.out_sel().bits(OutputSignal::GPIO as OutputSignalType) });
+            //.modify(|_, w| unsafe { w.out_sel().bits(OutputSignal::GPIO as OutputSignalType) });
+            .modify(|_, w| unsafe { w.out_sel().bits(OutputSignal::GPIO as _) });
 
         // Use RMW to not overwrite sleep configuration
         io_mux_reg(self.number()).modify(|_, w| unsafe {
             // bypass GPIO matrix for peripheral output signals
-            w.mcu_sel().bits(GPIO_FUNCTION as u8);
+            //w.mcu_sel().bits(GPIO_FUNCTION as u8);
+            w.mcu_sel().bits(AlternateFunction::GPIO as u8);
             // input disabled on this pin
             // this is the only way to select pure GPIO input
             w.fun_ie().clear_bit();
@@ -946,19 +983,51 @@ impl Pin for AnyPin<'_> {
     // 2066
     //fn output_signals(&self, _: private::Internal) -> &'static [(AlternateFunction, OutputSignal)] {
     fn output_signals(&self) -> &'static [(AlternateFunction, OutputSignal)] {
+        /*
         handle_gpio_output!(self, target, {
             //Pin::output_signals(&target, private::Internal)
             Pin::output_signals(&target)
         })
+        */
+        for_each_gpio! {
+            (all $( ($n:literal, $gpio:ident $in_afs:tt $out_afs:tt ($input:tt [$($is_output:ident)?]) ) ),* ) => {
+                match self.number() {
+                    $($(
+                        $n => {
+                            crate::ignore!($is_output);
+                            let inner = unsafe { crate::peripherals::$gpio::steal() };
+                            return Pin::output_signals(&inner/*, private*/);
+                        }
+                    )?)*
+                    other => panic!("Pin {} is not an OutputPin", other)
+                }
+            };
+        }
     }
 
     // 2072
     //fn input_signals(&self, _: private::Internal) -> &'static [(AlternateFunction, InputSignal)] {
     fn input_signals(&self) -> &'static [(AlternateFunction, InputSignal)] {
+        /*
         handle_gpio_input!(self, target, {
             //Pin::input_signals(&target, private::Internal)
             Pin::input_signals(&target)
         })
+        */
+        for_each_gpio! {
+            (all $( ($n:literal, $gpio:ident $in_afs:tt $out_afs:tt ([$($is_input:ident)?] $output:tt) ) ),* ) => {
+                match self.number() {
+                    $($(
+                        $n => {
+                            crate::ignore!($is_input);
+                            let inner = unsafe { crate::peripherals::$gpio::steal() };
+                            return Pin::input_signals(&inner/*, private*/);
+                        }
+                    )?)*
+                    other => panic!("Pin {} is not an InputPin", other)
+                }
+            };
+        }
     }
 }
 
@@ -966,8 +1035,111 @@ impl Pin for AnyPin<'_> {
 impl InputPin for AnyPin<'_> {}
 impl OutputPin for AnyPin<'_> {}
 
+impl AnyPin<'_> {
+    pub unsafe fn steal(pin: u8) -> Self {
+        for_each_gpio! {
+            (all $( ($n:literal $($any:tt)*) ),*) => { const PINS: &[u8] = &[ $($n),* ]; };
+        };
+        assert!(PINS.contains(&pin), "Pin {} does not exist", pin);
+        Self {
+            pin,
+            _lifetime: core::marker::PhantomData,
+        }
+    }
+
+    pub unsafe fn clone_unchecked(&self) -> Self {
+        Self {
+            pin: self.pin,
+            _lifetime: core::marker::PhantomData,
+        }
+    }
+
+    pub(crate) fn is_output(&self) -> bool {
+        for_each_gpio! {
+            (all $( ($n:literal, $gpio:ident $in_afs:tt $out_afs:tt ($input:tt [$($is_output:ident)?]) ) ),* ) => {
+                return match self.number() {
+                    $($(
+                        // This code is generated if the Output attribute is present
+                        $n => {
+                            crate::ignore!($is_output);
+                            true
+                        }
+                    )?)*
+                    _other => false,
+                };
+            };
+        }
+    }
+}
+
 // 2144
 fn is_int_enabled(gpio_num: u8) -> bool {
     // Interrupt enable bits: bit13: CPU interrupt enabled
     GPIO::regs().pin(gpio_num as usize).read().int_ena().bits() != 0
 }
+
+for_each_gpio! {
+    ($n:literal, $gpio:ident ($( $af_input_num:ident => $af_input_signal:ident )*) ($( $af_output_num:ident => $af_output_signal:ident )*) $attrs:tt) => {
+        impl<'d> crate::peripherals::$gpio<'d> {
+            #[allow(unused)]
+            pub(crate) const NUMBER: u8 = $n;
+
+            //#[procmacros::doc_replace]
+            /// Split the pin into an input and output signal.
+            ///
+            /// Peripheral signals allow connecting peripherals together without using
+            /// external hardware.
+            ///
+            /// # Safety
+            ///
+            /// The caller must ensure that peripheral drivers don't configure the same
+            /// GPIO at the same time in multiple places. This includes clones of the
+            /// `InputSignal` struct, as well as the `OutputSignal` struct.
+            ///
+            /// ```rust, no_run
+            /// # {before_snippet}
+            /// #
+            /// let (rx, tx) = unsafe { peripherals.GPIO2.split() };
+            /// // rx and tx can then be passed to different peripherals to connect them.
+            /// #
+            /// # {after_snippet}
+            /// ```
+            //#[instability::unstable]
+            pub unsafe fn split(self) -> (interconnect::InputSignal<'d>, interconnect::OutputSignal<'d>) {
+                // FIXME: we should implement this in the gpio macro for output pins, but we
+                // should also have an input-only alternative for pins that can't be used as
+                // outputs.
+
+                // This goes through AnyPin which calls `init_gpio` as needed.
+                unsafe { self.degrade().split() }
+            }
+        }
+
+        impl Pin for crate::peripherals::$gpio<'_> {
+            #[inline(always)]
+            fn number(&self) -> u8 {
+                $n
+            }
+
+            fn output_signals(&self/*, _: crate::private::Internal*/) -> &'static [(AlternateFunction, OutputSignal)] {
+                &[$(
+                        (AlternateFunction::$af_output_num, OutputSignal::$af_output_signal),
+                )*]
+            }
+
+            fn input_signals(&self/*, _: crate::private::Internal*/) -> &'static [(AlternateFunction, InputSignal)] {
+                &[$(
+                        (AlternateFunction::$af_input_num, InputSignal::$af_input_signal),
+                )*]
+            }
+        }
+
+        impl<'lt> From<crate::peripherals::$gpio<'lt>> for AnyPin<'lt> {
+            fn from(pin: crate::peripherals::$gpio<'lt>) -> Self {
+                Pin::degrade(pin)
+            }
+        }
+    };
+}
+
+define_io_mux_reg!();

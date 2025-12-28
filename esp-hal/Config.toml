@@ -8,6 +8,6 @@ exclude  = [
     "esp-hal-embassy",
     "esp-hal-procmacros",
     "esp-metadata.me",
-    "esp-riscv-rt",
+    "esp-riscv-rt.me",
     "esp-wifi",
 ]

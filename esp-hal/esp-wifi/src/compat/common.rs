@@ -9,7 +9,7 @@ use super::malloc::free;
 use crate::{
     binary::c_types::{c_int, c_void},
     compat::malloc::InternalMemory,
-    hal::sync::Locked,
+    hal::sync::NonReentrantMutex,
     memory_fence::memory_fence,
     preempt::{current_task, yield_task},
 };
@@ -28,7 +28,7 @@ struct Mutex {
 
 // 31
 pub(crate) struct ConcurrentQueue {
-    raw_queue: Locked<RawQueue>,
+    raw_queue: NonReentrantMutex<RawQueue>,
 }
 
 // 35
@@ -36,7 +36,7 @@ impl ConcurrentQueue {
     // 36
     pub(crate) fn new(count: usize, item_size: usize) -> Self {
         Self {
-            raw_queue: Locked::new(RawQueue::new(count, item_size)),
+            raw_queue: NonReentrantMutex::new(RawQueue::new(count, item_size)),
         }
     }
 

@@ -145,7 +145,7 @@ where
         Self {
             _timer_group: PhantomData,
             timer0: Timer {
-                timer: 0,
+                timer: TimerId::Timer0,
                 tg: T::id(),
                 register_block: T::register_block(),
                 _lifetime: PhantomData,
@@ -226,8 +226,16 @@ impl super::Timer for Timer<'_> {
 pub struct Timer<'d> {
     register_block: *const RegisterBlock,
     _lifetime: PhantomData<&'d mut ()>,
-    timer: u8,
+    timer: TimerId,
     tg: u8,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+enum TimerId {
+    Timer0,
+    #[cfg(timergroup_timg_has_timer1)]
+    Timer1,
 }
 
 /// Timer peripheral instance
@@ -286,7 +294,7 @@ impl Timer<'_> {
 
     // 425
     fn timer_number(&self) -> u8 {
-        self.timer
+        self.timer as u8
     }
 
     // 429
@@ -362,7 +370,7 @@ impl Timer<'_> {
     fn clear_interrupt(&self) {
         self.register_block()
             .int_clr()
-            .write(|w| w.t(self.timer).clear_bit_by_one());
+            .write(|w| w.t(self.timer as _).clear_bit_by_one());
         let periodic = self.t().config().read().autoreload().bit_is_set();
         self.set_alarm_active(periodic);
     }

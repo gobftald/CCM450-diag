@@ -70,7 +70,8 @@ async fn main(spawner: embassy_executor::Spawner) {
 
     let esp_wifi_ctrl = &*mk_static!(
         esp_wifi::EspWifiController<'static>,
-        unwrap!(esp_wifi::init(timg0.timer0, rng, peripherals.RADIO_CLK))
+        //unwrap!(esp_wifi::init(timg0.timer0, rng, peripherals.RADIO_CLK))
+        unwrap!(esp_wifi::init(timg0.timer0, rng))
     );
 
     let (controller, interfaces) = unwrap!(esp_wifi::wifi::new(esp_wifi_ctrl, peripherals.WIFI));
@@ -130,7 +131,7 @@ async fn main(spawner: embassy_executor::Spawner) {
         peripherals.GPIO3.into(),
     );
 
-    crate::debug_pin::init_debug_pin(peripherals.GPIO0);
+    //crate::debug_pin::init_debug_pin(peripherals.GPIO0);
 
     // spawn tasks
     spawner

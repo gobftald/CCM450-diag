@@ -42,7 +42,7 @@ use crate::{
     pac::uart0::RegisterBlock,
     peripherals::Interrupt,
     private::OnDrop,
-    system::{PeripheralClockControl, PeripheralGuard},
+    system::{/*PeripheralClockControl,*/ PeripheralGuard},
 };
 
 /// UART RX Error
@@ -340,7 +340,7 @@ impl<'d> UartBuilder<'d> {
         let rx_guard = PeripheralGuard::new(self.uart.parts().0.peripheral);
         let tx_guard = PeripheralGuard::new(self.uart.parts().0.peripheral);
 
-        let tx_pin = PinGuard::new_unconnected(self.uart.info().tx_signal);
+        let tx_pin = PinGuard::new_unconnected(/*self.uart.info().tx_signal*/);
 
         let mut serial = Uart {
             rx: UartRx {
@@ -625,27 +625,28 @@ impl<'d> UartRx<'d> {
     pub async fn wait_for_buffered_data(
         &mut self,
         minimum: usize,
-        preferred: usize,
+        max_threshold: usize,
         listen_for_timeout: bool,
     ) -> Result<(), RxError> {
-        while self.uart.info().rx_fifo_count() < (minimum as u16).min(Info::RX_FIFO_MAX_THRHD) {
-            let amount = u16::try_from(preferred)
-                .unwrap_or(Info::RX_FIFO_MAX_THRHD)
-                .min(Info::RX_FIFO_MAX_THRHD);
+        let current_threshold = self.uart.info().rx_fifo_full_threshold();
 
-            let current = self.uart.info().rx_fifo_full_threshold();
-            let _guard = if current > amount {
-                // We're ignoring the user configuration here to ensure that this is not waiting
-                // for more data than the buffer. We'll restore the original value after the
-                // future resolved.
-                let info = self.uart.info();
-                unwrap!(info.set_rx_fifo_full_threshold(amount));
-                Some(OnDrop::new(|| {
-                    unwrap!(info.set_rx_fifo_full_threshold(current));
-                }))
-            } else {
-                None
-            };
+        // User preference takes priority.
+        let max_threshold = max_threshold.min(current_threshold as usize) as u16;
+        let minimum = minimum.min(Info::RX_FIFO_MAX_THRHD as usize) as u16;
+
+        // The effective threshold must be >= minimum. We ensure this by lowering the minimum number
+        // of returnable bytes.
+        let minimum = minimum.min(max_threshold);
+
+        if self.uart.info().rx_fifo_count() < minimum {
+            // We're ignoring the user configuration here to ensure that this is not waiting
+            // for more data than the buffer. We'll restore the original value after the
+            // future resolved.
+            let info = self.uart.info();
+            unwrap!(info.set_rx_fifo_full_threshold(max_threshold));
+            let _guard = OnDrop::new(|| {
+                unwrap!(info.set_rx_fifo_full_threshold(current_threshold));
+            });
 
             // Wait for space or event
             let mut events = RxEvent::FifoFull
@@ -732,6 +733,14 @@ impl<'d> UartRx<'d> {
     /// previously read data may be lost.
     // 1065
     pub async fn read_exact_async(&mut self, mut buf: &mut [u8]) -> Result<(), RxError> {
+        if buf.is_empty() {
+            return Ok(());
+        }
+
+        // Drain the buffer first, there's no point in waiting for data we've already received.
+        let read = self.uart.info().read_buffered(buf)?;
+        buf = &mut buf[read..];
+
         while !buf.is_empty() {
             // No point in listening for timeouts, as we're waiting for an exact amount of
             // data. On ESP32 and S2, the timeout interrupt can't be cleared unless the FIFO
@@ -996,12 +1005,14 @@ impl<'d> Uart<'d> {
     #[inline(always)]
     // 1699
     fn init(&mut self, config: Config) -> Result<(), ConfigError> {
+        /*
         crate::peripherals::SYSTEM::regs()
             // enable the clock for UART RAM
             .perip_clk_en0()
             .modify(|_, w| w.uart_mem_clk_en().set_bit());
 
         self.uart_peripheral_reset();
+        */
 
         self.rx.disable_rx_interrupts();
         self.tx.disable_tx_interrupts();
@@ -1044,7 +1055,6 @@ impl<'d> Uart<'d> {
     fn is_instance(&self, other: impl Instance) -> bool {
         self.tx.uart.info().is_instance(other)
     }
-    */
 
     #[inline(always)]
     // 1749
@@ -1080,6 +1090,7 @@ impl<'d> Uart<'d> {
         PeripheralClockControl::reset(self.tx.uart.info().peripheral);
         rst_core(self.regs(), false);
     }
+    */
 }
 
 #[derive(Debug, EnumSetType)]
@@ -1163,6 +1174,15 @@ impl core::future::Future for UartRxFuture {
             }
             Poll::Pending
         }
+    }
+}
+
+impl Drop for UartRxFuture {
+    fn drop(&mut self) {
+        // Although the isr disables the interrupt that occurred directly, we need to
+        // disable the other interrupts (= the ones that did not occur), as
+        // soon as this future goes out of scope.
+        self.uart.enable_listen_rx(self.events, false);
     }
 }
 
@@ -1262,7 +1282,8 @@ pub(super) fn intr_handler(uart: &Info, state: &State) {
 // 2427
 /// A peripheral singleton compatible with the UART driver.
 //pub trait Instance: crate::private::Sealed + IntoAnyUart
-pub trait Instance: IntoAnyUart {
+//pub trait Instance: IntoAnyUart {
+pub trait Instance: any::Degrade {
     /// Returns the peripheral data and state describing this UART instance.
     // 2428
     fn parts(&self) -> (&'static Info, &'static State);
@@ -1329,8 +1350,10 @@ pub struct State {
 impl Info {
     // Currently we don't support merging adjacent FIFO memory, so the max size is
     // 128 bytes, the max threshold is 127 bytes.
-    const UART_FIFO_SIZE: u16 = 128;
-    const RX_FIFO_MAX_THRHD: u16 = 127;
+    //const UART_FIFO_SIZE: u16 = 128;
+    const UART_FIFO_SIZE: u16 = property!("uart.ram_size");
+    //const RX_FIFO_MAX_THRHD: u16 = 127;
+    const RX_FIFO_MAX_THRHD: u16 = Self::UART_FIFO_SIZE - 1;
     const TX_FIFO_MAX_THRHD: u16 = Self::RX_FIFO_MAX_THRHD;
 
     /// Returns the register block for this UART instance.
@@ -1884,6 +1907,7 @@ impl Instance for AnyUart<'_> {
     #[inline]
     // 3277
     fn parts(&self) -> (&'static Info, &'static State) {
+        /*
         match &self.0 {
             /*
             #[cfg(uart0)]
@@ -1893,5 +1917,7 @@ impl Instance for AnyUart<'_> {
             #[cfg(soc_has_uart1)]
             AnyUartInner::Uart1(uart) => uart.parts(),
         }
+        */
+        any::delegate!(self, uart => { uart.parts() })
     }
 }

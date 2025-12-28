@@ -21,6 +21,15 @@
 //! processing unit (CPU) operates. This driver provides predefined options for
 //! different CPU clock speeds, such as
 
+use core::{cell::Cell, marker::PhantomData};
+
+#[cfg(any(/*bt, ieee802154,*/ wifi))]
+use esp_sync::RawMutex;
+
+use crate::ESP_HAL_LOCK;
+#[cfg(wifi)]
+use crate::peripherals::WIFI;
+
 // 49
 use crate::time::Rate;
 
@@ -225,7 +234,8 @@ static mut ACTIVE_CLOCKS: Option<Clocks> = None;
 impl Clocks {
     // 296
     pub(crate) fn init(cpu_clock_speed: CpuClock) {
-        critical_section::with(|_| {
+        //critical_section::with(|_| {
+        ESP_HAL_LOCK.lock(|| {
             unsafe { ACTIVE_CLOCKS = Some(Self::configure(cpu_clock_speed)) };
         })
     }
@@ -253,26 +263,42 @@ impl Clocks {
     #[inline]
     // 321
     pub(crate) fn xtal_freq() -> Rate {
-        /*
         if esp_config::esp_config_str!("ESP_HAL_CONFIG_XTAL_FREQUENCY") == "auto" {
             if let Some(clocks) = Self::try_get() {
                 return clocks.xtal_clock;
             }
         }
-        */
 
         Self::measure_xtal_frequency().frequency()
+    }
+
+    const fn xtal_frequency_from_config() -> Option<XtalClock> {
+        let frequency_conf = esp_config::esp_config_str!("ESP_HAL_CONFIG_XTAL_FREQUENCY");
+
+        for_each_soc_xtal_options!(
+            (all $( ($freq:literal) ),*) => {
+                paste::paste! {
+                    return match frequency_conf.as_bytes() {
+                        b"auto" => None,
+
+                        // If the frequency is a pre-set value for the chip, return the associated enum variant.
+                        $( _ if esp_config::esp_config_int_parse!(u32, frequency_conf) == $freq => Some(XtalClock::[<_ $freq M>]), )*
+
+                        _ => None,
+                    };
+                }
+            };
+        );
+    }
+
+    fn measure_xtal_frequency() -> XtalClock {
+        unwrap!(Self::xtal_frequency_from_config())
     }
 }
 
 #[cfg(esp32c3)]
 // 438
 impl Clocks {
-    // 439
-    fn measure_xtal_frequency() -> XtalClock {
-        XtalClock::_40M
-    }
-
     /// Configure the CPU clock speed.
     // 444
     pub(crate) fn configure(cpu_clock_speed: CpuClock) -> Self {
@@ -304,13 +330,131 @@ impl Clocks {
     }
 }
 
+#[cfg(any(/*bt, ieee802154,*/ wifi))]
+/// Tracks the number of references to the PHY clock.
+static PHY_CLOCK_REF_COUNTER: embassy_sync::blocking_mutex::Mutex<RawMutex, Cell<u8>> =
+    embassy_sync::blocking_mutex::Mutex::new(Cell::new(0));
+
+#[cfg(any(/*bt, ieee802154,*/ wifi))]
+fn increase_phy_clock_ref_count_internal() {
+    PHY_CLOCK_REF_COUNTER.lock(|phy_clock_ref_counter| {
+        let phy_clock_ref_count = phy_clock_ref_counter.get();
+
+        if phy_clock_ref_count == 0 {
+            clocks_ll::enable_phy(true);
+        }
+        let new_phy_clock_ref_count = unwrap!(
+            phy_clock_ref_count.checked_add(1),
+            "PHY clock ref count overflowed."
+        );
+
+        phy_clock_ref_counter.set(new_phy_clock_ref_count);
+    })
+}
+
+#[cfg(any(/*bt, ieee802154,*/ wifi))]
+fn decrease_phy_clock_ref_count_internal() {
+    PHY_CLOCK_REF_COUNTER.lock(|phy_clock_ref_counter| {
+        let new_phy_clock_ref_count = unwrap!(
+            phy_clock_ref_counter.get().checked_sub(1),
+            "PHY clock ref count underflowed. Either you forgot a PhyClockGuard, or used ModemClockController::decrease_phy_clock_ref_count incorrectly."
+        );
+
+        if new_phy_clock_ref_count == 0 {
+            clocks_ll::enable_phy(false);
+        }
+
+        phy_clock_ref_counter.set(new_phy_clock_ref_count);
+    })
+}
+
+#[inline]
+/// Do any common initial initialization needed for the radio clocks
+pub fn init_radio_clocks() {
+    clocks_ll::init_clocks();
+}
+
+#[cfg(any(/*bt, ieee802154,*/ wifi))]
+#[derive(Debug)]
+/// Prevents the PHY clock from being disabled.
+///
+/// As long as at least one [PhyClockGuard] exists, the PHY clock will remain
+/// active. To release this guard, you can either let it go out of scope or use
+/// [PhyClockGuard::release] to explicitly release it.
+pub struct PhyClockGuard<'d> {
+    _phantom: PhantomData<&'d ()>,
+}
+
+#[cfg(any(bt, ieee802154, wifi))]
+impl PhyClockGuard<'_> {
+    #[inline]
+    /// Release the clock guard.
+    ///
+    /// The PHY clock will be disabled, if this is the last clock guard.
+    pub fn release(self) {}
+}
+
+#[cfg(any(bt, ieee802154, wifi))]
+impl Drop for PhyClockGuard<'_> {
+    fn drop(&mut self) {
+        decrease_phy_clock_ref_count_internal();
+    }
+}
+
+/*
 /// Control the radio peripheral clocks
 //#[cfg(any(/*bt,ieee802154,*/ wifi))]
 // 597
 pub struct RadioClockController<'d> {
     _rcc: crate::peripherals::RADIO_CLK<'d>,
 }
+*/
 
+#[cfg(any(bt, ieee802154, wifi))]
+/// This trait provides common clock functionality for all modem peripherals.
+pub trait ModemClockController<'d> {
+    /// Enable the modem clock for this controller.
+    fn enable_modem_clock(&mut self, enable: bool);
+
+    // Enable the PHY clock and acquire a [PhyClockGuard].
+    ///
+    /// The PHY clock will only be disabled, once all [PhyClockGuard]'s of all
+    /// modems were dropped.
+    fn enable_phy_clock(&self) -> PhyClockGuard<'d> {
+        increase_phy_clock_ref_count_internal();
+        PhyClockGuard {
+            _phantom: PhantomData,
+        }
+    }
+
+    /// Decreases the PHY clock reference count for this modem ignoring
+    /// currently alive [PhyClockGuard]s.
+    ///
+    /// # Panics
+    /// This function panics if the PHY clock is inactive. If the ref count is
+    /// lower than the number of alive [PhyClockGuard]s, dropping a guard can
+    /// now panic.
+    fn decrease_phy_clock_ref_count(&self) {
+        decrease_phy_clock_ref_count_internal();
+    }
+}
+
+#[cfg(wifi)]
+impl<'d> ModemClockController<'d> for WIFI<'d> {
+    fn enable_modem_clock(&mut self, enable: bool) {
+        clocks_ll::enable_wifi(enable);
+    }
+}
+
+#[cfg(wifi)]
+impl WIFI<'_> {
+    /// Reset the Wi-Fi MAC.
+    pub fn reset_wifi_mac(&mut self) {
+        clocks_ll::reset_wifi_mac();
+    }
+}
+
+/*
 #[cfg(any(/*bt, ieee802154,*/ wifi))]
 //#[instability::unstable]
 // 602
@@ -322,6 +466,7 @@ impl<'d> RadioClockController<'d> {
         Self { _rcc: rcc }
     }
 
+    /*
     /// Enable the PHY clocks
     #[cfg(phy)]
     #[inline]
@@ -341,8 +486,8 @@ impl<'d> RadioClockController<'d> {
     /// Reset the MAC
     #[inline]
     // 644
-    pub fn reset_mac(&mut self) {
-        clocks_ll::reset_mac();
+    pub fn reset_wifi_mac(&mut self) {
+        clocks_ll::reset_wifi_mac();
     }
 
     /// Do any common initial initialization needed
@@ -352,4 +497,6 @@ impl<'d> RadioClockController<'d> {
     pub fn init_clocks(&mut self) {
         clocks_ll::init_clocks();
     }
+    */
 }
+*/

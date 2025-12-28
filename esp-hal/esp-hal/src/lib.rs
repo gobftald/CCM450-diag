@@ -76,19 +76,23 @@ mod fmt;
 //#[macro_use(assert, unreachable, panic, debug, info, unwrap)]
 //extern crate console;
 
+#[macro_use]
+extern crate esp_metadata_generated;
+
 #[cfg(riscv)]
 // 192
 pub use esp_riscv_rt::riscv;
+use esp_sync::RawMutex;
 
 //#[cfg(efuse)]
 // 201
 pub use self::soc::efuse;
 
 // 206
-pub use self::soc::peripherals;
-pub(crate) use self::soc::peripherals::pac;
+//pub use self::soc::peripherals;
+//pub(crate) use self::soc::peripherals::pac;
+pub(crate) use peripherals::pac;
 
-// 217
 //#[cfg(system)]
 #[cfg(soc_has_system)]
 pub mod clock;
@@ -97,8 +101,8 @@ pub mod clock;
 // 219
 pub mod gpio;
 
-// 222
-pub mod peripheral;
+//pub mod peripheral;
+pub mod peripherals;
 
 // 227
 pub mod system;
@@ -194,10 +198,10 @@ pub mod __macro_implementation {
 }
 
 #[cfg(riscv)]
-#[export_name = "hal_main"]
+#[unsafe(export_name = "hal_main")]
 // 525
 fn hal_main(a0: usize, a1: usize, a2: usize) -> ! {
-    extern "Rust" {
+    unsafe extern "Rust" {
         // This symbol will be provided by the user via `#[entry]`
         fn main(a0: usize, a1: usize, a2: usize) -> !;
     }
@@ -208,13 +212,16 @@ fn hal_main(a0: usize, a1: usize, a2: usize) -> ! {
 }
 
 // 554
-use crate::config::WatchdogConfig;
+//use crate::config::WatchdogConfig;
 
 // 555
 use crate::{
     clock::{Clocks, CpuClock},
     peripherals::Peripherals,
 };
+
+/// A spinlock for seldom called stuff. Users assume that lock contention is not an issue.
+pub(crate) static ESP_HAL_LOCK: RawMutex = RawMutex::new();
 
 /// System configuration.
 ///
@@ -230,16 +237,17 @@ use crate::{
 pub struct Config {
     /// The CPU clock configuration.
     cpu_clock: CpuClock,
-
+    /*
     /// Enable watchdog timer(s).
     _watchdog: WatchdogConfig,
+    */
 }
 
 impl Config {
     pub fn new_and_default(cpu_clock: CpuClock) -> Self {
         Self {
             cpu_clock,
-            _watchdog: WatchdogConfig::default(),
+            //_watchdog: WatchdogConfig::default(),
         }
     }
 }

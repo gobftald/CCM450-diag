@@ -17,7 +17,7 @@ use timer::setup_multitasking;
 // 13
 use crate::{
     compat::malloc::InternalMemory,
-    hal::{sync::Locked, trapframe::TrapFrame},
+    hal::{sync::NonReentrantMutex, trapframe::TrapFrame},
     preempt::Scheduler,
 };
 
@@ -124,7 +124,8 @@ impl SchedulerState {
 }
 
 // 118
-static SCHEDULER_STATE: Locked<SchedulerState> = Locked::new(SchedulerState::new());
+static SCHEDULER_STATE: NonReentrantMutex<SchedulerState> =
+    NonReentrantMutex::new(SchedulerState::new());
 
 // 120
 struct BuiltinScheduler {}

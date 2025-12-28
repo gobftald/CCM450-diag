@@ -12,7 +12,7 @@ use core::{marker::PhantomData, ptr::addr_of, task::Poll};
 
 // 17
 use enumset::{EnumSet, EnumSetType};
-use esp_hal::{asynch::AtomicWaker, sync::Locked};
+use esp_hal::{asynch::AtomicWaker, sync::NonReentrantMutex};
 
 // 35
 use num_derive::FromPrimitive;
@@ -464,10 +464,10 @@ const RX_QUEUE_SIZE: usize = crate::CONFIG.rx_queue_size;
 const TX_QUEUE_SIZE: usize = crate::CONFIG.tx_queue_size;
 
 // 1047
-pub(crate) static DATA_QUEUE_RX_AP: Locked<VecDeque<EspWifiPacketBuffer>> =
-    Locked::new(VecDeque::new());
-pub(crate) static DATA_QUEUE_RX_STA: Locked<VecDeque<EspWifiPacketBuffer>> =
-    Locked::new(VecDeque::new());
+pub(crate) static DATA_QUEUE_RX_AP: NonReentrantMutex<VecDeque<EspWifiPacketBuffer>> =
+    NonReentrantMutex::new(VecDeque::new());
+pub(crate) static DATA_QUEUE_RX_STA: NonReentrantMutex<VecDeque<EspWifiPacketBuffer>> =
+    NonReentrantMutex::new(VecDeque::new());
 
 /// Common errors.
 #[derive(Debug, Clone, Copy)]
@@ -907,7 +907,7 @@ impl WifiDeviceMode {
     }
 
     // 1662
-    fn data_queue_rx(&self) -> &'static Locked<VecDeque<EspWifiPacketBuffer>> {
+    fn data_queue_rx(&self) -> &'static NonReentrantMutex<VecDeque<EspWifiPacketBuffer>> {
         match self {
             WifiDeviceMode::Sta => &DATA_QUEUE_RX_STA,
             WifiDeviceMode::Ap => &DATA_QUEUE_RX_AP,

@@ -1,7 +1,7 @@
 // 1
 use esp_hal::{
     interrupt::{InterruptHandler, Priority},
-    sync::Locked,
+    sync::NonReentrantMutex,
     time::Rate,
     trapframe::TrapFrame,
 };
@@ -21,7 +21,7 @@ use crate::TimeBase;
 const TIMESLICE_FREQUENCY: Rate = Rate::from_hz(crate::CONFIG.tick_rate_hz);
 
 // 19
-pub(crate) static TIMER: Locked<Option<TimeBase>> = Locked::new(None);
+pub(crate) static TIMER: NonReentrantMutex<Option<TimeBase>> = NonReentrantMutex::new(None);
 
 // 21
 pub(crate) fn setup_timebase(mut timer: TimeBase) {

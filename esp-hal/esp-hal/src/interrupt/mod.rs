@@ -32,7 +32,7 @@ pub use self::riscv::*;
 // 82
 mod riscv;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 // 89
 extern "C" fn EspDefaultHandler(_interrupt: crate::peripherals::Interrupt) {
     panic!("Unhandled interrupt: {:?}", _interrupt);

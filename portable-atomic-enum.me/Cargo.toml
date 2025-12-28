@@ -12,7 +12,3 @@ members = [
 
 [dependencies]
 portable-atomic = { path = "../portable-atomic", default-features = false, optional = true }
-portable_atomic_enum_macros = { path = "./macros" }
-
-[features]
-portable-atomic = ["dep:portable-atomic"]

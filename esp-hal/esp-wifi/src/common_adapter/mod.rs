@@ -7,7 +7,7 @@ use esp_wifi_sys::{
 };
 
 // 8
-use portable_atomic::{AtomicU32, Ordering};
+//use portable_atomic::{AtomicU32, Ordering};
 
 // 10
 use crate::{
@@ -19,7 +19,8 @@ use crate::{
             compat_timer_setfn,
         },
     },
-    hal::{self, clock::RadioClockController, peripherals::RADIO_CLK, ram},
+    //hal::{self, clock::RadioClockController, peripherals::RADIO_CLK, ram},
+    hal::{self, ram},
 };
 
 #[cfg_attr(esp32c3, path = "common_adapter_esp32c3.rs")]
@@ -302,10 +303,11 @@ pub unsafe extern "C" fn strrchr(_s: *const (), _c: u32) -> *const u8 {
 }
 
 // 325
-static PHY_CLOCK_ENABLE_REF: AtomicU32 = AtomicU32::new(0);
+//static PHY_CLOCK_ENABLE_REF: AtomicU32 = AtomicU32::new(0);
 
 // 327
 pub(crate) unsafe fn phy_enable_clock() {
+    /*
     let count = PHY_CLOCK_ENABLE_REF.fetch_add(1, Ordering::Acquire);
     if count == 0 {
         // stealing RADIO_CLK is safe since it is passed (as mutable reference or by
@@ -314,6 +316,11 @@ pub(crate) unsafe fn phy_enable_clock() {
         RadioClockController::new(radio_clocks).enable_phy(true);
         trace!("phy_enable_clock done!");
     }
+    */
+    // Stealing the peripheral is safe here, as they must have been passed into the relevant
+    // initialization functions for the Wi-Fi or BLE controller, if this code gets executed.
+    // let clock_guard = unsafe { ModemClockControllerPeripheral::steal() }.enable_phy_clock();
+    // core::mem::forget(clock_guard);
 }
 
 // 350

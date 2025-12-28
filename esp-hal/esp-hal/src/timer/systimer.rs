@@ -63,12 +63,24 @@ impl<'d> SystemTimer<'d> {
     #[inline]
     // 74
     pub fn ticks_per_second() -> u64 {
-        #[cfg(esp32c3)]
-        // The counters and comparators are driven using `XTAL_CLK` (40 MHz)
-        // The average clock frequency is fXTAL_CLK/2.5, which is 16 MHz.
-        // The timer counting is incremented by 1/16 μs on each `CNT_CLK` cycle.
-        const MULTIPLIER: u32 = 4;
-        const DIVIDER: u32 = 10;
+        cfg_if::cfg_if! {
+         if #[cfg(esp32s2)] {
+                const MULTIPLIER: u32 = 2;
+                const DIVIDER: u32 = 1;
+            } else if #[cfg(esp32h2)] {
+                // The counters and comparators are driven using `XTAL_CLK`.
+                // The average clock frequency is fXTAL_CLK/2, which is 16 MHz.
+                // The timer counting is incremented by 1/16 μs on each `CNT_CLK` cycle.
+                const MULTIPLIER: u32 = 1;
+                const DIVIDER: u32 = 2;
+            } else {
+                // The counters and comparators are driven using `XTAL_CLK`.
+                // The average clock frequency is fXTAL_CLK/2.5, which is 16 MHz.
+                // The timer counting is incremented by 1/16 μs on each `CNT_CLK` cycle.
+                const MULTIPLIER: u32 = 4;
+                const DIVIDER: u32 = 10;
+            }
+        }
 
         let xtal_freq_mhz = crate::clock::Clocks::xtal_freq().as_hz();
         ((xtal_freq_mhz * MULTIPLIER) / DIVIDER) as u64
@@ -81,7 +93,7 @@ impl<'d> SystemTimer<'d> {
         PeripheralClockControl::enable(PeripheralEnable::Systimer);
 
         Self {
-            alarm0: Alarm::new(0),
+            alarm0: Alarm::new(Comparator::Comparator0),
             //alarm1: Alarm::new(1),
             //alarm2: Alarm::new(2),
         }
@@ -152,12 +164,21 @@ impl Unit {
     }
 }
 
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+enum Comparator {
+    Comparator0,
+    Comparator1,
+    Comparator2,
+}
+
 /// An alarm unit
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 // 268
 pub struct Alarm<'d> {
-    comp: u8,
+    comp: Comparator,
     unit: Unit,
     _lifetime: PhantomData<&'d mut ()>,
 }
@@ -165,7 +186,7 @@ pub struct Alarm<'d> {
 // 274
 impl Alarm<'_> {
     // 275
-    const fn new(comp: u8) -> Self {
+    const fn new(comp: Comparator) -> Self {
         Alarm {
             comp,
             unit: Unit::Unit0,
@@ -192,7 +213,7 @@ impl Alarm<'_> {
     #[inline]
     // 307
     fn channel(&self) -> u8 {
-        self.comp
+        self.comp as u8
     }
 
     /// Enables/disables the comparator. If enabled, this means
@@ -279,6 +300,7 @@ impl Alarm<'_> {
         }
     }
 
+    /// Set when the comparator should generate an interrupt in target mode.
     // 399
     fn set_target(&self, value: u64) {
         let systimer = SYSTIMER::regs();
