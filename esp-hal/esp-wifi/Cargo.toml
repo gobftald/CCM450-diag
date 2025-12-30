@@ -32,6 +32,7 @@ portable-atomic = { version = "1.11", default-features = false }
 #portable-atomic-enum = { path = "../../portable-atomic-enum", features = ["portable-atomic"] }
 portable_atomic_enum = { version = "0.3.1", features = ["portable-atomic"] }
 esp-sync = "0.1.0"
+esp-riscv-rt = "0.13.0"
 
 [build-dependencies]
 #esp-config = { path = "../esp-config", features = ["build"]}

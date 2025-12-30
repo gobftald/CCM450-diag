@@ -3,7 +3,8 @@ use esp_wifi_sys::c_types;
 
 // 3
 use super::*;
-pub use crate::hal::interrupt::TrapFrame;
+//pub use crate::hal::interrupt::TrapFrame;
+pub use esp_riscv_rt::TrapFrame;
 
 // 6
 pub(crate) fn new_task_context(

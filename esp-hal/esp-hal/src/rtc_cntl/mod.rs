@@ -41,9 +41,9 @@ impl<'d> Rtc<'d> {
 
         let this = Self {
             _inner: rtc_cntl,
-            rwdt: Rwdt::new(),
+            rwdt: Rwdt(()),
             #[cfg(any(esp32c2, esp32c3, esp32c6, esp32h2, esp32s3))]
-            swd: Swd::new(),
+            swd: Swd(()),
         };
 
         #[cfg(any(esp32, esp32s2, esp32s3, esp32c3, esp32c6, esp32c2))]
@@ -56,17 +56,11 @@ impl<'d> Rtc<'d> {
 
 /// RTC Watchdog Timer.
 // 913
-pub struct Rwdt;
+pub struct Rwdt(());
 
 /// RTC Watchdog Timer driver.
 // 922
 impl Rwdt {
-    /// Create a new RTC watchdog timer instance
-    // 924
-    pub fn new() -> Self {
-        Self
-    }
-
     // 936
     /// Disable the watchdog timer instance.
     pub fn disable(&mut self) {
@@ -99,18 +93,12 @@ impl Rwdt {
 #[cfg(any(esp32c2, esp32c3, esp32c6, esp32h2, esp32s3))]
 /// Super Watchdog
 // 1142
-pub struct Swd;
+pub struct Swd(());
 
 #[cfg(any(esp32c2, esp32c3, esp32c6, esp32h2, esp32s3))]
 /// Super Watchdog driver
 // 1146
 impl Swd {
-    /// Create a new super watchdog timer instance
-    // 1148
-    pub fn new() -> Self {
-        Self
-    }
-
     // 1158
     /// Disable the watchdog timer instance
     pub fn disable(&mut self) {

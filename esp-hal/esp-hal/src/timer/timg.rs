@@ -257,7 +257,7 @@ impl Timer<'_> {
         }
     }
 
-    // 398
+    // 427
     pub(crate) fn set_interrupt_handler(&self, handler: InterruptHandler) {
         let interrupt = match (self.timer_group(), self.timer_number()) {
             (0, 0) => Interrupt::TG0_T0_LEVEL,
@@ -272,22 +272,19 @@ impl Timer<'_> {
             _ => unreachable!(),
         };
 
-        //for core in crate::system::Cpu::other() {
-        //crate::interrupt::disable(core, interrupt);
-        crate::interrupt::disable(interrupt as u8);
-        //}
+        for core in crate::system::Cpu::other() {
+            crate::interrupt::disable(core, interrupt);
+        }
         unsafe { interrupt::bind_interrupt(interrupt, handler.handler()) };
-        // since #[handler] macro does not define priority
-        // default min will be set
         unwrap!(interrupt::enable(interrupt, handler.priority()));
     }
 
-    // 417
+    // 446
     fn register_block(&self) -> &RegisterBlock {
         unsafe { &*self.register_block }
     }
 
-    // 421
+    // 450
     fn timer_group(&self) -> u8 {
         self.tg
     }
@@ -517,5 +514,14 @@ where
         reg_block
             .wdtwprotect()
             .write(|w| unsafe { w.wdt_wkey().bits(wkey) });
+    }
+}
+
+impl<TG> Default for Wdt<TG>
+where
+    TG: TimerGroupInstance,
+{
+    fn default() -> Self {
+        Self::new()
     }
 }

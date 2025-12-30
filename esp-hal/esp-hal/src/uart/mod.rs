@@ -35,14 +35,14 @@ use crate::{
     asynch::AtomicWaker,
     clock::Clocks,
     gpio::{
-        interconnect::{PeripheralInput, PeripheralOutput},
         InputConfig, InputSignal, OutputConfig, OutputSignal, PinGuard, Pull,
+        interconnect::{PeripheralInput, PeripheralOutput},
     },
     interrupt::InterruptHandler,
     pac::uart0::RegisterBlock,
     peripherals::Interrupt,
     private::OnDrop,
-    system::{/*PeripheralClockControl,*/ PeripheralGuard},
+    system::{Cpu, /*PeripheralClockControl,*/ PeripheralGuard},
 };
 
 /// UART RX Error
@@ -1402,7 +1402,7 @@ impl Info {
 
     // 2560
     fn set_async_interrupt_handler(&self) {
-        crate::interrupt::disable(self.interrupt as u8);
+        crate::interrupt::disable(Cpu::ProCpu, self.interrupt);
 
         self.enable_listen(EnumSet::all(), false);
         self.clear_interrupts(EnumSet::all());
@@ -1565,6 +1565,7 @@ impl Info {
 
     /// Reads the RX-FIFO threshold
     // 2710
+    #[allow(clippy::useless_conversion)]
     fn rx_fifo_full_threshold(&self) -> u16 {
         self.regs().conf1().read().rxfifo_full_thrhd().bits().into()
     }
@@ -1778,6 +1779,7 @@ impl Info {
     }
 
     // 3121
+    #[allow(clippy::useless_conversion)]
     fn tx_fifo_count(&self) -> u16 {
         // fn Stores the byte number of data in Tx-FIFO.
         u16::from(self.regs().status().read().txfifo_cnt().bits())
@@ -1809,6 +1811,7 @@ impl Info {
     }
 
     // 3150
+    #[allow(clippy::unnecessary_cast)]
     fn rx_fifo_count(&self) -> u16 {
         self.regs().status().read().rxfifo_cnt().bits() as u16
     }

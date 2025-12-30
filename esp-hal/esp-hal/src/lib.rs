@@ -76,6 +76,9 @@ mod fmt;
 //#[macro_use(assert, unreachable, panic, debug, info, unwrap)]
 //extern crate console;
 
+// 274
+use core::marker::PhantomData;
+
 #[macro_use]
 extern crate esp_metadata_generated;
 
@@ -150,7 +153,9 @@ pub mod rtc_cntl;
 pub mod rng;
 
 /// State of the CPU saved when entering exception or interrupt
-// 356
+// 404
+#[cfg(feature = "rt")]
+#[allow(unused_imports)]
 pub mod trapframe {
     #[cfg(riscv)]
     pub use esp_riscv_rt::TrapFrame;
@@ -163,14 +168,112 @@ pub mod trapframe {
 // 365
 mod soc;
 
-// 430
+// 417
+#[cfg(is_debug_build)]
+procmacros::warning! {"
+WARNING: use --release
+  We *strongly* recommend using release profile when building esp-hal.
+  The dev profile can potentially be one or more orders of magnitude
+  slower than release, and may cause issues with timing-senstive
+  peripherals and/or devices.
+"}
+
+/// A marker trait for driver modes.
+///
+/// Different driver modes offer different features and different API. Using
+/// this trait as a generic parameter ensures that the driver is initialized in
+/// the correct mode.
+// 431
+pub trait DriverMode: crate::private::Sealed {}
+
+/// Marker type signalling that a driver is initialized in blocking mode.
+///
+/// Drivers are constructed in blocking mode by default. To learn about the
+/// differences between blocking and async drivers, see the [`Async`] mode
+/// documentation.
+///
+/// [`Async`] drivers can be converted to a [`Blocking`] driver using the
+/// `into_blocking` method, for example:
+///
+/// ```rust, no_run
+/// # {before_snippet}
+/// # use esp_hal::uart::{Config, Uart};
+/// let uart = Uart::new(peripherals.UART0, Config::default())?
+///     .with_rx(peripherals.GPIO1)
+///     .with_tx(peripherals.GPIO2)
+///     .into_async();
+///
+/// let blocking_uart = uart.into_blocking();
+///
+/// # {after_snippet}
+/// ```
+// 455
+#[derive(Debug)]
+#[non_exhaustive]
+pub struct Blocking;
+
+/// Marker type signalling that a driver is initialized in async mode.
+///
+/// Drivers are constructed in blocking mode by default. To set up an async
+/// driver, a [`Blocking`] driver must be converted to an `Async` driver using
+/// the `into_async` method, for example:
+///
+/// ```rust, no_run
+/// # {before_snippet}
+/// # use esp_hal::uart::{Config, Uart};
+/// let uart = Uart::new(peripherals.UART0, Config::default())?
+///     .with_rx(peripherals.GPIO1)
+///     .with_tx(peripherals.GPIO2)
+///     .into_async();
+///
+/// # {after_snippet}
+/// ```
+///
+/// Drivers can be converted back to blocking mode using the `into_blocking`
+/// method, see [`Blocking`] documentation for more details.
+///
+/// Async mode drivers offer most of the same features as blocking drivers, but
+/// with the addition of async APIs. Interrupt-related functions are not
+/// available in async mode, as they are handled by the driver's interrupt
+/// handlers.
+///
+/// Note that async functions usually take up more space than their blocking
+/// counterparts, and they are generally slower. This is because async functions
+/// are implemented using a state machine that is driven by interrupts and is
+/// polled by a runtime. For short operations, the overhead of the state machine
+/// can be significant. Consider using the blocking functions on the async
+/// driver for small transfers.
+///
+/// When initializing an async driver, the driver disables user-specified
+/// interrupt handlers, and sets up internal interrupt handlers that drive the
+/// driver's async API. The driver's interrupt handlers run on the same core as
+/// the driver was initialized on. This means that the driver can not be sent
+/// across threads, to prevent incorrect concurrent access to the peripheral.
+///
+/// Switching back to blocking mode will disable the interrupt handlers and
+/// return the driver to a state where it can be sent across threads.
+// 500
+#[derive(Debug)]
+#[non_exhaustive]
+pub struct Async(PhantomData<*const ()>);
+
+// 504
+unsafe impl Sync for Async {}
+
+// 506
+impl crate::DriverMode for Blocking {}
+impl crate::DriverMode for Async {}
+impl crate::private::Sealed for Blocking {}
+impl crate::private::Sealed for Async {}
+
+// 511
 pub(crate) mod private {
     use core::mem::ManuallyDrop;
 
-    // 433
-    //pub trait Sealed {}
+    // 514
+    pub trait Sealed {}
 
-    // 457
+    // 538
     pub(crate) struct OnDrop<F: FnOnce()>(ManuallyDrop<F>);
     // 458
     impl<F: FnOnce()> OnDrop<F> {

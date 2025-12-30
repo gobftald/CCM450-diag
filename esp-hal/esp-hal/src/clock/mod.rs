@@ -23,7 +23,7 @@
 
 use core::{cell::Cell, marker::PhantomData};
 
-#[cfg(any(/*bt, ieee802154,*/ wifi))]
+#[cfg(any(bt, ieee802154, wifi))]
 use esp_sync::RawMutex;
 
 use crate::ESP_HAL_LOCK;
@@ -58,17 +58,19 @@ pub trait Clock {
 }
 
 /// CPU clock speed
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[non_exhaustive]
 // 85
 pub enum CpuClock {
     /// 80MHz CPU clock
     #[cfg(not(esp32h2))]
+    #[default]
     _80MHz = 80,
 
     /// 96MHz CPU clock
     #[cfg(esp32h2)]
+    #[default]
     _96MHz = 96,
 
     /// 120MHz CPU clock
@@ -82,20 +84,6 @@ pub enum CpuClock {
     /// 240MHz CPU clock
     #[cfg(xtensa)]
     _240MHz = 240,
-}
-
-// 107
-impl Default for CpuClock {
-    fn default() -> Self {
-        cfg_if::cfg_if! {
-            if #[cfg(esp32h2)] {
-                Self::_96MHz
-            } else {
-                // FIXME: I don't think this is correct in general?
-                Self::_80MHz
-            }
-        }
-    }
 }
 
 // 120
@@ -263,10 +251,10 @@ impl Clocks {
     #[inline]
     // 321
     pub(crate) fn xtal_freq() -> Rate {
-        if esp_config::esp_config_str!("ESP_HAL_CONFIG_XTAL_FREQUENCY") == "auto" {
-            if let Some(clocks) = Self::try_get() {
-                return clocks.xtal_clock;
-            }
+        if esp_config::esp_config_str!("ESP_HAL_CONFIG_XTAL_FREQUENCY") == "auto"
+            && let Some(clocks) = Self::try_get()
+        {
+            return clocks.xtal_clock;
         }
 
         Self::measure_xtal_frequency().frequency()
@@ -330,12 +318,12 @@ impl Clocks {
     }
 }
 
-#[cfg(any(/*bt, ieee802154,*/ wifi))]
+#[cfg(any(bt, ieee802154, wifi))]
 /// Tracks the number of references to the PHY clock.
 static PHY_CLOCK_REF_COUNTER: embassy_sync::blocking_mutex::Mutex<RawMutex, Cell<u8>> =
     embassy_sync::blocking_mutex::Mutex::new(Cell::new(0));
 
-#[cfg(any(/*bt, ieee802154,*/ wifi))]
+#[cfg(any(bt, ieee802154, wifi))]
 fn increase_phy_clock_ref_count_internal() {
     PHY_CLOCK_REF_COUNTER.lock(|phy_clock_ref_counter| {
         let phy_clock_ref_count = phy_clock_ref_counter.get();
@@ -352,7 +340,7 @@ fn increase_phy_clock_ref_count_internal() {
     })
 }
 
-#[cfg(any(/*bt, ieee802154,*/ wifi))]
+#[cfg(any(bt, ieee802154, wifi))]
 fn decrease_phy_clock_ref_count_internal() {
     PHY_CLOCK_REF_COUNTER.lock(|phy_clock_ref_counter| {
         let new_phy_clock_ref_count = unwrap!(
@@ -374,7 +362,7 @@ pub fn init_radio_clocks() {
     clocks_ll::init_clocks();
 }
 
-#[cfg(any(/*bt, ieee802154,*/ wifi))]
+#[cfg(any(bt, ieee802154, wifi))]
 #[derive(Debug)]
 /// Prevents the PHY clock from being disabled.
 ///

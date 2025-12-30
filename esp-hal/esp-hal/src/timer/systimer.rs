@@ -321,23 +321,20 @@ impl Alarm<'_> {
     fn set_interrupt_handler(&self, handler: InterruptHandler) {
         let interrupt = match self.channel() {
             0 => Interrupt::SYSTIMER_TARGET0,
-            //1 => Interrupt::SYSTIMER_TARGET1,
-            //2 => Interrupt::SYSTIMER_TARGET2,
+            1 => Interrupt::SYSTIMER_TARGET1,
+            2 => Interrupt::SYSTIMER_TARGET2,
             _ => unreachable!(),
         };
 
-        //for core in crate::system::Cpu::other() {
-        //crate::interrupt::disable(core, interrupt);
-        crate::interrupt::disable(interrupt as u8);
-        //}
+        for core in crate::system::Cpu::other() {
+            crate::interrupt::disable(core, interrupt);
+        }
 
         #[cfg(not(esp32s2))]
         unsafe {
             interrupt::bind_interrupt(interrupt, handler.handler());
         }
 
-        // since #[handler] macro does not define priority
-        // default min will be set
         unwrap!(interrupt::enable(interrupt, handler.priority()));
     }
 }

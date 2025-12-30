@@ -568,7 +568,6 @@ macro_rules! gpio {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 // 993
-
 pub enum DriveMode {
     /// Push-pull output.
     ///
@@ -1036,6 +1035,26 @@ impl InputPin for AnyPin<'_> {}
 impl OutputPin for AnyPin<'_> {}
 
 impl AnyPin<'_> {
+    /// Conjure a new GPIO pin out of thin air.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that only one instance of a pin is in use at one time.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the pin with the given number does not exist.
+    ///
+    /// ## Example
+    ///
+    /// ```rust, no_run
+    /// # {before_snippet}
+    /// #
+    /// use esp_hal::gpio::AnyPin;
+    /// let pin = unsafe { AnyPin::steal(1) };
+    /// #
+    /// # {after_snippet}
+    /// ```
     pub unsafe fn steal(pin: u8) -> Self {
         for_each_gpio! {
             (all $( ($n:literal $($any:tt)*) ),*) => { const PINS: &[u8] = &[ $($n),* ]; };
@@ -1047,6 +1066,23 @@ impl AnyPin<'_> {
         }
     }
 
+    /// Unsafely clone the pin.
+    ///
+    /// # Safety
+    ///
+    /// Ensure that only one instance of a pin is in use at one time.
+    ///
+    /// ## Example
+    ///
+    /// ```rust, no_run
+    /// # {before_snippet}
+    /// #
+    /// use esp_hal::gpio::{AnyPin, Pin};
+    /// let pin = peripherals.GPIO1.degrade();
+    /// let pin_cloned = unsafe { pin.clone_unchecked() };
+    /// #
+    /// # {after_snippet}
+    /// ```
     pub unsafe fn clone_unchecked(&self) -> Self {
         Self {
             pin: self.pin,

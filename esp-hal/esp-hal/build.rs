@@ -12,25 +12,31 @@ use std::{
 
 // 11
 //use esp_config::{generate_config, ConfigOption, Value};
-use esp_config::{generate_config_from_yaml_definition, Value};
+use esp_config::{Value, generate_config_from_yaml_definition};
 //use esp_metadata::{Chip, Config};
 
 // 14
 fn main() -> Result<(), Box<dyn Error>> {
-    if let Ok(level) = std::env::var("OPT_LEVEL") {
-        if level == "0" || level == "1" {
-            let message = format!(
-                "We *strongly* recommend using release profile when building esp-hal. \
+    println!("cargo:rustc-check-cfg=cfg(is_debug_build)");
+    if let Ok(level) = std::env::var("OPT_LEVEL")
+        && (level == "0" || level == "1")
+    {
+        println!("cargo:rustc-cfg=is_debug_build");
+    }
+
+    if let Ok(level) = std::env::var("OPT_LEVEL")
+        && (level == "0" || level == "1")
+    {
+        //let message = format!(
+        let message = "We *strongly* recommend using release profile when building esp-hal. \
                 The dev profile (pr level 0 or level 1 can potentially be one or more orders \
                 of magnitude slower than release, and may cause issues with timing-senstive \
-                peripherals and/or devices."
-            );
-            println!("cargo:warning={message}");
-        }
+                peripherals and/or devices.";
+        println!("cargo:warning={message}");
     }
 
     // Ensure that exactly one chip has been specified:
-    //let chip: Chip = Chip::from_cargo_feature()?;
+    // let chip: Chip = Chip::from_cargo_feature()?;
     let chip = esp_metadata_generated::Chip::from_cargo_feature()?;
 
     if chip.target() != std::env::var("TARGET").unwrap_or_default().as_str() {
@@ -55,14 +61,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     /*
     // Define all necessary configuration symbols for the configured device:
     config.define_symbols();
-    */
 
-    // Place all linker scripts in `OUT_DIR`, and instruct Cargo how to find these
-    // files:
-    let out = PathBuf::from(env::var_os("OUT_DIR").unwrap());
-    println!("cargo:rustc-link-search={}", out.display());
-
-    /*
     // emit config
     let cfg = generate_config(
         "esp_hal",
@@ -155,13 +154,24 @@ fn main() -> Result<(), Box<dyn Error>> {
         chip.all_symbols().iter().map(|c| c.to_string()).collect();
 
     for (key, value) in &cfg {
-        if let Value::Bool(true) = value {
-            //config_symbols.push(key);
-            config_symbols.push(key.clone());
+        match value {
+            Value::Bool(true) => {
+                //config_symbols.push(key);
+                config_symbols.push(key.clone());
+            }
+            Value::String(v) => {
+                config_symbols.push(format!("{key}_{v}"));
+            }
+            _ => {}
         }
     }
 
     // RISC-V devices:
+
+    // Place all linker scripts in `OUT_DIR`, and instruct Cargo how to find these
+    // files:
+    let out = PathBuf::from(env::var_os("OUT_DIR").unwrap());
+    println!("cargo:rustc-link-search={}", out.display());
 
     preprocess_file(
         &config_symbols,

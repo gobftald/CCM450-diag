@@ -33,6 +33,7 @@ esp-config = { git = "https://github.com/gobftald/esp-hal.git", branch = "patche
 #esp-hal = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 esp-metadata-generated = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 esp-println = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
+esp-riscv-rt = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 esp-sync = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 
 #esp-alloc = { path = "../../esp-hal/esp-alloc" }
@@ -41,4 +42,5 @@ esp-sync = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches"
 #esp-hal = { path = "../../esp-hal/esp-hal" }
 #esp-metadata-generated = { path = "../../esp-hal/esp-metadata-generated" }
 #esp-println = { path = "../../esp-hal/esp-println" }
+#esp-riscv-rt = { path = "../../esp-hal/esp-riscv-" }
 #esp-sync = { path = "../../esp-hal/esp-sync" }

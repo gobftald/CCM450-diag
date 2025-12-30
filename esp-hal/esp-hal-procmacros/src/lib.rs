@@ -1,7 +1,8 @@
 // 47
 use proc_macro::TokenStream;
 
-// 49
+// 48
+mod alert;
 mod blocking;
 
 #[cfg(feature = "embassy")]
@@ -42,4 +43,44 @@ pub fn embassy_main(args: TokenStream, item: TokenStream) -> TokenStream {
 // 208
 pub fn blocking_main(args: TokenStream, input: TokenStream) -> TokenStream {
     blocking::main(args, input)
+}
+
+/// Print a build error and terminate the process.
+///
+/// It should be noted that the error will be printed BEFORE the main function
+/// is called, and as such this should NOT be thought analogous to `println!` or
+/// similar utilities.
+///
+/// ## Example
+///
+/// ```rust, ignore
+/// esp_hal_procmacros::error! {"
+/// ERROR: something really bad has happened!
+/// "}
+/// // Process exits with exit code 1
+/// ```
+// 301
+#[proc_macro]
+pub fn error(input: TokenStream) -> TokenStream {
+    alert::do_alert(termcolor::Color::Red, input);
+    panic!("Build failed");
+}
+
+/// Print a build warning.
+///
+/// It should be noted that the warning will be printed BEFORE the main function
+/// is called, and as such this should NOT be thought analogous to `println!` or
+/// similar utilities.
+///
+/// ## Example
+///
+/// ```rust,no_run
+/// esp_hal_procmacros::warning! {"
+/// WARNING: something unpleasant has happened!
+/// "};
+/// ```
+// 320
+#[proc_macro]
+pub fn warning(input: TokenStream) -> TokenStream {
+    alert::do_alert(termcolor::Color::Yellow, input)
 }
