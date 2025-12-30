@@ -15,11 +15,14 @@ rustflags = [
     #"-C", "force-frame-pointers",           # for esp-backtrace
                                             # otherwise some size ovehead occurs
                                             # when making frame for every real (not inlined) function call
+    "-Z", "unstable-options",
+    "-C", "panic=immediate-abort",
 ]
 
 [unstable]
 # this will codegen every panic as an abort instruction without any panic message formatting.
-build-std-features = ["panic_immediate_abort"]
+#build-std-features = ["panic_immediate_abort"] # in the new compiler needs "-Z", "unstable-options",
+                                                # and "-C", "panic=immediate-abort" rustflags above
 #build core from source with "panic_immediate_abort" feature
 build-std = ["core", "alloc"]
 

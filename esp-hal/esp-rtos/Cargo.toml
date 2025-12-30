@@ -1,0 +1,59 @@
+[package]
+name = "esp-rtos"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+#esp-hal = { version = "1.0.0", path = "../esp-hal", default-features = false, features = [
+esp-hal = { version = "1.0.0", default-features = false, features = [
+    # FIXME: rt technically shouldn't be enabled, but rtos requires `TrapFrame`
+    # and uses reexported riscv/xtena-lx from esp-hal
+    "requires-unstable", "rt"
+] }
+#esp-sync = { version = "0.1.1", path = "../esp-sync" }
+esp-sync = "0.1.0"
+defmt = { version = "1.0", optional = true }
+#esp-alloc = { version = "0.9.0", path = "../esp-alloc", optional = true }
+esp-alloc = { version = "0.9.0", optional = true }
+allocator-api2 = { version = "0.3.0", default-features = false, features = ["alloc"], optional = true }
+
+[features]
+default = ["esp-radio"]
+
+## Enable esp-radio support.
+esp-radio = ["alloc"]
+
+# Not documented because we don't currently expose anything that requires alloc, but isn't related to esp-radio.
+# TODO: make this public once we actually have alloc-based APIs.
+alloc = ["dep:allocator-api2"]
+
+## Enable the use of the `esp-alloc` crate for dynamic memory allocation.
+##
+## Memory allocation is required by `esp-radio`. If you choose to not enable
+## this feature, you need to provide implementations for the following functions:
+## - `pub extern "C" fn malloc_internal(size: usize) -> *mut u8`
+## - `pub extern "C" fn free_internal(ptr: *mut u8)`
+## 
+## Note that the untyped nature of the allocator functions means that esp-alloc is likely the more memory efficient option.
+esp-alloc = ["alloc", "dep:esp-alloc"]
+
+esp32c3 = [
+    "esp-hal/esp32c3",
+    "esp-hal/unstable",
+    "esp-sync/esp32c3",
+]
+
+esp32s3 = [
+    "esp-hal/esp32s3",
+    "esp-hal/unstable",
+    "esp-sync/esp32s3",
+]
+
+## Enable logging output using `defmt` and implement `defmt::Format` on certain types.
+defmt = ["dep:defmt", "esp-hal/defmt"]
+
+[build-dependencies]
+#esp-config = { version = "0.6.1", path = "../esp-config", features = ["build"] }
+esp-config = { version = "0.6.1", features = ["build"] }
+#esp-metadata-generated = { version = "0.3.0", path = "../esp-metadata-generated", features = ["build-script"] }
+esp-metadata-generated = { version = "0.3.0", features = ["build-script"] }

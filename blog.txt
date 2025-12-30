@@ -216,3 +216,40 @@ cargo tree --format '{p} {f}' // to see the enabled features
 //when you lost commit message because of vi failure:
 less .git/COMMIT_EDITMSG
 git commit -F .git/COMMIT_EDITMSG
+
+# Adding target for esp32s3
+// As of 2025, you cannot add the xtensa-esp32s3-none-elf target directly via the standard
+// rustup target add command. This is because the Xtensa architecture is currently a Tier 3 
+// target and requires a custom fork of the Rust compiler provided by Espressif.
+// To install the necessary toolchain and target for the ESP32-S3, follow these steps:
+//
+// 1. Install espup
+// The espup tool is the official utility for installing and maintaining the Espressif Rust ecosystem.
+cargo install espup --locked
+//
+// 2. Install the Espressif Toolchain
+// Run the espup install command to download the custom Rust toolchain (often called the esp toolchain) 
+// and the required LLVM patches for Xtensa.
+espup install
+// This will install the toolchain, the Xtensa LLVM, and the necessary GCC toolchains for no_std development.
+// see /Users/piv/.rustup/toolchains/esp
+//
+// 3. Set Up Environment Variables (Linux/macOS)
+// On Unix-based systems, you must source the generated export file to make the new toolchain available in 
+// your current terminal session:
+. $HOME/export-esp.sh
+// I will put them into my default PATH into .config/fish/config.fish
+export PATH="/Users/piv/.rustup/toolchains/esp/xtensa-esp-elf/esp-15.2.0_20250920/xtensa-esp-elf/bin:$PATH"
+export LIBCLANG_PATH="/Users/piv/.rustup/toolchains/esp/xtensa-esp32-elf-clang/esp-20.1.1_20250829/esp-clang/lib"
+//
+// 4. Configure Your Project
+// Since the target is not part of the standard toolchain, you must tell Cargo to use the esp channel and specify 
+// the target in your project's configuration:
+// In rust-toolchain.toml:
+[toolchain]
+channel = "esp"
+// or in .cargo/config.toml:
+[build]
+target = "xtensa-esp32s3-none-elf"
+[unstable]
+build-std = ["core", "alloc"]
