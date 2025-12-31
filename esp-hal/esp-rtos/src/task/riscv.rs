@@ -82,3 +82,18 @@ pub struct CpuContext {
     /// The mstatus which will be loaded before MRET
     pub mstatus: usize,
 }
+
+// 105
+impl CpuContext {
+    /// Creates a new, zeroed out context.
+    pub const fn new() -> Self {
+        unsafe { core::mem::zeroed() }
+    }
+}
+
+// 112
+pub(crate) extern "C" fn idle_hook() -> ! {
+    loop {
+        unsafe { core::arch::asm!("wfi") };
+    }
+}

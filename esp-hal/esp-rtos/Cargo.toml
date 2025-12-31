@@ -1,6 +1,6 @@
 [package]
 name = "esp-rtos"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 
 [dependencies]
@@ -12,16 +12,23 @@ esp-hal = { version = "1.0.0", default-features = false, features = [
 ] }
 #esp-sync = { version = "0.1.1", path = "../esp-sync" }
 esp-sync = "0.1.0"
-defmt = { version = "1.0", optional = true }
 #esp-alloc = { version = "0.9.0", path = "../esp-alloc", optional = true }
 esp-alloc = { version = "0.9.0", optional = true }
 allocator-api2 = { version = "0.3.0", default-features = false, features = ["alloc"], optional = true }
+rtos-trace = { version = "0.2.0", optional = true }
+cfg-if = "1"
+esp-radio-rtos-driver = { version = "0.2.0", path = "../esp-radio-rtos-driver", optional = true }
+embassy-sync = "0.7"
+
+# Logging interfaces, they are mutually exclusive so they need to be behind separate features.
+defmt = { version = "1.0", optional = true }
+log-04 = { package = "log", version = "0.4", optional = true }
 
 [features]
 default = ["esp-radio"]
 
 ## Enable esp-radio support.
-esp-radio = ["alloc"]
+esp-radio = ["alloc", "dep:esp-radio-rtos-driver"]
 
 # Not documented because we don't currently expose anything that requires alloc, but isn't related to esp-radio.
 # TODO: make this public once we actually have alloc-based APIs.
@@ -48,6 +55,10 @@ esp32s3 = [
     "esp-hal/unstable",
     "esp-sync/esp32s3",
 ]
+
+#! ### Logging Feature Flags
+## Enable logging output using version 0.4 of the `log` crate.
+log-04 = ["dep:log-04", "esp-hal/log-04"]
 
 ## Enable logging output using `defmt` and implement `defmt::Format` on certain types.
 defmt = ["dep:defmt", "esp-hal/defmt"]

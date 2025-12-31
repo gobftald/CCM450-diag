@@ -8,13 +8,15 @@ use core::{marker::PhantomData, mem::MaybeUninit, ptr::NonNull};
 
 // 11
 pub(crate) use arch_specific::*;
-use esp_hal::system::Cpu;
 
 // 22
 #[cfg(feature = "esp-radio")]
 use crate::semaphore::Semaphore;
 //23
 use crate::{run_queue::Priority, wait_queue::WaitQueue};
+
+// 30
+pub type IdleFn = extern "C" fn() -> !;
 
 // 32
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -98,6 +100,16 @@ pub(crate) struct TaskList<E> {
     _item: PhantomData<E>,
 }
 
+// 173
+impl<E: TaskListElement> TaskList<E> {
+    pub const fn new() -> Self {
+        Self {
+            head: None,
+            _item: PhantomData,
+        }
+    }
+}
+
 /// A singly linked queue of tasks.
 ///
 /// Use this where you care about the order of list elements. Elements are popped from the front,
@@ -110,6 +122,17 @@ pub(crate) struct TaskQueue<E> {
     head: Option<TaskPtr>,
     tail: Option<TaskPtr>,
     _item: PhantomData<E>,
+}
+
+// 247
+impl<E: TaskListElement> TaskQueue<E> {
+    pub const fn new() -> Self {
+        Self {
+            head: None,
+            tail: None,
+            _item: PhantomData,
+        }
+    }
 }
 
 // 323

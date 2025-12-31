@@ -15,6 +15,14 @@ impl MaxPriority {
         ::core::assert!((P::MAX as usize) < 32);
         P::MAX as usize
     };
+
+    // 21
+    const fn new() -> Self {
+        Self {
+            max: Priority::ZERO,
+            mask: 0,
+        }
+    }
 }
 
 // Annoying but safe way to ensure indexing by priority has no bounds check panics.
@@ -65,9 +73,24 @@ impl P {
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct Priority(P);
 
+// 127
+impl Priority {
+    pub const ZERO: Self = Self(P::P0);
+}
+
 // 139
 pub(crate) struct RunQueue {
     pub(crate) ready_priority: MaxPriority,
 
     pub(crate) ready_tasks: [TaskQueue<TaskReadyQueueElement>; MaxPriority::MAX_PRIORITY + 1],
+}
+
+// 153
+impl RunQueue {
+    pub(crate) const fn new() -> Self {
+        Self {
+            ready_priority: MaxPriority::new(),
+            ready_tasks: [const { TaskQueue::new() }; MaxPriority::MAX_PRIORITY + 1],
+        }
+    }
 }

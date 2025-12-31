@@ -19,3 +19,6 @@ has-mie-mip = []
 ## Indicate that the device has RTC RAM.
 # we are not using esp32c3 RTC FAST Memory yet
 rtc-ram = []
+
+## Implement `defmt::Format`
+defmt = ["dep:defmt", "riscv-rt/defmt"]
