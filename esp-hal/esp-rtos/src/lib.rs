@@ -1,11 +1,48 @@
-// 50
+//! An RTOS (Real-Time Operating System) implementation for esp-hal.
+//!
+//! This crate provides the runtime necessary to run `async` code on top of esp-hal,
+//! and implements the necessary capabilities (threads, queues, etc.) required by esp-radio.
+//!
+//! ## Setup
+//!
+//! This crate requires an `esp-hal` timer, as well as the `FROM_CPU0` software interrupt to
+//! operate, and needs to be started like so:
+//!
+//! ```rust, no_run
+//! use esp_hal::timer::timg::TimerGroup;
+//! let timg0 = TimerGroup::new(peripherals.TIMG0);
+//!
+//! use esp_hal::interrupt::software::SoftwareInterruptControl;
+//! let software_interrupt = SoftwareInterruptControl::new(peripherals.SW_INTERRUPT);
+//! esp_rtos::start(timg0.timer0, software_interrupt.software_interrupt0);
+//!
+//! Optionally, start the scheduler on the second core
+//! esp_rtos::start_second_core(
+//!     software_interrupt.software_interrupt1,
+//!     || {}, // Second core's main function.
+//! );
+//!
+//! // You can now start esp-radio:
+//! // let esp_radio_controller = esp_radio::init().unwrap();
+//! # }
+//! ```
+//!
+//! To write `async` code, enable the `embassy` feature, and mark the main function with `#[esp_rtos::main]`.
+//! This will create a thread-mode executor on the main thread. Note that, to create async tasks, you will need
+//! the `task` macro from the `embassy-executor` crate. Do NOT enable any of the `arch-*` features on `embassy-executor`.
+
+// 75
 #![no_std]
 
+// 80
+#[cfg(feature = "alloc")]
+extern crate alloc;
+
 // MUST be the first module
-// 59
+// 84
 mod fmt;
 
-// 61
+// 86
 #[cfg(feature = "esp-radio")]
 mod esp_radio;
 mod run_queue;
@@ -15,42 +52,75 @@ mod task;
 mod timer;
 mod wait_queue;
 
-// 80
+// 95
+#[cfg(feature = "embassy")]
+#[cfg_attr(docsrs, doc(cfg(feature = "embassy")))]
+pub mod embassy;
+
+// 99
+use core::mem::MaybeUninit;
+
+// 101
+#[cfg(feature = "alloc")]
+pub(crate) use esp_alloc::InternalMemory;
+#[cfg(any(multi_core, riscv))]
+use esp_hal::interrupt::software::SoftwareInterrupt;
 #[cfg(systimer)]
 use esp_hal::timer::systimer::Alarm;
 #[cfg(timergroup)]
 use esp_hal::timer::timg::Timer;
 use esp_hal::{
     Blocking,
-    interrupt::software::SoftwareInterrupt,
     system::Cpu,
+    time::{Duration, Instant},
     timer::{AnyTimer, OneShotTimer, any::Degrade},
 };
 
-// 97
+// 123
 pub(crate) use scheduler::SCHEDULER;
 
-// 100
-use crate::task::IdleFn;
+// 126
+use crate::{task::IdleFn, timer::TimeDriver};
 
-// 105
+// 128
 type TimeBase = OneShotTimer<'static, Blocking>;
+
+/// Trace events, emitted via `marker_begin` and `marker_end`
+// 131
+#[cfg(feature = "rtos-trace")]
+pub enum TraceEvents {
+    /// The scheduler function is running.
+    RunSchedule,
+
+    /// A task has yielded.
+    YieldTask,
+
+    /// The timer tick handler is running.
+    TimerTickHandler,
+
+    /// Process timer queue.
+    ProcessTimerQueue,
+
+    /// Process embassy timer queue.
+    #[cfg(feature = "embassy")]
+    ProcessEmbassyTimerQueue,
+}
 
 /// Timers that can be used as time drivers.
 ///
 /// This trait is meant to be used only for the [`start`] function.
-// 204
+// 223
 pub trait TimerSource: private::Sealed + 'static {
     /// Returns the timer source.
     fn timer(self) -> TimeBase;
 }
 
-// 209
+// 228
 mod private {
     pub trait Sealed {}
 }
 
-// 213
+// 232
 impl private::Sealed for TimeBase {}
 impl private::Sealed for AnyTimer<'static> {}
 #[cfg(timergroup)]
@@ -58,21 +128,21 @@ impl private::Sealed for Timer<'static> {}
 #[cfg(systimer)]
 impl private::Sealed for Alarm<'static> {}
 
-// 220
+// 239
 impl TimerSource for TimeBase {
     fn timer(self) -> TimeBase {
         self
     }
 }
 
-// 226
+// 245
 impl TimerSource for AnyTimer<'static> {
     fn timer(self) -> TimeBase {
         TimeBase::new(self)
     }
 }
 
-// 232
+// 251
 #[cfg(timergroup)]
 impl TimerSource for Timer<'static> {
     fn timer(self) -> TimeBase {
@@ -80,7 +150,7 @@ impl TimerSource for Timer<'static> {
     }
 }
 
-// 239
+// 258
 #[cfg(systimer)]
 impl TimerSource for Alarm<'static> {
     fn timer(self) -> TimeBase {
@@ -96,7 +166,7 @@ impl TimerSource for Alarm<'static> {
 /// idle hook will wait for an interrupt.
 ///
 /// For information about the arguments, see [`start_with_idle_hook`].
-// 254
+// 273
 pub fn start(timer: impl TimerSource, int0: SoftwareInterrupt<'static, 0>) {
     start_with_idle_hook(timer, int0, crate::task::idle_hook)
 }
@@ -121,7 +191,7 @@ pub fn start(timer: impl TimerSource, int0: SoftwareInterrupt<'static, 0>) {
 /// switches.
 ///
 /// For an example, see the [crate-level documentation][self].
-// 271
+// 304
 pub fn start_with_idle_hook(
     timer: impl TimerSource,
     int0: SoftwareInterrupt<'static, 0>,
@@ -146,5 +216,198 @@ pub fn start_with_idle_hook(
     trace!("Starting scheduler for the first core");
     assert_eq!(Cpu::current(), Cpu::ProCpu);
 
-    SCHEDULER.with(move |scheduler| {})
+    SCHEDULER.with(move |scheduler| {
+        scheduler.setup(TimeDriver::new(timer.timer()), idle_hook);
+
+        // Allocate the default task.
+
+        unsafe extern "C" {
+            static _stack_start_cpu0: u32;
+            static _stack_end_cpu0: u32;
+            static __stack_chk_guard: u32;
+        }
+        let stack_top = &raw const _stack_start_cpu0;
+        let stack_bottom = (&raw const _stack_end_cpu0).cast::<MaybeUninit<u32>>();
+        let stack_slice = core::ptr::slice_from_raw_parts_mut(
+            stack_bottom.cast_mut(),
+            stack_top as usize - stack_bottom as usize,
+        );
+
+        task::allocate_main_task(
+            scheduler,
+            stack_slice,
+            esp_config::esp_config_int!(usize, "ESP_HAL_CONFIG_STACK_GUARD_OFFSET"),
+            // For compatibility with -Zstack-protector, we read and use the value of
+            // `__stack_chk_guard`.
+            unsafe { (&raw const __stack_chk_guard).read_volatile() },
+        );
+
+        task::setup_multitasking(int0);
+
+        // Set up the main task's context.
+        task::yield_task();
+    })
+}
+
+/// Starts the scheduler on the second CPU core.
+///
+/// Note that the scheduler must be started first, before starting the second core.
+///
+/// The supplied stack and function will be used as the main thread of the second core. The thread
+/// will be pinned to the second core.
+///
+/// You can return from the second core's main thread function. This will cause the scheduler to
+/// enter the idle state, but the second core will continue to run interrupt handlers and other
+/// tasks.
+// 373
+#[cfg(multi_core)]
+pub fn start_second_core<const STACK_SIZE: usize>(
+    cpu_control: CPU_CTRL,
+    #[cfg(xtensa)] int0: SoftwareInterrupt<'static, 0>,
+    int1: SoftwareInterrupt<'static, 1>,
+    stack: &'static mut Stack<STACK_SIZE>,
+    func: impl FnOnce() + Send + 'static,
+) {
+    start_second_core_with_stack_guard_offset::<STACK_SIZE>(
+        cpu_control,
+        #[cfg(xtensa)]
+        int0,
+        int1,
+        stack,
+        None,
+        func,
+    );
+}
+
+/// Starts the scheduler on the second CPU core.
+///
+/// Note that the scheduler must be started first, before starting the second core.
+///
+/// The supplied stack and function will be used as the main thread of the second core. The thread
+/// will be pinned to the second core.
+///
+/// The stack guard offset is used to reserve a portion of the stack for the stack guard, for safety
+/// purposes. Passing `None` will result in the default value configured by the
+/// `ESP_HAL_CONFIG_STACK_GUARD_OFFSET` esp-hal configuration.
+///
+/// You can return from the second core's main thread function. This will cause the scheduler to
+/// enter the idle state, but the second core will continue to run interrupt handlers and other
+/// tasks.
+// 406
+#[cfg(multi_core)]
+pub fn start_second_core_with_stack_guard_offset<const STACK_SIZE: usize>(
+    cpu_control: CPU_CTRL,
+    #[cfg(xtensa)] int0: SoftwareInterrupt<'static, 0>,
+    int1: SoftwareInterrupt<'static, 1>,
+    stack: &'static mut Stack<STACK_SIZE>,
+    stack_guard_offset: Option<usize>,
+    func: impl FnOnce() + Send + 'static,
+) {
+    trace!("Starting scheduler for the second core");
+
+    #[cfg(xtensa)]
+    task::setup_smp(int0);
+
+    struct SecondCoreStack {
+        stack: *mut [MaybeUninit<u32>],
+    }
+    unsafe impl Send for SecondCoreStack {}
+    let stack_ptrs = SecondCoreStack {
+        stack: core::ptr::slice_from_raw_parts_mut(
+            stack.bottom().cast::<MaybeUninit<u32>>(),
+            STACK_SIZE,
+        ),
+    };
+
+    let stack_guard_offset = stack_guard_offset.unwrap_or(esp_config::esp_config_int!(
+        usize,
+        "ESP_HAL_CONFIG_STACK_GUARD_OFFSET"
+    ));
+
+    let mut cpu_control = CpuControl::new(cpu_control);
+    let guard = cpu_control
+        .start_app_core_with_stack_guard_offset(stack, Some(stack_guard_offset), move || {
+            trace!("Second core running");
+            task::setup_smp(int1);
+            SCHEDULER.with(move |scheduler| {
+                // Make sure the whole struct is captured, not just a !Send field.
+                let ptrs = stack_ptrs;
+                assert!(
+                    scheduler.time_driver.is_some(),
+                    "The scheduler must be started on the first core first."
+                );
+
+                // esp-hal may be configured to use a watchpoint. To work around that, we read the
+                // memory at the stack guard, and we'll use whatever we find as the main task's
+                // stack guard value, instead of writing our own stack guard value.
+                let stack_bottom = ptrs.stack.cast::<u32>();
+                let stack_guard = unsafe { stack_bottom.byte_add(stack_guard_offset) };
+
+                task::allocate_main_task(scheduler, ptrs.stack, stack_guard_offset, unsafe {
+                    stack_guard.read()
+                });
+                task::yield_task();
+                trace!("Second core scheduler initialized");
+            });
+
+            func();
+
+            loop {
+                SCHEDULER.sleep_until(Instant::EPOCH + Duration::MAX);
+            }
+        })
+        .unwrap();
+
+    // Spin until the second core scheduler is initialized
+    let start = Instant::now();
+
+    while start.elapsed() < Duration::from_secs(1) {
+        if SCHEDULER.with(|s| s.per_cpu[1].initialized) {
+            break;
+        }
+        esp_hal::rom::ets_delay_us(1);
+    }
+
+    if !SCHEDULER.with(|s| s.per_cpu[1].initialized) {
+        panic!(
+            "Second core scheduler failed to initialize. \
+            This can happen if its main function overflowed the stack."
+        );
+    }
+
+    core::mem::forget(guard);
+}
+
+// 490
+const TICK_RATE: u32 = esp_config::esp_config_int!(u32, "ESP_RTOS_CONFIG_TICK_RATE_HZ");
+
+// 452
+pub(crate) fn now() -> u64 {
+    Instant::now().duration_since_epoch().as_micros()
+}
+
+// 503
+/// Waits for a condition to be met or a timeout to occur.
+///
+/// This function is meant to simplify implementation of blocking primitives. Upon failure the
+/// `attempt` function should enqueue the task in a wait queue and put the task to sleep.
+fn with_deadline(timeout_us: Option<u32>, attempt: impl Fn(Instant) -> bool) -> bool {
+    let deadline = timeout_us
+        .map(|us| Instant::now() + Duration::from_micros(us as u64))
+        .unwrap_or(Instant::EPOCH + Duration::MAX);
+
+    while !attempt(deadline) {
+        // We are here because the operation failed. We've either timed out, or the operation is
+        // ready to be attempted again. However, any higher priority task can wake up and
+        // preempt us still. Let's just check for the timeout, and try the whole process
+        // again.
+
+        if timeout_us.is_some() && deadline < Instant::now() {
+            // We have a deadline and we've timed out.
+            return false;
+        }
+        // We can block more, so let's attempt the operation again.
+    }
+
+    true
 }

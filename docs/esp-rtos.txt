@@ -1,0 +1,763 @@
+esp-rtos/src/lib.rs
+start(timer: impl TimerSource, #[cfg(riscv)] int0: SoftwareInterrupt<'static, 0>) {
+    start_with_idle_hook(timer, #[cfg(riscv)] int0, crate::task::idle_hook) {
+        SCHEDULER.with(move |scheduler| {
+            scheduler.setup(TimeDriver::new(timer.timer()), idle_hook); // SchedulerState
+            let stack_slice = core::ptr::slice_from_raw_parts_mut(
+                stack_bottom.cast_mut(),
+                stack_top as usize - stack_bottom as usize,
+            );
+            task::allocate_main_task(scheduler, stack_slice,
+                esp_config::esp_config_int!(usize, "ESP_HAL_CONFIG_STACK_GUARD_OFFSET"),
+            task::setup_multitasking(#[cfg(riscv)] int0);
+            task::yield_task();
+        });
+    }
+}
+
+esp-rtos/src/scheduler.rs
+pub(crate) struct Scheduler {
+    inner: Mutex<RawMutex, RefCell<SchedulerState>>,
+}
+
+pub(crate) struct SchedulerState {
+    /// A list of all allocated tasks
+    pub(crate) all_tasks: TaskList<TaskAllocListElement>,
+
+    /// A list of tasks ready to run
+    pub(crate) run_queue: RunQueue,
+
+    /// Pointer to the task that is scheduled for deletion.
+    pub(crate) to_delete: TaskList<TaskDeleteListElement>,
+
+    pub(crate) time_driver: Option<TimeDriver>,
+
+    pub(crate) per_cpu: [CpuSchedulerState; Cpu::COUNT],
+}
+
+impl Scheduler {
+    pub(crate) fn with<R>(&self, cb: impl FnOnce(&mut SchedulerState) -> R) -> R {
+        self.with_shared(|shared| cb(&mut *unwrap!(shared.try_borrow_mut())))
+    }
+    pub(crate) fn with_shared<R>(&self, cb: impl FnOnce(&RefCell<SchedulerState>) -> R) -> R {
+        self.inner.lock(|shared| cb(shared))
+    }
+}
+
+pub(crate) struct CpuSchedulerState {
+    pub(crate) initialized: bool,
+    /// Pointer to the current task.
+    pub(crate) current_task: Option<TaskPtr>,
+    idle_context: CpuContext,   // all cpu registers
+
+    // This context will be filled out by the first context switch.
+    // We allocate the main task statically, because there is always a main task. If deleted, we
+    // simply don't deallocate this.
+    pub(crate) main_task: Task,
+}
+
+pub(crate) fn setup(&mut self, time_driver: TimeDriver, idle_hook: IdleFn) {
+    self.time_driver = Some(time_driver);
+    task::set_idle_hook_entry(&mut self.per_cpu[cpu].idle_context, idle_hook);
+}
+
+// esp-rtos/src/task/mod.rs
+pub(super) fn allocate_main_task(scheduler: &mut SchedulerState, stack: *mut [MaybeUninit<u32>], stack_guard_offset: usize, stack_guard_value: u32) {
+    let cpu = Cpu::current();
+    scheduler.per_cpu[current_cpu].initialized = true;
+    scheduler.per_cpu[current_cpu].main_task.priority = Priority::ZERO;
+    scheduler.per_cpu[current_cpu].main_task.state = TaskState::Ready;
+    scheduler.per_cpu[current_cpu].main_task.stack = stack;
+    scheduler.per_cpu[current_cpu].main_task.run_queued = false;
+    scheduler.per_cpu[current_cpu].main_task.timer_queued = false;
+    let main_task_ptr = NonNull::from(&scheduler.per_cpu[current_cpu].main_task);
+    scheduler.all_tasks.push(main_task_ptr);
+    scheduler.per_cpu[current_cpu].current_task = Some(main_task_ptr);
+    // put or put back task to the given priority then set it to run if its priority >= than the current (lowest) priority of the cpus
+    scheduler.run_queue.mark_task_ready(&scheduler.per_cpu, main_task_ptr);
+}
+
+// esp-rtos/src/task/riscv.rs
+pub(crate) fn setup_multitasking<const IRQ: u8>(mut irq: SoftwareInterrupt<'static, IRQ>) {
+    let swint_handler = esp_hal::interrupt::InterruptHandler::new_not_nested(
+        unsafe { core::mem::transmute::<*const (), extern "C" fn()>(swint_handler as *const ()) },
+        esp_hal::interrupt::Priority::Priority1,
+    )
+    irq.set_interrupt_handler(swint_handler);
+}
+
+pub(crate) fn yield_task() {
+    match Cpu::current() {
+        Cpu::ProCpu => unsafe { SoftwareInterrupt::<'static, 0>::steal() }.raise(),
+        #[cfg(multi_core)]
+        Cpu::AppCpu => unsafe { SoftwareInterrupt::<'static, 1>::steal() }.raise(),
+    }
+}
+
+extern "C" fn swint_handler() {
+    match Cpu::current() {
+        Cpu::ProCpu => unsafe { SoftwareInterrupt::<'static, 0>::steal() }.reset(),
+        #[cfg(multi_core)]
+        Cpu::AppCpu => unsafe { SoftwareInterrupt::<'static, 1>::steal() }.reset(),
+
+        SCHEDULER.with(|scheduler| scheduler.switch_task());
+    }
+}
+
+esp-rtos/src/scheduler.rs
+pub(crate) fn switch_task(&mut self, #[cfg(xtensa)] trap_frame: &mut CpuContext) {
+    self.run_scheduler(|current_context, next_context| {
+        task::task_switch(
+                current_context,
+                next_context,
+                #[cfg(xtensa)]
+                trap_frame,
+            )
+    });
+}
+
+fn run_scheduler(&mut self, task_switch: impl FnOnce(*mut CpuContext, *mut CpuContext)) {
+    let cpu = Cpu::current();
+    if !self.to_delete.is_empty() {
+        self.delete_marked_tasks(cpu);  // delete all tasks in to_delete tasklist which runs in current CPU
+    }
+    let current_task = self.per_cpu[current_cpu].current_task;
+    if let Some(current_task) = current_task {
+        if current_task.state() == TaskState::Ready {
+            // put or put back task to the given priority to ready queue
+            // then set it to run if its priority >= than the current (lowest) priority of the cpus
+            self.run_queue.mark_task_ready(&self.per_cpu, current_task);
+        }
+    }
+    let mut arm_next_timeslice_tick = false;
+    let next_task = self.run_queue.pop();   // pop a task from the highest priority ready queue if it was not pinned to the other cpu
+    if next_task != current_task {          // check that we don't get back the current task (even if it was deleted)
+        // If the current task is deleted, we can skip saving its context. We signal this by using a null pointer.
+        let current_context = if let Some(current) = current_task { // Check wether the current task was deleted
+            // here we have a new/next task which is different than the current, the latter was not deleted
+            #[cfg(multi_core)]
+                let current_ref = unsafe { current.as_ref() };
+            #[cfg(multi_core)]
+            if current_ref.pinned_to.is_none()
+                && current_ref.priority >= self.per_cpu[1 - current_cpu].current_priority()
+            {
+                task::schedule_other_core();    // interrupt the other cpu running with lower priority to run the current task
+            }
+            unsafe { &raw mut (*current.as_ptr()).cpu_context } // finally we can get the current context
+        } else {
+            core::ptr::null_mut() // If the current task is deleted, we can skip saving its context.
+        }
+
+        let next_context = if let Some(next) = next_task {
+            // If there are more tasks at this priority level, we need to schedule a timeslice
+            // tick.
+            let new_core_priority = next.priority(&mut self.run_queue);
+            arm_next_timeslice_tick = !self.run_queue.is_level_empty(new_core_priority);
+            unsafe { &raw mut (*next.as_ptr()).cpu_context }    // we get next's context
+        } else {
+            // If there is no next task, set up and return to the idle hook.
+            // Reuse the stack frame of the current task or main task.
+            let idle_sp = if current_context.is_null()
+                || current_context == &raw mut self.per_cpu[current_cpu].main_task.cpu_context {
+                // We're using the current task's stack
+                let current_sp;
+                cfg_if::cfg_if! {
+                    if #[cfg(xtensa)] {
+                        unsafe { core::arch::asm!("mov {0}, sp", out(reg) current_sp); }
+                    } else {
+                        unsafe { core::arch::asm!("mv {0}, sp", out(reg) current_sp); }
+                    }
+                }
+                current_sp
+            } else {
+                // We're using the main task's stack.
+                cfg_if::cfg_if! {
+                    if #[cfg(xtensa)] {
+                        self.per_cpu[current_cpu].main_task.cpu_context.A1
+                    } else {
+                        self.per_cpu[current_cpu].main_task.cpu_context.sp
+                    }
+                }
+
+            };
+            // set up idle context based on one of the 2 versions of idle stack selection
+            cfg_if::cfg_if! {
+                if #[cfg(xtensa)] {
+                    self.per_cpu[current_cpu].idle_context.A1 = idle_sp;
+                } else {
+                    self.per_cpu[current_cpu].idle_context.sp = idle_sp;
+                }
+            }
+            &raw mut self.per_cpu[current_cpu].idle_context
+        }
+        // call task switch closure
+        task_switch(current_context, next_context); // call the closure
+
+        // If we went to idle, this will be None and we won't mess up the main task's stack.
+        // but in other case, after the task switch in registers, we update the current_task 
+        self.per_cpu[current_cpu].current_task = next_task;
+    } // EOF if next_task != current_task
+
+    let time_driver = unwrap!(self.time_driver.as_mut());
+    let now = crate::now();
+    time_driver.set_time_slice(cpu, now, arm_next_timeslice_tick);
+    time_driver.arm_next_wakeup(now);
+}
+
+
+
+// esp-rtos/src/task/riscv.rs
+static _CURRENT_CTX_PTR: portable_atomic::AtomicPtr<CpuContext> =
+    portable_atomic::AtomicPtr::new(core::ptr::null_mut());
+
+static _NEXT_CTX_PTR: portable_atomic::AtomicPtr<CpuContext> =
+    portable_atomic::AtomicPtr::new(core::ptr::null_mut());
+
+unsafe extern "C" {
+    fn sys_switch();
+}
+
+/// Switch to next task
+///
+/// *MUST* be called from inside an ISR without interrupt nesting.
+pub fn task_switch(old_ctx: *mut CpuContext, new_ctx: *mut CpuContext) {
+    debug_assert!(_NEXT_CTX_PTR.load(Ordering::SeqCst).is_null());
+    _CURRENT_CTX_PTR.store(old_ctx, Ordering::SeqCst);
+    _NEXT_CTX_PTR.store(new_ctx, Ordering::SeqCst);
+    if !old_ctx.is_null() {
+        unsafe {
+            (*old_ctx).pc = register::mepc::read();
+        }
+    }
+
+    // set MSTATUS for the switched to task
+    // MIE will be set from MPIE
+    // MPP will be used to determine the privilege-level
+    let mstatus = register::mstatus::read().bits();
+    unsafe {
+        (*new_ctx).mstatus = mstatus;
+    }
+    unsafe {
+        // set MPIE in MSTATUS to 0 to disable interrupts while task switching
+        register::mstatus::write(register::mstatus::Mstatus::from_bits(mstatus & !(1 << 7)));
+
+        // load address of sys_switch into MEPC - will run after all registers are restored
+        register::mepc::write(sys_switch as usize);
+    }
+}
+
+unsafe extern "C" {
+    fn sys_switch();
+}
+
+core::arch::global_asm!(
+    r#"
+.section .trap, "ax"
+
+.globl sys_switch
+.align 4
+sys_switch:
+    # put some regs on the stack since we will need those regs
+    addi sp, sp, -16
+    sw t0, 0(sp)
+    sw t1, 4(sp)
+
+    # t0 => current context
+    la t0, {_CURRENT_CTX_PTR}
+    lw t0, 0(t0)
+
+    # skip storing context if current task is null (deleted)
+    beqz t0, _restore_context
+
+    # store registers to old context - PC needs to be set by the "caller"
+    sw ra, 0*4(t0)
+
+    lw t1, 0(sp)
+    sw t1, 1*4(t0)
+
+    sw t2, 3*4(t0)
+    sw t3, 4*4(t0)
+    sw t4, 5*4(t0)
+    sw t5, 6*4(t0)
+    sw t6, 7*4(t0)
+    sw a0, 8*4(t0)
+    sw a1, 9*4(t0)
+    sw a2, 10*4(t0)
+    sw a3, 11*4(t0)
+    sw a4, 12*4(t0)
+    sw a5, 13*4(t0)
+    sw a6, 14*4(t0)
+    sw a7, 15*4(t0)
+    sw s0, 16*4(t0)
+    sw s1, 17*4(t0)
+    sw s2, 18*4(t0)
+    sw s3, 19*4(t0)
+    sw s4, 20*4(t0)
+    sw s5, 21*4(t0)
+    sw s6, 22*4(t0)
+    sw s7, 23*4(t0)
+    sw s8, 24*4(t0)
+    sw s9, 25*4(t0)
+    sw s10, 26*4(t0)
+    sw s11, 27*4(t0)
+    sw gp, 28*4(t0)
+    sw tp, 29*4(t0)
+
+    addi t1, sp, 16
+    sw t1, 30*4(t0)
+
+_restore_context:
+    # t0 => next context
+    la t1, {_NEXT_CTX_PTR}
+    lw t0, 0(t1)
+
+    # signal that the task switch is done - safe to do it already now - interrupts are disabled
+    sw x0, 0(t1)
+
+    # set the next task's PC as MEPC
+    lw t1, 31*4(t0)
+    csrrw x0, mepc, t1
+
+    # set MSTATUS from next context
+    lw t1, 32*4(t0)
+    csrrw x0, mstatus, t1
+
+    # restore registers from old context
+    lw ra, 0*4(t0)
+    lw t1, 2*4(t0)
+    lw t2, 3*4(t0)
+    lw t3, 4*4(t0)
+    lw t4, 5*4(t0)
+    lw t5, 6*4(t0)
+    lw t6, 7*4(t0)
+    lw a0, 8*4(t0)
+    lw a1, 9*4(t0)
+    lw a2, 10*4(t0)
+    lw a3, 11*4(t0)
+    lw a4, 12*4(t0)
+    lw a5, 13*4(t0)
+    lw a6, 14*4(t0)
+    lw a7, 15*4(t0)
+    lw s0, 16*4(t0)
+    lw s1, 17*4(t0)
+    lw s2, 18*4(t0)
+    lw s3, 19*4(t0)
+    lw s4, 20*4(t0)
+    lw s5, 21*4(t0)
+    lw s6, 22*4(t0)
+    lw s7, 23*4(t0)
+    lw s8, 24*4(t0)
+    lw s9, 25*4(t0)
+    lw s10, 26*4(t0)
+    lw s11, 27*4(t0)
+    lw gp, 28*4(t0)
+    lw tp, 29*4(t0)
+    lw sp, 30*4(t0)
+    lw t0, 1*4(t0)
+
+    # jump to next task's PC
+    mret
+
+    "#,
+    _CURRENT_CTX_PTR = sym _CURRENT_CTX_PTR,
+    _NEXT_CTX_PTR = sym _NEXT_CTX_PTR,
+);
+
+// esp-rtos/src/task/mod.rs
+pub(crate) struct Task {
+    pub cpu_context: CpuContext,
+    #[cfg(feature = "esp-radio")]
+    pub thread_semaphore: Option<Semaphore>,
+    pub state: TaskState,
+    pub stack: *mut [MaybeUninit<u32>],
+
+    #[cfg(any(hw_task_overflow_detection, sw_task_overflow_detection))]
+    pub stack_guard: *mut u32,
+    #[cfg(sw_task_overflow_detection)]
+    pub(crate) stack_guard_value: u32,
+
+    pub priority: Priority,
+    #[cfg(multi_core)]
+    pub pinned_to: Option<Cpu>,
+
+    pub wakeup_at: u64,
+
+    /// Whether the task is currently queued in the run queue.
+    pub run_queued: bool,
+    /// Whether the task is currently queued in the timer queue.
+    pub timer_queued: bool,
+
+    /// The current wait queue this task is in.
+    pub(crate) current_queue: Option<NonNull<WaitQueue>>,
+
+    // Lists a task can be in:
+    /// The list of all allocated tasks
+    pub alloc_list_item: TaskListItem,
+
+    /// Either the RunQueue or the WaitQueue
+    pub ready_queue_item: TaskListItem,
+
+    /// The timer queue
+    pub timer_queue_item: TaskListItem,
+
+    /// The list of tasks scheduled for deletion
+    pub delete_list_item: TaskListItem,
+
+    /// Whether the task was allocated on the heap.
+    #[cfg(feature = "alloc")]
+    pub(crate) heap_allocated: bool,
+}
+
+
+// esp-rtos/src/scheduler.rs
+impl SchedulerState {
+    // call delete_task for all tasks in to_delete tasklist which runs in current CPU
+    fn delete_marked_tasks(&mut self, cpu: Cpu) {
+        let current_cpu = cpu as usize;
+        let mut to_delete = core::mem::take(&mut self.to_delete);
+        'outer: while let Some(task_ptr) = to_delete.pop() {
+            assert!(task_ptr.state() == TaskState::Deleted);
+            for cpu in 0..Cpu::COUNT {
+                if cpu != current_cpu && Some(task_ptr) == self.per_cpu[cpu].current_task {
+                    // We can't delete a task that is currently running on another CPU.
+                    self.to_delete.push(task_ptr);
+                    continue 'outer;
+                }
+            }
+            self.delete_task(task_ptr);
+        }
+    }
+
+    // delete task and if needs unallocate 
+    fn delete_task(&mut self, mut to_delete: TaskPtr) {
+        unsafe {
+            #[cfg(feature = "alloc")]
+            if to_delete.as_ref().heap_allocated {  // set in create_task if heap allocated
+                let task = Box::from_raw_in(to_delete.as_ptr(), InternalMemory);
+                core::mem::drop(task);  // calls the destructor, see below, which manages the deallocation of the stack as well
+                return
+            }
+        }
+        core::ptr::drop_in_place(to_delete.as_mut());   // we can use the raw pointer, and also trigger the Task's destructor
+    }
+}
+
+// esp-rtos/src/task/mod.rs
+
+// unallocate task (even it is a Box) then manage deallocation of of stack if it was allocated from heap
+impl Drop for Task {
+    fn drop(&mut self) {
+        #[cfg(feature = "alloc")]
+        if self.heap_allocated {
+            let layout = unwrap!(
+                Layout::from_size_align(self.stack.len() * 4, 16).ok(),
+                "Cannot compute Layout for stack"
+            );
+            unsafe { InternalMemory.deallocate(unwrap!(NonNull::new(self.stack.cast())), layout) }; // deallocation of stack
+        }
+        // 
+    }
+}
+
+// esp-rtos/src/run_queue.rs
+// put or put back task to the given priority then set it to run if its priority >= than the current (lowest) priority of the cpus
+pub(crate) fn mark_task_ready(&mut self, _state: &[CpuSchedulerState; Cpu::COUNT], mut ready_task: TaskPtr) -> RunSchedulerOn {
+    let priority = ready_task.priority(self);
+    let priority_n = priority.get();
+    ready_task.set_state(TaskState::Ready);
+    if let Some(mut containing_queue) = unsafe { ready_task.as_mut().current_queue.take() } {
+        // if it was already ready then remove to put it back a possible other priority, but into the end of the waitqueue
+        unsafe { containing_queue.as_mut().remove(ready_task) };
+    }
+    // put or put it back at the given priority to the end of that waitqueue
+    self.ready_tasks[priority_n].push(ready_task);
+
+    if #[cfg(multi_core)] {
+        let run_on = if _state[1].initialized {
+            self.select_scheduler_trigger_multi_core(_state, ready_task)
+        } else {
+            self.select_scheduler_trigger_single_core(priority_n)
+        };
+    } else {
+        let run_on = self.select_scheduler_trigger_single_core(priority_n);
+    }
+}
+
+// task set to run of it has >= priority than the current priority
+fn select_scheduler_trigger_single_core(&self, priority: usize) -> RunSchedulerOn {
+    // Run the scheduler if the new priority is >= current maximum priority.
+    if priority >= self.ready_priority.ready() {
+        RunSchedulerOn::CurrentCore
+    } else {
+        RunSchedulerOn::DontRun
+    }
+}
+
+// task set to run either on the cpu to which it was pinned, or on that cpu where its priority is higher then the lowest priority cpu
+fn select_scheduler_trigger_multi_core(&mut self, state: &[CpuSchedulerState; Cpu::COUNT], task: TaskPtr ) -> RunSchedulerOn {
+    // We're running both schedulers, try to figure out where to schedule the context switch.
+    let task_ref = unsafe { task.as_ref() };
+    let ready_task_prio = task_ref.priority;
+
+    let (target_cpu, target_cpu_prio) = if let Some(pinned_to) = task_ref.pinned_to {
+            // Task is pinned, we have no choice in our target
+            let cpu = pinned_to as usize;
+            (cpu, state[cpu].current_priority())
+        } else {
+            // Task is not pinned, pick the core that runs the lower priority task.
+
+            // Written like this because `state.iter()` leaves an unnecessary panic in the code.
+            let mut target = (0, state[0].current_priority());
+            #[allow(clippy::needless_range_loop)]
+            for i in 1..Cpu::COUNT {
+                if state[i].current_priority() < target.1 {
+                    target = (i, state[i].current_priority());
+                }
+            }
+            target
+        }
+
+        if ready_task_prio >= target_cpu_prio {
+            if target_cpu == Cpu::current() as usize {
+                RunSchedulerOn::CurrentCore
+            } else {
+                RunSchedulerOn::OtherCore
+            }
+        } else {
+            RunSchedulerOn::DontRun // lower priority task from both core current priority
+        }
+}
+
+// pop a task from the highest priority ready queue if it was not pinned to the other cpu
+pub(crate) fn pop(&mut self) -> Option<TaskPtr> {
+    let current_prio = self.ready_priority.ready();
+    if #[cfg(multi_core)] {
+        let other = match Cpu::current() {
+            Cpu::AppCpu => Cpu::ProCpu,
+            Cpu::ProCpu => Cpu::AppCpu,
+        };
+        // Look iteratively through priority levels - this will ensure we can find a task
+        // even if all high priority tasks are pinned to the other CPU.
+        let mut priority_level = self.ready_priority;
+        let mut current_prio = current_prio;
+                let mut popped;
+                loop {
+                    popped = self.ready_tasks[current_prio].pop_if(|t| t.pinned_to != Some(other)); // pop from ready task w current prio
+                                                                                                    // not pinned to other cpu
+
+                    if popped.is_none() {                               // we are out of task on the current priority level
+                        priority_level.unmark(current_prio);            // adjust max priorit   
+                        if current_prio == 0 {                          // we did not found any task
+                            break;
+                        }
+                        current_prio = priority_level.ready();          // get the new prio from the adjusted max priority
+                        continue;
+                    }
+
+                    break;
+                }
+    }
+}
+
+// esp-rtos/src/scheduler.rs
+pub(crate) fn schedule_other_core() {
+    match Cpu::current() {
+        Cpu::ProCpu => unsafe { SoftwareInterrupt::<'static, 1>::steal() }.raise(),
+        Cpu::AppCpu => unsafe { SoftwareInterrupt::<'static, 0>::steal() }.raise(),
+    }
+    // It takes a bit for the software interrupt to be serviced, but since it's happening on the
+    // other core, we don't need to wait.
+}
+
+// esp-rtos/src/timer/mod.rs
+
+pub(crate) struct TimerQueue {
+    queue: TaskQueue<TaskTimerQueueElement>,
+    next_wakeup: u64,
+    time_slice_target: [u64; Cpu::COUNT],
+}
+
+pub(crate) struct TimeDriver {
+    timer: TimeBase,
+    pub(crate) timer_queue: TimerQueue,
+    current_alarm: u64,
+}
+
+impl TimeDriver {
+    pub(crate) fn set_time_slice(&mut self, cpu: Cpu, now: u64, enable: bool) {
+        self.timer_queue.time_slice_target[cpu as usize] = if enable {
+            trace!("Enable time slicing");
+            now + TIMESLICE_DURATION.as_micros()    // 100 Hz
+        } else {
+            trace!("Disable time slicing");
+            u64::MAX
+        };
+    }
+
+    // set the next alarm to shortest wakeup of both cpu then do arm even current alarm has not elapsed
+    pub(crate) fn arm_next_wakeup(&mut self, now: u64) {
+        // get shortes wakeup of both cpu
+        let next_wakeup = self.timer_queue.next_wakeup();
+
+        // Only skip arming timer if the timestamp is the same. If the next wakeup changed to a
+        // later timestamp, the tick handler may not trigger a scheduler run. This means that if we
+        // did not arm here, the timer would not be re-armed.
+        if next_wakeup == self.current_alarm {
+            return;
+        }
+
+        self.current_alarm = next_wakeup;
+
+        let sleep_duration = next_wakeup.saturating_sub(now);
+
+        // assume 52-bit underlying timer. it's not a big deal to sleep for a shorter time
+        let mut timeout = sleep_duration & ((1 << 52) - 1);
+
+        trace!("Arming timer for {} (target = {})", timeout, next_wakeup);
+        loop {
+            match self.timer.schedule(Duration::from_micros(timeout)) {
+                Ok(_) => break,
+                Err(esp_hal::timer::Error::InvalidTimeout) if timeout != 0 => {
+                    timeout /= 2;
+                    continue;
+                }
+                Err(e) => panic!("Failed to schedule timer: {:?}", e),
+            }
+        }
+    }
+}
+
+impl TimerQueue {
+    // get shortes wakeup of both cpu
+    fn next_wakeup(&self) -> u64 {
+        let mut wakeup_at = self.next_wakeup;
+
+        for time_slice_target in self.time_slice_target.iter().copied() {
+            wakeup_at = wakeup_at.min(time_slice_target);
+        }
+
+        #[cfg(feature = "embassy")]
+        let wakeup_at = wakeup_at.min(TIMER_QUEUE.next_wakeup());
+
+        wakeup_at
+    }
+}
+
+esp-hal/src/timer/mod.rs
+impl<Dm> OneShotTimer<'_, Dm>
+where
+    Dm: DriverMode,
+{
+    /// Start counting until the given timeout and raise an interrupt
+    pub fn schedule(&mut self, timeout: Duration) -> Result<(), Error> {
+        if self.inner.is_running() {
+            self.inner.stop();
+        }
+
+        self.inner.clear_interrupt();
+        self.inner.reset();
+
+        self.inner.enable_auto_reload(false);
+        self.inner.load_value(timeout)?;
+        self.inner.start();
+
+        Ok(())
+    }
+}
+
+// esp-rtos/src/timer/mod.rs
+extern "C" fn timer_tick_handler() {
+    // with_shared takes such a closure which use arg refcell(scheduler) to borrow it dinamically
+    SCHEDULER.with_shared(|scheduler| {
+        let now = crate::now();
+
+        let mut scheduler = unwrap!(scheduler.try_borrow_mut());
+        let scheduler = &mut *scheduler;
+
+        let time_driver = unwrap!(scheduler.time_driver.as_mut());
+
+        time_driver.timer.clear_interrupt();
+
+        // Process timer queue. This will wake up ready tasks, and set a new alarm.
+
+        // run this closure for all alarmed tasks
+        time_driver.handle_alarm(now, |ready_task| {
+            debug_assert_eq!(
+                ready_task.state(),
+                crate::task::TaskState::Sleeping,
+                "task: {:?}",
+                ready_task
+            );
+            scheduler.make_task_ready(ready_task);
+
+            match scheduler
+                .run_queue
+                .mark_task_ready(&scheduler.per_cpu, ready_task)
+            {
+                RunSchedulerOn::DontRun => {}
+                RunSchedulerOn::CurrentCore => task::yield_task(),
+                #[cfg(multi_core)]
+                RunSchedulerOn::OtherCore => task::schedule_other_core(),
+            }
+        });`
+
+        // yield anyway if time_slice elapsed
+        if now >= time_driver.timer_queue.time_slice_target[0] {
+            crate::task::yield_task();
+        }
+
+        // yield anyway if time_slice elapsed
+        #[cfg(multi_core)]
+        if now >= time_driver.timer_queue.time_slice_target[1] {
+            crate::task::schedule_other_core();
+        }
+
+        // Re-arm the timer. This should be relatively cheap, and ensures that the timer will keep
+        // ticking even if the interrupt doesn't trigger a context switch.
+        // FIXME: this SHOULD be relatively cheap, but arming the timer involves u64 division.
+        time_driver.current_alarm = u64::MAX;
+        time_driver.arm_next_wakeup(now);   // rescan, there maybe new wakeup during processing alarm handlers
+    });
+
+    #[cfg(feature = "rtos-trace")]
+    rtos_trace::trace::marker_end(TraceEvents::TimerTickHandler as u32);
+}
+
+impl TimeDriver {
+    pub(crate) fn handle_alarm(&mut self, now: u64, on_task_ready: impl FnMut(TaskPtr)) {
+        if now < self.current_alarm {
+            return;
+        }
+        self.current_alarm = u64::MAX;
+        // run a closure for all alarmed tasks
+        self.timer_queue.retain(now, on_task_ready);
+    }
+}
+
+impl TimerQueue {
+    // run a closure for all alarmed tasks
+    fn retain(&mut self, now: u64, mut on_task_ready: impl FnMut(TaskPtr)) {
+        if now < self.next_wakeup {
+            trace!("Skipping timer queue");
+            return;
+        }
+
+        let mut timer_queue = core::mem::take(self);
+        self.time_slice_target = timer_queue.time_slice_target;
+
+        while let Some(mut task_ptr) = timer_queue.pop() {
+            let task = unsafe { task_ptr.as_mut() };
+
+            let wakeup_at = task.wakeup_at;
+            let ready = wakeup_at <= now;
+
+            if ready {
+                // run the task
+                on_task_ready(task_ptr);
+            } else {
+                // put back into queue
+                self.push(task_ptr, wakeup_at);
+            }
+        }
+    }
+}

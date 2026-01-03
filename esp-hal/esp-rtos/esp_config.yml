@@ -1,6 +1,14 @@
 crate: esp-rtos
 
 options:
+  - name: tick_rate_hz
+    description: 'Tick rate of the task scheduler in Hertz'
+    default:
+      - value: 100
+    constraints:
+      - type:
+          validator: positive_integer
+
   - name: sw-task-overflow-detection
     description: 'Enable software-based stack overflow detection. The stack guard value and offset is based on esp-hal configuration.'
     default:

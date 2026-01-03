@@ -19,6 +19,8 @@ rtos-trace = { version = "0.2.0", optional = true }
 cfg-if = "1"
 esp-radio-rtos-driver = { version = "0.2.0", path = "../esp-radio-rtos-driver", optional = true }
 embassy-sync = "0.7"
+esp-config = "0.6.1"
+portable-atomic = { version = "1.11", default-features = false }
 
 # Logging interfaces, they are mutually exclusive so they need to be behind separate features.
 defmt = { version = "1.0", optional = true }
@@ -26,6 +28,9 @@ log-04 = { package = "log", version = "0.4", optional = true }
 
 [features]
 default = ["esp-radio"]
+
+## Enable embassy integration (time driver and executors).
+embassy = []
 
 ## Enable esp-radio support.
 esp-radio = ["alloc", "dep:esp-radio-rtos-driver"]

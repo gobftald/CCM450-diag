@@ -27,9 +27,5 @@ fn main() -> Result<(), Box<dyn Error>> {
     {
         println!("cargo:rustc-cfg=debug_build")
     }
-
-    //println!("cargo::rustc-check-cfg=cfg(riscv)");
-    //println!("cargo::rustc-check-cfg=cfg(xtensa)");
-
     Ok(())
 }

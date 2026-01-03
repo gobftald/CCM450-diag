@@ -7,6 +7,7 @@ build-std = ["core", "alloc"]
 
 [patch.crates-io]
 esp-alloc = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
+esp-config = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 esp-hal = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 esp-sync = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 
