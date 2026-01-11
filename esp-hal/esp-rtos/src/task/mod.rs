@@ -3,19 +3,28 @@
 #[cfg_attr(xtensa, path = "xtensa.rs")]
 pub(crate) mod arch_specific;
 
-// 7
+// 5
+#[cfg(feature = "esp-radio")]
+use core::ffi::c_void;
 use core::{marker::PhantomData, mem::MaybeUninit, ptr::NonNull};
 
-// 11
+// 9
+#[cfg(feature = "alloc")]
+use allocator_api2::alloc::{Allocator, Layout};
 pub(crate) use arch_specific::*;
 use esp_hal::system::Cpu;
+
+// 19
+#[cfg(feature = "alloc")]
+use crate::InternalMemory;
 
 // 22
 #[cfg(feature = "esp-radio")]
 use crate::semaphore::Semaphore;
 //23
 use crate::{
-    run_queue::Priority, run_queue::RunQueue, scheduler::SchedulerState, wait_queue::WaitQueue,
+    SCHEDULER, run_queue::Priority, run_queue::RunQueue, scheduler::SchedulerState,
+    wait_queue::WaitQueue,
 };
 
 // 30
@@ -95,6 +104,8 @@ task_list_item!(TaskDeleteListElement, delete_list_item);
 /// Extension trait for common task operations. These should be inherent methods but we can't
 /// implement stuff for NonNull.
 pub(crate) trait TaskExt {
+    #[cfg(any(feature = "esp-radio", feature = "embassy"))]
+    fn resume(self);
     fn priority(self, _: &mut RunQueue) -> Priority;
     fn set_priority(self, _: &mut RunQueue, new_pro: Priority);
     fn state(self) -> TaskState;
@@ -103,6 +114,12 @@ pub(crate) trait TaskExt {
 
 // 113
 impl TaskExt for TaskPtr {
+    #[cfg(any(feature = "esp-radio", feature = "embassy"))]
+    #[esp_hal::ram]
+    fn resume(self) {
+        SCHEDULER.with(|scheduler| scheduler.resume_task(self))
+    }
+
     // 135
     fn priority(self, _: &mut RunQueue) -> Priority {
         unsafe { self.as_ref().priority }
@@ -258,24 +275,6 @@ impl<E: TaskListElement> TaskQueue<E> {
         popped
     }
 
-    // 287
-    //#[cfg(multi_core)]
-    pub fn pop_if(&mut self, cond: impl Fn(&Task) -> bool) -> Option<TaskPtr> {
-        let mut popped = None;
-
-        let mut list = core::mem::take(self);
-        while let Some(task) = list.pop() {
-            if popped.is_none() && cond(unsafe { task.as_ref() }) {
-                E::mark_in_queue(task, false);
-                popped = Some(task);
-            } else {
-                self.push(task);
-            }
-        }
-
-        popped
-    }
-
     // 318
     pub(crate) fn is_empty(&self) -> bool {
         self.head.is_none()
@@ -344,8 +343,95 @@ pub(crate) struct Task {
     pub(crate) heap_allocated: bool,
 }
 
+// 368
+#[cfg(feature = "esp-radio")]
+extern "C" fn task_wrapper(task_fn: extern "C" fn(*mut c_void), param: *mut c_void) {
+    task_fn(param);
+    schedule_task_deletion(core::ptr::null_mut());
+}
+
 // 374
 impl Task {
+    #[cfg(feature = "esp-radio")]
+    pub(crate) fn new(
+        name: &str,
+        task_fn: extern "C" fn(*mut c_void),
+        param: *mut c_void,
+        task_stack_size: usize,
+        priority: usize,
+        pinned_to: Option<Cpu>,
+    ) -> Self {
+        debug!(
+            "task_create {} {:?}({:?}) stack_size = {} priority = {} pinned_to = {:?}",
+            name, task_fn, param, task_stack_size, priority, pinned_to
+        );
+
+        // Make sure the stack guard doesn't eat into the stack size.
+        let extra_stack = if cfg!(any(hw_task_overflow_detection, sw_task_overflow_detection)) {
+            4 + esp_config::esp_config_int!(usize, "ESP_HAL_CONFIG_STACK_GUARD_OFFSET")
+        } else {
+            0
+        };
+
+        #[cfg(debug_build)]
+        // This is a lot, but debug builds fail in different ways without.
+        let extra_stack = extra_stack.max(6 * 1024);
+
+        let task_stack_size = task_stack_size + extra_stack;
+
+        // Make sure stack size is also aligned to 16 bytes.
+        let task_stack_size = (task_stack_size & !0xF) + 16;
+
+        let stack = unwrap!(
+            Layout::from_size_align(task_stack_size, 16)
+                .ok()
+                .and_then(|layout| InternalMemory.allocate(layout).ok()),
+            "Failed to allocate stack",
+        )
+        .as_ptr();
+
+        let stack_bottom = stack.cast::<MaybeUninit<u32>>();
+        let stack_len_bytes = stack.len();
+
+        let stack_guard_offset =
+            esp_config::esp_config_int!(usize, "ESP_HAL_CONFIG_STACK_GUARD_OFFSET");
+
+        let stack_words = core::ptr::slice_from_raw_parts_mut(stack_bottom, stack_len_bytes / 4);
+        let stack_top = unsafe { stack_bottom.add(stack_words.len()).cast() };
+
+        let mut task = Task {
+            cpu_context: new_task_context(task_fn, param, stack_top),
+            #[cfg(feature = "esp-radio")]
+            thread_semaphore: None,
+            state: TaskState::Ready,
+            stack: stack_words,
+            #[cfg(any(hw_task_overflow_detection, sw_task_overflow_detection))]
+            stack_guard: stack_words.cast(),
+            #[cfg(sw_task_overflow_detection)]
+            stack_guard_value: 0,
+            current_queue: None,
+            priority: Priority::new(priority),
+            #[cfg(multi_core)]
+            pinned_to,
+
+            wakeup_at: 0,
+            timer_queued: false,
+            run_queued: false,
+
+            alloc_list_item: TaskListItem::None,
+            ready_queue_item: TaskListItem::None,
+            timer_queue_item: TaskListItem::None,
+            delete_list_item: TaskListItem::None,
+
+            #[cfg(feature = "alloc")]
+            heap_allocated: false,
+        };
+
+        task.set_up_stack_guard(stack_guard_offset, 0xDEED_BAAD);
+
+        task
+    }
+
     // 455
     fn set_up_stack_guard(&mut self, offset: usize, _value: u32) {
         let stack_bottom = self.stack.cast::<MaybeUninit<u32>>();
@@ -438,6 +524,31 @@ pub(super) fn allocate_main_task(
     scheduler
         .run_queue
         .mark_task_ready(&scheduler.per_cpu, main_task_ptr);
+}
+
+// 563
+pub(super) fn with_current_task<R>(mut cb: impl FnMut(&mut Task) -> R) -> R {
+    SCHEDULER.with(|state| {
+        cb(unsafe {
+            let current_cpu = Cpu::current() as usize;
+            unwrap!(state.per_cpu[current_cpu].current_task).as_mut()
+        })
+    })
+}
+
+pub(super) fn current_task() -> TaskPtr {
+    with_current_task(|task| NonNull::from(task))
+}
+
+// 617
+#[cfg(feature = "esp-radio")]
+pub(super) fn schedule_task_deletion(task: *mut Task) {
+    trace!("schedule_task_deletion {:?}", task);
+    if SCHEDULER.with(|scheduler| scheduler.schedule_task_deletion(task)) {
+        loop {
+            yield_task();
+        }
+    }
 }
 
 // 634

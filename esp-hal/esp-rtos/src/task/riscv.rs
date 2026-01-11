@@ -1,3 +1,7 @@
+// 1
+#[cfg(feature = "esp-radio")]
+use core::ffi::c_void;
+
 // 4
 use esp_hal::{interrupt::software::SoftwareInterrupt, riscv::register, system::Cpu};
 use portable_atomic::Ordering;
@@ -123,6 +127,25 @@ pub(crate) fn set_idle_hook_entry(idle_context: &mut CpuContext, hook_fn: super:
     // Point idle context PC at the assembly that calls the idle hook. We need a new stack
     // frame for the idle task on the main stack.
     idle_context.pc = hook_fn as usize;
+}
+
+// 124
+#[cfg(feature = "esp-radio")]
+pub(crate) fn new_task_context(
+    task: extern "C" fn(*mut c_void),
+    param: *mut c_void,
+    stack_top: *mut (),
+) -> CpuContext {
+    let stack_top = stack_top as usize;
+    let stack_top = stack_top - (stack_top % 16);
+
+    CpuContext {
+        pc: super::task_wrapper as usize,
+        a0: task as usize,
+        a1: param as usize,
+        sp: stack_top,
+        ..Default::default()
+    }
 }
 
 /// Switch to next task

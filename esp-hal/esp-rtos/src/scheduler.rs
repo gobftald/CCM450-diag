@@ -1,7 +1,7 @@
 // 1
 use core::cell::RefCell;
 #[cfg(feature = "esp-radio")]
-use core::ffi::c_void;
+use core::{ffi::c_void, ptr::NonNull};
 
 // 5
 #[cfg(feature = "alloc")]
@@ -127,6 +127,47 @@ impl SchedulerState {
         for cpu in 0..Cpu::COUNT {
             task::set_idle_hook_entry(&mut self.per_cpu[cpu].idle_context, idle_hook);
         }
+    }
+
+    // 138
+    #[cfg(feature = "esp-radio")]
+    pub(crate) fn create_task(
+        &mut self,
+        name: &str,
+        task: extern "C" fn(*mut c_void),
+        param: *mut c_void,
+        task_stack_size: usize,
+        priority: usize,
+        pinned_to: Option<Cpu>,
+    ) -> TaskPtr {
+        if let Some(cpu) = pinned_to {
+            assert!(
+                self.per_cpu[cpu as usize].initialized,
+                "Cannot create task on uninitialized CPU"
+            );
+        }
+
+        let mut task = Box::new_in(
+            Task::new(name, task, param, task_stack_size, priority, pinned_to),
+            InternalMemory,
+        );
+        task.heap_allocated = true;
+        let task_ptr = NonNull::from(Box::leak(task));
+
+        #[cfg(feature = "rtos-trace")]
+        rtos_trace::trace::task_new(task_ptr.rtos_trace_id());
+
+        self.all_tasks.push(task_ptr);
+        match self.run_queue.mark_task_ready(&self.per_cpu, task_ptr) {
+            RunSchedulerOn::DontRun => {}
+            RunSchedulerOn::CurrentCore => task::yield_task(),
+            #[cfg(multi_core)]
+            RunSchedulerOn::OtherCore => task::schedule_other_core(),
+        }
+
+        debug!("Task '{}' created: {:?}", name, task_ptr);
+
+        task_ptr
     }
 
     // 178
@@ -293,6 +334,27 @@ impl SchedulerState {
         });
     }
 
+    // 341
+    #[cfg(feature = "esp-radio")]
+    pub(crate) fn schedule_task_deletion(&mut self, task_to_delete: *mut Task) -> bool {
+        let current_cpu = Cpu::current() as usize;
+        let current_task = unwrap!(self.per_cpu[current_cpu].current_task);
+        let task_to_delete = NonNull::new(task_to_delete).unwrap_or(current_task);
+        let is_current = task_to_delete == current_task;
+
+        self.remove_from_all_queues(task_to_delete);
+        if task_to_delete.state() != TaskState::Deleted {
+            self.to_delete.push(task_to_delete);
+            task_to_delete.set_state(TaskState::Deleted);
+        }
+
+        if is_current {
+            self.per_cpu[current_cpu].current_task = None;
+        }
+
+        is_current
+    }
+
     // 360
     pub(crate) fn sleep_task_until(&mut self, task: TaskPtr, at: Instant) -> bool {
         let timer_queue = unwrap!(self.time_driver.as_mut());
@@ -327,6 +389,19 @@ impl SchedulerState {
             core::ptr::drop_in_place(to_delete.as_mut());
         }
     }
+
+    // 393
+    #[cfg(feature = "esp-radio")]
+    fn remove_from_all_queues(&mut self, mut task: TaskPtr) {
+        self.all_tasks.remove(task);
+        unwrap!(self.time_driver.as_mut()).timer_queue.remove(task);
+
+        if let Some(mut containing_queue) = unsafe { task.as_mut().current_queue.take() } {
+            unsafe { containing_queue.as_mut().remove(task) };
+        } else {
+            self.run_queue.remove(task);
+        }
+    }
 }
 
 // 406
@@ -342,6 +417,35 @@ impl Scheduler {
 
     pub(crate) fn with_shared<R>(&self, cb: impl FnOnce(&RefCell<SchedulerState>) -> R) -> R {
         self.inner.lock(|shared| cb(shared))
+    }
+
+    // 419
+    #[cfg(feature = "esp-radio")]
+    pub(crate) fn current_task(&self) -> TaskPtr {
+        task::current_task()
+    }
+
+    // 424
+    #[cfg(feature = "esp-radio")]
+    pub(crate) fn create_task(
+        &self,
+        name: &str,
+        task: extern "C" fn(*mut c_void),
+        param: *mut c_void,
+        task_stack_size: usize,
+        priority: u32,
+        pinned_to: Option<Cpu>,
+    ) -> TaskPtr {
+        self.with(|state| {
+            state.create_task(
+                name,
+                task,
+                param,
+                task_stack_size,
+                priority as usize,
+                pinned_to,
+            )
+        })
     }
 
     // 446

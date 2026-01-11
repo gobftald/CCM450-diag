@@ -22,11 +22,17 @@
 // 22
 #![no_std]
 
-// 25
+// 24
+pub mod queue;
 pub mod semaphore;
+pub mod timer;
 
 // 28
 use core::ffi::c_void;
+
+// 30
+// Timer callbacks need to be heap-allocated.
+extern crate alloc;
 
 // 33
 use crate::semaphore::SemaphorePtr;

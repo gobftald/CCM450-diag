@@ -150,6 +150,7 @@ git log [--oneline] --decorate --graph [--all]
 git checkout <commit number>
 git checkout -
 git log --follow -p -- <file name> // following the history of a specific file
+git log -p -- <file name> show the diffs as well
 
 echo -n -e '\x00' | nc -u 192.168.3.1 19924
 
@@ -256,3 +257,14 @@ build-std = ["core", "alloc"]
 
 # list all of my comments/posts in github
 is:issue commenter:gobftald (into the search field)
+
+# bringing files from a branch where they were already committed into another branch
+1 Using git restore (Modern/Recommended):
+    # 1. Switch to the target branch
+    git switch target-branch
+    # 2. Pull the specific file from the source branch
+    git restore --source source-branch path/to/file.ext
+    This copies the file's content from the source branch directly into your current working directory.
+2 Using git checkout:
+    # 2. Pull the specific file from the source branch
+    git checkout source-branch -- path/to/file.ext

@@ -16,7 +16,7 @@ rustflags = [
                                             # otherwise some size ovehead occurs
                                             # when making frame for every real (not inlined) function call
     "-Z", "unstable-options",
-    "-C", "panic=immediate-abort",
+    "-C", "panic=immediate-abort",          # the oreder is important: first unstable then panic
 ]
 
 [unstable]

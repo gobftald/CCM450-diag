@@ -2,6 +2,9 @@
 //!
 //! This module provides the [`Semaphore`] type, which implements counting semaphores and mutexes.
 
+// 5
+use core::ptr::NonNull;
+
 // 7
 use esp_hal::{system::Cpu, time::Instant};
 use esp_sync::NonReentrantMutex;
@@ -76,6 +79,42 @@ impl SemaphoreInner {
         }
     }
 
+    // 77
+    fn try_take_from_isr(&mut self) -> bool {
+        match self {
+            SemaphoreInner::Counting { current, .. } => {
+                if *current > 0 {
+                    *current -= 1;
+                    true
+                } else {
+                    false
+                }
+            }
+            SemaphoreInner::Mutex {
+                recursive,
+                owner,
+                lock_counter,
+                ..
+            } => {
+                // In an ISR context we don't have a current task, so we can't implement
+                // priority inheritance an we have to conjure up an owner.
+                let current = NonNull::dangling();
+                if let Some(owner) = owner {
+                    if *owner == current && *recursive {
+                        *lock_counter += 1;
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    *owner = Some(current);
+                    *lock_counter += 1;
+                    true
+                }
+            }
+        }
+    }
+
     // 112
     fn try_give(&mut self) -> bool {
         match self {
@@ -108,6 +147,36 @@ impl SemaphoreInner {
                     false
                 }
             }),
+        }
+    }
+
+    // 146
+    fn try_give_from_isr(&mut self) -> bool {
+        match self {
+            SemaphoreInner::Counting { current, max, .. } => {
+                if *current < *max {
+                    *current += 1;
+                    true
+                } else {
+                    false
+                }
+            }
+            SemaphoreInner::Mutex {
+                owner,
+                lock_counter,
+                ..
+            } => {
+                let current = NonNull::dangling();
+                if *owner == Some(current) && *lock_counter > 0 {
+                    *lock_counter -= 1;
+                    if *lock_counter == 0 {
+                        *owner = None;
+                    }
+                    true
+                } else {
+                    false
+                }
+            }
         }
     }
 
@@ -178,6 +247,24 @@ impl Semaphore {
         }
     }
 
+    /// Try to take the semaphore.
+    ///
+    /// This is a non-blocking operation. The return value indicates whether the semaphore was
+    /// successfully taken.
+    // 237
+    pub fn try_take(&self) -> bool {
+        self.inner.with(|sem| sem.try_take())
+    }
+
+    /// Try to take the semaphore from an ISR.
+    ///
+    /// This is a non-blocking operation. The return value indicates whether the semaphore was
+    /// successfully taken.
+    // 245
+    pub fn try_take_from_isr(&self) -> bool {
+        self.inner.with(|sem| sem.try_take_from_isr())
+    }
+
     /// Take the semaphore.
     ///
     /// This is a blocking operation.
@@ -216,6 +303,21 @@ impl Semaphore {
     pub fn give(&self) -> bool {
         self.inner.with(|sem| {
             if sem.try_give() {
+                sem.notify();
+                true
+            } else {
+                false
+            }
+        })
+    }
+
+    /// Try to unlock the semaphore from an ISR.
+    ///
+    /// The return value indicates whether the semaphore was successfully unlocked.
+    // 295
+    pub fn try_give_from_isr(&self) -> bool {
+        self.inner.with(|sem| {
+            if sem.try_give_from_isr() {
                 sem.notify();
                 true
             } else {
