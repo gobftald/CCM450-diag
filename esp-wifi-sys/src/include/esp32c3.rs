@@ -1835,4 +1835,4 @@ pub struct timer_adpt {
 pub type __builtin_va_list = *mut crate::c_types::c_void;
 
 // 9123
-//unsafe impl Sync for wifi_osi_funcs_t {}
+unsafe impl Sync for wifi_osi_funcs_t {}

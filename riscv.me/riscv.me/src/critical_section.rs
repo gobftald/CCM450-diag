@@ -10,6 +10,7 @@ unsafe impl Impl for SingleHartCriticalSection {
     unsafe fn acquire() -> RawRestoreState {
         let mut mstatus: usize;
         core::arch::asm!("csrrci {}, mstatus, 0b1000", out(reg) mstatus);
+        #[allow(clippy::missing_transmute_annotations)]
         core::mem::transmute::<_, crate::register::mstatus::Mstatus>(mstatus).mie()
         //core::mem::transmute::<usize, crate::register::mstatus::Mstatus>(mstatus).mie()
     }

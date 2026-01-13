@@ -1,3 +1,4 @@
+/// Convenience alias for the [Result](core::result::Result) type for the library.
 pub type Result<T> = core::result::Result<T, Error>;
 
 /// Represents error variants for the library.

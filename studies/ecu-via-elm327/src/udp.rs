@@ -28,14 +28,14 @@ pub enum Reply {
 
 #[embassy_executor::task()]
 pub async fn server(
-    mut controller: esp_wifi::wifi::WifiController<'static>,
+    mut controller: esp_radio::wifi::WifiController<'static>,
     ap_stack: embassy_net::Stack<'static>,
     mut uart_sender: Sender<'static, NoopRawMutex, crate::ChannelItem>,
     mut uart_receiver: Receiver<'static, NoopRawMutex, crate::ChannelItem>,
 ) {
     // config AP and start WiFi
     let client_config =
-        esp_wifi::wifi::Configuration::AccessPoint(esp_wifi::wifi::AccessPointConfiguration {
+        esp_radio::wifi::Configuration::AccessPoint(esp_radio::wifi::AccessPointConfiguration {
             ssid: "CCM-GP450".into(),
             ..Default::default()
         });

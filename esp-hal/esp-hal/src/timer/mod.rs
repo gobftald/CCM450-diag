@@ -118,6 +118,11 @@ impl<'d> OneShotTimer<'d> {
         self.inner.stop();
     }
 
+    /// Listen for interrupt
+    pub fn listen(&mut self) {
+        self.inner.enable_interrupt(true);
+    }
+
     /// Set the interrupt handler
     ///
     /// Note that this will replace any previously set interrupt handler

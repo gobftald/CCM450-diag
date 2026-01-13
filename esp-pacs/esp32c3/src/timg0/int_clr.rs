@@ -7,10 +7,10 @@ pub type T_W<'a, REG> = crate::BitWriter1C<'a, REG>;
 impl W {
     /// t(0-0)_int_clr
     #[inline(always)]
-    pub fn t(&mut self, n: u8) -> T_W<INT_CLR_SPEC> {
+    pub fn t(&mut self, n: u8) -> T_W<'_, INT_CLR_SPEC> {
         #[allow(clippy::no_effect)]
         [(); 1][n as usize];
-        T_W::new(self, n * 0)
+        T_W::new(self, 0)
     }
 }
 

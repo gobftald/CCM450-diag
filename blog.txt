@@ -150,7 +150,6 @@ git log [--oneline] --decorate --graph [--all]
 git checkout <commit number>
 git checkout -
 git log --follow -p -- <file name> // following the history of a specific file
-git log -p -- <file name> show the diffs as well
 
 echo -n -e '\x00' | nc -u 192.168.3.1 19924
 
@@ -268,3 +267,12 @@ is:issue commenter:gobftald (into the search field)
 2 Using git checkout:
     # 2. Pull the specific file from the source branch
     git checkout source-branch -- path/to/file.ext
+
+# git stash commands 
+git stash show  # Show summary (diffstat)
+git stash show -p # Show full code changes
+git restore --source stash@{0} -- <file> # Replace current file
+git checkout -p stash@{0} -- <file> # Merge specific lines
+git diff main stash # during "git restore --source stash -- <file>" commands - which files was not restored
+    # but it does not show the diff for new files (main -> stash)
+    # git diff stash shows the real differences but unfortunately in the opposite direction

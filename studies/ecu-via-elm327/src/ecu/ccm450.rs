@@ -9,6 +9,7 @@ enum State {
 }
 
 /// A Keihin KMSK16 ECU
+#[allow(clippy::upper_case_acronyms)]
 pub struct ECU<'a> {
     adapter: Adapter<'a>,
     state: State,

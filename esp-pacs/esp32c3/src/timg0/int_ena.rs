@@ -12,7 +12,7 @@ impl W {
     pub fn t(&mut self, n: u8) -> T_W<INT_ENA_SPEC> {
         #[allow(clippy::no_effect)]
         [(); 1][n as usize];
-        T_W::new(self, n * 0)
+        T_W::new(self, 0)
     }
 }
 

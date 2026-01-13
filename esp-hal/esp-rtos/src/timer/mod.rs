@@ -5,12 +5,20 @@ use esp_hal::{
     time::{Duration, Instant, Rate},
 };
 
+// 7
+#[cfg(feature = "embassy")]
+use crate::TIMER_QUEUE;
+
 // 11
 use crate::{
     SCHEDULER, TICK_RATE, TimeBase,
     run_queue::RunSchedulerOn,
     task::{self, TaskExt, TaskPtr, TaskQueue, TaskState, TaskTimerQueueElement},
 };
+
+// 19
+#[cfg(feature = "embassy")]
+pub(crate) mod embassy;
 
 // 22
 const TIMESLICE_DURATION: Duration = Rate::from_hz(TICK_RATE).as_duration();

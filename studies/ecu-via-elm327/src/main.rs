@@ -12,14 +12,13 @@ pub(crate) mod fmt;
 // panic_handler
 mod panic;
 
-//#[macro_use(core_println, unwrap, debug, trace, error)]
-//// core_println for panic_handler in mod panic
-//extern crate console;
-
 mod adapter;
 mod debug_pin;
 mod ecu;
 mod udp;
+
+#[cfg(target_arch = "riscv32")]
+use esp_hal::interrupt::software::SoftwareInterruptControl;
 
 // we can use NoopRawMutex since we use channel between two tasks in the same executor,
 // in single core environment and not using from interrupt
@@ -53,7 +52,7 @@ macro_rules! mk_static {
     }};
 }
 
-#[esp_hal_embassy::main]
+#[esp_rtos::main]
 async fn main(spawner: embassy_executor::Spawner) {
     let config = esp_hal::Config::new_and_default(esp_hal::clock::CpuClock::max());
     let peripherals = esp_hal::init(config);
@@ -61,20 +60,23 @@ async fn main(spawner: embassy_executor::Spawner) {
     //esp_alloc::heap_allocator!(size: 64 * 1024);
     esp_alloc::heap_allocator!(size: 96 * 1024);
 
-    let systimer = esp_hal::timer::systimer::SystemTimer::new(peripherals.SYSTIMER);
-    esp_hal_embassy::init(systimer.alarm0);
+    //let systimer = esp_hal::timer::systimer::SystemTimer::new(peripherals.SYSTIMER);
+    //esp_hal_embassy::init(systimer.alarm0);
 
     // WIFI setup
     let timg0 = esp_hal::timer::timg::TimerGroup::new(peripherals.TIMG0);
-    let mut rng = esp_hal::rng::Rng::new(peripherals.RNG);
+    #[cfg(target_arch = "riscv32")]
+    let sw_int = SoftwareInterruptControl::new(peripherals.SW_INTERRUPT);
 
-    let esp_wifi_ctrl = &*mk_static!(
-        esp_wifi::EspWifiController<'static>,
-        //unwrap!(esp_wifi::init(timg0.timer0, rng, peripherals.RADIO_CLK))
-        unwrap!(esp_wifi::init(timg0.timer0, rng))
+    esp_rtos::start(
+        timg0.timer0,
+        #[cfg(target_arch = "riscv32")]
+        sw_int.software_interrupt0,
     );
 
-    let (controller, interfaces) = unwrap!(esp_wifi::wifi::new(esp_wifi_ctrl, peripherals.WIFI));
+    let esp_radio_ctrl = &*mk_static!(esp_radio::Controller<'static>, unwrap!(esp_radio::init()));
+
+    let (controller, interfaces) = unwrap!(esp_radio::wifi::new(esp_radio_ctrl, peripherals.WIFI));
 
     let wifi_ap_device = interfaces.ap;
 
@@ -85,6 +87,7 @@ async fn main(spawner: embassy_executor::Spawner) {
         dns_servers: Default::default(),
     });
 
+    let mut rng = esp_hal::rng::Rng::new();
     let seed = (rng.random() as u64) << 32 | rng.random() as u64;
 
     // Init AP network stack
@@ -157,7 +160,7 @@ async fn run() {
 
 #[embassy_executor::task()]
 pub async fn net_task(
-    mut runner: embassy_net::Runner<'static, esp_wifi::wifi::WifiDevice<'static>>,
+    mut runner: embassy_net::Runner<'static, esp_radio::wifi::WifiDevice<'static>>,
 ) {
     runner.run().await
 }

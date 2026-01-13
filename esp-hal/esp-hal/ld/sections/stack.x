@@ -6,6 +6,8 @@ SECTIONS
         _stack_end = ABSOLUTE(.);
         _stack_end_cpu0 = ABSOLUTE(.);
 
+        __stack_chk_guard = ABSOLUTE(_stack_end) + ${ESP_HAL_CONFIG_STACK_GUARD_OFFSET};
+
         . = ORIGIN(RWDATA) + LENGTH(RWDATA);
 
         . = ALIGN (4);

@@ -92,7 +92,6 @@ pub type CPU_INT_PRI = crate::Reg<cpu_int_pri::CPU_INT_PRI_SPEC>;
 pub mod cpu_int_pri;
 
 /// CPU_INT_THRESH (rw) register accessor: mac intr map register
-
 // 759
 pub type CPU_INT_THRESH = crate::Reg<cpu_int_thresh::CPU_INT_THRESH_SPEC>;
 pub mod cpu_int_thresh;

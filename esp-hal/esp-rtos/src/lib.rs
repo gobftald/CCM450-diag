@@ -70,20 +70,23 @@ use esp_hal::timer::systimer::Alarm;
 #[cfg(timergroup)]
 use esp_hal::timer::timg::Timer;
 use esp_hal::{
-    Blocking,
     system::Cpu,
     time::{Duration, Instant},
-    timer::{AnyTimer, OneShotTimer, any::Degrade},
+    timer::{any::Degrade, AnyTimer, OneShotTimer},
 };
 
-// 123
+// 120
+#[cfg(feature = "embassy")]
+#[cfg_attr(docsrs, doc(cfg(feature = "embassy")))]
+pub use macros::rtos_main as main;
 pub(crate) use scheduler::SCHEDULER;
 
 // 126
 use crate::{task::IdleFn, timer::TimeDriver};
 
 // 128
-type TimeBase = OneShotTimer<'static, Blocking>;
+//type TimeBase = OneShotTimer<'static, Blocking>;
+type TimeBase = OneShotTimer<'static>;
 
 /// Trace events, emitted via `marker_begin` and `marker_end`
 // 131
@@ -380,6 +383,10 @@ pub fn start_second_core_with_stack_guard_offset<const STACK_SIZE: usize>(
 
 // 490
 const TICK_RATE: u32 = esp_config::esp_config_int!(u32, "ESP_RTOS_CONFIG_TICK_RATE_HZ");
+
+// 496
+#[cfg(feature = "embassy")]
+embassy_time_driver::time_driver_impl!(static TIMER_QUEUE: crate::timer::embassy::TimerQueue = crate::timer::embassy::TimerQueue::new());
 
 // 452
 pub(crate) fn now() -> u64 {

@@ -41,12 +41,12 @@ pub mod log {
         }
     }
 
-    // 46
+    #[cfg(feature = "sys-logs")]
     #[unsafe(no_mangle)]
     pub unsafe extern "C" fn syslog(
         _priority: u32,
         format: *const u8,
-        args: core::ffi::VaListImpl,
+        args: core::ffi::va_list::VaListImpl,
     ) {
         //#[allow(clashing_extern_declarations)]
         unsafe extern "C" {

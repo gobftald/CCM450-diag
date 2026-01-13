@@ -1,8 +1,13 @@
 [package]
 name = "riscv-rt"
-version = "0.13.0"
+version = "0.16.0"
 edition = "2021"
-links = "riscv-rt" # Prevent multiple versions of riscv-rt being linked
+#links = "riscv-rt" # Prevent multiple versions of riscv-rt being linked
+
+[lib]
+test = false
+bench = false
 
 [dependencies]
 riscv-rt-macros = { path = "macros", version = "0.4.0" }
+

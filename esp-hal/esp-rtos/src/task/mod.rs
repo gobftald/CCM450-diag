@@ -467,10 +467,12 @@ impl Task {
 
     // 486
     pub(crate) fn set_up_stack_watchpoint(&self) {
+        /*
         #[cfg(hw_task_overflow_detection)]
         unsafe {
             esp_hal::debugger::set_stack_watchpoint(self.stack_guard as usize);
         }
+        */
     }
 }
 

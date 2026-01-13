@@ -3,8 +3,6 @@ ENTRY(_start)
 PROVIDE(_stext = ORIGIN(ROTEXT));
 PROVIDE(_max_hart_id = 0);
 
-PROVIDE(ExceptionHandler = DefaultExceptionHandler);
-
 PROVIDE(__post_init = default_post_init);
 
 /* esp32c3 fixups */
@@ -77,4 +75,5 @@ INCLUDE "stack.x"
 
 INCLUDE "debug.x"
 
-_dram_origin = ORIGIN( DRAM );
+/*_dram_origin = ORIGIN( DRAM );*/
+_dram_data_start = ORIGIN( DRAM ) + SIZEOF(.trap) + SIZEOF(.rwtext);

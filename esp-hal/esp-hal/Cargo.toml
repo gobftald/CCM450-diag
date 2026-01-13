@@ -37,7 +37,8 @@ procmacros = { package = "esp-hal-procmacros", path = "../esp-hal-procmacros" }
 # Each supported device MUST have its PAC included below along with a
 # corresponding feature.
 #esp32c3 = { path = "../../esp-pacs/esp32c3", features = ["rt"], optional = true }
-esp32c3 = { version = "0.31", features = ["critical-section"], optional = true }
+#esp32c3 = { version = "0.31.0", features = ["critical-section", "rt"], optional = true }
+esp32c3 = { path = "../../../w/esp-pacs/esp32c3", features = ["critical-section", "rt"], optional = true }
 
 [features]
 # Chip Support Feature Flags

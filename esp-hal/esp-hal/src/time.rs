@@ -78,6 +78,15 @@ impl Rate {
     }
 }
 
+impl core::ops::Div for Rate {
+    type Output = u32;
+
+    #[inline]
+    fn div(self, rhs: Self) -> Self::Output {
+        self.0 / rhs.0
+    }
+}
+
 // Represents an instant in time.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 // 122
@@ -159,6 +168,9 @@ impl Duration {
     // 276
     pub const ZERO: Self = Self(InnerDuration::from_ticks(0));
 
+    /// A duration representing the maximum possible time.
+    pub const MAX: Self = Self(InnerDuration::from_ticks(u64::MAX));
+
     /// Creates a duration which represents microseconds.
     #[inline]
     // 283
@@ -205,4 +217,13 @@ fn now() -> Instant {
     };
 
     Instant::from_ticks(ticks / div)
+}
+
+impl core::ops::Add<Duration> for Instant {
+    type Output = Self;
+
+    #[inline]
+    fn add(self, rhs: Duration) -> Self::Output {
+        Instant(self.0 + rhs.0)
+    }
 }

@@ -1,7 +1,7 @@
 // 1
 use std::error::Error;
 //2
-#[cfg(feature = "rt")]
+//#[cfg(feature = "rt")]
 use std::{
     collections::HashMap,
     env,

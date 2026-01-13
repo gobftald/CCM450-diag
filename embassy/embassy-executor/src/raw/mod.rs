@@ -16,7 +16,8 @@ mod run_queue_critical_section;
 mod state_critical_section;
 
 // 19
-pub mod timer_queue;
+//pub mod timer_queue;
+use embassy_executor_timer_queue::TimerQueueItem;
 // 22
 pub(crate) mod util;
 //#[cfg_attr(feature = "turbowakers", path = "waker_turbo.rs")]
@@ -30,7 +31,7 @@ use core::pin::Pin;
 use core::ptr::NonNull;
 
 // 32
-use core::task::{Context, Poll};
+use core::task::{Context, Poll, Waker};
 
 // 34
 use self::run_queue_critical_section::{RunQueue, RunQueueItem};
@@ -91,7 +92,7 @@ pub(crate) struct TaskHeader {
     poll_fn: Cell<Option<unsafe fn(TaskRef)>>, // 4 bytes
 
     /// Integrated timer queue storage. This field should not be accessed outside of the timer queue.
-    pub(crate) timer_queue_item: timer_queue::TimerQueueItem, // 12 bytes
+    pub(crate) timer_queue_item: TimerQueueItem, // 12 bytes
 } // 32 bytes
 
 /// This is essentially a `&'static TaskStorage<F>` where the type of the future has been erased.
@@ -152,8 +153,10 @@ impl TaskRef {
 
     /// Returns a reference to the timer queue item.
     // 133
-    pub fn timer_queue_item(&self) -> &'static timer_queue::TimerQueueItem {
-        &self.header().timer_queue_item
+    //pub fn timer_queue_item(&self) -> &'static timer_queue::TimerQueueItem {
+    pub fn timer_queue_item(mut self) -> &'static mut TimerQueueItem {
+        //&self.header().timer_queue_item
+        unsafe { &mut self.ptr.as_mut().timer_queue_item }
     }
 
     /// The returned pointer is valid for the entire TaskStorage.
@@ -215,7 +218,7 @@ impl<F: Future + 'static> TaskStorage<F> {
                 // Note: this is lazily initialized so that a static `TaskStorage` will go in `.bss`
                 poll_fn: Cell::new(None),
 
-                timer_queue_item: timer_queue::TimerQueueItem::new(),
+                timer_queue_item: TimerQueueItem::new(),
             },
             future: UninitCell::uninit(),
         }
@@ -527,4 +530,11 @@ pub fn wake_task_no_pend(task: TaskRef) {
             (*executor).run_queue.enqueue(task);
         }
     });
+}
+
+#[unsafe(no_mangle)]
+extern "Rust" fn __embassy_time_queue_item_from_waker(
+    waker: &Waker,
+) -> &'static mut TimerQueueItem {
+    unsafe { task_from_waker(waker).timer_queue_item() }
 }

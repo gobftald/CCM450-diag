@@ -1752,6 +1752,58 @@ impl Info {
         txfifo_rst(self.regs(), false);
     }
 
+    fn verify_baudrate(&self, clk: u32, _config: &Config) -> Result<(), ConfigError> {
+        // taken from https://github.com/espressif/esp-idf/blob/c5865270b50529cd32353f588d8a917d89f3dba4/components/hal/esp32c6/include/hal/uart_ll.h#L433-L444
+        // (it's different for different chips)
+        let clkdiv_reg = self.regs().clkdiv().read();
+        let clkdiv_frag = clkdiv_reg.frag().bits() as u32;
+        let clkdiv = clkdiv_reg.clkdiv().bits();
+
+        cfg_if::cfg_if! {
+            if #[cfg(any(esp32, esp32s2))] {
+                let actual_baud = (clk << 4) / ((clkdiv << 4) | clkdiv_frag);
+            } else if #[cfg(any(esp32c2, esp32c3, esp32s3))] {
+                let sclk_div_num = self.regs().clk_conf().read().sclk_div_num().bits() as u32;
+                let _actual_baud = (clk << 4) / ((((clkdiv as u32) << 4) | clkdiv_frag) * (sclk_div_num + 1));
+            } else { // esp32c6, esp32h2
+                let pcr = crate::peripherals::PCR::regs();
+                let conf = if self.is_instance(unsafe { crate::peripherals::UART0::steal() }) {
+                    pcr.uart(0).clk_conf()
+                } else {
+                    pcr.uart(1).clk_conf()
+                };
+                let sclk_div_num = conf.read().sclk_div_num().bits() as u32;
+                let actual_baud = (clk << 4) / ((((clkdiv as u32) << 4) | clkdiv_frag) * (sclk_div_num + 1));
+            }
+        };
+
+        /*
+        match config.baudrate_tolerance {
+            BaudrateTolerance::Exact => {
+                let deviation = ((config.baudrate as i32 - actual_baud as i32).unsigned_abs()
+                    * 100)
+                    / actual_baud;
+                // We tolerate deviation of 1% from the desired baud value, as it never will be
+                // exactly the same
+                if deviation > 1_u32 {
+                    return Err(ConfigError::BaudrateNotAchievable);
+                }
+            }
+            BaudrateTolerance::ErrorPercent(percent) => {
+                let deviation = ((config.baudrate as i32 - actual_baud as i32).unsigned_abs()
+                    * 100)
+                    / actual_baud;
+                if deviation > percent as u32 {
+                    return Err(ConfigError::BaudrateNotAchievable);
+                }
+            }
+            _ => {}
+        }
+        */
+
+        Ok(())
+    }
+
     // 3071
     fn current_symbol_length(&self) -> u8 {
         let conf0 = self.regs().conf0().read();

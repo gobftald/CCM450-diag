@@ -40,3 +40,39 @@ impl self::efuse::Efuse {
         }
     }
 }
+unsafe extern "C" {
+    static mut __stack_chk_guard: u32;
+}
+
+#[cfg(all(feature = "rt", riscv))]
+fn setup_stack_guard() {
+    unsafe extern "C" {
+        static mut __stack_chk_guard: u32;
+    }
+
+    unsafe {
+        let stack_chk_guard = core::ptr::addr_of_mut!(__stack_chk_guard);
+        // we _should_ use a random value but we don't have a good source for random
+        // numbers here
+        stack_chk_guard.write_volatile(esp_config::esp_config_int!(
+            u32,
+            "ESP_HAL_CONFIG_STACK_GUARD_VALUE"
+        ));
+    }
+}
+
+#[cfg(riscv)]
+#[unsafe(export_name = "hal_main")]
+// 525
+fn hal_main(a0: usize, a1: usize, a2: usize) -> ! {
+    unsafe extern "Rust" {
+        // This symbol will be provided by the user via `#[entry]`
+        fn main(a0: usize, a1: usize, a2: usize) -> !;
+    }
+
+    setup_stack_guard();
+
+    unsafe {
+        main(a0, a1, a2);
+    }
+}

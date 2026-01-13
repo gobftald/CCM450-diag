@@ -29,28 +29,54 @@
 //! Once initialized, you can generate random numbers by calling the `random`
 //! method, which returns a 32-bit unsigned integer.
 
-// 93
-use crate::peripherals::RNG;
+// 138
+mod ll;
 
 /// Random number generator driver
 #[derive(Clone, Copy)]
 #[non_exhaustive]
-// 101
+// 257
 pub struct Rng;
 
-// 103
+// 259
 impl Rng {
     /// Create a new random number generator instance
     // 105
-    pub fn new(_rng: RNG<'_>) -> Self {
+    pub fn new() -> Self {
         Self
     }
 
     #[inline]
     /// Reads currently available `u32` integer from `RNG`
-    // 111
+    // 270
     pub fn random(&mut self) -> u32 {
-        // SAFETY: read-only register access
-        RNG::regs().data().read().bits()
+        let mut n = [0; 4];
+        self.read(&mut n);
+        u32::from_le_bytes(n)
+    }
+
+    /// Reads enough bytes from hardware random number generator to fill
+    /// `buffer`.
+    ///
+    /// If any error is encountered then this function immediately returns. The
+    /// contents of buf are unspecified in this case.
+    #[inline]
+    // 283
+    pub fn read(&self, buffer: &mut [u8]) {
+        unsafe { self.read_into_raw(buffer.as_mut_ptr(), buffer.len()) };
+    }
+
+    /// Reads enough bytes from hardware random number generator to fill
+    /// `buffer`.
+    ///
+    /// If any error is encountered then this function immediately returns. The
+    /// contents of buf are unspecified in this case.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must not be `null` and valid for writes for `len` bytes.
+    #[inline]
+    pub unsafe fn read_into_raw(&self, ptr: *mut u8, len: usize) {
+        ll::fill_ptr_range(ptr, len);
     }
 }

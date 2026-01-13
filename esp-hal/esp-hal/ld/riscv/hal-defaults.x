@@ -1,4 +1,18 @@
+PROVIDE(_pre_init_trap = _default_abort);
+
+    EXTERN(_default_start_trap);
+PROVIDE(_start_trap = _default_start_trap);
+
 PROVIDE(DefaultHandler = EspDefaultHandler);
+
+/* don't init data - expect the bootloader to do it */
+__sdata = 0;
+__edata = 0;
+__sidata = 0;
+
+/* alias bss start + end as expected by riscv-rt */
+__sbss = _bss_start;
+__ebss = _bss_end;
 
 PROVIDE(interrupt1 = DefaultHandler);
 PROVIDE(interrupt2 = DefaultHandler);
@@ -33,3 +47,7 @@ PROVIDE(interrupt30 = DefaultHandler);
 PROVIDE(interrupt31 = DefaultHandler);
 
 INCLUDE "device.x"
+
+EXTERN(_default_abort);
+PROVIDE(abort = _default_abort);
+PROVIDE(ExceptionHandler = abort);

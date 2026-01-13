@@ -1,0 +1,15 @@
+crate: esp-hal-embassy
+
+options:
+- name: low-power-wait
+  description: "Enables the lower-power wait if no tasks are ready to run on the \
+                thread-mode executor. This allows the MCU to use less power if the workload allows. \
+                Recommended for battery-powered systems. May impact analog performance."
+  default:
+    - value: true
+
+- name: generic-queue-size
+  description: "The capacity of the queue when the `generic` timer \
+                queue flavour is selected."
+  default:
+    - value: 64

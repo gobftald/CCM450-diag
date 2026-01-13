@@ -82,9 +82,10 @@ use core::marker::PhantomData;
 #[macro_use]
 extern crate esp_metadata_generated;
 
+pub use esp_riscv_rt::riscv;
+
 #[cfg(riscv)]
 // 192
-pub use esp_riscv_rt::riscv;
 use esp_sync::RawMutex;
 
 //#[cfg(efuse)]
@@ -298,20 +299,6 @@ pub mod __macro_implementation {
     #[cfg(xtensa)]
     // 520
     pub use xtensa_lx_rt::entry as __entry;
-}
-
-#[cfg(riscv)]
-#[unsafe(export_name = "hal_main")]
-// 525
-fn hal_main(a0: usize, a1: usize, a2: usize) -> ! {
-    unsafe extern "Rust" {
-        // This symbol will be provided by the user via `#[entry]`
-        fn main(a0: usize, a1: usize, a2: usize) -> !;
-    }
-
-    unsafe {
-        main(a0, a1, a2);
-    }
 }
 
 // 554

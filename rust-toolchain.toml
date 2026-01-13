@@ -1,5 +1,3 @@
 [toolchain]
-#channel = "nightly" # for riscv (e.g. esp32c3)
-channel = "esp" # for riscv (e.g. esp32c3)
-
-#channel = "esp" # for xtensa (e.g. esp32s3)
+channel = "nightly"
+targets = ["riscv32imc-unknown-none-elf"]

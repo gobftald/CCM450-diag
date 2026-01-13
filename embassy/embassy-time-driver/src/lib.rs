@@ -87,7 +87,7 @@ pub trait Driver: 'static {
     /// Schedules a waker to be awoken at moment `at`.
     /// If this moment is in the past, the waker might be awoken immediately.
     // 133
-    fn schedule_wake(&mut self, at: u64, waker: &Waker);
+    fn schedule_wake(&self, at: u64, waker: &Waker);
 }
 
 // 136
@@ -116,9 +116,9 @@ pub fn schedule_wake(at: u64, waker: &Waker) {
 #[macro_export]
 // 155
 macro_rules! time_driver_impl {
-    (static mut $name:ident: $t: ty = $val:expr) => {
-        //static $name: $t = $val;
-        static mut $name: $t = $val;
+    //(static mut $name:ident: $t: ty = $val:expr) => {
+    (static $name:ident: $t: ty = $val:expr) => {
+        static $name: $t = $val;
 
         #[no_mangle]
         #[inline]
@@ -132,7 +132,8 @@ macro_rules! time_driver_impl {
         // 165
         fn _embassy_time_schedule_wake(at: u64, waker: &core::task::Waker) {
             unsafe {
-                <$t as $crate::Driver>::schedule_wake(&mut $name, at, waker);
+                //<$t as $crate::Driver>::schedule_wake(&mut $name, at, waker);
+                <$t as $crate::Driver>::schedule_wake(&$name, at, waker);
             }
         }
     };

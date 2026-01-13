@@ -203,6 +203,7 @@ macro_rules! scheduler_impl {
 ///
 /// esp_radio_rtos_driver::scheduler_impl!(static SCHEDULER: MyScheduler = MyScheduler {});
 /// ```
+// 205
 pub trait Scheduler: Send + Sync + 'static {
     /// This function is called by `esp_radio::init` to verify that the scheduler is properly set
     /// up.
@@ -260,24 +261,28 @@ pub trait Scheduler: Send + Sync + 'static {
 // API used (mostly) by esp-radio
 
 /// Returns whether the task scheduler has been initialized.
+// 263
 #[inline]
 pub fn initialized() -> bool {
     unsafe { esp_rtos_initialized() }
 }
 
 /// Yields control to another task.
+// 267
 #[inline]
 pub fn yield_task() {
     unsafe { esp_rtos_yield_task() }
 }
 
 /// Yields control to another task for an interrupt.
+// 274
 #[inline]
 pub fn yield_task_from_isr() {
     unsafe { esp_rtos_yield_task_from_isr() }
 }
 
 /// Returns a pointer to the current task.
+// 280
 #[inline]
 pub fn current_task() -> *mut c_void {
     unsafe { esp_rtos_current_task() }
@@ -286,6 +291,7 @@ pub fn current_task() -> *mut c_void {
 /// Returns the maximum priority a task can have.
 ///
 /// This function assumes that a bigger number means higher priority.
+// 288
 #[inline]
 pub fn max_task_priority() -> u32 {
     unsafe { esp_rtos_max_task_priority() }
@@ -297,6 +303,7 @@ pub fn max_task_priority() -> u32 {
 ///
 /// The `param` parameter must be valid for the lifetime of the task. The data
 /// pointed to by `param` needs to be `Send` and the task takes ownership over it.
+// 299
 #[inline]
 pub unsafe fn task_create(
     name: &str,
@@ -317,24 +324,28 @@ pub unsafe fn task_create(
 ///
 /// The `task_handle` must be a pointer to a task, obtained either by calling [`task_create`] or
 /// [`current_task`].
+// 319
 #[inline]
 pub unsafe fn schedule_task_deletion(task_handle: *mut c_void) {
     unsafe { esp_rtos_schedule_task_deletion(task_handle) }
 }
 
 /// Returns a pointer to the current thread's semaphore.
+// 326
 #[inline]
 pub fn current_task_thread_semaphore() -> SemaphorePtr {
     unsafe { esp_rtos_current_task_thread_semaphore() }
 }
 
 /// Puts the current task to sleep for the specified number of microseconds.
+// 331
 #[inline]
 pub fn usleep(us: u32) {
     unsafe { esp_rtos_usleep(us) }
 }
 
 /// Returns the current timestamp, in microseconds.
+// 337
 #[inline]
 pub fn now() -> u64 {
     unsafe { esp_rtos_now() }
