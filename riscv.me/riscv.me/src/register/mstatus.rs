@@ -1,43 +1,57 @@
 //! mstatus register
 
-use crate::bits::{bf_extract, bf_insert};
-
-/// mstatus register
-#[derive(Clone, Copy, Debug)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct Mstatus {
-    bits: usize,
+#[cfg(target_arch = "riscv32")]
+read_write_csr! {
+    /// mstatus register
+    Mstatus: 0x300,
+    mask: 0x807f_fffe,
 }
 
-// 84
-impl Mstatus {
+read_write_csr_field! {
+    Mstatus,
     /// Machine Interrupt Enable
-    #[inline]
-    // 109
-    pub fn mie(&self) -> bool {
-        bf_extract(self.bits, 3, 1) != 0
-    }
+    mie: 3,
+}
 
-    /// Update Machine Interrupt Enable
-    ///
-    /// Note this updates a previously read [`Mstatus`] value, but does not
-    /// affect the mstatus CSR itself. See [`set_mie`]/[`clear_mie`] to directly
-    /// update the CSR.
-    #[inline]
-    // 119
-    pub fn set_mie(&mut self, mie: bool) {
-        self.bits = bf_insert(self.bits, 3, 1, mie as usize);
+csr_field_enum! {
+    /// Machine Previous Privilege Mode
+    MPP {
+        default: User,
+        User = 0,
+        Supervisor = 1,
+        Machine = 3,
     }
 }
 
-// 516
-read_csr_as!(Mstatus, 0x300);
+read_write_csr_field! {
+    Mstatus,
+    /// Machine Previous Privilege Mode
+    mpp,
+    MPP: [11:12],
+}
 
-// 518
+read_write_csr_field! {
+    Mstatus,
+    /// Machine Previous Interrupt Enable
+    mpie: 7,
+}
+
 set!(0x300);
 clear!(0x300);
 
-// 527
 set_clear_csr!(
     /// Machine Interrupt Enable
     , set_mie, clear_mie, 1 << 3);
+
+/// Machine Previous Privilege Mode
+#[inline]
+pub unsafe fn set_mpp(mpp: MPP) {
+    let mut value = _read();
+    value &= !(0x3 << 11); // clear previous value
+    value |= (mpp as usize) << 11;
+    _write(value);
+}
+
+set_csr!(
+    /// Machine Previous Interrupt Enable
+    , set_mpie, 1 << 7);

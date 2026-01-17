@@ -1,6 +1,6 @@
 [package]
 name = "riscv"
-version = "0.15.1"
+version = "0.16.0"
 edition = "2021"
 
 [lib]
@@ -11,9 +11,11 @@ bench = false
 riscv-pac = { path = "../riscv-pac.me", version = "0.2.0" }
 defmt = { version = "0.3.10", optional = true }
 critical-section = "1.2.0"
+paste = "1.0.15"
 
 [features]
 defmt = ["dep:defmt", "riscv-pac/defmt"]
 s-mode = []
-
 critical-section-single-hart = ["critical-section/restore-state-bool"]
+rt = []
+rt-v-trap = []

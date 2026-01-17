@@ -1,7 +1,8 @@
 [package]
 name = "esp-riscv-rt"
-version = "0.11.0"
+version = "0.13.0"
 edition = "2024"
+rust-version = "1.88.0"
 
 [lib]
 test = false
@@ -9,17 +10,14 @@ bench = false
 
 [dependencies]
 defmt = { version = "0.3.10", optional = true }
-#riscv-rt-macros = { path = "../../riscv/riscv-rt/macros" }
-#riscv-rt-macros   = "0.4.0"
-riscv-rt = { path = "../../riscv.me/riscv-rt.me" }
-#riscv-rt = {version = "0.16.0", features = ["pre-init", "no-exceptions", "no-interrupts", "single-hart", "v-trap", "pre-default-start-trap"]}
-riscv = { path = "../../riscv.me/riscv.me" }
-#riscv = "0.15.0"
+#riscv-rt = { path = "../../riscv.me/riscv-rt.me", features = ["pre-init", "no-exceptions", "no-interrupts", "single-hart", "v-trap", "pre-default-start-trap"] }
+riscv-rt = {version = "0.16.0", features = ["pre-init", "no-exceptions", "no-interrupts", "single-hart", "v-trap", "pre-default-start-trap"]}
+#riscv = { path = "../../riscv.me/riscv.me" }
+riscv = "0.15.0"
 
 [features]
-## Indicate that the device supports `mie` and `mip` instructions.
-# esp32c3 has no standalone mie and mip registers, but only a mie bit in mstatus
-has-mie-mip = []
+## Indicate that the device does NOT support `mie` and `mip` CSRs.
+no-mie-mip = ["riscv-rt/no-xie-xip"]
 ## Indicate that the device has RTC RAM.
 # we are not using esp32c3 RTC FAST Memory yet
 rtc-ram = []

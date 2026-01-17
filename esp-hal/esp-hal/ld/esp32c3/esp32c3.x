@@ -1,10 +1,3 @@
-ENTRY(_start)
-
-PROVIDE(_stext = ORIGIN(ROTEXT));
-PROVIDE(_max_hart_id = 0);
-
-PROVIDE(__post_init = default_post_init);
-
 /* esp32c3 fixups */
 
 SECTIONS {
@@ -30,16 +23,20 @@ SECTIONS {
         /* Start at the same alignment constraint than .flash.text */
         
         . = ALIGN(ALIGNOF(.rodata));
+        . = ALIGN(ALIGNOF(.rodata.wifi));
 
         /* Create an empty gap as big as .text section */
 
-        . = . + SIZEOF(.rodata) + SIZEOF(.rodata.wifi);
-        
+        . = . + SIZEOF(.rodata_desc);
+        . = . + SIZEOF(.rodata);
+        . = . + SIZEOF(.rodata.wifi);
+
         /* Prepare the alignment of the section above. Few bytes (0x20) must be
         * added for the mapping header.
         */
 
         . = ALIGN(0x10000) + 0x20;
+         _rotext_reserved_start = .;
     
     } > ROTEXT
 }

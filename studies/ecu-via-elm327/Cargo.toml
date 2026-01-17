@@ -10,6 +10,11 @@ test = false
 bench = false
 doctest = false
 
+[profile.release]
+debug = 0           # Set to 0 to prevent frame pointer preservation for debugging
+opt-level = "s"     # "s" or "z" for size optimizations often helps elision
+                    # this is what really removes frame pointers (about 8K savings)
+
 [dependencies]
 esp-println = { version = "0.16.0", default-features = false }
 #esp-println = { version = "0.16.0", default-features = false, features = ["critical-section"] }

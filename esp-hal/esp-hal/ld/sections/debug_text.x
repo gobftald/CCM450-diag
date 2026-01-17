@@ -8,12 +8,14 @@
 
     } > ROTEXT
 
+/*
 .console : ALIGN(4)
     {
         *(.text.*console*print*)
         *(.text.*console*Printer*) 
 
     } > ROTEXT
+*/
 
 .esp-hal : ALIGN(4)
     {

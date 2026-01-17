@@ -1,0 +1,10 @@
+{
+    "rust-analyzer.cargo.features": [
+        "v-trap",
+        "single-hart",
+        "no-exceptions",
+        "pre-init",
+        "no-interrupts",
+        "pre-default-start-trap"
+    ]
+}

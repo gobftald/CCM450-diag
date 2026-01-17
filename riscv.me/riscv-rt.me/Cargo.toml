@@ -1,7 +1,8 @@
 [package]
+edition = "2021"
+rust-version = "1.67"
 name = "riscv-rt"
 version = "0.16.0"
-edition = "2021"
 #links = "riscv-rt" # Prevent multiple versions of riscv-rt being linked
 
 [lib]
@@ -9,5 +10,28 @@ test = false
 bench = false
 
 [dependencies]
-riscv-rt-macros = { path = "macros", version = "0.4.0" }
+riscv = { path = "../riscv.me", features = ["rt"] }
+riscv-types = { path = "../riscv-types.me", version = "0.1.0" }
+riscv-rt-macros = { path = "macros", version = "0.6.0" }
 
+defmt = { version = "1.0.1", optional = true }
+
+[build-dependencies]
+riscv-target-parser = "0.1.2"
+
+[features]
+pre-init = []
+post-init = []
+s-mode = ["riscv-rt-macros/s-mode"]
+single-hart = []
+v-trap = ["riscv-rt-macros/v-trap", "riscv/rt-v-trap"]
+u-boot = ["riscv-rt-macros/u-boot", "single-hart"]
+no-interrupts = []
+no-exceptions = []
+no-mhartid = ["single-hart"]
+no-xie-xip = []
+no-xtvec = []
+device = []
+memory = []
+defmt = ["dep:defmt"]
+pre-default-start-trap = ["riscv-rt-macros/pre-default-start-trap"]

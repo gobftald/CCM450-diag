@@ -10,12 +10,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
-// 11
 //use esp_config::{generate_config, ConfigOption, Value};
+// 11
 use esp_config::{Value, generate_config_from_yaml_definition};
 //use esp_metadata::{Chip, Config};
 
-// 14
+// 24
 fn main() -> Result<(), Box<dyn Error>> {
     println!("cargo:rustc-check-cfg=cfg(is_debug_build)");
     if let Ok(level) = std::env::var("OPT_LEVEL")
@@ -24,6 +24,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("cargo:rustc-cfg=is_debug_build");
     }
 
+    /*
     if let Ok(level) = std::env::var("OPT_LEVEL")
         && (level == "0" || level == "1")
     {
@@ -34,6 +35,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 peripherals and/or devices.";
         println!("cargo:warning={message}");
     }
+    */
 
     // Ensure that exactly one chip has been specified:
     // let chip: Chip = Chip::from_cargo_feature()?;
@@ -166,51 +168,54 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    // RISC-V devices:
+    // Only emit linker directives if the `rt` feature is enabled
+    #[cfg(feature = "rt")]
+    {
+        // Place all linker scripts in `OUT_DIR`, and instruct Cargo how to find these
+        // files:
+        let out = PathBuf::from(env::var_os("OUT_DIR").unwrap());
+        println!("cargo:rustc-link-search={}", out.display());
 
-    // Place all linker scripts in `OUT_DIR`, and instruct Cargo how to find these
-    // files:
-    let out = PathBuf::from(env::var_os("OUT_DIR").unwrap());
-    println!("cargo:rustc-link-search={}", out.display());
+        // RISC-V devices:
 
-    preprocess_file(
-        &config_symbols,
-        &cfg,
-        "ld/riscv/asserts.x",
-        out.join("asserts.x"),
-    )?;
-    preprocess_file(
-        &config_symbols,
-        &cfg,
-        "ld/riscv/debug.x",
-        out.join("debug.x"),
-    )?;
-    preprocess_file(
-        &config_symbols,
-        &cfg,
-        "ld/riscv/hal-defaults.x",
-        out.join("hal-defaults.x"),
-    )?;
+        preprocess_file(
+            &config_symbols,
+            &cfg,
+            "ld/riscv/asserts.x",
+            out.join("asserts.x"),
+        )?;
+        preprocess_file(
+            &config_symbols,
+            &cfg,
+            "ld/riscv/debug.x",
+            out.join("debug.x"),
+        )?;
+        preprocess_file(
+            &config_symbols,
+            &cfg,
+            "ld/riscv/hal-defaults.x",
+            out.join("hal-defaults.x"),
+        )?;
 
-    // With the architecture-specific linker scripts taken care of, we can copy all
-    // remaining linker scripts which are common to all devices:
-    copy_dir_all(&config_symbols, &cfg, "ld/sections", &out)?;
-    copy_dir_all(
-        &config_symbols,
-        &cfg,
-        //format!("ld/{chip}").to_lowercase(),
-        format!("ld/{}", chip.name()),
-        &out,
-    )?;
+        // With the architecture-specific linker scripts taken care of, we can copy all
+        // remaining linker scripts which are common to all devices:
+        copy_dir_all(&config_symbols, &cfg, "ld/sections", &out)?;
+        copy_dir_all(
+            &config_symbols,
+            &cfg,
+            //format!("ld/{chip}").to_lowercase(),
+            format!("ld/{}", chip.name()),
+            &out,
+        )?;
+    }
 
     Ok(())
 }
 
-// 228
 // ----------------------------------------------------------------------------
 // Helper Functions
-
-// 231
+// 148
+#[cfg(feature = "rt")]
 fn copy_dir_all(
     //config_symbols: &[&str],
     config_symbols: &[String],
@@ -242,7 +247,8 @@ fn copy_dir_all(
 }
 
 /// A naive pre-processor for linker scripts
-// 261
+// 179
+#[cfg(feature = "rt")]
 fn preprocess_file(
     //config: &[&str],
     config: &[String],
@@ -287,7 +293,8 @@ fn preprocess_file(
     Ok(())
 }
 
-// 303
+// 222
+#[cfg(feature = "rt")]
 fn substitute_config(cfg: &HashMap<String, Value>, line: &str) -> String {
     let mut result = String::new();
     let mut chars = line.chars().peekable();

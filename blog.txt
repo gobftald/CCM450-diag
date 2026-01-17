@@ -276,3 +276,14 @@ git checkout -p stash@{0} -- <file> # Merge specific lines
 git diff main stash # during "git restore --source stash -- <file>" commands - which files was not restored
     # but it does not show the diff for new files (main -> stash)
     # git diff stash shows the real differences but unfortunately in the opposite direction
+
+
+
+
+
+todo:
+1 move INCLUDE "rom-functions.x" from linkall.x
+2 check dram2 handling (making bootloader memory available, and using for allocation in main)
+3 patch esp-hal/esp-riscv-rt/src /lib.rs to put _vector_table into .trap.vector segment as in riscv/riscv-macros/src/riscv.rs
+  to put _vector_table at the beginning of esp-hal/esp-hal/ld/esp32c3/esp32c3.x saving some space on its alignement
+4 try to eliminate "pre-default-start-trap" at esp32c3, I think only esp32s3 (xtensa) use it for reset

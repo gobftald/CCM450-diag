@@ -1,35 +1,40 @@
 //! mcause register
 
-/// mcause register
-#[derive(Clone, Copy, Debug)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-// 7
-pub struct Mcause {
-    bits: usize,
+pub use crate::interrupt::Trap;
+
+read_only_csr! {
+    /// `mcause` register
+    Mcause: 0x342,
+    mask: usize::MAX,
 }
 
-// 18
+#[cfg(target_arch = "riscv32")]
+read_only_csr_field! {
+    Mcause,
+    /// Returns the `code` field.
+    code: [0:30],
+}
+
+#[cfg(target_arch = "riscv32")]
+read_only_csr_field! {
+    Mcause,
+    /// Is the trap cause an interrupt.
+    is_interrupt: 31,
+}
+
 impl Mcause {
-    /// Returns the contents of the register as raw bits
     #[inline]
-    // 19
-    pub fn bits(&self) -> usize {
-        self.bits
-    }
-    /// Is trap cause an interrupt.
-    // 48
-    #[inline]
-    pub fn is_interrupt(&self) -> bool {
-        self.bits & (1 << (usize::BITS as usize - 1)) != 0
+    pub fn cause(&self) -> Trap<usize, usize> {
+        if self.is_interrupt() {
+            Trap::Interrupt(self.code())
+        } else {
+            Trap::Exception(self.code())
+        }
     }
 
     /// Is trap cause an exception.
     #[inline]
-    // 54
     pub fn is_exception(&self) -> bool {
         !self.is_interrupt()
     }
 }
-
-// 59
-read_csr_as!(Mcause, 0x342);

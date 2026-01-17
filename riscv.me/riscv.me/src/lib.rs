@@ -17,15 +17,17 @@
 #![no_std]
 #![allow(clippy::missing_safety_doc)]
 
-// 41
+pub use paste::paste;
+
+// 53
+pub mod asm;
 pub mod bits;
 
-// 43
+// 56
 pub mod interrupt;
 pub mod register;
 
 // Re-export crates of the RISC-V ecosystem
-// 49
 pub use riscv_pac::*;
 
 #[cfg(all(riscv, feature = "critical-section-single-hart"))]

@@ -10,3 +10,4 @@ pub mod mtvec;
 // Machine Trap Handling
 // 85
 pub mod mcause;
+pub mod mepc;

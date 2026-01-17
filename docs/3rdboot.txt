@@ -1,0 +1,986 @@
+//#root#/.cargo/config.toml
+    rustflags = [..., ""-C", "link-arg=-Tlinkall.x",...]
+
+//esp-hal/esp-hal/ld/esp32c3/linkall.x
+    ...
+    INCLUDE "esp32c3.x"
+    INCLUDE "hal-defaults.x"
+
+//esp-hal/ld/riscv/hal-defaults.x
+    ENTRY(_start)
+    ...
+
+//riscv/riscv-rt/src/asm.rs
+    ...
+    // Entry point of all programs (_start). It initializes DWARF call frame information,
+    // the stack pointer, the frame pointer (needed for closures to work in start_rust)
+    // and the global pointer. Then it calls _start_rust.
+    cfg_global_asm!(
+        ".section .init, \"ax\"
+        .global _start
+
+    _start:",
+        #[cfg(target_arch = "riscv32")]
+        "lui ra, %hi(_abs_start)
+        jr %lo(_abs_start)(ra)",
+
+// but there is another .init section in esp-riscv-rt
+// esp-hal/esp-riscv-rt/src/lib.rs
+    cfg_global_asm! {
+        r#"
+    .section .init, "ax"
+    .weak __pre_init
+    __pre_init:"#,
+        // Zero .rtc_fast.bss
+    #[cfg(feature = "rtc-ram")]
+    ...
+        // Zero .rtc_fast.persistent if the chip just powered on
+    #[cfg(feature = "rtc-ram")]
+    ...
+    "#,
+    r#"
+        ret
+    ...
+
+// .init sections are put into the beginning of .text section
+// esp-hal/ld/esp32c3/linkall.x
+    ...
+    INCLUDE "esp32c3.x"
+    INCLUDE "hal-defaults.x"
+
+// esp-hal/ld/esp32c3/esp32c3.x
+    ...
+    INCLUDE "text.x"
+    ...
+
+// esp-hal/ld/sections/text.x
+    SECTIONS {
+
+    .text : ALIGN(4)
+    {
+        #IF riscv
+        KEEP(*(.init));
+        KEEP(*(.init.rust));
+        KEEP(*(.text.abort));
+        #ENDIF
+        *(.literal .text .literal.* .text.*)
+    } > ROTEXT
+
+    }
+
+// the precedence of the two .init sections:
+// esp-hal/esp-riscv-rt and its __pre_init takes precedence since
+// rust linker behaves differerntly than the standard ld linker
+//
+// In a classic C/C++ linking environment, leaf objects (those that do not depend on anything else) or high-level objects 
+// typically appear first
+// But when rustc invokes the linker, it places the "most dependent" crate (your application) first, followed by its direct 
+// dependencies (esp-hal), then esp-riscv-rt, and lastly the "leaf" generic dependency riscv-rt.
+
+// here is the final result of the two .init code (feature flags applied)
+// * shows the relevant lines int he final code
+
+// SOF section .esp-riscv-rt:
+
+// esp-hal/esp-riscv-rt/src/lib.rs
+    cfg_global_asm! {
+        r#"
+    .section .init, "ax"
+    .weak __pre_init
+    __pre_init:"#,
+        // Zero .rtc_fast.bss
+    #[cfg(feature = "rtc-ram")]
+    ...
+        // Zero .rtc_fast.persistent if the chip just powered on
+    #[cfg(feature = "rtc-ram")]
+    ...
+    "#,
+    r#"
+*      ret  // at 0x42010020                    // 42010020 <__pre_init>:
+                                                // 42010020:       8082                    ret
+    ...
+
+//riscv/riscv-rt/src/asm.rs
+    cfg_global_asm!(
+        ".section .init, \"ax\"
+        .global _start
+
+*   _start:",                                   // 42010022 <_start>:
+        #[cfg(target_arch = "riscv32")]
+*       "lui ra, %hi(_abs_start)                // 42010022:       420100b7                lui     ra,0x42010
+*       jr %lo(_abs_start)(ra)",                // 42010026:       02a08067                jr      42(ra) # 4201002a <_abs_start>
+        #[cfg(target_arch = "riscv64")]
+        ".option push
+        .option norelax // to prevent an unsupported R_RISCV_ALIGN relocation from being generated
+    1:
+        auipc ra, %pcrel_hi(1f)
+        ld ra, %pcrel_lo(1b)(ra)
+        jr ra
+        .align  3
+    1:
+        .dword _abs_start
+        .option pop",
+        "
+*   _abs_start:                                 // 4201002a <_abs_start>:
+        .option norelax
+        .cfi_startproc
+        .cfi_undefined ra",
+        // Disable interrupts
+        #[cfg(all(feature = "s-mode", not(feature = "no-xie-xip")))]
+        "csrw sie, 0
+        csrw sip, 0",
+        #[cfg(not(feature = "s-mode"))]
+        {
+            #[cfg(not(feature = "no-xie-xip"))] // comes from riscv-rt's no-xie-xip which comes from esp-riscv-rt's no-mie-mip
+            "csrw mie, 0
+            csrw mip, 0",
+            // Make sure that the hart ID is in a0 in M-mode
+            #[cfg(not(feature = "no-mhartid"))] // we can use it for esp32c3, but I don't want to modify factory crate
+*           "csrr a0, mhartid",                 // 4201002a:       f1402573                csrr    a0,mhartid 
+            #[cfg(feature = "no-mhartid")]
+            "li a0, 0",
+        }
+        // Set pre-init trap vector
+        #[cfg(not(feature = "no-xtvec"))]
+        {
+*           "la t0, _pre_init_trap",            // 4201002e:       00000297                auipc   t0,0x0
+                                                // 42010032:       0c628293                addi    t0,t0,198 # 420100f4 <ExceptionHandler>
+                                                // ExceptionHandler comes through many PROVIDE which finally goes to abort
+                                                // see below
+                                                // definition of _pre_init_trap in esp-hal/ld/riscv/hal-defaults.x
+                                                // Trap for exceptions triggered during initialization. If the execution 
+                                                // reaches this point, it means that there is a bug in the boot code. If no 
+                                                // _pre_init_trap symbol is provided, then _pre_init_trap defaults to 
+                                                // _default_abort. Note that _pre_init_trap must be 4-byte aligned
+            #[cfg(feature = "s-mode")]
+            "csrw stvec, t0",
+            #[cfg(not(feature = "s-mode"))]
+*           "csrw mtvec, t0",                   // 42010036:       30529073                csrw    mtvec,t0
+        }
+        // If multi-hart, assert that hart ID is valid
+        #[cfg(not(feature = "single-hart"))]
+        "lui t0, %hi(_max_hart_id)
+        add t0, t0, %lo(_max_hart_id)
+        bgeu t0, a0, 1f
+        la t0, abort // If hart_id > _max_hart_id, jump to abort
+        jr t0
+    1:", // Only valid hart IDs reach this point
+    #[cfg(any(feature = "pre-init", not(feature = "single-hart")))]
+    // If startup functions are expected, preserve a0-a2 in s0-s2
+    {
+*       "mv s0, a0                              // 4201003a:       00050413                mv      s0,a0
+*       mv s1, a1",                             // 4201003e:       00058493                mv      s1,a1
+        #[cfg(riscvi)]
+*       "mv s2, a2",                            // 42010042:       00060913                mv      s2,a2
+        #[cfg(not(riscvi))]
+        "mv a5, a2", // RVE does not include s2, so we preserve a2 in a5
+    }
+    // INITIALIZE GLOBAL POINTER AND STACK POINTER
+        ".option push
+        .option norelax
+*       la gp, __global_pointer$                // 42010046:       fdc78197                auipc   gp,0xfdc78
+                                                // 4201004a:       49218193                addi    gp,gp,1170 # 3fc884d8 <__global_pointer$>
+        .option pop",
+    #[cfg(not(feature = "single-hart"))]
+    {
+        "mv t2, a0
+        lui t1, %hi(_hart_stack_size)
+        add t1, t1, %lo(_hart_stack_size)",
+        #[cfg(riscvm)]
+        "mul t0, t2, t1",
+        #[cfg(not(riscvm))]
+        "mv t0, x0
+        beqz t2, 2f  // skip if hart ID is 0
+    1:
+        add t0, t0, t1
+        addi t2, t2, -1
+        bnez t2, 1b
+    2:  ",
+    }
+*       "la t1, _stack_start",                  // 4201004e:       fdcbe317                auipc   t1,0xfdcbe
+                                                // 42010052:       3b230313                addi    t1,t1,946 # 3fcce400 <_stack_start>
+        #[cfg(not(feature = "single-hart"))]
+        "sub t1, t1, t0",
+*       "andi sp, t1, -16", // align stack to 16-bytes // 42010056:       ff037113                andi    sp,t1,-16
+
+        #[cfg(not(feature = "single-hart"))]
+        // Skip RAM initialization if current hart is not the boot hart
+        "call _mp_hook
+        beqz a0, 4f",
+        #[cfg(feature = "pre-init")]
+*       "call __pre_init",                      // 4201005a:       00000097                auipc   ra,0x0
+                                                // 4201005e:       fc6080e7                jalr    -58(ra) # 42010020 <__pre_init>
+                                                // esp32c3 is not but esp32s3 (xtensa define __pre_init for reset function)
+
+        "// Copy .data from flash to RAM        // __sdata, __edata and _sidata come from esp-hal/ld/riscv/hal-defaults.x
+                                                // but since they are inited to 0 this copy cycle skipped
+                                                // it was manahed by 2nd stage bootloader during the load of elf img
+
+*       la t0, __sdata                          // 42010062:       bdff0297                auipc   t0,0xbdff0
+                                                // 42010066:       f9e28293                addi    t0,t0,-98 # 0 <__edata>
+*       la a3, __edata                          // 4201006a:       bdff0697                auipc   a3,0xbdff0
+                                                // 4201006e:       f9668693                addi    a3,a3,-106 # 0 <__edata>
+*       la t1, __sidata                         // 42010072:       bdff0317                auipc   t1,0xbdff0
+                                                // 42010076:       f8e30313                addi    t1,t1,-114 # 0 <__edata>
+*       bgeu t0, a3, 2f                         // 4201007a:       00d2fc63                bgeu    t0,a3,42010092 <.Lpcrel_hi6>
+    1:  ",
+        #[cfg(target_arch = "riscv32")]
+*       "lw t2, 0(t1)                           // 4201007e:       00032383                lw      t2,0(t1)
+*       addi t1, t1, 4                          // 42010082:       00430313                addi    t1,t1,4
+*       sw t2, 0(t0)                            // 42010086:       0072a023                sw      t2,0(t0)
+*       addi t0, t0, 4                          // 4201008a:       00428293                addi    t0,t0,4
+*       bltu t0, a3, 1b",                       // 4201008e:       fed2e8e3                bltu    t0,a3,4201007e <.Lpcrel_hi5+0xc>
+        #[cfg(target_arch = "riscv64")]
+        "ld t2, 0(t1)
+        addi t1, t1, 8
+        sd t2, 0(t0)
+        addi t0, t0, 8
+        bltu t0, a3, 1b",
+        "
+    2:  // Zero out .bss                        // __sbss and __ebss comes from esp-hal/ld/riscv/hal-defaults.x
+                                                // but since they are also inited to 0 this copy cycle skipped
+                                                // it was manahed by 2nd stage bootloader during the load of elf img
+
+*       la t0, __sbss                           // 42010092:       fdc79297                auipc   t0,0xfdc79
+                                                // 42010096:       25e28293                addi    t0,t0,606 # 3fc892f0 <wpa_cb>
+*       la t2, __ebss                           // 4201009a:       fdc95397                auipc   t2,0xfdc95
+                                                // 4201009e:       27e38393                addi    t2,t2,638 # 3fca5318 <__ebss>
+*       bgeu  t0, t2, 4f                        // 420100a2:       0072f863                bgeu    t0,t2,420100b2 <.Lpcrel_hi7+0x18>
+    3:  ",
+        #[cfg(target_arch = "riscv32")]
+*       "sw  zero, 0(t0)                        // 420100a6:       0002a023                sw      zero,0(t0)
+*       addi t0, t0, 4                          // 420100aa:       00428293                addi    t0,t0,4
+*       bltu t0, t2, 3b",                       // 420100ae:       fe72ece3                bltu    t0,t2,420100a6 <.Lpcrel_hi7+0xc>
+        #[cfg(target_arch = "riscv64")]
+        "sd zero, 0(t0)
+        addi t0, t0, 8
+        bltu t0, t2, 3b",
+        "
+    4:", // RAM initialized
+
+    // INITIALIZE FLOATING POINT UNIT
+    #[cfg(any(riscvf, riscvd))]
+    {
+        "
+        li t0, 0x4000 // bit 14 is FS most significant bit
+        li t2, 0x2000 // bit 13 is FS least significant bit
+        ",
+        #[cfg(feature = "s-mode")]
+        "csrrc x0, sstatus, t0
+        csrrs x0, sstatus, t2",
+        #[cfg(not(feature = "s-mode"))]
+        "csrrc x0, mstatus, t0
+        csrrs x0, mstatus, t2",
+        "fscsr x0",
+    }
+
+    #[cfg(any(feature = "pre-init", not(feature = "single-hart")))]
+    // If startup functions are expected, restore a0-a2 from s0-s2
+*   {   "mv a0, s0                              // 420100b2:       00040513                mv      a0,s0
+*       mv a1, s1",                             // 420100b6:       00048593                mv      a1,s1
+        #[cfg(riscvi)]
+*       "mv a2, s2",                            // 420100ba:       00090613                mv      a2,s2
+        #[cfg(not(riscvi))] 
+        "mv a2, a5", // RVE does not include s2, so we use a5 to preserve a2
+    }
+        // INITIALIZE FRAME POINTER AND JUMP TO _start_rust FUNCTION
+*       "mv s0, sp                              // 420100be:       00010413                mv      s0,sp
+*       la t0, _start_rust                      // 420100c2:       00000297                auipc   t0,0x0
+                                                // 420100c6:       00c28293                addi    t0,t0,12 # 420100ce <_start_rust>
+*       jr t0                                   // 420100ca:       00028067                jr      t0
+        .cfi_endproc",
+
+        #[cfg(not(feature = "single-hart"))]
+        // Default implementation of `_mp_hook` wakes hart 0 and busy-loops all the other harts.
+        // Users can override this function by defining their own `_mp_hook`.
+        // This function is only used when the `single-hart` feature is not enabled.
+        ".global _default_mp_hook
+    _default_mp_hook:
+        beqz a0, 2f // if hartid is 0, return true
+    1:  wfi // Otherwise, wait for interrupt in a loop
+        j 1b
+    2:  li a0, 1
+        ret",
+    );
+
+// riscv/riscv-rt/src/lib.rs
+420100ce <_start_rust>:
+...
+420100e2:       01a080e7                jalr    26(ra) # 420100f8 <_setup_interrupts>
+...
+420100f0:       0d0080e7                jalr    208(ra) # 420101bc <hal_main>
+
+
+420100f4 <ExceptionHandler>:                    // 420100f4 g       .esp-riscv-rt  00000000 _default_abort
+                                                // 420100f4 g       .esp-riscv-rt  00000000 ExceptionHandler
+                                                // 420100f4 g       .esp-riscv-rt  00000000 _pre_init_trap
+                                                // 420100f4 g       .esp-riscv-rt  00000000 abort
+
+420100f4:       0000006f                j       420100f4 <ExceptionHandler>     // loop {}
+
+// EOF section .esp-riscv-rt:
+
+// SOF section .esp-hal:
+// esp-hal/esp-hal/src/interrupt/riscv.rs
+420100f8 <_setup_interrupts>:
+    unsafe fn _setup_interrupts() {
+        unsafe extern "C" {
+            static _vector_table: u32;
+        }
+
+        // disable all known interrupts
+        // at least after the 2nd stage bootloader there are some interrupts enabled
+        // (e.g. UART)
+        for peripheral_interrupt in 0..255 {
+            crate::peripherals::Interrupt::try_from(peripheral_interrupt)
+                .map(|intr| {
+                    #[cfg(multi_core)]
+                    disable(Cpu::AppCpu, intr);
+                    disable(Cpu::ProCpu, intr);
+                })
+                .ok();
+        }
+
+        unsafe {
+            let vec_table = (&_vector_table as *const u32).addr();
+            mtvec::write({
+                let mut mtvec = mtvec::Mtvec::from_bits(0);
+                mtvec.set_trap_mode(mtvec::TrapMode::Vectored);
+                mtvec.set_address(vec_table);
+                mtvec
+            });
+
+            crate::interrupt::init_vectoring();
+        };
+
+        #[cfg(plic)]
+        unsafe {
+            core::arch::asm!("csrw mie, {0}", in(reg) u32::MAX);
+        }
+    }
+...
+42010132 <_RNvNtNtNtCsfZ3klR38i7a_7esp_hal9interrupt5riscv8vectored6enable>:
+...
+42010166 <_RNvNtNtNtCsfZ3klR38i7a_7esp_hal9interrupt5riscv8vectored14init_vectoring>:
+...
+
+// esp-hal/src/soc/mod.rs
+420101bc <hal_main>:
+    setup_stack_guard();
+        420101bc:       3fca56b7                lui     a3,0x3fca5
+        420101c0:       deedc737                lui     a4,0xdeedc
+        420101c4:       aad70713                addi    a4,a4,-1363 # deedbaad <_etext+0x9ce850c1>
+        420101c8:       ece6ae23                sw      a4,-292(a3) # 3fca4edc <__stack_chk_guard>
+    main(a0, a1, a2);
+        420101cc:       00040097                auipc   ra,0x40
+        420101d0:       45c080e7                jalr    1116(ra) # 42050628 <main>
+
+...
+...
+...
+// EOF section .esp-hal:
+// I document it in other doc, now let see the .trap segmnet for interrupt setup and base handling
+
+// esp-hal/esp-riscv-rt/src/lib.rs
+...
+.section .trap.vector, "ax"                     // it take preference since in .rwtext or in out modified linker
+                                                // debug linker scripts in esp32c3.x:
+                                                // SECTIONS {
+                                                //    .trap : ALIGN(4)
+                                                //    {
+                                                //        KEEP(*(.trap.vector));  /* if this is the first one, we can save space due to padding */
+                                                //        KEEP(*(.trap));
+                                                //        *(.trap.*);
+                                                //        . = ALIGN(4);
+                                                //    } > RWTEXT
+                                                // }
+// SOF section .trap
+.weak _vector_table
+...
+_vector_table:                                  // 40380000 <_vector_table>:
+j _start_trap                                   // 40380000:       4d40006f                j       403804d4 <_default_start_trap>
+                                                // EXTERN(_default_start_trap);
+                                                // PROVIDE(_start_trap = _default_start_trap);
+                                                // in esp-hal/esp-hal/ld/riscv/hal-defaults.x
+
+j _start_Trap1_trap                             // 40380004:       3800006f                j       40380384 <_start_Trap1_trap>
+j _start_Trap2_trap                             // 40380008:       42c0006f                j       40380434 <_start_Trap2_trap>
+                                                // ...
+j _start_Trap30_trap                            // 40380078:       40c0006f                j       40380484 <_start_Trap30_trap>
+j _start_Trap31_trap                            // 4038007c:       4180006f                j       40380494 <_start_Trap31_trap>
+...
+
+// esp-hal/esp-rtos/src/task/riscv.rs
+.section .trap, "ax"
+.global sys_switch                              // 40380080 <sys_switch>:
+...
+_restore_context:                               // 4038011a <_restore_context>:
+...
+EOF _restore_context:                           // 403801b6:       30200073                mret
+
+// here is _start_trap_rust_hal code inserted, se below
+403801ba <_start_trap_rust_hal>:
+...
+403801cc <Trap1>:
+
+// esp-hal/esp-riscv-rt/src/lib.rs after _vector_table's last j _start_Trap31_trap
+define_interrupt!(1, Trap1, trap1);
+define_interrupt!(2, Trap2, trap2);
+...
+define_interrupt!(30, Trap30, trap30);
+define_interrupt!(31, Trap31, trap31);
+
+macro_rules! define_interrupt {
+    ($num:literal, $name:ident, $fname:ident) => {
+        #[derive(Copy, Clone)]
+        struct $name;
+
+        unsafe impl riscv_rt::InterruptNumber for $name {
+            const MAX_INTERRUPT_NUMBER: usize = 31;
+
+            fn number(self) -> usize {
+                $num
+            }
+
+            fn from_number(_value: usize) -> riscv_rt::result::Result<Self> {
+                Ok($name)
+            }
+        }
+
+        unsafe impl riscv_rt::CoreInterruptNumber for $name {}
+
+        #[unsafe(naked)]
+        #[unsafe(link_section = ".trap.start")]
+        #[riscv_rt::core_interrupt($name)]
+        extern "C" fn $fname() {
+            core::arch::naked_asm! {
+                concat!(
+                "
+                li a0,",$num,"
+                j handle_interrupts
+                "
+                )
+            }
+        }
+    };
+}
+
+// riscv/riscv-rt/macros/src/lib.rs
+// #[riscv_rt::core_interrupt($name)]
+pub fn core_interrupt(args: TokenStream, input: TokenStream) -> TokenStream {
+    let arch = match () {
+        #[cfg(feature = "v-trap")]
+        () => Some(RiscvArch::try_from_env().expect("RISCV_RT_BASE_ISA must be defined")),
+        #[cfg(not(feature = "v-trap"))]
+        () => None,
+    };
+    trap(args, input, RiscvPacItem::CoreInterrupt, arch)
+}
+
+fn trap(
+    args: TokenStream,
+    input: TokenStream,
+    pac_item: RiscvPacItem,
+    arch: Option<RiscvArch>,
+) -> TokenStream {
+    let f = parse_macro_input!(input as ItemFn);
+
+    if !pac_item.check_signature(&f) {
+        let msg = format!(
+            "`#[{}]` function must have signature {}",
+            pac_item.macro_id(),
+            pac_item.valid_signature()
+        );
+        return parse::Error::new(f.sig.span(), msg)
+            .to_compile_error()
+            .into();
+    }
+    if args.is_empty() {
+        let msg = format!(
+            "`#[{}]` attribute expects a path to a variant of an enum that implements the {} trait.",
+            pac_item.macro_id(),
+            pac_item.impl_trait()
+        );
+        return parse::Error::new(Span::call_site(), msg)
+            .to_compile_error()
+            .into();
+    }
+
+    let int_path = parse_macro_input!(args as Path);
+    let int_ident = &int_path.segments.last().unwrap().ident;
+    let export_name = format!("{int_ident:#}");
+
+    let start_trap = match arch {
+        #[cfg(feature = "v-trap")]                      // we are in v-trap come from esp-riscv.rt
+        Some(arch) => {
+            let trap = start_interrupt_trap(int_ident, arch);
+            quote! {
+                #trap
+            }
+        }
+        _ => proc_macro2::TokenStream::new(),
+    };
+
+    let pac_trait = pac_item.impl_trait();
+
+    quote!(
+        // Compile-time check to ensure the trap path implements the trap trait
+        const _: fn() = || {
+            fn assert_impl<T: #pac_trait>(_arg: T) {}
+            assert_impl(#int_path);
+        };
+
+        #start_trap
+
+        #[export_name = #export_name]
+        #f
+    )
+    .into()
+}
+
+// start_trap <- start_interrupt_trap(int_ident, arch)
+#[cfg(feature = "v-trap")]
+fn start_interrupt_trap(ident: &syn::Ident, arch: RiscvArch) -> proc_macro2::TokenStream {
+    let interrupt = ident.to_string();
+    let width = arch.width();
+    let trap_size = arch.trap_frame().len();
+    let store = store_trap(arch, |r| r == "a0");
+
+    let instructions = format!(
+        r#"
+#[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
+core::arch::global_asm!(
+    ".section .trap.start.{interrupt}, \"ax\"
+    .balign 4
+    .global _start_{interrupt}_trap
+    _start_{interrupt}_trap:
+        addi sp, sp, -{trap_size} * {width} // allocate space for trap frame
+        {store}                             // store trap partially (only register a0)
+        la a0, {interrupt}                  // load interrupt handler address into a0
+        j _continue_interrupt_trap          // jump to common part of interrupt trap
+");"#
+    );
+
+    instructions.parse().unwrap()
+}
+
+// expanding all these macros (cargo expand -p esp-riscv-rt)
+macro_rules! define_interrupt                           // e.g, for Trap1
+    ...
+    unsafe impl riscv_rt::InterruptNumber for Trap1
+        fn number(self) -> usize {
+            1
+        }
+    unsafe impl riscv_rt::CoreInterruptNumber for Trap1 {}
+    ...
+    global_asm!
+        ".section .trap.start.Trap1, \"ax\"
+        .balign 4
+        .global _start_Trap1_trap                       // it's after _pre_default_start_trap: // see below
+        _start_Trap1_trap: 
+            addi sp, sp, -16 * 4 // allocate space for trap frame
+            sw a0, 8*4(sp)       // store trap partially (only register a0)
+            la a0, Trap1         // load interrupt handler address into a0
+            j _continue_interrupt_trap // jump to common part of interrupt trap
+
+    #[export_name = "Trap1"]                            // after _start_trap_rust_halt // see above
+                                                        // 403801cc <Trap1>:
+    #[unsafe(naked)]
+    #[unsafe(link_section = ".trap.start")]
+    extern "C" fn trap1()
+        asm!(
+            li a0,1                                     // 403801cc:       4505                    li      a0,1                         
+            j handle_interrupts                         // 403801ce:       7000006f                j       403808e2 <handle_interrupts>
+        )
+                                                        // 403801d4 <Trap10>:
+                                                        // 403801dc <Trap11>:
+                                                        // ...
+                                                        // 4038021c <Trap19>:
+                                                        // 40380224 <Trap2>:
+                                                        // 4038022c <Trap20>:
+                                                        // 40380234 <Trap21>:
+                                                        // ...
+                                                        // 40380274 <Trap29>:
+                                                        // 4038027c <Trap3>:
+                                                        // 40380284 <Trap30>:
+                                                        // 4038028c <Trap31>:
+                                                        // 40380294 <Trap4>:
+                                                        // ...
+                                                        // 403802bc <Trap9>:
+
+// here comes _pre_default_start_trap: and after we returned back to _start_Trap1_trap code
+
+// esp-hal/esp-riscv-rt/src/lib.rs
+.section .trap.start, "ax"
+.extern _pre_default_start_trap_ret
+.global _pre_default_start_trap
+_pre_default_start_trap:
+    // move SP to some safe place if it's pointing below the RAM
+    // or into .trap / .rwtext.
+    //
+    // Otherwise we won't be able to do anything reasonable
+    // (since we don't have a working stack)
+    //
+    // most probably we will just print something and halt in this case
+    // we actually can't do anything else
+    403802c2:       34029073                csrw    mscratch,t0
+    403802c6:       ff900297                auipc   t0,0xff900
+    403802ca:       7f628293                addi    t0,t0,2038 # 3fc80aac <_dram_data_start>
+    403802ce:       00515e63                bge     sp,t0,403802ea <.Lpcrel_hi1+0x12>
+    
+    // use the reserved exception cause 14 to signal we detected a stack overflow
+    403802d2:       42b9                    li      t0,14
+    403802d4:       34229073                csrw    mcause,t0
+
+    // set SP to the start of the stack
+    403802d8:       ff94e117                auipc   sp,0xff94e
+    403802dc:       13810113                addi    sp,sp,312 # 3fcce400 <_stack_start>
+    403802e0:       4291                    li      t0,4
+    403802e2:       40510133                sub     sp,sp,t0
+    403802e6:       ff017113                andi    sp,sp,-16
+    403802ea:       340022f3                csrr    t0,mscratch
+    403802ee:       1fa0006f                j       403804e8 <_pre_default_start_trap_ret>  // see below
+
+// continue from 403802ac <Trap9>: above
+global_asm!
+        // no we show _start_Trap6_trap
+        ".section .trap.start.Trap6, \"ax\"
+        .balign 4
+        .global _start_Trap6_trap                       // 403802f4 <_start_Trap6_trap>:
+        _start_Trap6_trap: 
+            addi sp, sp, -16 * 4 // allocate space for trap frame
+                                                        // 403802f4:       7139                    addi    sp,sp,-64
+            sw a0, 8*4(sp)       // store trap partially (only register a0)
+                                                        // 403802f6:       d02a                    sw      a0,32(sp)
+            la a0, Trap1         // load interrupt handler address into a0
+                                                        // 403802f8:       00000517                auipc   a0,0x0
+                                                        // 403802fc:       fac50513                addi    a0,a0,-84 # 40380294 <Trap6>
+            j _continue_interrupt_trap // jump to common part of interrupt trap
+                                                        // 40380300:       28c0006f                j       4038058c <_continue_interrupt_trap>
+        // this repeated for
+        40380304 <_start_Trap7_trap>:
+        40380314 <_start_Trap8_trap>:
+        ...
+        40380374 <_start_Trap14_trap>:
+        40380384 <_start_Trap15_trap>:
+        40380394 <_start_Trap16_trap>:
+        403803a4 <_start_Trap1_trap>:
+        403803b4 <_start_Trap17_trap>:
+        403803c4 <_start_Trap18_trap>:
+        ...
+        40380424 <_start_Trap24_trap>:
+        40380434 <_start_Trap25_trap>:
+        40380444 <_start_Trap26_trap>:
+        40380454 <_start_Trap2_trap>:
+        40380464 <_start_Trap27_trap>:
+        40380474 <_start_Trap28_trap>:
+        ...
+        40380494 <_start_Trap30_trap>:
+        403804a4 <_start_Trap31_trap>:
+        403804b4 <_start_Trap3_trap>:
+        403804c4 <_start_Trap4_trap>:
+        403804d4 <_start_Trap5_trap>:
+        // so all these interrupt traps concludes to j _continue_interrupt_trap with allocated space for trap frame
+        // _continue_interrupt_trap is after the next "default_start_trap"
+
+// _pre_default_start_trap_ret is defined in #[proc_macro] pub fn default_start_trap(_input: TokenStream) -> TokenStream
+// which is coded in riscv/riscv-rt/macros/src/lib.rs
+// and called by riscv_rt_macros::default_start_trap!(); statement in riscv-rt/src/asm.rs
+// riscv/riscv-rt/macros/src/lib.rs
+#[proc_macro]
+pub fn default_start_trap(_input: TokenStream) -> TokenStream
+                                                        // 403804e4 <_default_start_trap>:
+    ...
+    .global _pre_default_start_trap_ret
+    _pre_default_start_trap_ret:
+    ...
+    let width = arch.width();
+    let trap_size = arch.trap_frame().len();
+    ...
+    let store = store_trap(arch, |_| true);
+    let load = load_trap(arch);
+    #[cfg(not(feature = "s-mode"))]
+    let ret = "mret";
+    ...
+    let pre_default_start_trap = if cfg!(feature = "pre-default-start-trap")
+        j _pre_default_start_trap                       // 403804e4:       ddfff06f                j       403802c2 <_pre_default_start_trap>
+
+           r#"
+    core::arch::global_asm!(
+    ".section .trap.start, \"ax\"
+    .balign 4 /* Alignment required for xtvec */
+    .global _default_start_trap                         // 403804e8 <_pre_default_start_trap_ret>:
+    _default_start_trap:
+        {pre_default_start_trap}                        // if cfg!(feature = "pre-default-start-trap")
+                                                        // it was a given feature in esp-risc-rt
+        addi sp, sp, - {trap_size} * {width}            // let trap_size = arch.trap_frame().len();
+                                                        // 403804e8:       fc010113                addi    sp,sp,-64
+        {store}                                         // let store = store_trap(arch, |_| true);
+                                                        // 403804ec:       00112023                sw      ra,0(sp)
+                                                        // 403804f0:       00512223                sw      t0,4(sp)
+                                                        // 403804f4:       00612423                sw      t1,8(sp)
+                                                        // 403804f8:       00712623                sw      t2,12(sp)
+                                                        // 403804fc:       01c12823                sw      t3,16(sp)
+                                                        // 40380500:       01d12a23                sw      t4,20(sp)
+                                                        // 40380504:       01e12c23                sw      t5,24(sp)
+                                                        // 40380508:       01f12e23                sw      t6,28(sp)
+                                                        // 4038050c:       02a12023                sw      a0,32(sp)
+                                                        // 40380510:       02b12223                sw      a1,36(sp)
+                                                        // 40380514:       02c12423                sw      a2,40(sp)
+                                                        // 40380518:       02d12623                sw      a3,44(sp)
+                                                        // 4038051c:       02e12823                sw      a4,48(sp)
+                                                        // 40380520:       02f12a23                sw      a5,52(sp)
+                                                        // 40380524:       03012c23                sw      a6,56(sp)
+                                                        // 40380528:       03112e23                sw      a7,60(sp)
+        add a0, sp, zero                                // 4038052c:       00010533                add     a0,sp,zero
+
+        jal ra, _start_trap_rust                        // see below
+                                                        // 40380530:       0e4000ef                jal     ra,40380614 <_start_trap_rust>
+
+        {load}                                          // let load = load_trap(arch);
+                                                        // 40380534:       00012083                lw      ra,0(sp)
+                                                        // 40380538:       00412283                lw      t0,4(sp)
+                                                        // 4038053c:       00812303                lw      t1,8(sp)
+                                                        // 40380540:       00c12383                lw      t2,12(sp)
+                                                        // 40380544:       01012e03                lw      t3,16(sp)
+                                                        // 40380548:       01412e83                lw      t4,20(sp)
+                                                        // 4038054c:       01812f03                lw      t5,24(sp)
+                                                        // 40380550:       01c12f83                lw      t6,28(sp)
+                                                        // 40380554:       02012503                lw      a0,32(sp)
+                                                        // 40380558:       02412583                lw      a1,36(sp)
+                                                        // 4038055c:       02812603                lw      a2,40(sp)
+                                                        // 40380560:       02c12683                lw      a3,44(sp)
+                                                        // 40380564:       03012703                lw      a4,48(sp)
+                                                        // 40380568:       03412783                lw      a5,52(sp)
+                                                        // 4038056c:       03812803                lw      a6,56(sp)
+                                                        // 40380570:       03c12883                lw      a7,60(sp)
+        addi sp, sp, {trap_size} * {width}              // let width = arch.width();
+                                                        // 40380574:       04010113                addi    sp,sp,64
+        {ret}                                           // let ret = "mret";
+                                                        // 40380578:       30200073                mret
+    ");"#
+
+// _continue_interrupt_trap is defined in #[proc_macro] pub fn vectored_interrupt_trap(_input: TokenStream) -> TokenStream
+// in riscv/riscv-rt/macros/srs/lib.rs
+// this macro also defines _start_DefaultHandler_trap: in its asm part before _continue_interrupt_trap
+// but only _continue_interrupt_trap is used, _start_DefaultHandler_trap is not called from anywhere
+// vectored_interrupt_trap is called as #[cfg(feature = "v-trap")] riscv_rt_macros::vectored_interrupt_trap!();
+// from riscv/riscv-rt/src/asm.rs
+//riscv/riscv-rt/macros/src/lib.rs
+#[cfg(feature = "v-trap")]
+#[proc_macro]
+pub fn vectored_interrupt_trap(_input: TokenStream) -> TokenStream
+    ...
+    let store_continue = store_trap(arch, |reg| reg != "a0");
+    let load = load_trap(arch);
+    #[cfg(not(feature = "s-mode"))]
+    let ret = "mret";
+    ...
+    core::arch::global_asm!(
+    ".section .trap.continue, \"ax\"
+    .balign 4
+    .global _start_DefaultHandler_trap                  // 4038057c <_start_DefaultHandler_trap>:
+    _start_DefaultHandler_trap:
+        addi sp, sp, -{trap_size} * {width} // allocate space for trap frame
+                                                        // 4038057c:       fc010113                addi    sp,sp,-64
+        {store_start}                       // store trap partially (only register a0)
+                                                        // 40380580:       02a12023                sw      a0,32(sp)
+        la a0, DefaultHandler               // load interrupt handler address into a0
+                                                        // 40380584:       01c90517                auipc   a0,0x1c90
+                                                        // 40380588:       d0c50513                addi    a0,a0,-756 # 42010280 <EspDefaultHandler>
+                                                            // PROVIDE(DefaultHandler = EspDefaultHandler);
+                                                            // in esp-hal/ld/riscv/hal-defaults.x
+
+    .global _continue_interrupt_trap                    // 4038058c <_continue_interrupt_trap>:
+    _continue_interrupt_trap:
+        {store_continue}                    // store trap partially (all registers except a0)
+                                                // let store_continue = store_trap(arch, |reg| reg != "a0");
+                                                        // 4038058c:       00112023                sw      ra,0(sp)
+                                                        // 40380590:       00512223                sw      t0,4(sp)
+                                                        // 40380594:       00612423                sw      t1,8(sp)
+                                                        // 40380598:       00712623                sw      t2,12(sp)
+                                                        // 4038059c:       01c12823                sw      t3,16(sp)
+                                                        // 403805a0:       01d12a23                sw      t4,20(sp)
+                                                        // 403805a4:       01e12c23                sw      t5,24(sp)
+                                                        // 403805a8:       01f12e23                sw      t6,28(sp)
+                                                        // 403805ac:       02b12223                sw      a1,36(sp)
+                                                        // 403805b0:       02c12423                sw      a2,40(sp)
+                                                        // 403805b4:       02d12623                sw      a3,44(sp)
+                                                        // 403805b8:       02e12823                sw      a4,48(sp)
+                                                        // 403805bc:       02f12a23                sw      a5,52(sp)
+                                                        // 403805c0:       03012c23                sw      a6,56(sp)
+                                                        // 403805c4:       03112e23                sw      a7,60(sp)
+
+        jalr ra, a0, 0                      // jump to corresponding interrupt handler (address stored in a0)
+                                                        // 403805c8:       000500e7                jalr    a0
+
+        {load}                              // restore trap frame
+                                                // let load = load_trap(arch);
+                                                        // 403805cc:       00012083                lw      ra,0(sp)
+                                                        // 403805d0:       00412283                lw      t0,4(sp)
+                                                        // 403805d4:       00812303                lw      t1,8(sp)
+                                                        // 403805d8:       00c12383                lw      t2,12(sp)
+                                                        // 403805dc:       01012e03                lw      t3,16(sp)
+                                                        // 403805e0:       01412e83                lw      t4,20(sp)
+                                                        // 403805e4:       01812f03                lw      t5,24(sp)
+                                                        // 403805e8:       01c12f83                lw      t6,28(sp)
+                                                        // 403805ec:       02012503                lw      a0,32(sp)
+                                                        // 403805f0:       02412583                lw      a1,36(sp)
+                                                        // 403805f4:       02812603                lw      a2,40(sp)
+                                                        // 403805f8:       02c12683                lw      a3,44(sp)
+                                                        // 4038060c:       03012703                lw      a4,48(sp)
+                                                        // 40380600:       03412783                lw      a5,52(sp)
+                                                        // 40380604:       03812803                lw      a6,56(sp)
+                                                        // 40380608:       03c12883                lw      a7,60(sp)
+        addi sp, sp, {trap_size} * {width}  // deallocate space for trap frame
+                                                        // 4038060c:       04010113                addi    sp,sp,64
+        {ret}                               // return from interrupt
+                                                // let ret = "mret";
+                                                        // 40380610:       30200073                mret
+    ");"#
+
+// riscv/riscv-rt/src/lib.rs
+#[export_name = "_start_trap_rust"]                                 // 40380614 <_start_trap_rust>:
+pub unsafe extern "C" fn start_trap_rust(trap_frame: *const TrapFrame) {
+    extern "C" {
+        #[cfg(not(feature = "v-trap"))]
+        fn _dispatch_core_interrupt(code: usize);
+        #[cfg(feature = "v-trap")]                                  // we are in feature = "v-trap")
+        fn DefaultHandler();                                        // PROVIDE(DefaultHandler = EspDefaultHandler);
+                                                                    // in esp-hal/ld/riscv/hal-defaults.x
+        fn _dispatch_exception(trap_frame: &TrapFrame, code: usize);
+    }
+
+    match xcause::read().cause() {                                  // 40380614:       342025f3                csrr    a1,mcause
+                                                                    // 40380618:       0005c663                bltz    a1,40380624 <_start_trap_rust+0x10>
+        #[cfg(not(feature = "v-trap"))]
+        xcause::Trap::Interrupt(code) => _dispatch_core_interrupt(code),
+        #[cfg(feature = "v-trap")]
+        xcause::Trap::Interrupt(_) => DefaultHandler(),             // we are in feature = "v-trap")
+                                                                    // PROVIDE(DefaultHandler = EspDefaultHandler);
+                                                                    // in esp-hal/ld/riscv/hal-defaults.x
+                                                                    // 40380624:       01c90317                auipc   t1,0x1c90
+                                                                    // 40380628:       c5c30067                jr      -932(t1) # 42010280 <EspDefaultHandler>
+                                                                    // // DefaultHandler panics (noop)
+        xcause::Trap::Exception(code) => _dispatch_exception(&*trap_frame, code),
+                                                                    // 4038061c:       01cd6317                auipc   t1,0x1cd6
+                                                                    // 40380620:       0c630067                jr      198(t1) # 420566e2 <_dispatch_exception>
+    }
+}
+
+// esp-hal/src/interrupt/mod.rs
+#[cfg(feature = "rt")]
+#[unsafe(no_mangle)]
+extern "C" fn EspDefaultHandler() {                                         // 40380614 <_start_trap_rust>:
+    panic!("Unhandled interrupt on {:?}", crate::system::Cpu::current());   // if panic=immediate-abort -> ret
+                                                                            // 40380614:       8082                    ret
+// EOF section .trap                                                                            
+}
+
+// esp-hal/esp-riscv-rt/src/lib.rs
+pub unsafe extern "C" fn _dispatch_exception(trap_frame: &TrapFrame, _code: usize) {
+                                                                            // 420566e2 <_dispatch_exception>:
+    unsafe extern "C" {
+        fn _start_trap_rust_hal(trap_frame: &TrapFrame);
+    }
+
+    unsafe {
+        _start_trap_rust_hal(trap_frame);                                   // 420566e2:       fe32a317                auipc   t1,0xfe32a
+                                                                            // 420566e6:       ad830067                jr      -1320(t1) # 403801ba <_start_trap_rust_hal>
+    }
+}
+
+
+
+// esp-hal/esp-hal/src/interrupt/riscv.rs
+unsafe fn _setup_interrupts() {
+    unsafe extern "C" {
+        static _vector_table: u32;
+    }
+
+    // disable all known interrupts
+    // at least after the 2nd stage bootloader there are some interrupts enabled
+    // (e.g. UART)
+    for peripheral_interrupt in 0..255 {
+        crate::peripherals::Interrupt::try_from(peripheral_interrupt)
+            .map(|intr| {
+                #[cfg(multi_core)]
+                disable(Cpu::AppCpu, intr);
+                disable(Cpu::ProCpu, intr);
+            })
+            .ok();
+    }
+
+    unsafe {
+        let vec_table = (&_vector_table as *const u32).addr();
+        mtvec::write({
+            let mut mtvec = mtvec::Mtvec::from_bits(0);
+            mtvec.set_trap_mode(mtvec::TrapMode::Vectored);
+            mtvec.set_address(vec_table);
+            mtvec
+        });
+
+        crate::interrupt::init_vectoring();
+    };
+
+mod vectored {
+    // Setup interrupts ready for vectoring
+    pub(crate) unsafe fn init_vectoring() {
+        for (num, prio) in PRIORITY_TO_INTERRUPT.iter().copied().zip(1..) {
+            let which = unsafe { core::mem::transmute::<u32, CpuInterrupt>(num) };
+            set_kind(Cpu::current(), which, InterruptKind::Level);
+            unsafe {
+                set_priority(
+                    Cpu::current(),
+                    which,
+                    core::mem::transmute::<u8, Priority>(prio),
+                );
+                enable_cpu_interrupt(which);
+            }
+        }
+    }
+}
+
+#[cfg(not(plic))]
+mod classic {
+    pub(super) static PRIORITY_TO_INTERRUPT: &[u32] =
+        &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+
+    pub fn set_kind(_core: Cpu, which: CpuInterrupt, kind: InterruptKind) {
+        unsafe {
+            let intr = INTERRUPT_CORE0::regs();
+            let cpu_interrupt_number = which as isize;
+
+            let interrupt_type = match kind {
+                InterruptKind::Level => 0,
+                InterruptKind::Edge => 1,
+            };
+            intr.cpu_int_type().modify(|r, w| {
+                w.bits(
+                    r.bits() & !(1 << cpu_interrupt_number)
+                        | (interrupt_type << cpu_interrupt_number),
+                )
+            });
+        }
+    }
+
+    pub unsafe fn set_priority(_core: Cpu, which: CpuInterrupt, priority: Priority) {
+        let intr = INTERRUPT_CORE0::regs();
+        intr.cpu_int_pri(which as usize)
+            .write(|w| unsafe { w.map().bits(priority as u8) });
+    }
+
+    pub unsafe fn enable_cpu_interrupt(which: CpuInterrupt) {
+        let cpu_interrupt_number = which as isize;
+        let intr = INTERRUPT_CORE0::regs();
+        intr.cpu_int_enable()
+            .modify(|r, w| unsafe { w.bits((1 << cpu_interrupt_number) | r.bits()) });
+    }
+}
+
+
+ELement message to bugadani:
+
+if _vector_table in esp-riscv-rt got [.section .trap.vector, "ax"] and there was a first [KEEP(*(.trap.vector));] directive
+(as in link.x in riscv-rt crate) in .trap section in esp-hal/ld/sections/rwtext.x, than _vector_table would be the first in 
+.rwtext and with the lack of alignement we can save abount 200 bytes space for free
