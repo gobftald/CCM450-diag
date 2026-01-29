@@ -33,7 +33,7 @@ const DEFAULT_PARAMETER_REQUEST_LIST: &[u8] = &[
 
 /// IPv4 configuration data provided by the DHCP server.
 #[derive(Debug, Eq, PartialEq, Clone)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+//#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 // 31
 pub struct Config<'a> {
     /// Information on how to reach the DHCP server that responded with DHCP
@@ -87,7 +87,7 @@ struct RequestState {
 }
 
 #[derive(Debug)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+//#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 // 79
 struct RenewState {
     /// Active network config
@@ -115,7 +115,7 @@ struct RenewState {
 }
 
 #[derive(Debug)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+//#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 // 106
 enum ClientState {
     /// Discovering the DHCP server

@@ -88,14 +88,26 @@ impl core::ops::Div for Rate {
 }
 
 // Represents an instant in time.
+// 195
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-// 122
 pub struct Instant(InnerInstant);
 
-// 165
+// 221
+#[cfg(feature = "defmt")]
+impl defmt::Format for Instant {
+    #[inline]
+    fn format(&self, f: defmt::Formatter<'_>) {
+        defmt::write!(
+            f,
+            "{=u64} µs since epoch",
+            self.duration_since_epoch().as_micros()
+        )
+    }
+}
+
+// 239
 impl Instant {
     /// Represents the moment the system booted.
-    // 167
     pub const EPOCH: Instant = Instant(InnerInstant::from_ticks(0));
 
     /// Returns the current instant.
@@ -103,28 +115,28 @@ impl Instant {
     /// The counter won’t measure time in sleep-mode.
     ///
     /// The timer has a 1 microsecond resolution and will wrap after
+    // 265
     #[inline]
-    // 178
     pub fn now() -> Self {
         now()
     }
 
+    // 270
     #[inline]
-    // 183
     pub(crate) fn from_ticks(ticks: u64) -> Self {
         Instant(InnerInstant::from_ticks(ticks))
     }
 
     /// Returns the elapsed `Duration` since boot.
+    // 287
     #[inline]
-    // 189
     pub fn duration_since_epoch(&self) -> Duration {
         Self::EPOCH.elapsed()
     }
 
     /// Returns the elapsed `Duration` since this `Instant` was created.
+    // 304
     #[inline]
-    // 195
     pub fn elapsed(&self) -> Duration {
         Self::now() - *self
     }

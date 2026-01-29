@@ -212,12 +212,13 @@ impl SchedulerState {
                 debug!("re-queueing current task: {:?}", current_task);
                 self.run_queue.mark_task_ready(&self.per_cpu, current_task);
             }
-        }
+        };
 
         let mut arm_next_timeslice_tick = false;
         let next_task = self.run_queue.pop();
         if next_task != current_task {
             debug!("Switching task {:?} -> {:?}", current_task, next_task);
+
             // If the current task is deleted, we can skip saving its context. We signal this by
             // using a null pointer.
             let current_context = if let Some(current) = current_task {
@@ -323,8 +324,7 @@ impl SchedulerState {
         self.run_scheduler(|current_context, next_context| {
             trace!(
                 "Task switch: {:x} -> {:x}",
-                current_context as usize,
-                next_context as usize
+                current_context as usize, next_context as usize
             );
             task::task_switch(
                 current_context,

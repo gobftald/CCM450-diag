@@ -1,25 +1,27 @@
+// 1
 use core::cell::Cell;
+
+// 3
+use critical_section::{CriticalSection, Mutex};
 
 // 5
 use super::TaskRef;
 
 // 7
 pub(crate) struct RunQueueItem {
-    //next: Mutex<Cell<Option<TaskRef>>>,
-    next: Cell<Option<TaskRef>>,
+    next: Mutex<Cell<Option<TaskRef>>>,
 }
 
 // 11
 impl RunQueueItem {
     pub const fn new() -> Self {
         Self {
-            //next: Mutex::new(Cell::new(None)),
-            next: Cell::new(None),
+            next: Mutex::new(Cell::new(None)),
         }
     }
 }
 
-/// (Atomic) task queue using a very, very simple lock-free linked-list queue:
+/// Atomic task queue using a very, very simple lock-free linked-list queue:
 ///
 /// To enqueue a task, task.next is set to the old head, and head is atomically set to task.
 ///
@@ -32,8 +34,7 @@ impl RunQueueItem {
 /// by waking its own waker) can't prevent other tasks from running.
 // 30
 pub(crate) struct RunQueue {
-    //head: Mutex<Cell<Option<TaskRef>>>,
-    head: Cell<Option<TaskRef>>,
+    head: Mutex<Cell<Option<TaskRef>>>,
 }
 
 // 34
@@ -41,8 +42,7 @@ impl RunQueue {
     // 35
     pub const fn new() -> Self {
         Self {
-            //head: Mutex::new(Cell::new(None)),
-            head: Cell::new(None),
+            head: Mutex::new(Cell::new(None)),
         }
     }
 
@@ -51,13 +51,11 @@ impl RunQueue {
     /// # Safety
     ///
     /// `item` must NOT be already enqueued in any queue.
+    // 46
     #[inline(always)]
-    // 47
-    pub(crate) unsafe fn enqueue(&self, task: TaskRef) -> bool {
-        //let prev = self.head.borrow(cs).replace(Some(task));
-        let prev = self.head.replace(Some(task));
-        //task.header().run_queue_item.next.borrow(cs).set(prev);
-        task.header().run_queue_item.next.set(prev);
+    pub(crate) unsafe fn enqueue(&self, task: TaskRef, cs: CriticalSection<'_>) -> bool {
+        let prev = self.head.borrow(cs).replace(Some(task));
+        task.header().run_queue_item.next.borrow(cs).set(prev);
 
         prev.is_none()
     }
@@ -68,20 +66,17 @@ impl RunQueue {
     // 57
     pub(crate) fn dequeue_all(&self, on_task: impl Fn(TaskRef)) {
         // Atomically empty the queue.
-        //let mut next = critical_section::with(|cs| self.head.borrow(cs).take());
-        let mut next = self.head.take();
+        let mut next = critical_section::with(|cs| self.head.borrow(cs).take());
 
         // Iterate the linked list of tasks that were previously in the queue.
         while let Some(task) = next {
             // If the task re-enqueues itself, the `next` pointer will get overwritten.
             // Therefore, first read the next pointer, and only then process the task.
 
-            critical_section::with(|_| {
-                // next = task.header().run_queue_item.next.borrow(cs).get();
-                next = task.header().run_queue_item.next.get();
-                //task.header().state.run_dequeue(cs);
+            critical_section::with(|cs| {
+                next = task.header().run_queue_item.next.borrow(cs).get();
                 // state &= !STATE_RUN_QUEUED
-                task.header().state.run_dequeue();
+                task.header().state.run_dequeue(cs);
             });
 
             on_task(task);

@@ -3,6 +3,7 @@ target = "riscv32imc-unknown-none-elf"
 
 [target.riscv32imc-unknown-none-elf]
 runner = "espflash flash --monitor"
+#runner = "probe-rs run --chip esp32c3"
 
 # using defmt crate - together with "link-arg=-Tdefmt.x" below
 #runner = "espflash flash --monitor --log-format defmt"
@@ -11,14 +12,14 @@ runner = "espflash flash --monitor"
 rustflags = [
     "-C", "link-arg=-Tlinkall.x",           # from esp-hal
     "-C", "link-arg=-Map=riscv32.map",
-    #"-C", "link-arg=-Tdefmt.x",             # for defmt
+    "-C", "link-arg=-Tdefmt.x",             # for defmt
     #"-C", "force-frame-pointers",          # for esp-backtrace
                                             # otherwise some size ovehead occurs (in ELF file only)
                                             # when making frame for every real (not inlined) function call
                                             # it's not relevant, esp-backtrace uses frame pointers to walk the stack 
                                             # easily and with low overhead, 
-    "-Z", "unstable-options",
-    "-C", "panic=immediate-abort",          # the oreder is important: first unstable then panic
+    #"-Z", "unstable-options",
+    #"-C", "panic=immediate-abort",          # the oreder is important: first unstable then panic
 ]
 
 [unstable]

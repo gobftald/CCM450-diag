@@ -28,7 +28,7 @@ esp-alloc = { version = "0.9.0", default-features = false }
 strum_macros = "0.27"
 
 #esp-hal-embassy = { path = "../../esp-hal/esp-hal-embassy"  }
-embassy-executor = { path = "../../embassy/embassy-executor" }
+embassy-executor = { path = "../../embassy/embassy-executor.me" }
 # although we don't plan to use "dhcpv4" feature we define it
 # since it products less code in icmp and udp because we can implement only "icmp echo" 
 embassy-net = { path =  "../../embassy/embassy-net", features = ["udp", "dhcpv4"]}
@@ -40,12 +40,12 @@ embassy-futures = { path = "../../embassy/embassy-futures" }
 #esp-wifi = { path = "../../esp-hal/esp-wifi", features = ["wifi"] }
 esp-radio = { path = "../../esp-hal/esp-radio", features = ["wifi"] }
 esp-rtos = { path = "../../esp-hal/esp-rtos", features = ["esp-radio", "embassy", "esp-alloc"] }
-
+esp-bootloader-esp-idf = { path = "../../esp-hal/esp-bootloader-esp-idf.me" }
 
 [features]
 default = [
     "esp32c3",
-    #"defmt",
+    "defmt",
     "ecu",
 ]
 
@@ -74,6 +74,7 @@ defmt = [
     "embassy-time/defmt-timestamp-uptime",
     #"esp-wifi/defmt",
     "esp-radio/defmt",
+    "esp-rtos/defmt",
     "embassy-net/defmt",
     "embassy-futures/defmt",
 ]
@@ -95,3 +96,7 @@ kwp2000 = []
 
 # selected ECU
 ecu = ["ccm450"]
+
+[build-dependencies]
+esp-config = { version = "0.6.1", features = ["build"] }
+esp-metadata-generated = { version = "0.3.0", features = ["build-script"] }

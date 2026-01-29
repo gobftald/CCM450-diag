@@ -41,10 +41,6 @@ impl self::efuse::Efuse {
     }
 }
 
-unsafe extern "C" {
-    static mut __stack_chk_guard: u32;
-}
-
 // 233
 #[cfg(all(feature = "rt", riscv))]
 fn setup_stack_guard() {

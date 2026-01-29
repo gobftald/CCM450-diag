@@ -1,0 +1,15 @@
+[package]
+name = "esp-bootloader-esp-idf"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+test = false
+bench = false
+
+[dependencies]
+esp-config = "0.6.0"
+
+[build-dependencies]
+jiff = { version = "0.2.13", default-features = false, features = ["std"] }
+esp-config = { version = "0.6.0", features = ["build"] }

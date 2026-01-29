@@ -1,0 +1,178 @@
+// studies/ecu-via-elm327/src/main.rs
+#[esp_rtos::main]
+async fn main(spawner: embassy_executor::Spawner) {
+    ...
+}
+
+// esp-hal/esp-rtos/src/lib.rs
+#[cfg(feature = "embassy")]
+pub use macros::rtos_main as main;
+
+// esp-hal/esp-rtos/Cargo.toml
+macros = { version = "0.21.0", package = "esp-hal-procmacros", path = "../esp-hal-procmacros" }
+
+// esp-hal/esp-hal-procmacros/src/lib.rs
+#[proc_macro_attribute]
+pub fn rtos_main(args: TokenStream, item: TokenStream) -> TokenStream {
+    rtos_main::main(args.into(), item.into()).into()
+}
+
+// esp-hal/esp-hal-procmacros/src/rtos_main.rs
+/// Procedural macro entry point for the async `main` function.
+pub fn main(args: TokenStream, item: TokenStream) -> TokenStream {
+    let args: Args = crate::unwrap_or_compile_error!(syn::parse2(args));
+    let f: syn::ItemFn = crate::unwrap_or_compile_error!(syn::parse2(item));
+
+    run(&args.meta, f, main_fn()).unwrap_or_else(|x| x)
+}
+
+pub fn main_fn() -> TokenStream2 {
+    let root = match proc_macro_crate::crate_name("esp-hal") {
+        Ok(proc_macro_crate::FoundCrate::Name(ref name)) => quote::format_ident!("{name}"),
+        _ => quote::format_ident!("esp_hal"),
+    };
+
+    quote! {
+        #[#root::main]
+        fn main() -> ! {
+            let mut executor = ::esp_rtos::embassy::Executor::new();
+            let executor = unsafe { __make_static(&mut executor) };
+            executor.run(|spawner| {
+                spawner.must_spawn(__embassy_main(spawner));
+            })
+        }
+    }
+}
+
+pub fn run(
+    _args: &[Meta],
+    f: syn::ItemFn,
+    main: TokenStream2,
+) -> Result<TokenStream2, TokenStream2> {
+    ... // checkings
+    let result = quote! {
+        #(#lint_attrs)*
+        pub(crate) mod __main {
+            use super::*;
+
+            #[doc(hidden)]
+            #(#fattrs)*
+            #[::embassy_executor::task()]
+            async fn __embassy_main(#fargs) #out {
+                #f_body
+            }
+
+            #[doc(hidden)]
+            unsafe fn __make_static<T>(t: &mut T) -> &'static mut T {
+                ::core::mem::transmute(t)
+            }
+
+            #(#fattrs)*
+            #main
+        }
+    };
+}
+
+#[::embassy_executor::task()]
+// embassy/embassy-executor/src/lib.rs
+pub use embassy_executor_macros::task;
+
+// embassy/embassy-executor-macros/src/lib.rs
+mod macros;
+use macros::*;
+#[proc_macro_attribute]
+pub fn task(args: TokenStream, item: TokenStream) -> TokenStream {
+    task::run(args.into(), item.into()).into()
+}
+
+// embassy/embassy-executor-macros/src/macros/mod.rs
+pub mod task;
+
+// embassy/embassy-executor-macros/src/macros/task.rs
+pub fn run(args: TokenStream, item: TokenStream) -> TokenStream {
+    ... // checkings
+    let task_ident = f.sig.ident.clone();
+    let task_inner_ident = format_ident!("__{}_task", task_ident);  // __|__embassy_main|_task(spawner: embassy_executor::Spawner)
+
+    #[cfg(feature = "nightly")]
+    let mut task_outer_body = quote! {
+        trait _EmbassyInternalTaskTrait {
+            type Fut: ::core::future::Future<Output: #embassy_executor::_export::TaskReturnValue> + 'static;
+            fn construct(#fargs) -> Self::Fut;
+        }
+
+        impl _EmbassyInternalTaskTrait for () {
+            type Fut = impl core::future::Future<Output: #embassy_executor::_export::TaskReturnValue> + 'static;
+            fn construct(#fargs) -> Self::Fut {
+                #task_inner_ident(#(#full_args,)*)
+            }
+        }
+
+        const POOL_SIZE: usize = #pool_size;
+        static POOL: #embassy_executor::raw::TaskPool<<() as _EmbassyInternalTaskTrait>::Fut, POOL_SIZE> = #embassy_executor::raw::TaskPool::new();
+        unsafe { POOL.#spawn(move || <() as _EmbassyInternalTaskTrait>::construct(#(#full_args,)*)) }
+    };
+    ...
+    let result = quote! {
+        // This is the user's task function, renamed.
+        // We put it outside the #task_ident fn below, because otherwise
+        // the items defined there (such as POOL) would be in scope
+        // in the user's code.
+        #[doc(hidden)]
+        #task_inner // __|__embassy_main|_task(...
+
+        #(#task_outer_attrs)*
+        #visibility #unsafety fn #task_ident #generics (#fargs) -> ::core::result::Result<#embassy_executor::SpawnToken<impl Sized>, #embassy_executor::SpawnError> #where_clause{
+            #task_outer_body
+        }
+
+        #errors
+    };
+}
+
+// expansion
+pub(crate) mod __main {
+    ...
+    async fn ____embassy_main_task(spawner: embassy_executor::Spawner) {
+        // content of the original main
+    }
+
+    fn __embassy_main(
+        spawner: embassy_executor::Spawner,
+    ) -> ::embassy_executor::SpawnToken {
+        trait _EmbassyInternalTaskTrait {
+            type Fut: ::core::future::Future + 'static;
+            fn construct(spawner: embassy_executor::Spawner) -> Self::Fut;
+        }
+        impl _EmbassyInternalTaskTrait for () {
+            type Fut = impl core::future::Future + 'static;
+            fn construct(spawner: embassy_executor::Spawner) -> Self::Fut {
+                ____embassy_main_task(spawner)
+            }
+        }
+        const POOL_SIZE: usize = 1;
+        static mut POOL: ::embassy_executor::raw::TaskPool<             // new TaskPool
+            <() as _EmbassyInternalTaskTrait>::Fut,
+            POOL_SIZE,
+        > = ::embassy_executor::raw::TaskPool::new();
+        unsafe {
+            POOL._spawn_async_fn(move || <() as _EmbassyInternalTaskTrait>::construct(
+                spawner,
+            ))
+        }
+    }
+
+    unsafe fn __make_static<T>(t: &mut T) -> &'static mut T {
+        ::core::mem::transmute(t)
+    }
+
+    #[export_name = "main"]
+    pub fn __risc_v_rt__main() -> ! {
+        let mut executor = ::esp_rtos::embassy::Executor::new();
+        let executor = unsafe { __make_static(&mut executor) };
+        executor
+            .run(|spawner| {
+                spawner.must_spawn(__embassy_main(spawner));
+            })
+    }
+}

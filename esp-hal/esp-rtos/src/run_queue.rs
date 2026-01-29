@@ -30,6 +30,12 @@ impl MaxPriority {
         }
     }
 
+    // 28
+    fn mark_ready(&mut self, level: Priority) {
+        self.max = if level > self.max { level } else { self.max };
+        self.mask |= 1 << level.get();
+    }
+
     // 33
     fn unmark(&mut self, level: usize) {
         self.mask &= !(1 << level);
@@ -195,6 +201,8 @@ impl RunQueue {
                 let run_on = self.select_scheduler_trigger_single_core(priority_n);
             }
         }
+
+        self.ready_priority.mark_ready(priority);
 
         if run_on != RunSchedulerOn::DontRun {
             debug!(

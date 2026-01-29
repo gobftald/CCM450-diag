@@ -1,16 +1,21 @@
 [package]
 name = "embassy-executor"
-version = "0.7.0"
+version = "0.9.0"
 edition = "2021"
+
+[lib]
+test = false
+bench = false
 
 [dependencies]
 #console  = { path = "../../console", features = ["jtag_serial"]}
 #defmt = { version = "0.3.10", optional = true }
 defmt = { version = "1.0.1", optional = true }
 log = { version = "0.4.14", optional = true }
-critical-section = { version = "1.2.0" }
-embassy-executor-macros = { path = "../embassy-executor-macros" }
+critical-section = { version = "1.1" }
+embassy-executor-macros = { path = "../embassy-executor-macros.me" }
 embassy-executor-timer-queue = { path = "../embassy-executor-timer-queue" }
+portable-atomic = { version = "1.5", optional = true }
 
 [features]
 default = ["executor-thread"]
@@ -28,3 +33,5 @@ executor-interrupt = []
 trace = []
 
 _timer-item-payload = [] # A size was picked
+
+arch-avr = []

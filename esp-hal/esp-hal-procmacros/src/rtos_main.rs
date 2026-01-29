@@ -2,11 +2,11 @@
 use std::{cell::RefCell, fmt::Display, thread};
 // 3
 use proc_macro2::{TokenStream, TokenStream as TokenStream2};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::{
+    Attribute, Meta, ReturnType, Token, Type,
     parse::{Parse, ParseBuffer},
     punctuated::Punctuated,
-    Attribute, Meta, ReturnType, Token, Type,
 };
 
 /// Parsed arguments for the `main` macro.
@@ -169,13 +169,13 @@ impl Ctxt {
     }
 }
 
-// 163
+// 167
 fn to_compile_errors(errors: Vec<syn::Error>) -> TokenStream2 {
     let compile_errors = errors.iter().map(syn::Error::to_compile_error);
     quote!(#(#compile_errors)*)
 }
 
-// 168
+// 172
 impl Drop for Ctxt {
     fn drop(&mut self) {
         if !thread::panicking() && self.errors.borrow().is_some() {

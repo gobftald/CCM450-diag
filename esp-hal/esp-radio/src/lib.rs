@@ -68,7 +68,7 @@ use core::marker::PhantomData;
 use esp_config::{esp_config_bool, esp_config_int, esp_config_str};
 use hal::{
     //clock::Clocks,
-    clock::{Clocks, init_radio_clocks},
+    clock::{init_radio_clocks, Clocks},
     rng::Rng,
     time::Rate,
     timer::{AnyTimer, PeriodicTimer},

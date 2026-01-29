@@ -1376,7 +1376,7 @@ pub struct Interfaces<'d> {
 /// Dropping the controller will deinitialize / stop WiFi.
 ///
 /// Make sure to **not** call this function while interrupts are disabled.
-// 2557
+// 2837
 pub fn new<'d>(
     //_inited: &'d EspWifiController<'d>,
     _inited: &'d Controller<'d>,

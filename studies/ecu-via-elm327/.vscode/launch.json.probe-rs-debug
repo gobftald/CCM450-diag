@@ -1,0 +1,26 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      //"preLaunchTask": "flash-esp32c3",
+      "preLaunchTask": "cargo-build",
+      "type": "probe-rs-debug",
+      "request": "launch",
+      "name": "probe-rs-debug",
+      "cwd": "${workspaceFolder}",
+      //"runtimeExecutable": "probe-rs",
+      //"runtimeArgs": ["dap-server"],
+      "chip": "esp32c3",
+      "flashingConfig": {
+        "flashingEnabled": true,
+        "haltAfterReset": true,
+      },
+      "coreConfigs": [
+        {
+          "coreIndex": 0,
+          "programBinary": "${workspaceRoot}/target/riscv32imc-unknown-none-elf/debug/ecu-via-elm327"
+        }
+      ],
+    }
+  ]
+}

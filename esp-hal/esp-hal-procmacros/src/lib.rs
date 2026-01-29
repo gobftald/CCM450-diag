@@ -1,24 +1,21 @@
-// 47
+// 46
 use proc_macro::TokenStream;
 
 // 48
 mod alert;
 mod blocking;
 
-#[cfg(feature = "embassy")]
 // 52
-mod embassy;
 mod interrupt;
 
-// 61
+// 60
 mod ram;
 mod rtos_main;
 
+// 114
 #[proc_macro_attribute]
-#[proc_macro_error2::proc_macro_error]
-// 119
 pub fn ram(args: TokenStream, input: TokenStream) -> TokenStream {
-    ram::ram(args, input)
+    ram::ram(args.into(), input.into()).into()
 }
 
 /// Mark a function as an interrupt handler.
@@ -27,10 +24,10 @@ pub fn ram(args: TokenStream, input: TokenStream) -> TokenStream {
 /// esp_hal::interrupt::Priority::Priority2)]`.
 ///
 /// If no priority is given, `Priority::min()` is assumed
+// 170
 #[proc_macro_attribute]
-#[proc_macro_error2::proc_macro_error]
 pub fn handler(args: TokenStream, input: TokenStream) -> TokenStream {
-    interrupt::handler(args, input)
+    interrupt::handler(args.into(), input.into()).into()
 }
 
 /// Creates a new instance of `esp_rtos::embassy::Executor` and declares an application entry point
@@ -53,20 +50,14 @@ pub fn handler(args: TokenStream, input: TokenStream) -> TokenStream {
 ///     // Function body
 /// }
 /// ```
+// 216
 #[proc_macro_attribute]
 pub fn rtos_main(args: TokenStream, item: TokenStream) -> TokenStream {
     rtos_main::main(args.into(), item.into()).into()
 }
 
-#[cfg(feature = "embassy")]
+// 244
 #[proc_macro_attribute]
-// 179
-pub fn embassy_main(args: TokenStream, item: TokenStream) -> TokenStream {
-    embassy::main(args, item)
-}
-
-#[proc_macro_attribute]
-// 208
 pub fn blocking_main(args: TokenStream, input: TokenStream) -> TokenStream {
     blocking::main(args, input)
 }
@@ -111,6 +102,7 @@ pub fn warning(input: TokenStream) -> TokenStream {
     alert::do_alert(termcolor::Color::Yellow, input)
 }
 
+// 325
 macro_rules! unwrap_or_compile_error {
     ($($x:tt)*) => {
         match $($x)* {
@@ -122,4 +114,5 @@ macro_rules! unwrap_or_compile_error {
     };
 }
 
+// 336
 pub(crate) use unwrap_or_compile_error;

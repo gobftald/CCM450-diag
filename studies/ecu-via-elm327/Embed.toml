@@ -23,8 +23,8 @@ verify = false
 # When flashing is enabled as well, the target will be reset after flashing regardless of this setting.
 enabled = true
 # Whether or not the target should be halted after reset.
-halt_afterwards = true
-
+halt_afterwards = false
+    
 [default.gdb]
 # Whether or not a GDB server should be opened after flashing.
 enabled = true

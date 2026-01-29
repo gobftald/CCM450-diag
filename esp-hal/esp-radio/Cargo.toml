@@ -46,7 +46,7 @@ esp-config = { version = "0.6.1", features = ["build"] }
 #esp-metadata = { path = "../esp-metadata" }
 esp-metadata-generated = { version = "0.3.0", features = ["build-script"] }
 #esp32c3 = { version = "0.31", features = ["critical-section", "rt"], optional = true }
-esp32c3 = { path = "../../../w/esp-pacs/esp32c3", features = ["critical-section", "rt"], optional = true }
+#esp32c3 = { path = "../../../w/esp-pacs/esp32c3", features = ["critical-section", "rt"], optional = true }
 
 [features]
 #default = ["builtin-scheduler", "esp-alloc"]
@@ -54,7 +54,7 @@ default = ["esp-alloc"]
 
 # Target the ESP32-C3.
 esp32c3 = [
-  "dep:esp32c3",
+  #"dep:esp32c3",
   "esp-hal/esp32c3",
   "esp-wifi-sys-esp32c3/esp32c3",
   "esp-phy/esp32c3",

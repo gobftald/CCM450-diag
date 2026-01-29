@@ -19,7 +19,7 @@ rtos-trace = { version = "0.2.0", optional = true }
 cfg-if = "1"
 esp-radio-rtos-driver = { version = "0.2.0", path = "../esp-radio-rtos-driver", optional = true }
 embassy-sync = "0.7"
-embassy-executor = { path = "../../embassy/embassy-executor", features = ["nightly"], optional = true }
+embassy-executor = { path = "../../embassy/embassy-executor.me", features = ["nightly"], optional = true }
 #embassy-time-driver = { version = "0.2.1", features = [ "tick-hz-1_000_000" ], optional = true }
 embassy-time-driver = { path = "../../embassy/embassy-time-driver", features = [ "tick-hz-1_000_000" ], optional = true }
 esp-config = "0.6.1"
@@ -59,6 +59,7 @@ esp32c3 = [
     "esp-hal/esp32c3",
     "esp-hal/unstable",
     "esp-sync/esp32c3",
+    "embassy-executor?/portable-atomic",
 ]
 
 esp32s3 = [

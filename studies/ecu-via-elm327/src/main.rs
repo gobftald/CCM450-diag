@@ -52,6 +52,8 @@ macro_rules! mk_static {
     }};
 }
 
+esp_bootloader_esp_idf::esp_app_desc!();
+
 #[esp_rtos::main]
 async fn main(spawner: embassy_executor::Spawner) {
     let config = esp_hal::Config::new_and_default(esp_hal::clock::CpuClock::max());
