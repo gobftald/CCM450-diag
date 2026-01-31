@@ -1836,3 +1836,45 @@ pub type __builtin_va_list = *mut crate::c_types::c_void;
 
 // 9123
 unsafe impl Sync for wifi_osi_funcs_t {}
+
+extern "C" {
+    /// @brief     Set current WiFi power save type\n\n @attention Default power save type is WIFI_PS_MIN_MODEM.\n\n @param     type  power save type\n\n @return    ESP_OK: succeed
+    pub fn esp_wifi_set_ps(type_: wifi_ps_type_t) -> esp_err_t;
+}
+
+/// < No power save"
+pub const wifi_ps_type_t_WIFI_PS_NONE: wifi_ps_type_t = 0;
+/// < Minimum modem power saving. In this mode, station wakes up to receive beacon every DTIM period
+pub const wifi_ps_type_t_WIFI_PS_MIN_MODEM: wifi_ps_type_t = 1;
+/// "< Maximum modem power saving. In this mode, interval to receive beacons is determined by the listen_interval parameter in wifi_sta_config_t
+pub const wifi_ps_type_t_WIFI_PS_MAX_MODEM: wifi_ps_type_t = 2;
+///  @brief Wi-Fi power save type
+pub type wifi_ps_type_t = crate::c_types::c_uint;
+
+/// < Country policy is auto, use the country info of AP to which the station is connected
+pub const wifi_country_policy_t_WIFI_COUNTRY_POLICY_AUTO: wifi_country_policy_t = 0;
+/// < Country policy is manual, always use the configured country info
+pub const wifi_country_policy_t_WIFI_COUNTRY_POLICY_MANUAL: wifi_country_policy_t = 1;
+///  @brief Wi-Fi country policy
+pub type wifi_country_policy_t = crate::c_types::c_uint;
+
+///  @brief Structure describing Wi-Fi country-based regional restrictions.
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct wifi_country_t {
+    /// < Country code string
+    pub cc: [crate::c_types::c_char; 3usize],
+    /// < Start channel of the allowed 2.4GHz Wi-Fi channels
+    pub schan: u8,
+    /// < Total channel number of the allowed 2.4GHz Wi-Fi channels
+    pub nchan: u8,
+    /// < This field is used for getting Wi-Fi maximum transmitting power, call esp_wifi_set_max_tx_power to set the maximum transmitting power.
+    pub max_tx_power: i8,
+    /// < Country policy
+    pub policy: wifi_country_policy_t,
+}
+
+extern "C" {
+    #[doc = " @brief     configure country info\n\n @attention 1. It is discouraged to call this API since this doesn't validate the per-country rules,\n               it's up to the user to fill in all fields according to local regulations.\n               Please use esp_wifi_set_country_code instead.\n @attention 2. The default country is \"01\" (world safe mode) {.cc=\"01\", .schan=1, .nchan=11, .policy=WIFI_COUNTRY_POLICY_AUTO}.\n @attention 3. The third octet of country code string is one of the following: ' ', 'O', 'I', 'X', otherwise it is considered as ' '.\n @attention 4. When the country policy is WIFI_COUNTRY_POLICY_AUTO, the country info of the AP to which\n               the station is connected is used. E.g. if the configured country info is {.cc=\"US\", .schan=1, .nchan=11}\n               and the country info of the AP to which the station is connected is {.cc=\"JP\", .schan=1, .nchan=14}\n               then the country info that will be used is {.cc=\"JP\", .schan=1, .nchan=14}. If the station disconnected\n               from the AP the country info is set back to the country info of the station automatically,\n               {.cc=\"US\", .schan=1, .nchan=11} in the example.\n @attention 5. When the country policy is WIFI_COUNTRY_POLICY_MANUAL, then the configured country info is used always.\n @attention 6. When the country info is changed because of configuration or because the station connects to a different\n               external AP, the country IE in probe response/beacon of the soft-AP is also changed.\n @attention 7. The country configuration is stored into flash.\n @attention 8. When this API is called, the PHY init data will switch to the PHY init data type corresponding to the\n               country info.\n\n @param     country   the configured country info\n\n @return\n    - ESP_OK: succeed\n    - ESP_ERR_WIFI_NOT_INIT: WiFi is not initialized by esp_wifi_init\n    - ESP_ERR_INVALID_ARG: invalid argument"]
+    pub fn esp_wifi_set_country(country: *const wifi_country_t) -> esp_err_t;
+}

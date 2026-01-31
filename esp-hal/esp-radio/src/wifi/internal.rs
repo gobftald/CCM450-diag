@@ -1,23 +1,22 @@
 // 1
 use esp_wifi_sys_esp32c3::include::{
-    ESP_WIFI_OS_ADAPTER_MAGIC, ESP_WIFI_OS_ADAPTER_VERSION, WIFI_INIT_CONFIG_MAGIC,
-    wifi_init_config_t, wifi_osi_funcs_t, wpa_crypto_funcs_t,
+    ESP_WIFI_OS_ADAPTER_MAGIC, ESP_WIFI_OS_ADAPTER_VERSION, wifi_init_config_t, wifi_osi_funcs_t,
 };
 
 // 10
 use super::os_adapter::{
-    calloc_internal, coex_enable, coex_event_duration_get, coex_pti_get, coex_register_start_cb,
-    coex_schm_curr_period_get, coex_schm_flexible_period_get, coex_schm_flexible_period_set,
-    coex_schm_interval_set, coex_schm_register_cb_wrapper, coex_schm_status_bit_clear,
-    coex_schm_status_bit_set, coex_status_get, coex_wifi_channel_set, coex_wifi_release,
-    coex_wifi_request, env_is_chip, esp_timer_get_time, event_post, free, get_random, ints_on,
+    calloc_internal_wrapper, coex_enable, coex_event_duration_get, coex_pti_get,
+    coex_register_start_cb, coex_schm_curr_period_get, coex_schm_flexible_period_get,
+    coex_schm_flexible_period_set, coex_schm_interval_set, coex_schm_register_cb_wrapper,
+    coex_schm_status_bit_clear, coex_schm_status_bit_set, coex_status_get, coex_wifi_channel_set,
+    coex_wifi_release, coex_wifi_request, env_is_chip, event_post, free, get_random, ints_on,
     log_timestamp, malloc, malloc_internal, mutex_delete, mutex_lock, mutex_unlock,
-    os_adapter_chip_specific, phy_enable, phy_update_country_info, queue_recv, queue_send,
-    queue_send_from_isr, recursive_mutex_create, set_intr, slowclk_cal_get, spin_lock_create,
-    spin_lock_delete, task_create_pinned_to_core, task_delay, task_get_current_task,
-    task_get_max_priority, task_ms_to_tick, task_yield_from_isr, wifi_apb80m_request, wifi_calloc,
-    wifi_clock_enable, wifi_create_queue, wifi_delete_queue, wifi_int_disable, wifi_int_restore,
-    wifi_malloc, wifi_reset_mac, wifi_thread_semphr_get, wifi_zalloc, zalloc_internal,
+    os_adapter_chip_specific, phy_enable, phy_update_country_info, recursive_mutex_create,
+    set_intr, slowclk_cal_get, spin_lock_create, spin_lock_delete, task_create_pinned_to_core,
+    task_delay, task_get_current_task, task_get_max_priority, task_ms_to_tick, task_yield_from_isr,
+    wifi_apb80m_request, wifi_calloc, wifi_clock_enable, wifi_create_queue, wifi_delete_queue,
+    wifi_int_disable, wifi_int_restore, wifi_malloc, wifi_reset_mac, wifi_thread_semphr_get,
+    wifi_zalloc, zalloc_internal,
 };
 
 #[cfg(feature = "sys-logs")]
@@ -25,13 +24,14 @@ use super::os_adapter::{log_write, log_writev};
 
 // 11
 use crate::common_adapter::{
-    ets_timer_arm, ets_timer_arm_us, ets_timer_disarm, ets_timer_done, ets_timer_setfn, random,
-    read_mac, semphr_create, semphr_delete, semphr_give, semphr_take,
+    __esp_radio_esp_timer_get_time, ets_timer_arm, ets_timer_arm_us, ets_timer_disarm,
+    ets_timer_done, ets_timer_setfn, queue_recv, queue_send, queue_send_from_isr, random, read_mac,
+    semphr_create, semphr_delete, semphr_give, semphr_take,
 };
 
+// 87
 #[unsafe(no_mangle)]
-// 70
-static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
+pub(crate) static __ESP_RADIO_G_WIFI_OSI_FUNCS: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _version: ESP_WIFI_OS_ADAPTER_VERSION as i32,      // 0
     _env_is_chip: Some(env_is_chip),                   // 4
     _set_intr: Some(set_intr),                         // 8
@@ -98,7 +98,7 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _wifi_clock_disable: None,                    // 252 Some(wifi_clock_disable),
     _wifi_rtc_enable_iso: None,                   // 256 Some(wifi_rtc_enable_iso),
     _wifi_rtc_disable_iso: None,                  // 260 Some(wifi_rtc_disable_iso),
-    _esp_timer_get_time: Some(esp_timer_get_time), // 264
+    _esp_timer_get_time: Some(__esp_radio_esp_timer_get_time), // 264
     _nvs_set_i8: None,                            // 268 Some(nvs_set_i8),
     _nvs_get_i8: None,                            // 272 Some(nvs_get_i8),
     _nvs_set_u8: None,                            // 276 Some(nvs_set_u8),
@@ -128,7 +128,7 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _log_timestamp: Some(log_timestamp),                 // 340
     _malloc_internal: Some(malloc_internal),             // 344
     _realloc_internal: None,                             // 348 Some(realloc_internal),
-    _calloc_internal: Some(calloc_internal),             // 352
+    _calloc_internal: Some(calloc_internal_wrapper),     // 352
     _zalloc_internal: Some(zalloc_internal),             // 356
     _wifi_malloc: Some(wifi_malloc),                     // 360
     _wifi_realloc: None,                                 // 364 Some(wifi_realloc),
@@ -172,84 +172,22 @@ static g_wifi_osi_funcs: wifi_osi_funcs_t = wifi_osi_funcs_t {
     _coex_schm_process_restart: None, // 452 Some(coex_schm_process_restart_wrapper),
     _coex_schm_register_cb: Some(coex_schm_register_cb_wrapper), // 456
 
-    _magic: ESP_WIFI_OS_ADAPTER_MAGIC as i32, // 472
-
     _coex_schm_flexible_period_set: Some(coex_schm_flexible_period_set), // 464
     _coex_schm_flexible_period_get: Some(coex_schm_flexible_period_get), // 468
+
+    _magic: ESP_WIFI_OS_ADAPTER_MAGIC as i32, // 472
 };
 
-// 214
+// 233
 const WIFI_ENABLE_WPA3_SAE: u64 = 1 << 0;
 const WIFI_ENABLE_ENTERPRISE: u64 = 1 << 7;
 
-// 222
+// 241
 const WIFI_FEATURE_CAPS: u64 = WIFI_ENABLE_WPA3_SAE | WIFI_ENABLE_ENTERPRISE;
 
+// 243
 #[unsafe(no_mangle)]
-// 225
-pub(super) static mut g_wifi_feature_caps: u64 = WIFI_FEATURE_CAPS;
+pub(super) static mut __ESP_RADIO_G_WIFI_FEATURE_CAPS: u64 = WIFI_FEATURE_CAPS;
 
-// 227
-pub(super) static mut G_CONFIG: wifi_init_config_t = wifi_init_config_t {
-    osi_funcs: core::ptr::addr_of!(g_wifi_osi_funcs).cast_mut(),
-
-    // dummy for now - populated in init
-    wpa_crypto_funcs: wpa_crypto_funcs_t {
-        size: 0,
-        version: 1,
-        aes_wrap: None,
-        aes_unwrap: None,
-        hmac_sha256_vector: None,
-        sha256_prf: None,
-        hmac_md5: None,
-        hamc_md5_vector: None,
-        hmac_sha1: None,
-        hmac_sha1_vector: None,
-        sha1_prf: None,
-        sha1_vector: None,
-        pbkdf2_sha1: None,
-        rc4_skip: None,
-        md5_vector: None,
-        aes_encrypt: None,
-        aes_encrypt_init: None,
-        aes_encrypt_deinit: None,
-        aes_decrypt: None,
-        aes_decrypt_init: None,
-        aes_decrypt_deinit: None,
-        aes_128_encrypt: None,
-        aes_128_decrypt: None,
-        omac1_aes_128: None,
-        ccmp_decrypt: None,
-        ccmp_encrypt: None,
-        aes_gmac: None,
-        sha256_vector: None,
-        crc32: None,
-    },
-
-    static_rx_buf_num: crate::CONFIG.static_rx_buf_num as i32,
-    dynamic_rx_buf_num: crate::CONFIG.dynamic_rx_buf_num as i32,
-    tx_buf_type: esp_wifi_sys_esp32c3::include::CONFIG_ESP_WIFI_TX_BUFFER_TYPE as i32,
-    static_tx_buf_num: crate::CONFIG.static_tx_buf_num as i32,
-    dynamic_tx_buf_num: crate::CONFIG.dynamic_tx_buf_num as i32,
-    rx_mgmt_buf_type: esp_wifi_sys_esp32c3::include::CONFIG_ESP_WIFI_DYNAMIC_RX_MGMT_BUF as i32,
-    rx_mgmt_buf_num: esp_wifi_sys_esp32c3::include::CONFIG_ESP_WIFI_RX_MGMT_BUF_NUM_DEF as i32,
-    cache_tx_buf_num: esp_wifi_sys_esp32c3::include::WIFI_CACHE_TX_BUFFER_NUM as i32,
-    csi_enable: cfg!(feature = "csi") as i32,
-    ampdu_rx_enable: crate::CONFIG.ampdu_rx_enable as i32,
-    ampdu_tx_enable: crate::CONFIG.ampdu_tx_enable as i32,
-    amsdu_tx_enable: crate::CONFIG.amsdu_tx_enable as i32,
-    nvs_enable: 0,
-    nano_enable: 0,
-    rx_ba_win: crate::CONFIG.rx_ba_win as i32,
-    wifi_task_core_id: 0,
-    beacon_max_len: esp_wifi_sys_esp32c3::include::WIFI_SOFTAP_BEACON_MAX_LEN as i32,
-    mgmt_sbuf_num: esp_wifi_sys_esp32c3::include::WIFI_MGMT_SBUF_NUM as i32,
-    feature_caps: WIFI_FEATURE_CAPS,
-    sta_disconnected_pm: false,
-    espnow_max_encrypt_num: esp_wifi_sys_esp32c3::include::CONFIG_ESP_WIFI_ESPNOW_MAX_ENCRYPT_NUM
-        as i32,
-    magic: WIFI_INIT_CONFIG_MAGIC as i32,
-
-    tx_hetb_queue_num: 3,
-    dump_hesigb_enable: false,
-};
+// 246
+pub(crate) static mut G_CONFIG: wifi_init_config_t = unsafe { core::mem::zeroed() };

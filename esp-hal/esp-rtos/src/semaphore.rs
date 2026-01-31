@@ -192,7 +192,7 @@ impl SemaphoreInner {
 
     // 184
     fn wait_with_deadline(&mut self, deadline: Instant) {
-        trace!("Semaphore wait_with_deadline - {:?}", deadline);
+        //trace!("Semaphore wait_with_deadline - {:?}", deadline);
         match self {
             SemaphoreInner::Counting { waiting, .. } => waiting.wait_with_deadline(deadline),
             SemaphoreInner::Mutex { waiting, .. } => waiting.wait_with_deadline(deadline),
@@ -201,7 +201,7 @@ impl SemaphoreInner {
 
     // 192
     fn notify(&mut self) {
-        trace!("Semaphore notify");
+        //trace!("Semaphore notify");
         match self {
             SemaphoreInner::Counting { waiting, .. } => waiting.notify(),
             SemaphoreInner::Mutex { waiting, .. } => waiting.notify(),
@@ -284,7 +284,7 @@ impl Semaphore {
                 }
             })
         }) {
-            debug!("Semaphore - take - success");
+            //debug!("Semaphore - take - success");
             true
         } else {
             debug!("Semaphore - take - timed out");

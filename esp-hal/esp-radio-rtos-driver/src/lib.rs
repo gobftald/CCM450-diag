@@ -82,6 +82,12 @@ macro_rules! scheduler_impl {
 
         #[unsafe(no_mangle)]
         #[inline]
+        fn esp_rtos_yield_task_from_isr() {
+            <$t as $crate::Scheduler>::yield_task_from_isr(&$driver)
+        }
+
+        #[unsafe(no_mangle)]
+        #[inline]
         fn esp_rtos_current_task() -> *mut c_void {
             <$t as $crate::Scheduler>::current_task(&$driver)
         }

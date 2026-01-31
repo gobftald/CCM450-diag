@@ -1,3 +1,8 @@
+//! Time conversions
+//!
+//! We're using 1ms per tick, to offer a decent-ish timeout range on u32.
+
+/*
 // Time keeping
 // 2
 pub const TICKS_PER_SECOND: u64 = 1_000_000;
@@ -42,7 +47,12 @@ pub(crate) fn elapsed_time_since(start: u64) -> u64 {
     let now = systimer_count();
     time_diff(start, now)
 }
+*/
 
 pub(crate) const fn blob_ticks_to_micros(ticks: u32) -> u32 {
     ticks.saturating_mul(1_000)
+}
+
+pub(crate) const fn millis_to_blob_ticks(millis: u32) -> u32 {
+    millis
 }

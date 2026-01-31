@@ -25,6 +25,7 @@ type PhyDigRegsBackup =
 
 /// PHY initialization state
 // 63
+#[allow(dead_code)]
 struct PhyState {
     /// Number of references to the PHY.
     ref_count: usize,

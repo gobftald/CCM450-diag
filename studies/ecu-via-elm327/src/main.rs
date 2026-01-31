@@ -78,7 +78,11 @@ async fn main(spawner: embassy_executor::Spawner) {
 
     let esp_radio_ctrl = &*mk_static!(esp_radio::Controller<'static>, unwrap!(esp_radio::init()));
 
-    let (controller, interfaces) = unwrap!(esp_radio::wifi::new(esp_radio_ctrl, peripherals.WIFI));
+    let (controller, interfaces) = unwrap!(esp_radio::wifi::new(
+        esp_radio_ctrl,
+        peripherals.WIFI,
+        Default::default()
+    ));
 
     let wifi_ap_device = interfaces.ap;
 
@@ -138,6 +142,7 @@ async fn main(spawner: embassy_executor::Spawner) {
 
     //crate::debug_pin::init_debug_pin(peripherals.GPIO0);
 
+    /*
     // spawn tasks
     spawner
         .spawn(udp::server(controller, ap_stack, udp_sender, udp_receiver))
@@ -146,6 +151,7 @@ async fn main(spawner: embassy_executor::Spawner) {
     spawner
         .spawn(ecu::server(ecu_sender, ecu_receiver, ecu_adapter))
         .ok();
+    */
 
     spawner.spawn(net_task(ap_runner)).ok();
     spawner.spawn(run()).ok();

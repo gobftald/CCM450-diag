@@ -49,7 +49,6 @@ use self::state::State;
 use self::util::{SyncUnsafeCell, UninitCell};
 pub use self::waker::task_from_waker;
 use super::SpawnToken;
-use crate::SpawnError;
 
 // 45
 #[unsafe(no_mangle)]
@@ -473,9 +472,11 @@ pub struct Executor {
 
 // 508
 impl Executor {
+    /*
     pub(crate) unsafe fn wrap(inner: &SyncExecutor) -> &Self {
         mem::transmute(inner)
     }
+    */
 
     /// Create a new executor.
     ///

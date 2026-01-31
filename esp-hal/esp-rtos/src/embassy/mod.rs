@@ -275,3 +275,10 @@ impl Executor {
         }
     }
 }
+
+// 259
+impl Default for Executor {
+    fn default() -> Self {
+        Self::new()
+    }
+}

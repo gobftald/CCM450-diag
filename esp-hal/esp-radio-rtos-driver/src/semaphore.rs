@@ -292,6 +292,7 @@ macro_rules! register_semaphore_implementation {
 /// Semaphore handle.
 ///
 /// This handle is used to interact with semaphores created by the driver implementation.
+// 289
 #[repr(transparent)]
 pub struct SemaphoreHandle(SemaphorePtr);
 impl SemaphoreHandle {
@@ -308,6 +309,7 @@ impl SemaphoreHandle {
     }
 
     /// Converts this object into a pointer without dropping it.
+    // 306
     #[inline]
     pub fn leak(self) -> SemaphorePtr {
         let ptr = self.0;
@@ -321,6 +323,7 @@ impl SemaphoreHandle {
     ///
     /// - The caller must only use pointers created using [`Self::leak`].
     /// - The caller must ensure the pointer is not shared.
+    // 318
     #[inline]
     pub unsafe fn from_ptr(ptr: SemaphorePtr) -> Self {
         Self(ptr)
@@ -333,6 +336,7 @@ impl SemaphoreHandle {
     /// # Safety
     ///
     /// - The caller must only use pointers created using [`Self::leak`].
+    // 330
     #[inline]
     pub unsafe fn ref_from_ptr(ptr: &SemaphorePtr) -> &Self {
         unsafe { core::mem::transmute(ptr) }
@@ -345,6 +349,7 @@ impl SemaphoreHandle {
     /// succeeds.
     ///
     /// This function returns `true` if the semaphore was taken, `false` if the timeout was reached.
+    // 342
     #[inline]
     pub fn take(&self, timeout_us: Option<u32>) -> bool {
         unsafe { esp_rtos_semaphore_take(self.0, timeout_us) }
@@ -354,6 +359,7 @@ impl SemaphoreHandle {
     ///
     /// This function returns `true` if the semaphore was given, `false` if the counter is at its
     /// maximum.
+    // 351
     #[inline]
     pub fn give(&self) -> bool {
         unsafe { esp_rtos_semaphore_give(self.0) }
@@ -364,12 +370,14 @@ impl SemaphoreHandle {
     /// If the counter is at its maximum, this function returns `false`.
     ///
     /// If the flag is `Some`, the implementation may set it to `true` to request a context switch.
+    // 361
     #[inline]
     pub fn try_give_from_isr(&self, higher_prio_task_waken: Option<&mut bool>) -> bool {
         unsafe { esp_rtos_semaphore_try_give_from_isr(self.0, higher_prio_task_waken) }
     }
 
     /// Returns the current counter value.
+    // 367
     #[inline]
     pub fn current_count(&self) -> u32 {
         unsafe { esp_rtos_semaphore_current_count(self.0) }
@@ -378,6 +386,7 @@ impl SemaphoreHandle {
     /// Attempts to decrement the semaphore's counter.
     ///
     /// If the counter is zero, this function returns `false`.
+    // 375
     #[inline]
     pub fn try_take(&self) -> bool {
         unsafe { esp_rtos_semaphore_try_take(self.0) }
@@ -389,12 +398,14 @@ impl SemaphoreHandle {
     ///
     /// If a higher priority task is woken up by this operation, the `higher_prio_task_waken` flag
     /// is set to `true`.
+    // 386
     #[inline]
     pub fn try_take_from_isr(&self, higher_prio_task_waken: Option<&mut bool>) -> bool {
         unsafe { esp_rtos_semaphore_try_take_from_isr(self.0, higher_prio_task_waken) }
     }
 }
 
+// 392
 impl Drop for SemaphoreHandle {
     #[inline]
     fn drop(&mut self) {

@@ -1,49 +1,49 @@
+// 3
 #[cfg_attr(esp32c3, path = "esp32c3.rs")]
-// 8
 pub(crate) mod os_adapter_chip_specific;
 
 // 10
-use core::{cell::RefCell, ptr::addr_of_mut};
+//use core::{cell::RefCell, ptr::addr_of_mut};
+use allocator_api2::boxed::Box;
 
-// 12
+// 11
 use enumset::EnumSet;
+use esp_phy::PhyController;
+use esp_sync::RawMutex;
 
+// 15
 use super::WifiEvent;
-#[allow(unused_imports)]
-// 14
 use crate::{
+    binary::c_types::*,
     compat::{
-        common::{
-            ConcurrentQueue, create_queue, create_recursive_mutex, delete_queue, lock_mutex,
-            receive_queued, send_queued, str_from_c, thread_sem_get, unlock_mutex,
-        },
-        malloc::calloc,
+        common::{str_from_c, thread_sem_get},
+        malloc::{calloc_internal, InternalMemory},
     },
     hal::{
-        //clock::RadioClockController,
         clock::ModemClockController,
         //peripherals::RADIO_CLK,
         peripherals::WIFI,
         sync::NonReentrantMutex,
     },
     memory_fence::memory_fence,
-    preempt::yield_task,
-    sys::c_types::*,
+    time::{blob_ticks_to_micros, millis_to_blob_ticks},
 };
-use esp_phy::PhyController;
-use esp_sync::RawMutex;
 
-// 41
+// 27
 static WIFI_LOCK: RawMutex = RawMutex::new();
 
+/*
 // 43
 static mut QUEUE_HANDLE: *mut ConcurrentQueue = core::ptr::null_mut();
+*/
 
 // useful for waiting for events - clear and wait for the event bit to be set
 // again
-// 47
-pub(crate) static WIFI_EVENTS: NonReentrantMutex<RefCell<EnumSet<WifiEvent>>> =
-    NonReentrantMutex::new(RefCell::new(enumset::enum_set!()));
+// 31
+//pub(crate) static WIFI_EVENTS: NonReentrantMutex<RefCell<EnumSet<WifiEvent>>> =
+//    NonReentrantMutex::new(RefCell::new(enumset::enum_set!()));
+pub(crate) static WIFI_EVENTS: NonReentrantMutex<EnumSet<WifiEvent>> =
+    NonReentrantMutex::new(enumset::enum_set!());
 
 /// **************************************************************************
 /// Name: wifi_env_is_chip
@@ -55,7 +55,7 @@ pub(crate) static WIFI_EVENTS: NonReentrantMutex<RefCell<EnumSet<WifiEvent>>> =
 ///   True if on chip or false if on FPGA.
 ///
 /// *************************************************************************
-// 60
+// 44
 pub unsafe extern "C" fn env_is_chip() -> bool {
     true
 }
@@ -76,11 +76,14 @@ pub unsafe extern "C" fn env_is_chip() -> bool {
 ///     None
 ///
 /// *************************************************************************
-// 80
+// 64
 pub unsafe extern "C" fn set_intr(cpu_no: i32, intr_source: u32, intr_num: u32, intr_prio: i32) {
     trace!(
         "set_intr {} {} {} {}",
-        cpu_no, intr_source, intr_num, intr_prio
+        cpu_no,
+        intr_source,
+        intr_num,
+        intr_prio
     );
     unsafe {
         crate::wifi::os_adapter::os_adapter_chip_specific::set_intr(
@@ -92,7 +95,7 @@ pub unsafe extern "C" fn set_intr(cpu_no: i32, intr_source: u32, intr_num: u32, 
     }
 }
 
-// 107
+// 91
 pub static mut ISR_INTERRUPT_1: (
     *mut crate::binary::c_types::c_void,
     *mut crate::binary::c_types::c_void,
@@ -111,7 +114,7 @@ pub static mut ISR_INTERRUPT_1: (
 ///   None
 ///
 /// *************************************************************************
-// 125
+// 107
 pub unsafe extern "C" fn ints_on(mask: u32) {
     trace!("chip_ints_on {:x}", mask);
 
@@ -131,9 +134,9 @@ pub unsafe extern "C" fn ints_on(mask: u32) {
 ///   Spin lock data pointer
 ///
 /// *************************************************************************
-// 180
+// 162
 pub unsafe extern "C" fn spin_lock_create() -> *mut crate::binary::c_types::c_void {
-    let ptr = crate::compat::common::sem_create(1, 1);
+    let ptr = crate::compat::semaphore::sem_create(1, 1);
 
     trace!("spin_lock_create {:?}", ptr);
     ptr as *mut crate::binary::c_types::c_void
@@ -152,11 +155,11 @@ pub unsafe extern "C" fn spin_lock_create() -> *mut crate::binary::c_types::c_vo
 ///   None
 ///
 /// *************************************************************************
-// 200
+// 182
 pub unsafe extern "C" fn spin_lock_delete(lock: *mut crate::binary::c_types::c_void) {
     trace!("spin_lock_delete {:?}", lock);
 
-    crate::compat::common::sem_delete(lock);
+    crate::compat::semaphore::sem_delete(lock);
 }
 
 /// **************************************************************************
@@ -173,11 +176,11 @@ pub unsafe extern "C" fn spin_lock_delete(lock: *mut crate::binary::c_types::c_v
 ///   CPU PS value.
 ///
 /// *************************************************************************
-// 220
+// 202
 pub unsafe extern "C" fn wifi_int_disable(
     _wifi_int_mux: *mut crate::binary::c_types::c_void,
 ) -> u32 {
-    //trace!("wifi_int_disable");
+    trace!("wifi_int_disable");
     // TODO: can we use wifi_int_mux?
     let token = unsafe { WIFI_LOCK.acquire() };
     //unsafe { core::mem::transmute::<esp_hal::sync::RestoreState, u32>(token) }
@@ -199,12 +202,12 @@ pub unsafe extern "C" fn wifi_int_disable(
 ///   None
 ///
 /// *************************************************************************
-// 244
+// 224
 pub unsafe extern "C" fn wifi_int_restore(
     _wifi_int_mux: *mut crate::binary::c_types::c_void,
     tmp: u32,
 ) {
-    //trace!("wifi_int_restore");
+    trace!("wifi_int_restore");
     //let token = unsafe { core::mem::transmute::<u32, esp_hal::sync::RestoreState>(tmp) };
     let token = unsafe { core::mem::transmute::<u32, esp_sync::RestoreState>(tmp) };
     unsafe { WIFI_LOCK.release(token) }
@@ -223,11 +226,12 @@ pub unsafe extern "C" fn wifi_int_restore(
 ///   None
 ///
 /// *************************************************************************
-// 266
+// 243
 pub unsafe extern "C" fn task_yield_from_isr() {
     // original: /* Do nothing */
     trace!("task_yield_from_isr");
-    yield_task();
+    //yield_task();
+    crate::preempt::yield_task_from_isr();
 }
 
 /// **************************************************************************
@@ -243,8 +247,9 @@ pub unsafe extern "C" fn task_yield_from_isr() {
 ///   Semaphore data pointer
 ///
 /// *************************************************************************
-// 285
+// 261
 pub unsafe extern "C" fn wifi_thread_semphr_get() -> *mut crate::binary::c_types::c_void {
+    trace!("wifi_thread_semphr_get");
     thread_sem_get()
 }
 
@@ -261,9 +266,11 @@ pub unsafe extern "C" fn wifi_thread_semphr_get() -> *mut crate::binary::c_types
 ///   Recursive mutex data pointer
 ///
 /// *************************************************************************
-// 319
+// 296
 pub unsafe extern "C" fn recursive_mutex_create() -> *mut crate::binary::c_types::c_void {
-    create_recursive_mutex()
+    trace!("recursive_mutex_create");
+    //create_recursive_mutex()
+    crate::compat::mutex::mutex_create(true)
 }
 
 /// **************************************************************************
@@ -279,9 +286,11 @@ pub unsafe extern "C" fn recursive_mutex_create() -> *mut crate::binary::c_types
 ///   None
 ///
 /// *************************************************************************
-// 336
+// 314
 pub unsafe extern "C" fn mutex_delete(mutex: *mut crate::binary::c_types::c_void) {
-    crate::compat::common::mutex_delete(mutex);
+    trace!("mutex_delete {}", mutex);
+    //crate::compat::common::mutex_delete(mutex);
+    crate::compat::mutex::mutex_delete(mutex);
 }
 
 /// **************************************************************************
@@ -297,9 +306,11 @@ pub unsafe extern "C" fn mutex_delete(mutex: *mut crate::binary::c_types::c_void
 ///   True if success or false if fail
 ///
 /// *************************************************************************
-// 353
+// 331
 pub unsafe extern "C" fn mutex_lock(mutex: *mut crate::binary::c_types::c_void) -> i32 {
-    lock_mutex(mutex)
+    trace!("mutex_lock {:?}", mutex);
+    //lock_mutex(mutex)
+    crate::compat::mutex::mutex_lock(mutex)
 }
 
 /// **************************************************************************
@@ -315,11 +326,14 @@ pub unsafe extern "C" fn mutex_lock(mutex: *mut crate::binary::c_types::c_void) 
 ///   True if success or false if fail
 ///
 /// *************************************************************************
-// 370
+// 348
 pub unsafe extern "C" fn mutex_unlock(mutex: *mut crate::binary::c_types::c_void) -> i32 {
-    unlock_mutex(mutex)
+    trace!("mutex_unlock {:?}", mutex);
+    //unlock_mutex(mutex)
+    crate::compat::mutex::mutex_unlock(mutex)
 }
 
+/*
 /// **************************************************************************
 /// Name: esp_queue_send
 ///
@@ -396,35 +410,42 @@ pub unsafe extern "C" fn queue_recv(
 ) -> i32 {
     receive_queued(queue.cast(), item, block_time_tick)
 }
+*/
 
-/// **************************************************************************
-/// Name: esp_task_create
-///
-/// Description:
-///   Create task and the task will run when it is created
-///
-/// Input Parameters:
-///   entry       - Task entry
-///   name        - Task name
-///   stack_depth - Task stack size
-///   param       - Task private data
-///   prio        - Task priority
-///   task_handle - Task handle pointer which is used to pause, resume
-///                 and delete the task
-///
-/// Returned Value:
-///   True if success or false if fail
-///
-/// *************************************************************************
-pub unsafe extern "C" fn task_create(
+// 413
+fn common_task_create(
     task_func: *mut c_void,
     name: *const c_char,
     stack_depth: u32,
     param: *mut c_void,
     prio: u32,
     task_handle: *mut c_void,
+    core_id: Option<u32>,
 ) -> i32 {
-    common_task_create(task_func, name, stack_depth, param, prio, task_handle, None)
+    let task_name = unsafe { str_from_c(name as _) };
+    trace!(
+        "task_create task_func {:?} name {} stack_depth {} param {:?} prio {}, task_handle {:?} core_id {:?}",
+        task_func, task_name, stack_depth, param, prio, task_handle, core_id
+    );
+
+    unsafe {
+        let task_func = core::mem::transmute::<
+            *mut c_void,
+            extern "C" fn(*mut esp_wifi_sys_esp32c3::c_types::c_void),
+        >(task_func);
+
+        let task = crate::preempt::task_create(
+            task_name,
+            task_func,
+            param,
+            prio,
+            core_id,
+            stack_depth as usize,
+        );
+        *(task_handle as *mut usize) = task as usize;
+
+        1
+    }
 }
 
 /// **************************************************************************
@@ -448,6 +469,7 @@ pub unsafe extern "C" fn task_create(
 ///   True if success or false if fail
 ///
 /// *************************************************************************
+// 469
 pub unsafe extern "C" fn task_create_pinned_to_core(
     task_func: *mut c_void,
     name: *const c_char,
@@ -468,40 +490,38 @@ pub unsafe extern "C" fn task_create_pinned_to_core(
     )
 }
 
-fn common_task_create(
+/*  not needed yet
+/// **************************************************************************
+/// Name: esp_task_create
+///
+/// Description:
+///   Create task and the task will run when it is created
+///
+/// Input Parameters:
+///   entry       - Task entry
+///   name        - Task name
+///   stack_depth - Task stack size
+///   param       - Task private data
+///   prio        - Task priority
+///   task_handle - Task handle pointer which is used to pause, resume
+///                 and delete the task
+///
+/// Returned Value:
+///   True if success or false if fail
+///
+/// *************************************************************************
+// 508
+pub unsafe extern "C" fn task_create(
     task_func: *mut c_void,
     name: *const c_char,
     stack_depth: u32,
     param: *mut c_void,
     prio: u32,
     task_handle: *mut c_void,
-    core_id: Option<u32>,
 ) -> i32 {
-    let task_name = unsafe { str_from_c(name as _) };
-    trace!(
-        "task_create task_func {:?} name {} stack_depth {} param {:?} prio {}, task_handle {:?} core_id {:?}",
-        task_func, task_name, stack_depth, param, prio, task_handle, core_id
-    );
-
-    unsafe {
-        let task_func = core::mem::transmute::<
-            *mut c_void,
-            extern "C" fn(*mut crate::sys::c_types::c_void),
-        >(task_func);
-
-        let task = crate::preempt::task_create(
-            task_name,
-            task_func,
-            param,
-            prio,
-            core_id,
-            stack_depth as usize,
-        );
-        *(task_handle as *mut usize) = task as usize;
-
-        1
-    }
+    common_task_create(task_func, name, stack_depth, param, prio, task_handle, None)
 }
+*/
 
 /// **************************************************************************
 /// Name: esp_task_delay
@@ -516,13 +536,16 @@ fn common_task_create(
 ///   None
 ///
 /// *************************************************************************
-// 747
+// 554
 pub unsafe extern "C" fn task_delay(tick: u32) {
     trace!("task_delay tick {}", tick);
+    /*
     let start_time = crate::time::systimer_count();
     while crate::time::elapsed_time_since(start_time) < tick as u64 {
         yield_task();
     }
+    */
+    crate::preempt::usleep(blob_ticks_to_micros(tick))
 }
 
 /// **************************************************************************
@@ -538,10 +561,11 @@ pub unsafe extern "C" fn task_delay(tick: u32) {
 ///   System ticks
 ///
 /// *************************************************************************
-// 768
+// 572
 pub unsafe extern "C" fn task_ms_to_tick(ms: u32) -> i32 {
-    //trace!("task_ms_to_tick ms {}", ms);
-    crate::time::millis_to_ticks(ms as u64) as i32
+    trace!("task_ms_to_tick ms {}", ms);
+    //crate::time::millis_to_ticks(ms as u64) as i32
+    millis_to_blob_ticks(ms) as i32
 }
 
 /// **************************************************************************
@@ -557,10 +581,10 @@ pub unsafe extern "C" fn task_ms_to_tick(ms: u32) -> i32 {
 ///   System ticks
 ///
 /// *************************************************************************
-// 786
+// 587
 pub unsafe extern "C" fn task_get_current_task() -> *mut crate::binary::c_types::c_void {
     let res = crate::preempt::current_task() as *mut crate::binary::c_types::c_void;
-    //trace!("task get current task - return {:?}", res);
+    trace!("task get current task - return {:?}", res);
 
     res
 }
@@ -578,10 +602,11 @@ pub unsafe extern "C" fn task_get_current_task() -> *mut crate::binary::c_types:
 ///   Task maximum priority
 ///
 /// *************************************************************************
-// 806
+// 607
 pub unsafe extern "C" fn task_get_max_priority() -> i32 {
-    //trace!("task_get_max_priority");
-    255
+    trace!("task_get_max_priority");
+    //255
+    crate::preempt::max_task_priority() as i32
 }
 
 /// **************************************************************************
@@ -597,8 +622,9 @@ pub unsafe extern "C" fn task_get_max_priority() -> i32 {
 ///   Memory pointer
 ///
 /// *************************************************************************
-// 824
+// 625
 pub unsafe extern "C" fn malloc(size: usize) -> *mut crate::binary::c_types::c_void {
+    trace!("malloc {}", size);
     unsafe { crate::compat::malloc::malloc(size).cast() }
 }
 
@@ -615,8 +641,9 @@ pub unsafe extern "C" fn malloc(size: usize) -> *mut crate::binary::c_types::c_v
 ///   No
 ///
 /// *************************************************************************
-// 841
+// 642
 pub unsafe extern "C" fn free(p: *mut crate::binary::c_types::c_void) {
+    trace!("free {}", p);
     unsafe {
         crate::compat::malloc::free(p.cast());
     }
@@ -640,7 +667,7 @@ pub unsafe extern "C" fn free(p: *mut crate::binary::c_types::c_void) {
 ///
 /// *************************************************************************
 #[allow(unused_variables)]
-// 864
+// 665
 pub unsafe extern "C" fn event_post(
     event_base: *const crate::binary::c_types::c_char,
     event_id: i32,
@@ -650,14 +677,20 @@ pub unsafe extern "C" fn event_post(
 ) -> i32 {
     trace!(
         "event_post {:?} {} {:?} {} {:?}",
-        event_base, event_id, event_data, event_data_size, ticks_to_wait
+        event_base,
+        event_id,
+        event_data,
+        event_data_size,
+        ticks_to_wait
     );
     use num_traits::FromPrimitive;
 
     let event = unwrap!(WifiEvent::from_i32(event_id));
     trace!("EVENT: {:?}", event);
 
-    WIFI_EVENTS.with(|events| events.borrow_mut().insert(event));
+    //WIFI_EVENTS.with(|events| events.borrow_mut().insert(event));
+    WIFI_EVENTS.with(|events| events.insert(event));
+
     let handled =
         unsafe { super::event::dispatch_event_handler(event, event_data, event_data_size) };
 
@@ -689,7 +722,7 @@ pub unsafe extern "C" fn event_post(
 ///   Take Wi-Fi lock in auto-sleep
 ///
 /// *************************************************************************
-// 971
+// 769
 pub unsafe extern "C" fn wifi_apb80m_request() {
     trace!("wifi_apb80m_request - no-op")
 }
@@ -707,15 +740,13 @@ pub unsafe extern "C" fn wifi_apb80m_request() {
 ///   None
 ///
 /// *************************************************************************
-// 1019
+// 814
 pub unsafe extern "C" fn phy_enable() {
     // quite some code needed here
     trace!("phy_enable");
 
-    unsafe {
-        //crate::common_adapter::chip_specific::phy_enable();
-        core::mem::forget(unsafe { WIFI::steal() }.enable_phy());
-    }
+    //crate::common_adapter::chip_specific::phy_enable();
+    core::mem::forget(unsafe { WIFI::steal() }.enable_phy());
 }
 
 /// **************************************************************************
@@ -725,21 +756,19 @@ pub unsafe extern "C" fn phy_enable() {
 ///   Don't support
 ///
 /// *************************************************************************
+// 827
 #[allow(clippy::unnecessary_cast)]
 #[allow(unused_variables)]
-// 1036
 pub unsafe extern "C" fn phy_update_country_info(
     country: *const crate::binary::c_types::c_char,
 ) -> crate::binary::c_types::c_int {
     // not implemented in original code
-    /*
     #[cfg(feature = "defmt")]
     unsafe {
-        //trace!("phy_update_country_info {}", str_from_c(country.cast()));
+        trace!("phy_update_country_info {}", str_from_c(country.cast()));
     }
     #[cfg(not(feature = "defmt"))]
-    //trace!("phy_update_country_info {}", str_from_c(country.cast()));
-    */
+    trace!("phy_update_country_info {}", str_from_c(country.cast()));
     -1
 }
 
@@ -756,7 +785,7 @@ pub unsafe extern "C" fn phy_update_country_info(
 ///   None
 ///
 /// *************************************************************************
-// 1059
+// 849
 pub unsafe extern "C" fn wifi_reset_mac() {
     trace!("wifi_reset_mac");
     /*
@@ -783,7 +812,7 @@ pub unsafe extern "C" fn wifi_reset_mac() {
 ///   None
 ///
 /// *************************************************************************
-// 1080
+// 869
 pub unsafe extern "C" fn wifi_clock_enable() {
     trace!("wifi_clock_enable");
     /*
@@ -797,6 +826,7 @@ pub unsafe extern "C" fn wifi_clock_enable() {
     unsafe { WIFI::steal() }.enable_modem_clock(true);
 }
 
+/*
 /// **************************************************************************
 /// Name: esp_timer_get_time
 ///
@@ -813,6 +843,7 @@ pub unsafe extern "C" fn esp_timer_get_time() -> i64 {
     //trace!("esp_timer_get_time");
     crate::time::ticks_to_micros(crate::time::systimer_count()) as i64
 }
+*/
 
 /// **************************************************************************
 /// Name: esp_get_random
@@ -828,7 +859,7 @@ pub unsafe extern "C" fn esp_timer_get_time() -> i64 {
 ///   0 if success or -1 if fail
 ///
 /// *************************************************************************
-// 1422
+// 1178
 pub unsafe extern "C" fn get_random(buf: *mut u8, len: usize) -> crate::binary::c_types::c_int {
     trace!("get_random");
     unsafe {
@@ -853,8 +884,8 @@ pub unsafe extern "C" fn get_random(buf: *mut u8, len: usize) -> crate::binary::
 ///   None
 ///
 /// *************************************************************************
+// 1218
 #[cfg(feature = "sys-logs")]
-// 1465
 pub unsafe extern "C" fn log_write(
     level: u32,
     _tag: *const crate::binary::c_types::c_char,
@@ -882,8 +913,9 @@ pub unsafe extern "C" fn log_write(
 ///   None
 ///
 /// *************************************************************************
+// 1246
 #[cfg(feature = "sys-logs")]
-// 1492
+#[allow(improper_ctypes_definitions)]
 pub unsafe extern "C" fn log_writev(
     level: u32,
     _tag: *const crate::binary::c_types::c_char,
@@ -914,7 +946,7 @@ pub unsafe extern "C" fn log_writev(
 ///   System time
 ///
 /// *************************************************************************
-// 1518
+// 1278
 pub unsafe extern "C" fn log_timestamp() -> u32 {
     esp_hal::time::Instant::now()
         .duration_since_epoch()
@@ -934,10 +966,32 @@ pub unsafe extern "C" fn log_timestamp() -> u32 {
 ///   Memory pointer
 ///
 /// *************************************************************************
-// 1537
+// 1297
 pub unsafe extern "C" fn malloc_internal(size: usize) -> *mut crate::binary::c_types::c_void {
-    unsafe { crate::compat::malloc::malloc(size).cast() }
+    //unsafe { crate::compat::malloc::malloc(size).cast() }
+    unsafe { crate::compat::malloc::malloc_internal(size).cast() }
 }
+
+/* wifi_realloc does not used
+/// **************************************************************************
+/// Name: esp_realloc_internal
+///
+/// Description:
+///   Drivers allocate a block of memory by old memory block
+///
+/// Input Parameters:
+///   ptr  - old memory pointer
+///   size - memory size
+///
+/// Returned Value:
+///   New memory pointer
+///
+/// *************************************************************************
+// 1315
+pub unsafe extern "C" fn realloc_internal(ptr: *mut c_void, size: usize) -> *mut c_void {
+    unsafe { crate::compat::malloc::realloc_internal(ptr.cast(), size).cast() }
+}
+*/
 
 /// **************************************************************************
 /// Name: esp_calloc_internal
@@ -953,12 +1007,10 @@ pub unsafe extern "C" fn malloc_internal(size: usize) -> *mut crate::binary::c_t
 ///   New memory pointer
 ///
 /// *************************************************************************
-// 1576
-pub unsafe extern "C" fn calloc_internal(
-    n: usize,
-    size: usize,
-) -> *mut crate::binary::c_types::c_void {
-    unsafe { calloc(n as u32, size) as *mut crate::binary::c_types::c_void }
+// 1333
+pub unsafe extern "C" fn calloc_internal_wrapper(n: usize, size: usize) -> *mut c_void {
+    trace!("calloc_internal_wrapper {} {}", n, size);
+    unsafe { calloc_internal(n as u32, size) as *mut c_void }
 }
 
 /// **************************************************************************
@@ -974,9 +1026,11 @@ pub unsafe extern "C" fn calloc_internal(
 ///   New memory pointer
 ///
 /// *************************************************************************
-// 1596
+// 1350
 pub unsafe extern "C" fn zalloc_internal(size: usize) -> *mut crate::binary::c_types::c_void {
-    unsafe { calloc(size as u32, 1usize) as *mut crate::binary::c_types::c_void }
+    trace!("zalloc_internal {}", size);
+    //unsafe { calloc(size as u32, 1usize) as *mut crate::binary::c_types::c_void }
+    unsafe { calloc_internal(size as u32, 1usize) as *mut c_void }
 }
 
 /// **************************************************************************
@@ -992,9 +1046,10 @@ pub unsafe extern "C" fn zalloc_internal(size: usize) -> *mut crate::binary::c_t
 ///   Memory pointer
 ///
 /// *************************************************************************
-// 1613
+// 1367
 pub unsafe extern "C" fn wifi_malloc(size: usize) -> *mut crate::binary::c_types::c_void {
-    unsafe { malloc(size) }
+    //unsafe { malloc(size) }
+    unsafe { malloc_internal(size) }
 }
 
 /// **************************************************************************
@@ -1011,10 +1066,11 @@ pub unsafe extern "C" fn wifi_malloc(size: usize) -> *mut crate::binary::c_types
 ///   New memory pointer
 ///
 /// *************************************************************************
-// 1652
+// 1403
 pub unsafe extern "C" fn wifi_calloc(n: usize, size: usize) -> *mut crate::binary::c_types::c_void {
-    //trace!("wifi_calloc {} {}", n, size);
-    unsafe { calloc(n as u32, size) as *mut crate::binary::c_types::c_void }
+    trace!("wifi_calloc {} {}", n, size);
+    //unsafe { calloc(n as u32, size) as *mut crate::binary::c_types::c_void }
+    unsafe { calloc_internal(n as u32, size) as *mut c_void }
 }
 
 /// **************************************************************************
@@ -1030,8 +1086,9 @@ pub unsafe extern "C" fn wifi_calloc(n: usize, size: usize) -> *mut crate::binar
 ///   New memory pointer
 ///
 /// *************************************************************************
-// 1670
+// 1421
 pub unsafe extern "C" fn wifi_zalloc(size: usize) -> *mut crate::binary::c_types::c_void {
+    trace!("wifi_zalloc {}", size);
     unsafe { wifi_calloc(size, 1) }
 }
 
@@ -1049,17 +1106,26 @@ pub unsafe extern "C" fn wifi_zalloc(size: usize) -> *mut crate::binary::c_types
 ///   Wi-Fi static message queue data pointer
 ///
 /// *************************************************************************
-// 1688
+// 1439
 pub unsafe extern "C" fn wifi_create_queue(
     queue_len: crate::binary::c_types::c_int,
     item_size: crate::binary::c_types::c_int,
 ) -> *mut crate::binary::c_types::c_void {
+    trace!("wifi_create_queue len={} size={}", queue_len, item_size,);
+
+    /*
     unsafe {
         let queue = create_queue(queue_len, item_size);
         QUEUE_HANDLE = queue;
 
         addr_of_mut!(QUEUE_HANDLE).cast()
     }
+    */
+    let queue = crate::compat::queue::queue_create(queue_len, item_size);
+
+    let queue_ptr: *mut *mut c_void = Box::leak(Box::new_in(queue, InternalMemory));
+
+    queue_ptr.cast()
 }
 
 /// **************************************************************************
@@ -1075,9 +1141,10 @@ pub unsafe extern "C" fn wifi_create_queue(
 ///   None
 ///
 /// *************************************************************************
-// 1713
+// 1460
 pub unsafe extern "C" fn wifi_delete_queue(queue: *mut crate::binary::c_types::c_void) {
-    //trace!("wifi_delete_queue {:?}", queue);
+    trace!("wifi_delete_queue {:?}", queue);
+    /*
     unsafe {
         if core::ptr::eq(queue, addr_of_mut!(QUEUE_HANDLE).cast()) {
             delete_queue(QUEUE_HANDLE);
@@ -1085,6 +1152,12 @@ pub unsafe extern "C" fn wifi_delete_queue(queue: *mut crate::binary::c_types::c
             warn!("unknown queue when trying to delete WIFI queue");
         }
     }
+    */
+    let queue_ptr: *mut *mut c_void = queue.cast();
+
+    let boxed = unsafe { Box::from_raw_in(queue_ptr, InternalMemory) };
+
+    crate::compat::queue::queue_delete(*boxed)
 }
 
 /// **************************************************************************
@@ -1094,8 +1167,10 @@ pub unsafe extern "C" fn wifi_delete_queue(queue: *mut crate::binary::c_types::c
 ///   Don't support
 ///
 /// *************************************************************************
-// 1747
+// 1491
 pub unsafe extern "C" fn coex_enable() -> crate::binary::c_types::c_int {
+    trace!("coex_enable");
+
     //#[cfg(coex)]
     //return unsafe { crate::binary::include::coex_enable() };
 
@@ -1110,8 +1185,10 @@ pub unsafe extern "C" fn coex_enable() -> crate::binary::c_types::c_int {
 ///   Don't support
 ///
 /// *************************************************************************
-// 1780
+// 1524
 pub unsafe extern "C" fn coex_status_get() -> u32 {
+    trace!("coex_status_get");
+
     //#[cfg(coex)]
     //return unsafe { crate::binary::include::coex_status_get() };
 
@@ -1126,13 +1203,15 @@ pub unsafe extern "C" fn coex_status_get() -> u32 {
 ///   Don't support
 ///
 /// *************************************************************************
+// 1542
 #[allow(unused_variables)]
-// 1798
 pub unsafe extern "C" fn coex_wifi_request(
     event: u32,
     latency: u32,
     duration: u32,
 ) -> crate::binary::c_types::c_int {
+    trace!("coex_wifi_request");
+
     //#[cfg(coex)]
     //return unsafe { crate::binary::include::coex_wifi_request(event, latency, duration) };
 
@@ -1147,9 +1226,11 @@ pub unsafe extern "C" fn coex_wifi_request(
 ///   Don't support
 ///
 /// *************************************************************************
+// 1559
 #[allow(unused_variables)]
-// 1820
 pub unsafe extern "C" fn coex_wifi_release(event: u32) -> crate::binary::c_types::c_int {
+    trace!("coex_wifi_release");
+
     //#[cfg(coex)]
     //return unsafe { crate::binary::include::coex_wifi_release(event) };
 
@@ -1164,12 +1245,14 @@ pub unsafe extern "C" fn coex_wifi_release(event: u32) -> crate::binary::c_types
 ///   Don't support
 ///
 /// *************************************************************************
+// 1577
 #[allow(unused_variables)]
-// 1838
 pub unsafe extern "C" fn coex_wifi_channel_set(
     primary: u8,
     secondary: u8,
 ) -> crate::binary::c_types::c_int {
+    trace!("coex_wifi_channel_set");
+
     //#[cfg(coex)]
     //return unsafe { crate::binary::include::coex_wifi_channel_set(primary, secondary) };
 
@@ -1184,12 +1267,14 @@ pub unsafe extern "C" fn coex_wifi_channel_set(
 ///   Don't support
 ///
 /// *************************************************************************
+// 11595
 #[allow(unused_variables)]
-// 1859
 pub unsafe extern "C" fn coex_event_duration_get(
     event: u32,
     duration: *mut u32,
 ) -> crate::binary::c_types::c_int {
+    trace!("coex_event_duration_get");
+
     //#[cfg(coex)]
     //return unsafe { crate::binary::include::coex_event_duration_get(event, duration) };
 
@@ -1204,10 +1289,12 @@ pub unsafe extern "C" fn coex_event_duration_get(
 ///   Don't support
 ///
 /// *************************************************************************
+// 1613
 #[cfg(any(esp32c3, esp32c2, esp32c6, esp32s3))]
 #[allow(unused_variables)]
-// 1881
 pub unsafe extern "C" fn coex_pti_get(event: u32, pti: *mut u8) -> crate::binary::c_types::c_int {
+    trace!("coex_pti_get");
+
     //#[cfg(coex)]
     //return unsafe { crate::binary::include::coex_pti_get(event, pti) };
 
@@ -1222,9 +1309,11 @@ pub unsafe extern "C" fn coex_pti_get(event: u32, pti: *mut u8) -> crate::binary
 ///   Don't support
 ///
 /// *************************************************************************
+// 1638
 #[allow(unused_variables)]
-// 1905
 pub unsafe extern "C" fn coex_schm_status_bit_clear(type_: u32, status: u32) {
+    trace!("coex_schm_status_bit_clear");
+
     //#[cfg(coex)]
     //unsafe {
     //    crate::binary::include::coex_schm_status_bit_clear(type_, status)
@@ -1238,9 +1327,11 @@ pub unsafe extern "C" fn coex_schm_status_bit_clear(type_: u32, status: u32) {
 ///   Don't support
 ///
 /// *************************************************************************
+// 1655
 #[allow(unused_variables)]
-// 1922
 pub unsafe extern "C" fn coex_schm_status_bit_set(type_: u32, status: u32) {
+    trace!("coex_schm_status_bit_set");
+
     //#[cfg(coex)]
     //unsafe {
     //    crate::binary::include::coex_schm_status_bit_set(type_, status)
@@ -1254,9 +1345,11 @@ pub unsafe extern "C" fn coex_schm_status_bit_set(type_: u32, status: u32) {
 ///   Don't support
 ///
 /// *************************************************************************
+// 1672
 #[allow(unused_variables)]
-// 1939
 pub unsafe extern "C" fn coex_schm_interval_set(interval: u32) -> crate::binary::c_types::c_int {
+    trace!("coex_schm_interval_set");
+
     //#[cfg(coex)]
     //return unsafe { crate::binary::include::coex_schm_interval_set(interval) };
 
@@ -1271,8 +1364,11 @@ pub unsafe extern "C" fn coex_schm_interval_set(interval: u32) -> crate::binary:
 ///   Don't support
 ///
 /// *************************************************************************
-// 1975
+// 1708
+#[allow(unused_variables)]
 pub unsafe extern "C" fn coex_schm_curr_period_get() -> u8 {
+    trace!("coex_schm_curr_period_get");
+
     //#[cfg(coex)]
     //return unsafe { crate::binary::include::coex_schm_curr_period_get() };
 
@@ -1280,8 +1376,8 @@ pub unsafe extern "C" fn coex_schm_curr_period_get() -> u8 {
     0
 }
 
+// 1749
 #[allow(unused_variables)]
-// 2016
 pub unsafe extern "C" fn coex_schm_register_cb_wrapper(
     arg1: esp_wifi_sys_esp32c3::c_types::c_int,
     cb: ::core::option::Option<
@@ -1290,6 +1386,8 @@ pub unsafe extern "C" fn coex_schm_register_cb_wrapper(
         ) -> esp_wifi_sys_esp32c3::c_types::c_int,
     >,
 ) -> esp_wifi_sys_esp32c3::c_types::c_int {
+    trace!("coex_schm_register_cb_wrapper {} {:?}", arg1, cb);
+
     //#[cfg(not(coex))]
     return 0;
 
@@ -1305,9 +1403,11 @@ pub unsafe extern "C" fn coex_schm_register_cb_wrapper(
     */
 }
 
+// 1771
 #[allow(unused_variables)]
-// 2037
 pub unsafe extern "C" fn coex_schm_flexible_period_set(period: u8) -> i32 {
+    trace!("coex_schm_flexible_period_set {}", period);
+
     /*
     #[cfg(coex)]
     unsafe {
@@ -1323,8 +1423,10 @@ pub unsafe extern "C" fn coex_schm_flexible_period_set(period: u8) -> i32 {
     0
 }
 
-// 2053
+// 1787
 pub unsafe extern "C" fn coex_schm_flexible_period_get() -> u8 {
+    trace!("coex_schm_flexible_period_get");
+
     /*
     #[cfg(coex)]
     unsafe {
@@ -1340,8 +1442,8 @@ pub unsafe extern "C" fn coex_schm_flexible_period_get() -> u8 {
     0
 }
 
+// 1803
 #[allow(unused_variables)]
-// 2069
 pub unsafe extern "C" fn coex_register_start_cb(
     cb: Option<unsafe extern "C" fn() -> esp_wifi_sys_esp32c3::c_types::c_int>,
 ) -> esp_wifi_sys_esp32c3::c_types::c_int {
@@ -1365,9 +1467,9 @@ pub unsafe extern "C" fn coex_register_start_cb(
 ///   The calibration value obtained using rtc_clk_cal
 ///
 /// *************************************************************************
-// 2093
+// 1836
 pub unsafe extern "C" fn slowclk_cal_get() -> u32 {
-    //trace!("slowclk_cal_get");
+    trace!("slowclk_cal_get");
 
     // TODO not hardcode this
 

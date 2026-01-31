@@ -1,49 +1,14 @@
 use crate::hal::peripherals::{APB_CTRL, LPWR};
 
 use crate::{
-    compat::common::*,
+    binary::{
+        c_types::{c_char, c_int, c_ulong, c_void},
+        include::{esp_event_base_t, timeval},
+    },
+    compat::{common::*, semaphore::*},
     hal::{self, ram},
-    sys::c_types::{c_char, c_int, c_ulong, c_void},
-    sys::include::{esp_event_base_t, timeval},
     time::blob_ticks_to_micros,
 };
-
-// 16
-pub(crate) fn enable_wifi_power_domain() {
-    const SYSTEM_WIFIBB_RST: u32 = 1 << 0;
-    const SYSTEM_FE_RST: u32 = 1 << 1;
-    const SYSTEM_WIFIMAC_RST: u32 = 1 << 2;
-    const SYSTEM_BTBB_RST: u32 = 1 << 3; // Bluetooth Baseband
-    const SYSTEM_BTMAC_RST: u32 = 1 << 4; // deprecated
-    const SYSTEM_RW_BTMAC_RST: u32 = 1 << 9; // Bluetooth MAC
-    const SYSTEM_RW_BTMAC_REG_RST: u32 = 1 << 11; // Bluetooth MAC Regsiters
-    const SYSTEM_BTBB_REG_RST: u32 = 1 << 13; // Bluetooth Baseband Registers
-
-    const MODEM_RESET_FIELD_WHEN_PU: u32 = SYSTEM_WIFIBB_RST
-        | SYSTEM_FE_RST
-        | SYSTEM_WIFIMAC_RST
-        | SYSTEM_BTBB_RST
-        | SYSTEM_BTMAC_RST
-        | SYSTEM_RW_BTMAC_RST
-        | SYSTEM_RW_BTMAC_REG_RST
-        | SYSTEM_BTBB_REG_RST;
-
-    LPWR::regs()
-        .dig_pwc()
-        .modify(|_, w| w.wifi_force_pd().clear_bit());
-
-    APB_CTRL::regs()
-        .wifi_rst_en()
-        .modify(|r, w| unsafe { w.bits(r.bits() | MODEM_RESET_FIELD_WHEN_PU) });
-
-    APB_CTRL::regs()
-        .wifi_rst_en()
-        .modify(|r, w| unsafe { w.bits(r.bits() & !MODEM_RESET_FIELD_WHEN_PU) });
-
-    LPWR::regs()
-        .dig_iso()
-        .modify(|_, w| w.wifi_force_iso().clear_bit());
-}
 
 #[cfg(feature = "wifi")]
 pub unsafe extern "C" fn ets_timer_arm(timer: *mut c_void, ms: u32, repeat: bool) {
@@ -168,6 +133,7 @@ pub unsafe extern "C" fn read_mac(mac: *mut u8, type_: u32) -> c_int {
 ///   Semaphore data pointer
 ///
 /// *************************************************************************
+// 32
 #[allow(unused)]
 pub unsafe extern "C" fn semphr_create(max: u32, init: u32) -> *mut c_void {
     trace!("semphr_create - max {} init {}", max, init);
@@ -187,29 +153,11 @@ pub unsafe extern "C" fn semphr_create(max: u32, init: u32) -> *mut c_void {
 ///   None
 ///
 /// *************************************************************************
+// 51
 #[allow(unused)]
 pub unsafe extern "C" fn semphr_delete(semphr: *mut c_void) {
     trace!("semphr_delete {:?}", semphr);
     sem_delete(semphr);
-}
-
-/// **************************************************************************
-/// Name: esp_semphr_give
-///
-/// Description:
-///   Post semaphore
-///
-/// Input Parameters:
-///   semphr - Semaphore data pointer
-///
-/// Returned Value:
-///   True if success or false if fail
-///
-/// *************************************************************************
-#[ram]
-pub unsafe extern "C" fn semphr_give(semphr: *mut c_void) -> i32 {
-    trace!(">>>> semphr_give {:?}", semphr);
-    sem_give(semphr)
 }
 
 /// **************************************************************************
@@ -226,10 +174,31 @@ pub unsafe extern "C" fn semphr_give(semphr: *mut c_void) -> i32 {
 ///   True if success or false if fail
 ///
 /// *************************************************************************
+// 71
 #[ram]
 pub unsafe extern "C" fn semphr_take(semphr: *mut c_void, tick: u32) -> i32 {
     trace!(">>>> semphr_take {:?} block_time_tick {}", semphr, tick);
     sem_take(semphr, blob_ticks_to_micros(tick))
+}
+
+/// **************************************************************************
+/// Name: esp_semphr_give
+///
+/// Description:
+///   Post semaphore
+///
+/// Input Parameters:
+///   semphr - Semaphore data pointer
+///
+/// Returned Value:
+///   True if success or false if fail
+///
+/// *************************************************************************
+// 99
+#[ram]
+pub unsafe extern "C" fn semphr_give(semphr: *mut c_void) -> i32 {
+    trace!(">>>> semphr_give {:?}", semphr);
+    sem_give(semphr)
 }
 
 #[unsafe(no_mangle)]
@@ -247,6 +216,7 @@ pub unsafe extern "C" fn __esp_radio_esp_fill_random(dst: *mut u8, len: u32) {
 }
 
 // other functions
+// 189
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn __esp_radio_puts(s: *const c_char) {
     unsafe {
@@ -259,6 +229,7 @@ pub unsafe extern "C" fn __esp_radio_puts(s: *const c_char) {
 #[unsafe(no_mangle)]
 static mut __ESP_RADIO_WIFI_EVENT: esp_event_base_t = c"WIFI_EVENT".as_ptr();
 
+// 236
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn __esp_radio_gettimeofday(tv: *mut timeval, _tz: *mut ()) -> i32 {
     if !tv.is_null() {
@@ -272,6 +243,7 @@ pub unsafe extern "C" fn __esp_radio_gettimeofday(tv: *mut timeval, _tz: *mut ()
     0
 }
 
+// 259
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn __esp_radio_esp_timer_get_time() -> i64 {
     trace!("esp_timer_get_time");
@@ -287,6 +259,7 @@ pub unsafe extern "C" fn __esp_radio_esp_timer_get_time() -> i64 {
     }
 }
 
+// 288
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn __esp_radio_strrchr(_s: *const (), _c: u32) -> *const u8 {
     todo!("strrchr");
@@ -314,4 +287,193 @@ pub unsafe extern "C" fn __esp_radio_esp_event_post(
 
     #[cfg(not(feature = "wifi"))]
     return -1;
+}
+
+// 346
+pub(crate) fn enable_wifi_power_domain() {
+    const SYSTEM_WIFIBB_RST: u32 = 1 << 0;
+    const SYSTEM_FE_RST: u32 = 1 << 1;
+    const SYSTEM_WIFIMAC_RST: u32 = 1 << 2;
+    const SYSTEM_BTBB_RST: u32 = 1 << 3; // Bluetooth Baseband
+    const SYSTEM_BTMAC_RST: u32 = 1 << 4; // deprecated
+    const SYSTEM_RW_BTMAC_RST: u32 = 1 << 9; // Bluetooth MAC
+    const SYSTEM_RW_BTMAC_REG_RST: u32 = 1 << 11; // Bluetooth MAC Regsiters
+    const SYSTEM_BTBB_REG_RST: u32 = 1 << 13; // Bluetooth Baseband Registers
+
+    const MODEM_RESET_FIELD_WHEN_PU: u32 = SYSTEM_WIFIBB_RST
+        | SYSTEM_FE_RST
+        | SYSTEM_WIFIMAC_RST
+        | SYSTEM_BTBB_RST
+        | SYSTEM_BTMAC_RST
+        | SYSTEM_RW_BTMAC_RST
+        | SYSTEM_RW_BTMAC_REG_RST
+        | SYSTEM_BTBB_REG_RST;
+
+    LPWR::regs()
+        .dig_pwc()
+        .modify(|_, w| w.wifi_force_pd().clear_bit());
+
+    APB_CTRL::regs()
+        .wifi_rst_en()
+        .modify(|r, w| unsafe { w.bits(r.bits() | MODEM_RESET_FIELD_WHEN_PU) });
+
+    APB_CTRL::regs()
+        .wifi_rst_en()
+        .modify(|r, w| unsafe { w.bits(r.bits() & !MODEM_RESET_FIELD_WHEN_PU) });
+
+    LPWR::regs()
+        .dig_iso()
+        .modify(|_, w| w.wifi_force_iso().clear_bit());
+}
+
+/* this wifi_osi_func is not needed
+/// **************************************************************************
+/// Name: esp_queue_create
+///
+/// Description:
+///   Create message queue
+///
+/// Input Parameters:
+///   queue_len - queue message number
+///   item_size - message size
+///
+/// Returned Value:
+///   Message queue data pointer
+///
+/// *************************************************************************
+// 438
+pub unsafe extern "C" fn queue_create(queue_len: u32, item_size: u32) -> *mut c_void {
+    crate::compat::queue::queue_create(queue_len as i32, item_size as i32).cast()
+}
+*/
+
+/* this wifi_osi_func is not needed
+/// **************************************************************************
+/// Name: esp_queue_delete
+///
+/// Description:
+///   Delete message queue
+///
+/// Input Parameters:
+///   queue - Message queue data pointer
+///
+/// Returned Value:
+///   None
+///
+/// *************************************************************************
+// 455
+pub unsafe extern "C" fn queue_delete(queue: *mut c_void) {
+    crate::compat::queue::queue_delete(queue.cast());
+}
+*/
+
+/// **************************************************************************
+/// Name: esp_queue_send
+///
+/// Description:
+///   Send message of low priority to queue within a certain period of time
+///
+/// Input Parameters:
+///   queue - Message queue data pointer
+///   item  - Message data pointer
+///   ticks - Wait ticks
+///
+/// Returned Value:
+///   True if success or false if fail
+///
+/// *************************************************************************
+// 474
+pub unsafe extern "C" fn queue_send(
+    queue: *mut c_void,
+    item: *mut c_void,
+    block_time_tick: u32,
+) -> i32 {
+    crate::compat::queue::queue_send_to_back(
+        queue.cast(),
+        item.cast_const(),
+        blob_ticks_to_micros(block_time_tick),
+    )
+}
+
+/// **************************************************************************
+/// Name: esp_queue_send_from_isr
+///
+/// Description:
+///   Send message of low priority to queue in ISR within
+///   a certain period of time
+///
+/// Input Parameters:
+///   queue - Message queue data pointer
+///   item  - Message data pointer
+///   hptw  - No mean
+///
+/// Returned Value:
+///   True if success or false if fail
+///
+/// *************************************************************************
+// 502
+pub unsafe extern "C" fn queue_send_from_isr(
+    queue: *mut c_void,
+    item: *mut c_void,
+    higher_priority_task_waken: *mut c_void,
+) -> i32 {
+    crate::compat::queue::queue_try_send_to_back_from_isr(
+        queue.cast(),
+        item.cast_const(),
+        higher_priority_task_waken.cast(),
+    )
+}
+
+/* this wifi_osi_func is not needed
+/// **************************************************************************
+/// Name: esp_queue_send_to_back
+///
+/// Description:
+///   Send message of low priority to queue within a certain period of time
+///
+/// Input Parameters:
+///   queue - Message queue data pointer
+///   item  - Message data pointer
+///   ticks - Wait ticks
+///
+/// Returned Value:
+///   True if success or false if fail
+///
+/// *************************************************************************
+// 529
+pub unsafe extern "C" fn queue_send_to_back(
+    queue: *mut c_void,
+    item: *mut c_void,
+    block_time_tick: u32,
+) -> i32 {
+    crate::compat::queue::queue_send_to_back(
+        queue.cast(),
+        item,
+        blob_ticks_to_micros(block_time_tick),
+    )
+}
+*/
+
+/// **************************************************************************
+/// Name: esp_queue_recv
+///
+/// Description:
+///   Receive message from queue within a certain period of time
+///
+/// Input Parameters:
+///   queue - Message queue data pointer
+///   item  - Message data pointer
+///   ticks - Wait ticks
+///
+/// Returned Value:
+///   True if success or false if fail
+///
+/// *************************************************************************
+// 583
+pub unsafe extern "C" fn queue_recv(
+    queue: *mut c_void,
+    item: *mut c_void,
+    block_time_ms: u32,
+) -> i32 {
+    crate::compat::queue::queue_receive(queue.cast(), item, blob_ticks_to_micros(block_time_ms))
 }

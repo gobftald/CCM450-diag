@@ -35,11 +35,11 @@ pub async fn server(
 ) {
     // config AP and start WiFi
     let client_config =
-        esp_radio::wifi::Configuration::AccessPoint(esp_radio::wifi::AccessPointConfiguration {
+        esp_radio::wifi::ModeConfig::AccessPoint(esp_radio::wifi::AccessPointConfig {
             ssid: "CCM-GP450".into(),
             ..Default::default()
         });
-    unwrap!(controller.set_configuration(&client_config));
+    unwrap!(controller.set_config(&client_config));
 
     debug!("Starting wifi");
     unwrap!(controller.start_async().await);

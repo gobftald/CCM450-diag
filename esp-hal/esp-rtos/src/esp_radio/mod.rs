@@ -26,7 +26,7 @@ use crate::{
 };
 
 // 23
-//mod queue;    // we use CompatQueue
+mod queue;
 mod timer_queue;
 
 // 26

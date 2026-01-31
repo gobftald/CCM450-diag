@@ -1,34 +1,22 @@
-// In the esp-radio-rtos-driver crate, the CompatQueue is a specialized, internal implementation designed
-// to bridge the gap between the high-level Rust async ecosystem and the low-level expectations of the radio
-// driver, whereas the esp-rtos queue is a general-purpose RTOS primitive.
-// The primary differences are:
-// 1. Purpose: Abstraction vs. Implementation
-// - CompatQueue (Local): This is a "Compatibility Layer" (hence the name). Its main role is to wrap an
-//   existing synchronization primitive to satisfy a specific interface required by the radio hardware's
-//   internal tasks. It is often a thin wrapper that "tricks" the driver into thinking it has a standard
-//   queue while actually using an underlying structure like a WaitQueue or an embassy-sync primitive.
-// - esp-rtos Queue: This is a full implementation of a thread-safe, blocking/async queue. It manages its own
-//   internal buffers, storage, and task waiting lists directly.
-// 2. Context-Aware Synchronization
-// - CompatQueue: It is specifically designed to handle ISR-to-Task transitions more efficiently for radio
-//   packets. It often bypasses the standard RTOS "tick" timer to ensure that when a radio interrupt occurs,
-//   the CompatQueue can wake a task with lower latency than a general-purpose queue.
-// - esp-rtos Queue: Follows standard RTOS scheduling rules. While it supports ISR operations (via
-//   try_take_from_isr), it is built for broader reliability across any application task rather than being
-//   tuned for high-speed radio packet throughput.
-// 3. Dependency Management
-// - CompatQueue: Exists locally to decouple the radio driver from a specific RTOS version. This allows
-//   esp-radio to run on different platforms (like ArielOS or bare-metal esp-hal) by simply swapping the
-//   internal logic of the CompatQueue without changing the radio driver's core code.
-// - esp-rtos Queue: Bound specifically to the esp-rtos runtime and the esp-hal hardware abstraction layer.
-// 4. Memory Footprint
-// - CompatQueue: Often uses zero-allocation or static allocation strategies tailored for the radio's
-//   fixed-size command/event buffers.
-// - esp-rtos Queue: Generally more flexible, allowing dynamic sizes but requiring more management overhead
-//   (like tracking head/tail pointers and buffer limits) which can use more RAM per instance.
-// Summary: Use the esp-rtos queue for your own application logic and inter-task communication. The
-// CompatQueue is an internal detail you should only interact with if you are modifying how the radio driver
-// itself manages its internal work-loops.
+//! # Queues
+//!
+//! Queues are a synchronization primitive used to communicate between tasks.
+//! They allow tasks to send and receive data in a first-in-first-out (FIFO) manner.
+//!
+//! ## Implementation
+//!
+//! Implement the `QueueImplementation` trait for an object, and use the
+//! `register_queue_implementation` to register that implementation for esp-radio.
+//!
+//! See the [`QueueImplementation`] documentation for more information.
+//!
+//! You may also choose to use the [`CompatQueue`] implementation provided by this crate.
+//!
+//! ## Usage
+//!
+//! Users should use [`QueueHandle`] to interact with queues created by the driver implementation.
+//!
+//! > Note that the only expected user of this crate is esp-radio.
 
 // 21
 use core::{cell::UnsafeCell, ptr::NonNull};
@@ -37,6 +25,99 @@ use core::{cell::UnsafeCell, ptr::NonNull};
 // 24
 pub type QueuePtr = NonNull<()>;
 
+// 26
+unsafe extern "Rust" {
+    fn esp_rtos_queue_create(capacity: usize, item_size: usize) -> QueuePtr;
+    fn esp_rtos_queue_delete(queue: QueuePtr);
+
+    fn esp_rtos_queue_send_to_front(
+        queue: QueuePtr,
+        item: *const u8,
+        timeout_us: Option<u32>,
+    ) -> bool;
+    fn esp_rtos_queue_send_to_back(
+        queue: QueuePtr,
+        item: *const u8,
+        timeout_us: Option<u32>,
+    ) -> bool;
+    fn esp_rtos_queue_try_send_to_back_from_isr(
+        queue: QueuePtr,
+        item: *const u8,
+        higher_prio_task_waken: Option<&mut bool>,
+    ) -> bool;
+    fn esp_rtos_queue_receive(queue: QueuePtr, item: *mut u8, timeout_us: Option<u32>) -> bool;
+    fn esp_rtos_queue_try_receive_from_isr(
+        queue: QueuePtr,
+        item: *mut u8,
+        higher_prio_task_waken: Option<&mut bool>,
+    ) -> bool;
+    fn esp_rtos_queue_remove(queue: QueuePtr, item: *const u8);
+    fn esp_rtos_queue_messages_waiting(queue: QueuePtr) -> usize;
+}
+
+/// A queue primitive.
+///
+/// The following snippet demonstrates the boilerplate necessary to implement a queue using the
+/// `QueueImplementation` trait:
+///
+/// ```rust,no_run
+/// use esp_radio_rtos_driver::{
+///     queue::{QueueImplementation, QueuePtr},
+///     register_queue_implementation,
+/// };
+///
+/// struct MyQueue {
+///     // Queue implementation details
+/// }
+///
+/// impl QueueImplementation for MyQueue {
+///     fn create(capacity: usize, item_size: usize) -> QueuePtr {
+///         unimplemented!()
+///     }
+///
+///     unsafe fn delete(queue: QueuePtr) {
+///         unimplemented!()
+///     }
+///
+///     unsafe fn send_to_front(queue: QueuePtr, item: *const u8, timeout_us: Option<u32>) -> bool {
+///         unimplemented!()
+///     }
+///
+///     unsafe fn send_to_back(queue: QueuePtr, item: *const u8, timeout_us: Option<u32>) -> bool {
+///         unimplemented!()
+///     }
+///
+///     unsafe fn try_send_to_back_from_isr(
+///         queue: QueuePtr,
+///         item: *const u8,
+///         higher_prio_task_waken: Option<&mut bool>,
+///     ) -> bool {
+///         unimplemented!()
+///     }
+///
+///     unsafe fn receive(queue: QueuePtr, item: *mut u8, timeout_us: Option<u32>) -> bool {
+///         unimplemented!()
+///     }
+///
+///     unsafe fn try_receive_from_isr(
+///         queue: QueuePtr,
+///         item: *mut u8,
+///         higher_prio_task_waken: Option<&mut bool>,
+///     ) -> bool {
+///         unimplemented!()
+///     }
+///
+///     unsafe fn remove(queue: QueuePtr, item: *const u8) {
+///         unimplemented!()
+///     }
+///
+///     fn messages_waiting(queue: QueuePtr) -> usize {
+///         unimplemented!()
+///     }
+/// }
+///
+/// register_queue_implementation!(MyQueue);
+/// ```
 // 118
 pub trait QueueImplementation {
     /// Creates a new, empty queue instance.
@@ -228,6 +309,181 @@ macro_rules! register_queue_implementation {
             unsafe { <$t as $crate::queue::QueueImplementation>::messages_waiting(queue) }
         }
     };
+}
+
+/// Queue handle.
+///
+/// This handle is used to interact with queues created by the driver implementation.
+// 312
+#[repr(transparent)]
+pub struct QueueHandle(QueuePtr);
+
+// 314
+impl QueueHandle {
+    /// Creates a new queue instance.
+    #[inline]
+    pub fn new(capacity: usize, item_size: usize) -> Self {
+        let ptr = unsafe { esp_rtos_queue_create(capacity, item_size) };
+        Self(ptr)
+    }
+
+    /// Converts this object into a pointer without dropping it.
+    // 323
+    #[inline]
+    pub fn leak(self) -> QueuePtr {
+        let ptr = self.0;
+        core::mem::forget(self);
+        ptr
+    }
+
+    /// Recovers the object from a leaked pointer.
+    ///
+    /// # Safety
+    ///
+    /// - The caller must only use pointers created using [`Self::leak`].
+    /// - The caller must ensure the pointer is not shared.
+    // 336
+    #[inline]
+    pub unsafe fn from_ptr(ptr: QueuePtr) -> Self {
+        Self(ptr)
+    }
+
+    /// Creates a reference to this object from a leaked pointer.
+    ///
+    /// This function is used in the esp-radio code to interact with the queue.
+    ///
+    /// # Safety
+    ///
+    /// - The caller must only use pointers created using [`Self::leak`].
+    // 348
+    #[inline]
+    pub unsafe fn ref_from_ptr(ptr: &QueuePtr) -> &Self {
+        unsafe { core::mem::transmute(ptr) }
+    }
+
+    /// Enqueues a high-priority item.
+    ///
+    /// If the queue is full, this function will block for the given timeout. If timeout is None,
+    /// the function will block indefinitely.
+    ///
+    /// This function returns `true` if the item was successfully enqueued, `false` otherwise.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that `item` can be dereferenced and points to an allocation of
+    /// a size equal to the queue's item size.
+    // 364
+    #[inline]
+    pub unsafe fn send_to_front(&self, item: *const u8, timeout_us: Option<u32>) -> bool {
+        unsafe { esp_rtos_queue_send_to_front(self.0, item, timeout_us) }
+    }
+
+    /// Enqueues an item.
+    ///
+    /// If the queue is full, this function will block for the given timeout. If timeout is None,
+    /// the function will block indefinitely.
+    ///
+    /// This function returns `true` if the item was successfully enqueued, `false` otherwise.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that `item` can be dereferenced and points to an allocation of
+    /// a size equal to the queue's item size.
+    // 380
+    #[inline]
+    pub unsafe fn send_to_back(&self, item: *const u8, timeout_us: Option<u32>) -> bool {
+        unsafe { esp_rtos_queue_send_to_back(self.0, item, timeout_us) }
+    }
+
+    /// Attempts to enqueues an item.
+    ///
+    /// If the queue is full, this function will immediately return `false`.
+    ///
+    /// If a higher priority task is woken up by this operation, the `higher_prio_task_waken` flag
+    /// is set to `true`.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that `item` can be dereferenced and points to an allocation of
+    /// a size equal to the queue's item size.
+    // 396
+    #[inline]
+    pub unsafe fn try_send_to_back_from_isr(
+        &self,
+        item: *const u8,
+        higher_priority_task_waken: Option<&mut bool>,
+    ) -> bool {
+        unsafe {
+            esp_rtos_queue_try_send_to_back_from_isr(self.0, item, higher_priority_task_waken)
+        }
+    }
+
+    /// Dequeues an item from the queue.
+    ///
+    /// If the queue is empty, this function will block for the given timeout. If timeout is None,
+    /// the function will block indefinitely.
+    ///
+    /// This function returns `true` if the item was successfully dequeued, `false` otherwise.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that `item` can be dereferenced and points to an allocation of
+    /// a size equal to the queue's item size.
+    // 418
+    #[inline]
+    pub unsafe fn receive(&self, item: *mut u8, timeout_us: Option<u32>) -> bool {
+        unsafe { esp_rtos_queue_receive(self.0, item, timeout_us) }
+    }
+
+    /// Attempts to dequeue an item from the queue.
+    ///
+    /// If the queue is empty, this function will return `false` immediately.
+    ///
+    /// This function returns `true` if the item was successfully dequeued, `false` otherwise.
+    ///
+    /// If a higher priority task is woken up by this operation, the `higher_prio_task_waken` flag
+    /// is set to `true`.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that `item` can be dereferenced and points to an allocation of
+    /// a size equal to the queue's item size.
+    // 436
+    #[inline]
+    pub unsafe fn try_receive_from_isr(
+        &self,
+        item: *mut u8,
+        higher_priority_task_waken: Option<&mut bool>,
+    ) -> bool {
+        unsafe { esp_rtos_queue_try_receive_from_isr(self.0, item, higher_priority_task_waken) }
+    }
+
+    /// Removes an item from the queue.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that `item` can be dereferenced and points to an allocation of
+    /// a size equal to the queue's item size.
+    // 451
+    #[inline]
+    pub unsafe fn remove(&self, item: *const u8) {
+        unsafe { esp_rtos_queue_remove(self.0, item) }
+    }
+
+    /// Returns the number of messages in the queue.
+    // 457
+    #[inline]
+    pub fn messages_waiting(&self) -> usize {
+        unsafe { esp_rtos_queue_messages_waiting(self.0) }
+    }
+}
+
+// 463
+impl Drop for QueueHandle {
+    #[inline]
+    fn drop(&mut self) {
+        unsafe { esp_rtos_queue_delete(self.0) };
+    }
 }
 
 // 470

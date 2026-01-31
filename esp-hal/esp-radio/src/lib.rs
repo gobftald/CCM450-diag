@@ -47,174 +47,95 @@
 #![cfg_attr(feature = "sys-logs", feature(c_variadic))]
 #![allow(static_mut_refs)]
 
-// MUST be the first module
-mod fmt;
-
-use esp_hal::{self as hal};
-
-use esp_radio_rtos_driver as preempt;
-
 //#[allow(unused_imports)]
 //#[macro_use(info, warn, debug, trace, panic, unwrap, debug_assert, debug_assert_eq)]
 //extern crate console;
 
-// 103
+// 134
 extern crate alloc;
 
-// 108
+// MUST be the first module
+// 137
+mod fmt;
+
+// 139
 use core::marker::PhantomData;
 
+// 142
+use esp_hal::{self as hal};
+use esp_radio_rtos_driver as preempt;
+
 // 111
-use esp_config::{esp_config_bool, esp_config_int, esp_config_str};
+use esp_config::{esp_config_bool, esp_config_int};
 use hal::{
     //clock::Clocks,
-    clock::{init_radio_clocks, Clocks},
+    clock::{Clocks, init_radio_clocks},
     rng::Rng,
     time::Rate,
     timer::{AnyTimer, PeriodicTimer},
 };
 
+// 153
 #[cfg(feature = "wifi")]
 use crate::wifi::WifiError;
 
 // 124
 //use crate::{preempt::yield_task, tasks::init_tasks};
 
-// 130
+// 178
 mod binary {
     pub use esp_wifi_sys_esp32c3::*;
 }
 
-pub(crate) mod sys {
-    #[cfg(esp32)]
-    pub use esp_wifi_sys_esp32::*;
-    #[cfg(esp32c2)]
-    pub use esp_wifi_sys_esp32c2::*;
-    #[cfg(esp32c3)]
-    pub use esp_wifi_sys_esp32c3::*;
-    #[cfg(esp32c6)]
-    pub use esp_wifi_sys_esp32c6::*;
-    #[cfg(esp32h2)]
-    pub use esp_wifi_sys_esp32h2::*;
-    #[cfg(esp32s2)]
-    pub use esp_wifi_sys_esp32s2::*;
-    #[cfg(esp32s3)]
-    pub use esp_wifi_sys_esp32s3::*;
-}
-
-// 133
+// 181
 mod compat;
 
-//#[cfg(feature = "builtin-scheduler")]
-// 136
-//mod preempt_builtin;
-
-// 138
-//pub mod preempt;
-
-// 140
+// 183
 mod radio;
 mod time;
 
+// 186
 #[cfg(feature = "wifi")]
-// 144
 pub mod wifi;
 
 // 152
-pub mod config;
+//pub mod config;
 
-// 154
+// 198
 pub(crate) mod common_adapter;
-
-// 157
-//pub mod tasks;
-
-// 159
 pub(crate) mod memory_fence;
 
-#[derive(Debug)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-/// Tunable parameters for the WiFi driver
-// currently there are no ble tunables
-#[allow(unused)]
-// 182
-struct Config {
-    rx_queue_size: usize,
-    tx_queue_size: usize,
-    static_rx_buf_num: usize,
-    dynamic_rx_buf_num: usize,
-    static_tx_buf_num: usize,
-    dynamic_tx_buf_num: usize,
-    ampdu_rx_enable: bool,
-    ampdu_tx_enable: bool,
-    amsdu_tx_enable: bool,
-    rx_ba_win: usize,
-    max_burst_size: usize,
-    country_code: &'static str,
-    country_code_operating_class: u8,
-    mtu: usize,
-    tick_rate_hz: u32,
-    listen_interval: u16,
-    beacon_timeout: u16,
-    ap_beacon_timeout: u16,
-    failure_retry_cnt: u8,
-    scan_method: u32,
-}
-
-// 205
-pub(crate) const CONFIG: config::EspWifiConfig = config::EspWifiConfig {
-    rx_queue_size: esp_config_int!(usize, "ESP_WIFI_CONFIG_RX_QUEUE_SIZE"),
-    tx_queue_size: esp_config_int!(usize, "ESP_WIFI_CONFIG_TX_QUEUE_SIZE"),
-    static_rx_buf_num: esp_config_int!(usize, "ESP_WIFI_CONFIG_STATIC_RX_BUF_NUM"),
-    dynamic_rx_buf_num: esp_config_int!(usize, "ESP_WIFI_CONFIG_DYNAMIC_RX_BUF_NUM"),
-    static_tx_buf_num: esp_config_int!(usize, "ESP_WIFI_CONFIG_STATIC_TX_BUF_NUM"),
-    dynamic_tx_buf_num: esp_config_int!(usize, "ESP_WIFI_CONFIG_DYNAMIC_TX_BUF_NUM"),
-    ampdu_rx_enable: esp_config_bool!("ESP_WIFI_CONFIG_AMPDU_RX_ENABLE"),
-    ampdu_tx_enable: esp_config_bool!("ESP_WIFI_CONFIG_AMPDU_TX_ENABLE"),
-    amsdu_tx_enable: esp_config_bool!("ESP_WIFI_CONFIG_AMSDU_TX_ENABLE"),
-    rx_ba_win: esp_config_int!(usize, "ESP_WIFI_CONFIG_RX_BA_WIN"),
-    max_burst_size: esp_config_int!(usize, "ESP_WIFI_CONFIG_MAX_BURST_SIZE"),
-    country_code: esp_config_str!("ESP_WIFI_CONFIG_COUNTRY_CODE"),
-    country_code_operating_class: esp_config_int!(
-        u8,
-        "ESP_WIFI_CONFIG_COUNTRY_CODE_OPERATING_CLASS"
-    ),
-    mtu: esp_config_int!(usize, "ESP_WIFI_CONFIG_MTU"),
-    tick_rate_hz: esp_config_int!(u32, "ESP_WIFI_CONFIG_TICK_RATE_HZ"),
-    listen_interval: esp_config_int!(u16, "ESP_WIFI_CONFIG_LISTEN_INTERVAL"),
-    beacon_timeout: esp_config_int!(u16, "ESP_WIFI_CONFIG_BEACON_TIMEOUT"),
-    ap_beacon_timeout: esp_config_int!(u16, "ESP_WIFI_CONFIG_AP_BEACON_TIMEOUT"),
-    failure_retry_cnt: esp_config_int!(u8, "ESP_WIFI_CONFIG_FAILURE_RETRY_CNT"),
-    scan_method: esp_config_int!(u32, "ESP_WIFI_CONFIG_SCAN_METHOD"),
-};
-
-// Validate the configuration at compile time
-#[allow(clippy::assertions_on_constants)]
-// 233
+// this is just to verify that we use the correct defaults in `build.rs`
+//
+#[allow(clippy::assertions_on_constants)] // TODO: try assert_eq once it's usable in const context
 const _: () = {
-    // We explicitely use `core` assert here because this evaluation happens at
-    // compile time and won't bloat the binary
-    core::assert!(
-        CONFIG.rx_ba_win < CONFIG.dynamic_rx_buf_num,
-        "WiFi configuration check: rx_ba_win should not be larger than dynamic_rx_buf_num!"
-    );
-    core::assert!(
-        CONFIG.rx_ba_win < (CONFIG.static_rx_buf_num * 2),
-        "WiFi configuration check: rx_ba_win should not be larger than double of the static_rx_buf_num!"
-    );
+    cfg_if::cfg_if! {
+        if #[cfg(not(esp32h2))] {
+            core::assert!(esp_config_int!(usize, "ESP_WIFI_CONFIG_STATIC_RX_BUF_NUM") == 10);
+            core::assert!(esp_config_int!(usize, "ESP_WIFI_CONFIG_DYNAMIC_RX_BUF_NUM") == 32);
+            core::assert!(esp_config_int!(usize, "ESP_WIFI_CONFIG_STATIC_TX_BUF_NUM") == 0);
+            core::assert!(esp_config_int!(usize, "ESP_WIFI_CONFIG_DYNAMIC_TX_BUF_NUM") == 32);
+            core::assert!(esp_config_bool!("ESP_WIFI_CONFIG_AMPDU_RX_ENABLE") == true);
+            core::assert!(esp_config_bool!("ESP_WIFI_CONFIG_AMPDU_TX_ENABLE") == true);
+            core::assert!(esp_config_bool!("ESP_WIFI_CONFIG_AMSDU_TX_ENABLE") == false);
+            core::assert!(esp_config_int!(usize, "ESP_WIFI_CONFIG_RX_BA_WIN") == 6);
+        }
+    };
 };
 
 // 246
 //type TimeBase = PeriodicTimer<'static, Blocking>;
 type TimeBase = PeriodicTimer<'static>;
 
+/*
 // 248
-pub(crate) mod flags {
+pub(crate) mod  {
     use portable_atomic::AtomicBool;
 
     // 252
     pub(crate) static WIFI: AtomicBool = AtomicBool::new(false);
 }
+*/
 
 #[derive(Debug, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -298,27 +219,16 @@ pub fn init<'d>() -> Result<Controller<'d>, InitializationError> {
         return Err(InitializationError::WrongClockConfig);
     }
 
-    info!("esp-wifi configuration {:?}", CONFIG);
+    //unsafe { info!("esp-wifi configuration {:?}", wifi::internal::G_CONFIG) };
     //common_adapter::chip_specific::enable_wifi_power_domain();
+
     crate::common_adapter::enable_wifi_power_domain();
     //common_adapter::chip_specific::phy_mem_init();
 
     // no-op
     //setup_radio_isr();
 
-    // Enable timer tick interrupt
-    //#[cfg(feature = "builtin-scheduler")]
-    // 365
-    //preempt_builtin::setup_timer(unsafe { timer.timer() });
-
-    // This initializes the task switcher
-    //preempt::enable();
-
-    //init_tasks();
-    //yield_task(); // don't wait for the next builtin scheduler tick IRQ
-
     wifi_set_log_verbose();
-    //init_clocks();
     init_radio_clocks();
 
     //Ok(EspWifiController {

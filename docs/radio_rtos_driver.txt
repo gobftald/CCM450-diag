@@ -1,0 +1,31 @@
+// In the esp-radio-rtos-driver crate, the CompatQueue is a specialized, internal implementation designed
+// to bridge the gap between the high-level Rust async ecosystem and the low-level expectations of the radio
+// driver, whereas the esp-rtos queue is a general-purpose RTOS primitive.
+// The primary differences are:
+// 1. Purpose: Abstraction vs. Implementation
+// - CompatQueue (Local): This is a "Compatibility Layer" (hence the name). Its main role is to wrap an
+//   existing synchronization primitive to satisfy a specific interface required by the radio hardware's
+//   internal tasks. It is often a thin wrapper that "tricks" the driver into thinking it has a standard
+//   queue while actually using an underlying structure like a WaitQueue or an embassy-sync primitive.
+// - esp-rtos Queue: This is a full implementation of a thread-safe, blocking/async queue. It manages its own
+//   internal buffers, storage, and task waiting lists directly.
+// 2. Context-Aware Synchronization
+// - CompatQueue: It is specifically designed to handle ISR-to-Task transitions more efficiently for radio
+//   packets. It often bypasses the standard RTOS "tick" timer to ensure that when a radio interrupt occurs,
+//   the CompatQueue can wake a task with lower latency than a general-purpose queue.
+// - esp-rtos Queue: Follows standard RTOS scheduling rules. While it supports ISR operations (via
+//   try_take_from_isr), it is built for broader reliability across any application task rather than being
+//   tuned for high-speed radio packet throughput.
+// 3. Dependency Management
+// - CompatQueue: Exists locally to decouple the radio driver from a specific RTOS version. This allows
+//   esp-radio to run on different platforms (like ArielOS or bare-metal esp-hal) by simply swapping the
+//   internal logic of the CompatQueue without changing the radio driver's core code.
+// - esp-rtos Queue: Bound specifically to the esp-rtos runtime and the esp-hal hardware abstraction layer.
+// 4. Memory Footprint
+// - CompatQueue: Often uses zero-allocation or static allocation strategies tailored for the radio's
+//   fixed-size command/event buffers.
+// - esp-rtos Queue: Generally more flexible, allowing dynamic sizes but requiring more management overhead
+//   (like tracking head/tail pointers and buffer limits) which can use more RAM per instance.
+// Summary: Use the esp-rtos queue for your own application logic and inter-task communication. The
+// CompatQueue is an internal detail you should only interact with if you are modifying how the radio driver
+// itself manages its internal work-loops.

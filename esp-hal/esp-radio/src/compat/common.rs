@@ -7,13 +7,12 @@ use esp_wifi_sys_esp32c3::{c_types::c_char, include::malloc};
 // 13
 use super::malloc::free;
 use crate::{
+    binary::c_types::{c_int, c_uint, c_void},
     compat::malloc::InternalMemory,
     hal::sync::NonReentrantMutex,
     memory_fence::memory_fence,
     preempt::{current_task, yield_task},
 };
-
-use crate::sys::c_types::{c_int, c_uint, c_void};
 
 // 22
 pub(crate) const OSI_FUNCS_TIME_BLOCKING: u32 = u32::MAX;
@@ -27,6 +26,7 @@ struct Mutex {
     recursive: bool,
 }
 
+/*
 // 31
 pub(crate) struct ConcurrentQueue {
     raw_queue: NonReentrantMutex<RawQueue>,
@@ -148,6 +148,7 @@ impl RawQueue {
         }
     }
 }
+*/
 
 // 167
 pub unsafe fn str_from_c<'a>(s: *const c_char) -> &'a str {
@@ -173,6 +174,7 @@ unsafe extern "C" fn strnlen(chars: *const c_char, _maxlen: usize) -> usize {
     len as usize
 }
 
+/*
 // 189
 pub(crate) fn sem_create(_max: u32, init: u32) -> *mut c_void {
     unsafe {
@@ -253,7 +255,9 @@ pub(crate) fn sem_give(semphr: *mut c_void) -> i32 {
         1
     })
 }
+*/
 
+// 37
 pub(crate) fn thread_sem_get() -> *mut c_void {
     trace!("wifi_thread_semphr_get");
     //crate::preempt::current_task_thread_semaphore()
@@ -262,6 +266,7 @@ pub(crate) fn thread_sem_get() -> *mut c_void {
         .cast::<c_void>()
 }
 
+/*
 // 270
 pub(crate) fn create_recursive_mutex() -> *mut c_void {
     let mutex = Mutex {
@@ -404,6 +409,7 @@ pub(crate) fn receive_queued(
         yield_task();
     }
 }
+*/
 
 /// Implementation of sleep() from newlib in esp-idf.
 /// components/newlib/time.c

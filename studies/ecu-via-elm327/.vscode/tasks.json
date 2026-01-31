@@ -8,7 +8,7 @@
             "options": {
                 "env": {
                     //"DEFMT_LOG": "trace,smoltcp=off"
-                    "DEFMT_LOG": "off,esp_rtos=trace,esp_radio=trace"
+                    "DEFMT_LOG": "off,esp_rtos=trace,esp_radio=trace,esp_wifi_sys_esp32c3=trace"
                 }
             },
             "problemMatcher": [
