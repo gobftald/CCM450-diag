@@ -72,7 +72,7 @@ use esp_hal::timer::timg::Timer;
 use esp_hal::{
     system::Cpu,
     time::{Duration, Instant},
-    timer::{any::Degrade, AnyTimer, OneShotTimer},
+    timer::{AnyTimer, OneShotTimer, any::Degrade},
 };
 
 // 120

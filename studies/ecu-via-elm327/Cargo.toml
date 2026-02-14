@@ -42,6 +42,12 @@ esp-radio = { path = "../../esp-hal/esp-radio", features = ["wifi"] }
 esp-rtos = { path = "../../esp-hal/esp-rtos", features = ["esp-radio", "embassy", "esp-alloc"] }
 esp-bootloader-esp-idf = { path = "../../esp-hal/esp-bootloader-esp-idf.me" }
 
+rtos-trace = { version = "0.2.1", optional = true }
+rtt-target = { version = "0.6", optional = true }
+systemview-target = { version = "0.3", optional = true, default-feature = false, features = ["callbacks-os", "ext-rtt-channels-2"] }
+#systemview-target = { version = "0.3", optional = true, default-features = false, features = ["ext-rtt-channels-2"] }
+
+
 [features]
 default = [
     "esp32c3",
@@ -96,6 +102,9 @@ kwp2000 = []
 
 # selected ECU
 ecu = ["ccm450"]
+
+# rtos-trace
+rtos-trace = ["esp-rtos/rtos-trace", "dep:rtos-trace", "systemview-target", "rtt-target"]
 
 [build-dependencies]
 esp-config = { version = "0.6.1", features = ["build"] }

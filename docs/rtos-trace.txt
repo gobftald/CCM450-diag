@@ -1,0 +1,175 @@
+// rtos-trace/systemview_target/build.rs
+#[cfg(feature = "callbacks-os-time")]
+build.define("SYSTEMVIEW_TARGET_CALLBACKS_OS_TIME", "");
+
+#[cfg(feature = "callbacks-os")]
+build.define("SYSTEMVIEW_TARGET_CALLBACKS_OS", "");
+
+// rtos-trace/systemview_target/build.rs
+let bindings = bindgen::Builder::default()
+    // prefix `cty` instead of `std` for `no_std`
+    .ctypes_prefix("cty")
+    .use_core()
+    .header("src/wrapper.h")                    // ->
+    .clang_arg("-Ilib/Config")
+    .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
+    .generate()
+    .expect("Unable to generate bindings");
+
+// rtos-trace/systemview_target/src/wrapper.h
+#include "../lib/SEGGER/SEGGER_SYSVIEW.h"
+
+// rtos-trace/systemview_target/lib/SEGGER/SEGGER_SYSVIEW.h
+#include "SEGGER_SYSVIEW_ConfDefaults.h"
+
+// rtos-trace/systemview_target/lib/SEGGER/SEGGER_SYSVIEW_ConfDefaults.h
+...
+#include "SEGGER_SYSVIEW_Conf.h"
+...
+#ifndef SEGGER_SYSVIEW_GET_INTERRUPT_ID
+  #if SEGGER_SYSVIEW_CORE == SEGGER_SYSVIEW_CORE_CM3
+    #define SEGGER_SYSVIEW_GET_INTERRUPT_ID()     ((*(U32*)(0xE000ED04)) & 0x1FF)         // Get the currently active interrupt Id. (i.e. read Cortex-M ICSR[8:0] = active vector)
+  #elif SEGGER_SYSVIEW_CORE == SEGGER_SYSVIEW_CORE_CM0
+    #if defined(__ICCARM__)
+      #if (__VER__ > 6010000)
+        #define SEGGER_SYSVIEW_GET_INTERRUPT_ID() (__get_IPSR())                          // Workaround for IAR, which might do a byte-access to 0xE000ED04. Read IPSR instead.
+      #else
+        #define SEGGER_SYSVIEW_GET_INTERRUPT_ID() ((*(U32*)(0xE000ED04)) & 0x3F)          // Older versions of IAR do not include __get_IPSR, but might also not optimize to byte-access.
+      #endif
+    #else
+      #define SEGGER_SYSVIEW_GET_INTERRUPT_ID()   ((*(U32*)(0xE000ED04)) & 0x3F)          // Get the currently active interrupt Id. (i.e. read Cortex-M ICSR[5:0] = active vector)
+    #endif
+  #else
+    #define SEGGER_SYSVIEW_GET_INTERRUPT_ID()     SEGGER_SYSVIEW_X_GetInterruptId()       // Get the currently active interrupt Id from the user-provided function.
+  #endif
+#endif
+...
+#ifndef SEGGER_SYSVIEW_GET_TIMESTAMP
+  #if defined (SEGGER_SYSVIEW_CORE) && (SEGGER_SYSVIEW_CORE == SEGGER_SYSVIEW_CORE_CM3)
+    #define SEGGER_SYSVIEW_GET_TIMESTAMP()        (*(U32 *)(0xE0001004))                  // Retrieve a system timestamp. Cortex-M cycle counter.
+  #else
+    #define SEGGER_SYSVIEW_GET_TIMESTAMP()        SEGGER_SYSVIEW_X_GetTimestamp()         // Retrieve a system timestamp via user-defined function
+  #endif
+#endif
+
+// rtos-trace/systemview_target/lib/Config/SEGGER_SYSVIEW_Conf.h
+...
+#ifdef SYSTEMVIEW_TARGET_CALLBACKS_OS_TIME
+// if we don' use "callbacks-os-time" feature we would never get here
+// so we defaulted to '#define SEGGER_SYSVIEW_GET_TIMESTAMP()        SEGGER_SYSVIEW_X_GetTimestamp()'
+// in SEGGER_SYSVIEW_ConfDefaults.h (above)
+// this will be put into '_SYSVIEW_Globals.LastTxTimeStamp  = SEGGER_SYSVIEW_GET_TIMESTAMP();'
+// when we call void SEGGER_SYSVIEW_Init(...)
+// BTW this/our SEGGER_SYSVIEW_X_GetTimestamp() will call 'esp_hal::time::Instant::now()'
+// what will be the same for which pfGetTime pointer points in SEGGER_SYSVIEW_OS_API
+// typedef struct {
+//     U64  (*pfGetTime)               (void);
+//     void (*pfSendTaskList)          (void);
+// } SEGGER_SYSVIEW_OS_API;
+// which will be passed also as argument to
+// void SEGGER_SYSVIEW_Init(
+//     U32 SysFreq,
+//     U32 CPUFreq,
+//     const SEGGER_SYSVIEW_OS_API *pOSAPI,
+//     SEGGER_SYSVIEW_SEND_SYS_DESC_FUNC pfSendSysDesc)
+// and it is also store in '_SYSVIEW_Globals.pOSAPI           = pOSAPI;'
+extern unsigned int systemview_get_timestamp();                         // no, but SEGGER_SYSVIEW_X_GetTimestamp                             
+#define SEGGER_SYSVIEW_GET_TIMESTAMP() (systemview_get_timestamp())
+#endif
+
+
+// ccm-diag/studies/ecu-via-elm327/src/rtt_trace.rs
+#[unsafe(no_mangle)]
+pub extern "C" fn SEGGER_SYSVIEW_X_GetTimestamp() -> u32 {
+    // Get the internal RISC-V cycle count (4ns precision at 160MHz)
+    //esp_hal::cpu::get_cycle_count()
+    esp_hal::time::Instant::now().duration_since_epoch().as_micros() as u32
+}
+
+#[repr(C)]
+pub struct SEGGER_SYSVIEW_OS_API {
+    // C: U64 (*pfGetTime)(void)
+    pub pf_get_time: unsafe extern "C" fn() -> u64,
+    
+    // C: void (*pfSendTaskList)(void)
+    pub pf_send_task_list: unsafe extern "C" fn(),
+}
+
+type SendSysDescFn = unsafe extern "C" fn(*const u8);
+
+unsafe extern "C" {
+    pub fn SEGGER_SYSVIEW_Init(
+        sys_freq: u32,
+        cpu_freq: u32,
+        p_os_api: *const SEGGER_SYSVIEW_OS_API,
+        pf_send_sys_desc: Option<SendSysDescFn>,
+    );
+    fn SEGGER_SYSVIEW_SendSysDesc(desc: *const u8);
+}
+
+// We defined/implemented SEGGER_SYSVIEW_OS_API functions
+// by rtos_trace::global_os_callbacks!(Scheduler); in esp-rtos.
+// BTW _rtos_trace_time implemented exactly the same as SEGGER_SYSVIEW_X_GetTimestamp
+// except returning with u64, see the BTW notice above
+static SYSVIEW_OS_API: SEGGER_SYSVIEW_OS_API = SEGGER_SYSVIEW_OS_API {
+    pf_get_time: esp_rtos::_rtos_trace_time,
+    pf_send_task_list: esp_rtos::_rtos_trace_task_list,
+};
+
+
+
+#[macro_export]
+macro_rules! global_os_callbacks {
+    ($ident:ident) => {
+        #[no_mangle]
+        fn _rtos_trace_task_list() {
+            <$ident as $crate::RtosTraceOSCallbacks>::task_list()
+        }
+        #[no_mangle]
+        fn _rtos_trace_time() -> u64 {
+            <$ident as $crate::RtosTraceOSCallbacks>::time()
+        }
+    };
+}
+
+
+
+
+
+
+// 469
+#[cfg(feature = "rtos-trace")]
+impl rtos_trace::RtosTraceOSCallbacks for Scheduler {
+    fn task_list() {
+        SCHEDULER.with(|s| {
+            for task in s.all_tasks.iter() {
+                rtos_trace::trace::task_send_info(
+                    task.rtos_trace_id(),
+                    task.rtos_trace_info(&mut s.run_queue),
+                );
+            }
+        })
+    }
+
+    fn time() -> u64 {
+        crate::now()
+    }
+}
+
+// 487
+#[cfg(feature = "rtos-trace")]
+rtos_trace::global_os_callbacks!(Scheduler);
+
+#[macro_export]
+macro_rules! global_application_callbacks {
+    ($ident:ident) => {
+        #[no_mangle]
+        fn _rtos_trace_system_description() {
+            <$ident as $crate::RtosTraceApplicationCallbacks>::system_description()
+        }
+        #[no_mangle]
+        fn _rtos_trace_sysclock() -> u32 {
+            <$ident as $crate::RtosTraceApplicationCallbacks>::sysclock()
+        }
+    };
+}

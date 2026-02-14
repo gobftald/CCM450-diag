@@ -54,10 +54,47 @@ macro_rules! mk_static {
 
 esp_bootloader_esp_idf::esp_app_desc!();
 
+#[cfg(feature = "rtos-trace")]
+use rtt_target::{rtt_init, /*rprintln,*/ ChannelMode};
+#[cfg(feature = "rtos-trace")]
+use systemview_target::SystemView;
+
+#[cfg(feature = "rtos-trace")]
+rtos_trace::global_trace! { SystemView }
+
+#[cfg(feature = "rtos-trace")]
+mod rtt_trace;
+
 #[esp_rtos::main]
 async fn main(spawner: embassy_executor::Spawner) {
     let config = esp_hal::Config::new_and_default(esp_hal::clock::CpuClock::max());
     let peripherals = esp_hal::init(config);
+
+    // initializing rtt_target, rtos-trace and systemview backend
+    #[cfg(feature = "rtos-trace")]
+    {
+        // creating rtt channels - SysView should be the first
+        // to be compatible with systemview_target
+        let channels = rtt_init! {
+            up: {
+                0: { size: 1024, mode: ChannelMode::NoBlockSkip, name: "Terminal" }
+                1: { }
+                //1: { size: 2048, name: "SysView" } 
+            }
+            down: {
+                0: { size: 32, mode: ChannelMode::NoBlockSkip, name: "Terminal" }
+                1: { }
+                //1: { size: 8, name: "SysView" }
+            }
+        };
+        rtt_target::set_print_channel(channels.up.1);
+        
+        SystemView::new().init();
+        
+        // although there will be the offical start in esp-rtos but
+        // systemview app cannot start capturing without this call
+        rtos_trace::trace::start();
+    }
 
     //esp_alloc::heap_allocator!(size: 64 * 1024);
     esp_alloc::heap_allocator!(size: 96 * 1024);

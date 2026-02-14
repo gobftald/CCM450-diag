@@ -83,7 +83,7 @@ riscv32-esp-elf-objdump -xD esp-wifi|less
 riscv32-esp-elf-objdump -xCD libphy.a|less -s -M +Gg
 ddbug -c function -p all -f function-inline=no esp-minimal|less
 
-openocd -c 'set ESP_RTOS none' -f board/esp32c3-builtin.cfg
+openocd -c "set ESP_RTOS none; set _RTOS none" -f board/esp32c3-builtin.cfg
 riscv32-esp-elf-gdb esp-wifi
 # it does not load but monitor, but only after reset
 espflash monitor --elf ./ecu-via-elm327 --log-format defmt 
@@ -287,3 +287,11 @@ todo:
 3 patch esp-hal/esp-riscv-rt/src /lib.rs to put _vector_table into .trap.vector segment as in riscv/riscv-macros/src/riscv.rs
   to put _vector_table at the beginning of esp-hal/esp-hal/ld/esp32c3/esp32c3.x saving some space on its alignement
 4 try to eliminate "pre-default-start-trap" at esp32c3, I think only esp32s3 (xtensa) use it for reset
+
+debugging probe-rs and app with defmt
+DEFMT_LOG=trace,smoltcp=off RUST_LOG=info /Users/piv/esp/probe-rs/target/debug/cargo-embed --features=esp-radio/sys-logs,rtos-trace
+
+watch *(unsigned int*)0x3fc891e4
+
+# conecting two client sockets
+socat TCP4-LISTEN:19001 TCP4-LISTEN:19002

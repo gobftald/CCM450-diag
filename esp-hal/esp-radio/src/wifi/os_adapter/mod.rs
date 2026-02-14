@@ -768,7 +768,7 @@ pub unsafe extern "C" fn phy_update_country_info(
         trace!("phy_update_country_info {}", str_from_c(country.cast()));
     }
     #[cfg(not(feature = "defmt"))]
-    trace!("phy_update_country_info {}", str_from_c(country.cast()));
+    trace!("phy_update_country_info {}", unsafe { str_from_c(country.cast())});
     -1
 }
 

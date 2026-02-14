@@ -8,6 +8,8 @@ use portable_atomic::Ordering;
 
 // 7
 use crate::SCHEDULER;
+#[cfg(feature = "rtos-trace")]
+use crate::TraceEvents;
 
 // 11
 unsafe extern "C" {

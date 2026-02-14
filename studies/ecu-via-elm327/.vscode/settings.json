@@ -1,5 +1,8 @@
 {
     "rust-analyzer.cargo.features": [
-        "default"
-    ]
+        "default",
+        "esp32c3",
+        "rtos-trace"
+    ],
+    "cortex-debug.variableUseNaturalFormat": false
 }

@@ -14,6 +14,10 @@ use allocator_api2::alloc::{Allocator, Layout};
 pub(crate) use arch_specific::*;
 use esp_hal::system::Cpu;
 
+// 16
+#[cfg(feature = "rtos-trace")]
+use rtos_trace::TaskInfo;
+
 // 19
 #[cfg(feature = "alloc")]
 use crate::InternalMemory;
@@ -104,6 +108,11 @@ task_list_item!(TaskDeleteListElement, delete_list_item);
 /// Extension trait for common task operations. These should be inherent methods but we can't
 /// implement stuff for NonNull.
 pub(crate) trait TaskExt {
+    #[cfg(feature = "rtos-trace")]
+    fn rtos_trace_id(self) -> u32;
+    #[cfg(feature = "rtos-trace")]
+    fn rtos_trace_info(self, run_queue: &mut RunQueue) -> TaskInfo;
+
     #[cfg(any(feature = "esp-radio", feature = "embassy"))]
     fn resume(self);
     fn priority(self, _: &mut RunQueue) -> Priority;
@@ -114,6 +123,21 @@ pub(crate) trait TaskExt {
 
 // 113
 impl TaskExt for TaskPtr {
+    #[cfg(feature = "rtos-trace")]
+    fn rtos_trace_id(self) -> u32 {
+        self.addr().get() as u32
+    }
+
+    #[cfg(feature = "rtos-trace")]
+    fn rtos_trace_info(self, run_queue: &mut RunQueue) -> TaskInfo {
+        TaskInfo {
+            name: "<todo>",
+            priority: self.priority(run_queue).get() as u32,
+            stack_base: unsafe { self.as_ref().stack.addr() },
+            stack_size: unsafe { self.as_ref().stack.len() },
+        }
+    }
+
     #[cfg(any(feature = "esp-radio", feature = "embassy"))]
     #[esp_hal::ram]
     fn resume(self) {
@@ -213,6 +237,15 @@ impl<E: TaskListElement> TaskList<E> {
         }
     }
 
+    #[cfg(feature = "rtos-trace")]
+    pub fn iter(&self) -> impl Iterator<Item = TaskPtr> {
+        let mut current = self.head;
+        core::iter::from_fn(move || {
+            let task = current?;
+            current = E::next(task);
+            Some(task)
+        })
+    }
     // 229
     pub(crate) fn is_empty(&self) -> bool {
         self.head.is_none()

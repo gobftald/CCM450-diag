@@ -2,8 +2,9 @@
 target = "riscv32imc-unknown-none-elf"
 
 [target.riscv32imc-unknown-none-elf]
-runner = "espflash flash --monitor"
-#runner = "probe-rs run --chip esp32c3"
+#runner = "espflash flash --monitor"
+runner = "probe-rs run --chip esp32c3"
+
 
 # using defmt crate - together with "link-arg=-Tdefmt.x" below
 #runner = "espflash flash --monitor --log-format defmt"
@@ -19,7 +20,7 @@ rustflags = [
                                             # it's not relevant, esp-backtrace uses frame pointers to walk the stack 
                                             # easily and with low overhead, 
     #"-Z", "unstable-options",
-    #"-C", "panic=immediate-abort",          # the oreder is important: first unstable then panic
+    #"-C", "panic=immediate-abort",          # the order is important: first unstable then panic
 ]
 
 [unstable]
@@ -39,11 +40,18 @@ esp-println = { git = "https://github.com/gobftald/esp-hal.git", branch = "patch
 esp-riscv-rt = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 esp-sync = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 
-#esp-alloc = { path = "../../esp-hal/esp-alloc" }
-#esp-backtrace = { path = "../../esp-hal/esp-backtrace" }
-#esp-config = { path = "../../esp-hal/esp-config" }
-#esp-hal = { path = "../../esp-hal/esp-hal" }
-#esp-metadata-generated = { path = "../../esp-hal/esp-metadata-generated" }
-#esp-println = { path = "../../esp-hal/esp-println" }
-#esp-riscv-rt = { path = "../../esp-hal/esp-riscv-rt" }
-#esp-sync = { path = "../../esp-hal/esp-sync" }
+#esp-alloc = { path = "../esp-hal/esp-alloc" }
+#esp-backtrace = { path = "../esp-hal/esp-backtrace" }
+#esp-config = { path = "../esp-hal/esp-config" }
+#esp-hal = { path = "../esp-hal/esp-hal" }
+#esp-metadata-generated = { path = "../esp-hal/esp-metadata-generated" }
+#esp-println = { path = "../esp-hal/esp-println" }
+#esp-riscv-rt = { path = "../esp-hal/esp-riscv-rt" }
+#esp-sync = { path = "../esp-hal/esp-sync" }
+
+rtos-trace = { path = "../rtos-trace/rtos_trace" }
+systemview-target = { path = "../rtos-trace/systemview_target" }
+
+[env]
+# Explicitly add _zicsr to the architecture string for C/C++ builds
+CFLAGS = "-march=rv32imc_zicsr"

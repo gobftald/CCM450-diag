@@ -324,7 +324,8 @@ impl SchedulerState {
         self.run_scheduler(|current_context, next_context| {
             trace!(
                 "Task switch: {:x} -> {:x}",
-                current_context as usize, next_context as usize
+                current_context as usize,
+                next_context as usize
             );
             task::task_switch(
                 current_context,
@@ -474,3 +475,26 @@ esp_radio_rtos_driver::scheduler_impl!(pub(crate) static SCHEDULER: Scheduler = 
 pub(crate) static SCHEDULER: Scheduler = Scheduler {
     inner: Mutex::new(RefCell::new(SchedulerState::new())),
 };
+
+// 469
+#[cfg(feature = "rtos-trace")]
+impl rtos_trace::RtosTraceOSCallbacks for Scheduler {
+    fn task_list() {
+        SCHEDULER.with(|s| {
+            for task in s.all_tasks.iter() {
+                rtos_trace::trace::task_send_info(
+                    task.rtos_trace_id(),
+                    task.rtos_trace_info(&mut s.run_queue),
+                );
+            }
+        })
+    }
+
+    fn time() -> u64 {
+        crate::now()
+    }
+}
+
+// 487
+#[cfg(feature = "rtos-trace")]
+rtos_trace::global_os_callbacks!(Scheduler);

@@ -4,11 +4,18 @@
         {
             "label": "Build-and-Flash",
             "type": "shell",
-            "command": "cargo build --features=esp-radio/sys-logs && espflash flash --chip esp32c3 --non-interactive target/riscv32imc-unknown-none-elf/debug/ecu-via-elm327",
+            //"command": "cargo build --features=esp-radio/sys-logs && espflash flash --chip esp32c3 --non-interactive target/riscv32imc-unknown-none-elf/debug/ecu-via-elm327",
+            "command": [
+                "cargo build",
+                "--features=esp-radio/sys-logs,rtos-trace",
+                "&&",
+                "espflash flash --chip esp32c3 --non-interactive",
+                "target/riscv32imc-unknown-none-elf/debug/ecu-via-elm327"
+            ],
             "options": {
                 "env": {
-                    //"DEFMT_LOG": "trace,smoltcp=off"
-                    "DEFMT_LOG": "off,esp_rtos=trace,esp_radio=trace,esp_wifi_sys_esp32c3=trace"
+                    "DEFMT_LOG": "trace,smoltcp=off"
+                    //"DEFMT_LOG": "off,esp_rtos=trace,esp_radio=trace,esp_wifi_sys_esp32c3=trace"
                 }
             },
             "problemMatcher": [
@@ -23,7 +30,7 @@
         {
             "label": "Start-GDB-Server",
             "type": "shell",
-            "command": "probe-rs gdb --chip esp32c3",
+            "command": "probe-rs gdb --chip esp32c3 --protocol jtag target/riscv32imc-unknown-none-elf/debug/ecu-via-elm327",
             "isBackground": true,
             "dependsOn": [
                 "Build-and-Flash"

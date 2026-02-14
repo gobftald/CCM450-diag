@@ -8,8 +8,8 @@ use esp_hal::{
 // 7
 #[cfg(feature = "embassy")]
 use crate::TIMER_QUEUE;
-
-// 11
+#[cfg(feature = "rtos-trace")]
+use crate::TraceEvents;
 use crate::{
     SCHEDULER, TICK_RATE, TimeBase,
     run_queue::RunSchedulerOn,
