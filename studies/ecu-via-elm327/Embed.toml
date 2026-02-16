@@ -23,7 +23,8 @@ enabled = true
 
 [[default.rtt.up_channels]]
 channel = 0
-format = "String"
+#format = "String"
+format = "Defmt"
 
 [[default.rtt.up_channels]]
 channel = 1

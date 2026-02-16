@@ -9,7 +9,7 @@
             "request": "attach",
             //"preLaunchTask": "Start-GDB-Server",
             "cwd": "${workspaceRoot}",
-            "executable": "${workspaceRoot}/target/riscv32imc-unknown-none-elf/debug/ecu-via-elm327",
+            "executable": "${workspaceRoot}/target/riscv32imc-unknown-none-elf/release/ecu-via-elm327",
             "servertype": "external",
             "gdbTarget": "localhost:3333",
             "gdbPath": "/Users/piv/.rustup/toolchains/esp/riscv32-esp-elf-gdb/bin/riscv32-esp-elf-gdb",

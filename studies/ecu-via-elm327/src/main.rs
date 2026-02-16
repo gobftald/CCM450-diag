@@ -87,10 +87,11 @@ async fn main(spawner: embassy_executor::Spawner) {
                 //1: { size: 8, name: "SysView" }
             }
         };
-        rtt_target::set_print_channel(channels.up.1);
+        //rtt_target::set_print_channel(channels.up.0);
+        rtt_target::set_defmt_channel(channels.up.0);
         
         SystemView::new().init();
-        
+
         // although there will be the offical start in esp-rtos but
         // systemview app cannot start capturing without this call
         rtos_trace::trace::start();

@@ -202,16 +202,17 @@ pub fn start_with_idle_hook(
 ) {
     #[cfg(feature = "rtos-trace")]
     {
-        rtos_trace::trace::name_marker(TraceEvents::YieldTask as u32, "yield task");
-        rtos_trace::trace::name_marker(TraceEvents::RunSchedule as u32, "run scheduler");
-        rtos_trace::trace::name_marker(TraceEvents::TimerTickHandler as u32, "timer tick handler");
+        rtos_trace::trace::start();
+        rtos_trace::trace::name_marker(TraceEvents::YieldTask as u32, "yield task\0");
+        rtos_trace::trace::name_marker(TraceEvents::RunSchedule as u32, "run scheduler\0");
+        rtos_trace::trace::name_marker(TraceEvents::TimerTickHandler as u32, "timer tick handler\0");
         rtos_trace::trace::name_marker(
             TraceEvents::ProcessTimerQueue as u32,
-            "process timer queue",
+            "process timer queue\0",
         );
         rtos_trace::trace::name_marker(
             TraceEvents::ProcessEmbassyTimerQueue as u32,
-            "process embassy timer queue",
+            "process embassy timer queue\0",
         );
         rtos_trace::trace::start();
     }
