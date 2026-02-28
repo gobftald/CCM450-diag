@@ -9,5 +9,4 @@ exclude  = [
     "esp-hal-procmacros",
     "esp-metadata.me",
     "esp-riscv-rt.me",
-    "esp-wifi",
 ]

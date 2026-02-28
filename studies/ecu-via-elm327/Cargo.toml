@@ -36,7 +36,6 @@ embassy-time = { path = "../../embassy/embassy-time" }
 #embassy-sync = { path = "../../embassy/embassy-sync.me" }
 embassy-sync = "0.7"
 embassy-futures = { path = "../../embassy/embassy-futures" }
-#esp-wifi = { path = "../../esp-hal/esp-wifi", features = ["wifi"] }
 esp-radio = { path = "../../esp-hal/esp-radio", features = ["wifi"] }
 esp-rtos = { path = "../../esp-hal/esp-rtos", features = ["esp-radio", "embassy", "esp-alloc"] }
 esp-bootloader-esp-idf = { path = "../../esp-hal/esp-bootloader-esp-idf.me" }
@@ -63,7 +62,6 @@ esp32c3 = [
     #"esp-hal/unstable",
     #"esp-hal-embassy/esp32c3",
     "embassy-executor/nightly",     # for 'task' embassy-executor-macro
-    #"esp-wifi/esp32c3",
     "esp-radio/esp32c3",
     "esp-rtos/esp32c3",
 ]
@@ -76,7 +74,6 @@ defmt = [
     "embassy-executor/defmt",
     "embassy-time/defmt",
     "embassy-time/defmt-timestamp-uptime",
-    #"esp-wifi/defmt",
     "esp-radio/defmt",
     "embassy-net/defmt",
     "embassy-futures/defmt",
