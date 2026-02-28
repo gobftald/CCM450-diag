@@ -1,7 +1,6 @@
 [workspace]
 resolver = "2"
 exclude  = [
-    "esp-alloc.me",
     "esp-backtrace.me",
     "esp-config.me",
     "esp-hal",

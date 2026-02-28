@@ -1,7 +1,0 @@
-{
-    "rust-analyzer.cargo.features": [
-        "internal-heap-stats",
-        "defmt"
-    ],
-    "rust-analyzer.checkOnSave.allTargets": false,
-}
