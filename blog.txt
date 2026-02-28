@@ -127,8 +127,10 @@ mentioned core_println we put them all behind a feature called "console"
 if we switched it off there many error since in this case we should not use any live printing call,
 only the prints in panic_handler does not problematic, if it 'befind' "panic_immediate_abort" enabled 
 
-#print cfg for a target
+#print cfg for a target (built into the compiler)
 rustc --print cfg --target riscv32imc-unknown-none-elf
+# dump the whole internal JSON spec for a target
+rustc +nightly -Z unstable-options --print target-spec-json --target riscv32imc-unknown-none-elf
 
 #gdb watchpoint
 watch *0x3fc9d5f8
@@ -295,3 +297,11 @@ watch *(unsigned int*)0x3fc891e4
 
 # conecting two client sockets
 socat TCP4-LISTEN:19001 TCP4-LISTEN:19002
+
+# macro expansion (macro_rules)
+#![feature(trace_macros)]
+macro
+
+rustc -Z unstable-options --pretty expanded hello.rs
+
+DEFMT_LOG=off,udp=trace,ecu_via_elm327=trace,esp_radio=trace,esp_wifi_sys_esp32c3=trace,esp_rtos=trace cargo run --features=esp-radio/sys-logs

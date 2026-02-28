@@ -131,7 +131,7 @@ impl Instant {
     // 287
     #[inline]
     pub fn duration_since_epoch(&self) -> Duration {
-        Self::EPOCH.elapsed()
+        *self - Self::EPOCH 
     }
 
     /// Returns the elapsed `Duration` since this `Instant` was created.
@@ -190,6 +190,12 @@ impl Duration {
         Self(InnerDuration::micros(val))
     }
 
+    /// Creates a duration which represents seconds.
+    #[inline]
+    pub const fn from_secs(val: u64) -> Self {
+        Self(InnerDuration::secs(val))
+    }
+
     // 311
     delegate::delegate! {
         #[inline]
@@ -203,6 +209,13 @@ impl Duration {
             #[call(to_millis)]
             pub const fn as_millis(&self) -> u64;
         }
+    }
+}
+
+impl core::ops::AddAssign for Duration {
+    #[inline]
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0;
     }
 }
 

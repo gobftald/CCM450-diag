@@ -162,13 +162,31 @@ impl TaskExt for TaskPtr {
 
     // 148
     fn set_state(mut self, state: TaskState) {
-        trace!("Task {:?} state changed to {:?}", self, state);
+        unsafe {
+            trace!("set_state() - Task {} ({:?}) state changed to {:?}", 
+                self.as_ref().name, self, state);
+            
+            /*
+            if self.as_ref().name == "main" {
+                info!("main goes to {}", state);
+            }
+            */
+        }
 
         #[cfg(feature = "rtos-trace")]
         match state {
-            TaskState::Ready => rtos_trace::trace::task_ready_begin(self.rtos_trace_id()),
-            TaskState::Sleeping => rtos_trace::trace::task_ready_end(self.rtos_trace_id()),
-            TaskState::Deleted => rtos_trace::trace::task_terminate(self.rtos_trace_id()),
+            TaskState::Ready => {
+                rtos_trace::trace::task_ready_begin(self.rtos_trace_id());
+                trace!("TaskState::Ready - task_ready_begin");
+            },
+            TaskState::Sleeping => {
+                rtos_trace::trace::task_ready_end(self.rtos_trace_id());
+                trace!("TaskState::Sleeping - task_ready_end");
+            },
+            TaskState::Deleted => {
+                rtos_trace::trace::task_terminate(self.rtos_trace_id());
+                trace!("TaskState::Deleted - task_terminate(");
+            },
         }
 
         unsafe { self.as_mut().state = state };
@@ -308,11 +326,6 @@ impl<E: TaskListElement> TaskQueue<E> {
         popped
     }
 
-    // 318
-    pub(crate) fn is_empty(&self) -> bool {
-        self.head.is_none()
-    }
-
     // 303
     pub fn remove(&mut self, task: TaskPtr) {
         if E::is_in_queue(task) == Some(false) {
@@ -328,11 +341,17 @@ impl<E: TaskListElement> TaskQueue<E> {
             }
         }
     }
+
+    // 318
+    pub(crate) fn is_empty(&self) -> bool {
+        self.head.is_none()
+    }
 }
 
 // 323
 #[repr(C)]
 pub(crate) struct Task {
+    pub name: &'static str,
     pub cpu_context: CpuContext,
     #[cfg(feature = "esp-radio")]
     pub thread_semaphore: Option<Semaphore>,
@@ -387,7 +406,7 @@ extern "C" fn task_wrapper(task_fn: extern "C" fn(*mut c_void), param: *mut c_vo
 impl Task {
     #[cfg(feature = "esp-radio")]
     pub(crate) fn new(
-        name: &str,
+        name: &'static str,
         task_fn: extern "C" fn(*mut c_void),
         param: *mut c_void,
         task_stack_size: usize,
@@ -395,7 +414,7 @@ impl Task {
         pinned_to: Option<Cpu>,
     ) -> Self {
         debug!(
-            "task_create {} {:?}({:?}) stack_size = {} priority = {} pinned_to = {:?}",
+            "Task::new {} {:?}({:?}) stack_size = {} priority = {} pinned_to = {:?}",
             name, task_fn, param, task_stack_size, priority, pinned_to
         );
 
@@ -433,6 +452,7 @@ impl Task {
         let stack_top = unsafe { stack_bottom.add(stack_words.len()).cast() };
 
         let mut task = Task {
+            name,
             cpu_context: new_task_context(task_fn, param, stack_top),
             #[cfg(feature = "esp-radio")]
             thread_semaphore: None,
@@ -509,6 +529,24 @@ impl Task {
     }
 }
 
+impl Drop for Task {
+    fn drop(&mut self) {
+        debug!("Dropping task: {:?}", self as *mut Task);
+
+        #[cfg(feature = "esp-radio")]
+        let _ = self.thread_semaphore.take();
+
+        #[cfg(feature = "alloc")]
+        if self.heap_allocated {
+            let layout = unwrap!(
+                Layout::from_size_align(self.stack.len() * 4, 16).ok(),
+                "Cannot compute Layout for stack"
+            );
+            unsafe { InternalMemory.deallocate(unwrap!(NonNull::new(self.stack.cast())), layout) };
+        }
+    }
+}
+
 // 512
 pub(super) fn allocate_main_task(
     scheduler: &mut SchedulerState,
@@ -548,7 +586,10 @@ pub(super) fn allocate_main_task(
     // This is slightly questionable as we don't ensure SchedulerState is pinned, but it's always
     // part of a static object so taking the pointer is fine.
     let main_task_ptr = NonNull::from(&scheduler.per_cpu[current_cpu].main_task);
-    debug!("Main task created: {:?}", main_task_ptr);
+    unsafe {
+        debug!("allocate_main_task - Main task created: {} ({:?})",
+            main_task_ptr.as_ref().name,  main_task_ptr);
+    }
 
     #[cfg(feature = "rtos-trace")]
     rtos_trace::trace::task_new(main_task_ptr.rtos_trace_id());

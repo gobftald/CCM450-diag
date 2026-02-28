@@ -939,17 +939,25 @@ pp_create_task continuing
 ##43## [INFO] - I (195) wifi: Init static rx buffer num: 10
 ##44## [INFO] - I (195) wifi: Init dynamic rx buffer num: 32
 
-##45## [DEBUG] - timer_setfn 3fc9b17c 0x4200704e 0x0               // pm_active_timeout
-##46## [DEBUG] - timer_setfn 3fc9b190 0x42007046 0x0               // pm_sleep_delay_timeout
-##47## [DEBUG] - timer_setfn 3fc9b1cc 0x4200703e 0x0               // pm_coex_slice_wifi_timeout
-##48## [DEBUG] - timer_setfn 3fc9b1b8 0x42007036 0x0               // pm_disconnected_sleep_delay_timeout
-#49## [DEBUG] - timer_setfn 3fc9b1f0 0x4200702e 0x0               // pm_connectionless_wake_interval_timeout
-##50## [DEBUG] - timer_setfn 3fc9b204 0x42007026 0x0               // pm_connectionless_wake_window_timeout
-##51## [DEBUG] - timer_setfn 3fc9b218 0x4200701e 0x0               // pm_beacon_monitor_timeout
-##52## [DEBUG] - timer_setfn 3fc9b234 0x42007016 0x3fc9b0c8        // pm_beacon_monitor_tbtt_timeout
-##53## [TRACE] - coex_schm_register_cb_wrapper 0 Some(0x4200f294)  // esp_wifi_internal_on_coex_start
-##54## [DEBUG] - timer_setfn 3fc99d34 0x4201e91e 0x0               // scan_enter_oper_channel
-##55## [DEBUG] - timer_setfn 3fc99d48 0x4201e914 0x0               // scan_enter_oper_channel
+                 timer_setfn 3fca518c 0x4203312e 0x0               // pm_dream_timeout
+##45## [DEBUG] - timer_setfn 3fc9b17c 0x42033126 0x0               // pm_active_timeout
+##46## [DEBUG] - timer_setfn 3fc9b190 0x4203311e 0x0               // pm_sleep_delay_timeout
+##47## [DEBUG] - timer_setfn 3fc9b1cc 0x42033116 0x0               // pm_coex_slice_wifi_timeout
+##48## [DEBUG] - timer_setfn 3fc9b1b8 0x4203310e 0x0               // pm_disconnected_sleep_delay_timeout
+##49## [DEBUG] - timer_setfn 3fc9b1f0 0x42033106 0x0               // pm_connectionless_wake_interval_timeout
+##50## [DEBUG] - timer_setfn 3fc9b204 0x420330fe 0x0               // pm_connectionless_wake_window_timeout
+##51## [DEBUG] - timer_setfn 3fc9b218 0x420330f6 0x0               // pm_beacon_monitor_timeout
+
+[TRACE] coex_schm_register_cb_wrapper 0 Some(0x4204247a)           // esp_wifi_internal_on_coex_start
+[INFO ] Reset scan defaults in ms : min,max,passive,chan_dwell :(0,120,360,30)
+[TRACE] timer_setfn 3fca3c4c 0x42053e08 0x0                         // scan_inter_channel_timeout
+[TRACE] timer_setfn 3fca3c60 0x42053dfe 0x0                         // 
+
+//##52## [DEBUG] - timer_setfn 3fc9b234 0x42007016 0x3fc9b0c8        // pm_beacon_monitor_tbtt_timeout
+//##53## [TRACE] - coex_schm_register_cb_wrapper 0 Some(0x4200f294)  // esp_wifi_internal_on_coex_start
+
+##54## [DEBUG] - timer_setfn 3fc99d34 0x42053dfe 0x0               // scan_enter_oper_channel
+//##55## [DEBUG] - timer_setfn 3fc99d48 0x4201e914 0x0               // scan_enter_oper_channel
 
 ##56## [INFO] - V (257) wifi: hint=255, act_dur=<0,120>, pas_dur=360, nchans=14 history_num=0   
 ##57## [TRACE] - semphr_give 0x1       // release sepmahore ieee80211_ioctl is waiting for

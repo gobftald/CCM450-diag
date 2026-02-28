@@ -42,7 +42,7 @@ unsafe extern "Rust" {
     fn esp_rtos_initialized() -> bool;
     fn esp_rtos_yield_task();
     fn esp_rtos_yield_task_from_isr();
-    fn esp_rtos_current_task() -> *mut c_void;
+    fn esp_rtos_current_task() -> (*mut c_void, &'static str);
     fn esp_rtos_max_task_priority() -> u32;
     fn esp_rtos_task_create(
         name: &str,
@@ -88,7 +88,7 @@ macro_rules! scheduler_impl {
 
         #[unsafe(no_mangle)]
         #[inline]
-        fn esp_rtos_current_task() -> *mut c_void {
+        fn esp_rtos_current_task() -> (*mut c_void, &'static str) {
             <$t as $crate::Scheduler>::current_task(&$driver)
         }
 
@@ -101,7 +101,7 @@ macro_rules! scheduler_impl {
         #[unsafe(no_mangle)]
         #[inline]
         fn esp_rtos_task_create(
-            name: &str,
+            name: &'static str,
             task: extern "C" fn(*mut c_void),
             param: *mut c_void,
             priority: u32,
@@ -222,7 +222,7 @@ pub trait Scheduler: Send + Sync + 'static {
     fn yield_task_from_isr(&self);
 
     /// This function is called by `esp_radio::init` to retrieve a pointer to the current task.
-    fn current_task(&self) -> *mut c_void;
+    fn current_task(&self) -> (*mut c_void, &'static str);
 
     /// This function returns the maximum task priority level.
     /// Higher number is considered to be higher priority.
@@ -232,7 +232,7 @@ pub trait Scheduler: Send + Sync + 'static {
     /// It should allocate the stack.
     fn task_create(
         &self,
-        name: &str,
+        name: &'static str,
         task: extern "C" fn(*mut c_void),
         param: *mut c_void,
         priority: u32,
@@ -290,7 +290,7 @@ pub fn yield_task_from_isr() {
 /// Returns a pointer to the current task.
 // 280
 #[inline]
-pub fn current_task() -> *mut c_void {
+pub fn current_task() -> (*mut c_void, &'static str) {
     unsafe { esp_rtos_current_task() }
 }
 

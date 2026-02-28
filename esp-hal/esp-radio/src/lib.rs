@@ -63,6 +63,7 @@ use core::marker::PhantomData;
 
 // 142
 use esp_hal::{self as hal};
+// here we use the esp-radio-rtos-driver -> esp-rtos chain
 use esp_radio_rtos_driver as preempt;
 
 // 111
@@ -219,11 +220,7 @@ pub fn init<'d>() -> Result<Controller<'d>, InitializationError> {
         return Err(InitializationError::WrongClockConfig);
     }
 
-    //unsafe { info!("esp-wifi configuration {:?}", wifi::internal::G_CONFIG) };
-    //common_adapter::chip_specific::enable_wifi_power_domain();
-
     crate::common_adapter::enable_wifi_power_domain();
-    //common_adapter::chip_specific::phy_mem_init();
 
     // no-op
     //setup_radio_isr();
@@ -231,7 +228,6 @@ pub fn init<'d>() -> Result<Controller<'d>, InitializationError> {
     wifi_set_log_verbose();
     init_radio_clocks();
 
-    //Ok(EspWifiController {
     Ok(Controller {
         _inner: PhantomData,
     })
@@ -255,9 +251,8 @@ fn is_interrupts_disabled() -> bool {
         || hal::xtensa_lx::interrupt::get_mask() == 0;
 
     #[cfg(target_arch = "riscv32")]
-    return !hal::riscv::register::mstatus::read().mie();
-    // we don't use "runlevel" yet
-    //|| hal::interrupt::current_runlevel() >= hal::interrupt::Priority::Priority1;
+    return !hal::riscv::register::mstatus::read().mie()
+        || hal::interrupt::current_runlevel() >= hal::interrupt::Priority::Priority1;
 }
 
 #[derive(Debug, Clone, Copy)]

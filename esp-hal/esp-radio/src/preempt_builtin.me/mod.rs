@@ -40,7 +40,7 @@ impl Context {
         param: *mut c_void,
         task_stack_size: usize,
     ) -> Self {
-        trace!("task_create {:?} {:?} {}", task_fn, param, task_stack_size);
+        trace!("task_create#### {:?} {:?} {}", task_fn, param, task_stack_size);
 
         let mut stack = Box::<[u8], _>::new_uninit_slice_in(task_stack_size, InternalMemory);
         //let mut stack = Box::<[u8], _>::new_uninit_slice(task_stack_size);

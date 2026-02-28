@@ -110,7 +110,85 @@ and does not panic. It is why esp-sync use a seperate flag and mechanism to mana
 // feature gated sutomization
 // Furthermore there is a new embassy like rtos in esp (esp-rtos) and there are this and many other customizations
 
-// there is also a sync module in esp-hal which defines a new PriorityLimitedMutex
-// imeplements embassy_sync::blocking_mutex::raw::RawMutex on it, so it can be used by embassy
-// and implements critical-section plugin functions (acquire and release) which use esp-sync::Mutex
-// which can handle both single and multi core ESP chips
+
+
+// In the Embassy framework, AtomicWaker is a critical synchronization primitive used to bridge the 
+// gap between asynchronous tasks and hardware interrupts.
+//
+// Embassy relies on AtomicWaker for the following reasons:
+//
+// 1. Safe Inter-Context Communication
+// Embedded systems frequently need to wake a task (the consumer) from an interrupt handler (the 
+// producer). Since interrupts can occur at any time—including while the main task is 
+// mid-operation standard wakers are not safe to use. AtomicWaker uses atomic operations to ensure 
+// that:
+// - Registration (task saying "wake me up later") and Notification (interrupt saying "data is ready") 
+//   can happen simultaneously without data races.
+// - It provides a non-mutating (&self) API for waking, which is necessary for sharing the waker 
+//   across different parts of the system, such as inside a static interrupt handler.
+//
+// 2. Coordination of Changing Tasks
+// In async Rust, the task interested in an event might change over time (e.g., a task is migrated 
+// or replaced). AtomicWaker handles this by allowing a new waker to be registered, which 
+// automatically replaces the previous one. This ensures the executor always notifies the most 
+// recent task interested in the hardware event.
+//
+// 3. Efficiency in Resource-Constrained Environments
+// Embassy is designed for "bare-metal" systems without a heap or OS. AtomicWaker:
+// - Eliminates dynamic allocation: It stores wakers in a fixed, pre-allocated spot.
+// - Minimizes overhead: It provides a "transfer cell" for wakers, avoiding complex locking 
+//   mechanisms like Mutex when only a single task's wakeup needs to be managed. (Although we call
+//   Mutex the locking mechanism)
+//
+// 4. Handling Race Conditions
+// A common "lost wakeup" race condition occurs if an event happens exactly while a task is preparing 
+// to sleep. AtomicWaker prevents this: if a wake() call happens before or during a register() call, 
+// the registration logic detects it and ensures the task is immediately flagged for another poll.
+//
+// Key Limitation: A standard AtomicWaker only supports storing one waker at a time. If multiple 
+// tasks wait on the same event, they may "churn" by overwriting each other's wakers, a problem 
+// Embassy sometimes solves using MultiWakerRegistration
+
+
+// so finally we can put many locking mechanism into embassy_sync::blocking_mutex::Mutex<R, T: ?Sized>
+// its own (NoopRawMutex, ThreadModeRawMutex, and the dumb hammer: CriticalSectionRawMutex),
+// even the last one has the smart multicore aware spinlock behaviour of locking since
+// critical_section immplementation (in esp-hal/sync.rs) plugs into it
+// furthermore we can plug esp_sync::RawMutex (since we implemented )
+// embassy_sync_06/07::blocking_mutex::raw::RawMutex for RawMutex
+//
+// so is there any diffeence between plug CriticalSectionRawMutex oresp_sync::RawMutex?
+//
+// Since critical-section implementation is already backed by esp-sync, then CriticalSectionRawMutex 
+// is essentially just a wrapper around the same logic found in esp_sync::RawMutex.
+//
+// So, is there any difference left?
+// The difference is purely semantic and architectural, rather than technical:
+// - API Ergonomics: CriticalSectionRawMutex allows you to use the standard 
+//   critical_section::with(|cs| ...) pattern, which gives you a CriticalSection token. Some other 
+//   Embassy primitives require this token to prove you are currently in a protected state.
+// - Granularity !!!!!
+//   - critical-section is often a "Single Global Lock." Even if you have 10 different Mutexes, 
+//     they all trigger the same global spinlock. This is where the overhead comes from: Core A 
+//     locking Mutex-1 will block Core B from locking Mutex-2, even though they are unrelated.
+//   - esp_sync::RawMutex (depending on how you initialize it) can be used to create independent 
+//     locks if you use different hardware spinlock slots (though ESP32s have a limited number of 
+//     these).
+//
+// Why the Executor still feels "heavy"
+// Even if the implementation is "correct" (disabling local IRQs + spinlock), the embassy-executor 
+// still uses the Global critical-section.
+// Because the executor hits this lock every time any task wakes up, it effectively turns that 
+// specific hardware spinlock into a "hot spot." If you use that same global critical section for 
+// your own heavy data processing, you are competing with the scheduler itself for that lock.
+//
+// The Verdict
+// If you are using esp-hal, "plugging in" one vs. the other won't change your performance much 
+// because they are calling the same underlying hardware routines.
+// The real performance gains come from:
+// - Reducing the scope: Using ThreadModeRawMutex for things that don't need interrupt safety (this 
+//   avoids the spinlock/IRQ-disable entirely).
+// - Using Atomics: If your Option<TaskRef> can be represented by a core::sync::atomic type (which 
+//   is what AtomicWaker does), you bypass the critical-section entirely.
+// - Multiple Executors: Running one executor on Core 0 and one on Core 1. This gives each core its 
+//   own independent "ready queue" so they stop fighting over the global lock.

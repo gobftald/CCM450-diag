@@ -12,6 +12,8 @@ pub(crate) mod fmt;
 // panic_handler
 mod panic;
 
+use esp_println as _;
+
 mod adapter;
 mod debug_pin;
 mod ecu;
@@ -88,7 +90,7 @@ async fn main(spawner: embassy_executor::Spawner) {
             }
         };
         //rtt_target::set_print_channel(channels.up.0);
-        rtt_target::set_defmt_channel(channels.up.0);
+        //rtt_target::set_defmt_channel(channels.up.0);
         
         SystemView::new().init();
 
@@ -116,8 +118,8 @@ async fn main(spawner: embassy_executor::Spawner) {
 
     let esp_radio_ctrl = &*mk_static!(esp_radio::Controller<'static>, unwrap!(esp_radio::init()));
 
-    let (controller, interfaces) = unwrap!(esp_radio::wifi::new(
-        esp_radio_ctrl,
+    let (mut controller, interfaces) = unwrap!(esp_radio::wifi::new(
+        &esp_radio_ctrl,
         peripherals.WIFI,
         Default::default()
     ));
@@ -180,7 +182,6 @@ async fn main(spawner: embassy_executor::Spawner) {
 
     //crate::debug_pin::init_debug_pin(peripherals.GPIO0);
 
-    /*
     // spawn tasks
     spawner
         .spawn(udp::server(controller, ap_stack, udp_sender, udp_receiver))
@@ -189,7 +190,6 @@ async fn main(spawner: embassy_executor::Spawner) {
     spawner
         .spawn(ecu::server(ecu_sender, ecu_receiver, ecu_adapter))
         .ok();
-    */
 
     spawner.spawn(net_task(ap_runner)).ok();
     spawner.spawn(run()).ok();

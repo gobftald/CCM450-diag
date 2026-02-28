@@ -2,7 +2,7 @@
 use alloc::boxed::Box;
 
 // 3
-use esp_hal::sync::NonReentrantMutex;
+use esp_sync::NonReentrantMutex;
 
 // 5
 use super::WifiEvent;

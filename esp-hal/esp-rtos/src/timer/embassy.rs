@@ -27,7 +27,7 @@ impl TimerQueueInner {
     pub(crate) fn handle_alarm(&mut self, now: u64) {
         if now < self.next_wakeup {
             trace!(
-                "Not processing embassy timer queue. Now: {}, expected next wakeup: {}",
+                "Not processing embassy timer queue. Now: {}, expected next wakeup: {:x}",
                 now, self.next_wakeup
             );
             return;

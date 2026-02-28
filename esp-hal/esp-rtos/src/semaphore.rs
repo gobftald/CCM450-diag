@@ -140,6 +140,7 @@ impl SemaphoreInner {
                     if *lock_counter == 0
                         && let Some(owner) = owner.take()
                     {
+                        trace!("Mutex set back to original priority");
                         owner.set_priority(&mut scheduler.run_queue, *original_priority);
                     }
                     true
@@ -192,7 +193,6 @@ impl SemaphoreInner {
 
     // 184
     fn wait_with_deadline(&mut self, deadline: Instant) {
-        //trace!("Semaphore wait_with_deadline - {:?}", deadline);
         match self {
             SemaphoreInner::Counting { waiting, .. } => waiting.wait_with_deadline(deadline),
             SemaphoreInner::Mutex { waiting, .. } => waiting.wait_with_deadline(deadline),
@@ -201,7 +201,7 @@ impl SemaphoreInner {
 
     // 192
     fn notify(&mut self) {
-        //trace!("Semaphore notify");
+        trace!("semaphore notify");
         match self {
             SemaphoreInner::Counting { waiting, .. } => waiting.notify(),
             SemaphoreInner::Mutex { waiting, .. } => waiting.notify(),
@@ -280,6 +280,7 @@ impl Semaphore {
                 } else {
                     // The task will go to sleep when the above critical section is released.
                     sem.wait_with_deadline(deadline);
+                    trace!("semaphore wait_with_deadline");
                     false
                 }
             })

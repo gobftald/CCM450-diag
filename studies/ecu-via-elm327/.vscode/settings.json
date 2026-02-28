@@ -1,8 +1,13 @@
 {
     "rust-analyzer.cargo.features": [
         "default",
+        "rtos-trace",
         "esp32c3",
-        "rtos-trace"
+        "defmt",
+        "ccm450",
+        "elm327",
+        "kwp2000",
+        "ecu"
     ],
     "cortex-debug.variableUseNaturalFormat": false
 }

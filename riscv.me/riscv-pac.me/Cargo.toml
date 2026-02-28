@@ -8,4 +8,4 @@ test =  false
 bench = false
 
 [dependencies]
-defmt  = { version = "0.3.10", optional = true }
+defmt = { version = "1.0.1", optional = true }

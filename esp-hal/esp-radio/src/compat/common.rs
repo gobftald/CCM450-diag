@@ -9,10 +9,10 @@ use super::malloc::free;
 use crate::{
     binary::c_types::{c_int, c_uint, c_void},
     compat::malloc::InternalMemory,
-    hal::sync::NonReentrantMutex,
     memory_fence::memory_fence,
     preempt::{current_task, yield_task},
 };
+use esp_sync::NonReentrantMutex;
 
 // 22
 pub(crate) const OSI_FUNCS_TIME_BLOCKING: u32 = u32::MAX;
@@ -259,11 +259,12 @@ pub(crate) fn sem_give(semphr: *mut c_void) -> i32 {
 
 // 37
 pub(crate) fn thread_sem_get() -> *mut c_void {
-    trace!("wifi_thread_semphr_get");
-    //crate::preempt::current_task_thread_semaphore()
-    crate::preempt::current_task_thread_semaphore()
+    //trace!("wifi_thread_semphr_get");
+    let ptr = crate::preempt::current_task_thread_semaphore()
         .as_ptr()
-        .cast::<c_void>()
+        .cast::<c_void>();
+    trace!("thread_semp_get {}", ptr);
+    ptr
 }
 
 /*

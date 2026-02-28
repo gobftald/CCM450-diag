@@ -1,5 +1,5 @@
 // 1
-use core::cell::RefCell;
+use core::{cell::RefCell};
 #[cfg(feature = "esp-radio")]
 use core::{ffi::c_void, ptr::NonNull};
 
@@ -7,7 +7,7 @@ use core::{ffi::c_void, ptr::NonNull};
 #[cfg(feature = "alloc")]
 use allocator_api2::boxed::Box;
 use embassy_sync::blocking_mutex::Mutex;
-use esp_hal::{system::Cpu, time::Instant};
+use esp_hal::{system::Cpu, time::{Duration, Instant}};
 use esp_sync::RawMutex;
 
 // 11
@@ -23,6 +23,9 @@ use crate::{
     },
     timer::TimeDriver,
 };
+
+static mut IDLE_START: Instant = Instant::EPOCH;
+static mut CUMULATIVE_IDLE: Duration = Duration::ZERO;
 
 // 34
 pub(crate) struct SchedulerState {
@@ -62,6 +65,7 @@ impl CpuSchedulerState {
             idle_context: CpuContext::new(),
 
             main_task: Task {
+                name: "main",
                 cpu_context: CpuContext::new(),
                 #[cfg(feature = "esp-radio")]
                 thread_semaphore: None,
@@ -133,13 +137,15 @@ impl SchedulerState {
     #[cfg(feature = "esp-radio")]
     pub(crate) fn create_task(
         &mut self,
-        name: &str,
+        name: &'static str,
         task: extern "C" fn(*mut c_void),
         param: *mut c_void,
         task_stack_size: usize,
         priority: usize,
         pinned_to: Option<Cpu>,
     ) -> TaskPtr {
+        trace!("SchedulerState::create_task_start");
+
         if let Some(cpu) = pinned_to {
             assert!(
                 self.per_cpu[cpu as usize].initialized,
@@ -165,7 +171,7 @@ impl SchedulerState {
             RunSchedulerOn::OtherCore => task::schedule_other_core(),
         }
 
-        debug!("Task '{}' created: {:?}", name, task_ptr);
+        debug!("SchedulerState::create_task_end - Task '{}' created: {:?}", name, task_ptr);
 
         task_ptr
     }
@@ -196,6 +202,8 @@ impl SchedulerState {
         #[cfg(feature = "rtos-trace")]
         rtos_trace::trace::marker_begin(TraceEvents::RunSchedule as u32);
 
+        trace!("run_scheduler_begin");
+
         let cpu = Cpu::current();
         let current_cpu = cpu as usize;
 
@@ -209,7 +217,16 @@ impl SchedulerState {
 
             if current_task.state() == TaskState::Ready {
                 // Current task is still ready, mark it as such.
-                debug!("re-queueing current task: {:?}", current_task);
+                unsafe {
+                    debug!("re-queueing current task: {} ({:?})",
+                        current_task.as_ref().name, current_task);
+
+                    /*
+                    if current_task.as_ref().name == "main" {
+                        info!("re-queueing current main");
+                    }
+                    */
+                }
                 self.run_queue.mark_task_ready(&self.per_cpu, current_task);
             }
         };
@@ -217,13 +234,51 @@ impl SchedulerState {
         let mut arm_next_timeslice_tick = false;
         let next_task = self.run_queue.pop();
         if next_task != current_task {
-            debug!("Switching task {:?} -> {:?}", current_task, next_task);
+            /*
+            if let Some(current_task) = current_task {
+                /*
+                if let Some(next_task) = next_task {
+                    unsafe {
+                        info!("Switching task {} ({:?}) -> {} ({:?})",
+                            current_task.as_ref().name, current_task,
+                            next_task.as_ref().name, next_task);
+                    }
+                } else {
+                    unsafe {
+                        info!("Switching task {} ({:?}) -> None",
+                            current_task.as_ref().name, current_task);
+                    }
+                }
+                */
+            } else if let Some(next_task) = next_task {
+                unsafe {
+                    /*
+                    info!("Switching task None -> {} ({:?})",
+                        next_task.as_ref().name, next_task);
+                    */
+
+                    let idle = Instant::now() - IDLE_START;
+                    info!("Last IDLE was {:?}", idle);
+                    CUMULATIVE_IDLE += idle;
+
+                    unsafe {
+                        info!("Last CUMULATIVE_IDLE was {:?}", *&raw const CUMULATIVE_IDLE);
+                    }
+                }
+            } else {
+                info!("both current and nex task is None");
+            }
+            */
 
             // If the current task is deleted, we can skip saving its context. We signal this by
             // using a null pointer.
             let current_context = if let Some(current) = current_task {
                 #[cfg(feature = "rtos-trace")]
                 rtos_trace::trace::task_exec_end(); // FIXME: rtos-trace should take the task ID for multi-core
+
+                unsafe {
+                    trace!("<<<<<<<< task_exec_end {} ({:?})", current.as_ref().name, current);
+                }
 
                 // TODO: the SMP scheduler relies on at least the context saving to happen within
                 // the scheduler's critical section. We can't run the scheduler on the other core
@@ -246,12 +301,17 @@ impl SchedulerState {
                 #[cfg(feature = "rtos-trace")]
                 rtos_trace::trace::task_exec_begin(next.rtos_trace_id());
 
+                unsafe {
+                    trace!(">>>>>>>> task_exec_begin {} ({:?})", next.as_ref().name, next);
+                }
+
                 unsafe { next.as_ref().set_up_stack_watchpoint() };
 
                 // If there are more tasks at this priority level, we need to schedule a timeslice
                 // tick.
                 let new_core_priority = next.priority(&mut self.run_queue);
                 arm_next_timeslice_tick = !self.run_queue.is_level_empty(new_core_priority);
+                trace!("arm_next_timeslice_tick {}", arm_next_timeslice_tick);
 
                 unsafe { &raw mut (*next.as_ptr()).cpu_context }
             } else {
@@ -301,6 +361,13 @@ impl SchedulerState {
                 #[cfg(feature = "rtos-trace")]
                 rtos_trace::trace::system_idle();
 
+                /*
+                info!("system_idle - context: {}",
+                    &raw mut self.per_cpu[current_cpu].idle_context);
+
+                    unsafe { IDLE_START = Instant::now(); }
+                */
+
                 &raw mut self.per_cpu[current_cpu].idle_context
             };
 
@@ -317,6 +384,8 @@ impl SchedulerState {
 
         #[cfg(feature = "rtos-trace")]
         rtos_trace::trace::marker_end(TraceEvents::RunSchedule as u32);
+
+        trace!("run_scheduler_end");
     }
 
     // 325
@@ -360,6 +429,11 @@ impl SchedulerState {
     // 360
     pub(crate) fn sleep_task_until(&mut self, task: TaskPtr, at: Instant) -> bool {
         let timer_queue = unwrap!(self.time_driver.as_mut());
+        /*
+        unsafe {
+            info!("sleep_task_until {} {:?}", task.as_ref().name, at);
+        }
+        */
         timer_queue.schedule_wakeup(task, at)
     }
 
@@ -431,7 +505,7 @@ impl Scheduler {
     #[cfg(feature = "esp-radio")]
     pub(crate) fn create_task(
         &self,
-        name: &str,
+        name: &'static str,
         task: extern "C" fn(*mut c_void),
         param: *mut c_void,
         task_stack_size: usize,

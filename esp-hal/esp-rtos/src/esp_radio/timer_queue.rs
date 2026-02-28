@@ -310,7 +310,7 @@ impl TimerImplementation for Timer {
 
         let timer = Box::new(Timer::new(Box::new(move || unsafe { callback.call() })));
         let ptr = NonNull::from(Box::leak(timer)).cast();
-        debug!("Created timer: {:x}", ptr.addr());
+        debug!("Timer::create = Created timer: {:x}", ptr.addr());
         ptr
     }
 

@@ -271,7 +271,7 @@ impl RunQueue {
     #[esp_hal::ram]
     pub(crate) fn pop(&mut self) -> Option<TaskPtr> {
         let current_prio = self.ready_priority.ready();
-        //debug!("pop - from level: {}", current_prio);
+        debug!("pop - from level: {}", current_prio);
 
         cfg_if::cfg_if! {
             if #[cfg(multi_core)] {
@@ -309,7 +309,15 @@ impl RunQueue {
 
         if self.ready_tasks[current_prio].is_empty() {
             self.ready_priority.unmark(current_prio);
-            debug!("pop - New prio level: {}", self.ready_priority.ready());
+            debug!("pop (current_prio is empty) - New prio level: {}", self.ready_priority.ready());
+        }
+
+        if let Some(popped) = popped {
+            unsafe {
+                trace!("popped {}", popped.as_ref().name);
+            }
+        } else {
+            trace!("popped None");
         }
 
         popped

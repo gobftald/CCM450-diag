@@ -23,13 +23,17 @@ pub(crate) fn compat_timer_arm_us(ets_timer: *mut ets_timer, us: u32, repeat: bo
 }
 
 pub(crate) fn compat_timer_disarm(ets_timer: *mut ets_timer) {
-    trace!("timer disarm");
     let ets_timer = unwrap!(unsafe { ets_timer.as_mut() }, "ets_timer is null");
 
     if let Some(timer) = TimerPtr::new(ets_timer.priv_.cast()) {
         let timer = unsafe { TimerHandle::ref_from_ptr(&timer) };
 
+        trace!("timer disarm {:?} {:?}",
+            ets_timer as *const _ as usize, timer as *const _ as usize);
+
         timer.disarm();
+    } else {
+        trace!("timer disarm {:?} not found", ets_timer as *const _ as usize);
     }
 }
 
@@ -56,7 +60,7 @@ pub(crate) fn compat_timer_setfn(
     parg: *mut c_void,
 ) {
     trace!(
-        "timer_setfn {:x} {:?} {:?}",
+        "compat_timer_setfn {:x} {:?} {:?}",
         ets_timer as usize, pfunction, parg
     );
 

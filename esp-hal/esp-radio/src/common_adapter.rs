@@ -36,6 +36,8 @@ pub unsafe extern "C" fn ets_timer_setfn(
     pfunction: *mut c_void,
     parg: *mut c_void,
 ) {
+    trace!("ets_timer_setfn(ptimer: {:x}, pfunction: {:x}, parg: {:x}", ptimer, pfunction, parg);
+
     unsafe {
         crate::compat::timer_compat::compat_timer_setfn(
             ptimer.cast(),
@@ -51,10 +53,12 @@ pub unsafe extern "C" fn ets_timer_setfn(
 #[allow(unused)]
 #[ram]
 pub unsafe extern "C" fn random() -> c_ulong {
-    trace!("random");
+    //trace!("random");
 
     let mut rng = hal::rng::Rng::new();
-    rng.random()
+    let r = rng.random();
+    trace!("random() {:?}", r);
+    r
 }
 
 /// **************************************************************************
@@ -177,8 +181,11 @@ pub unsafe extern "C" fn semphr_delete(semphr: *mut c_void) {
 // 71
 #[ram]
 pub unsafe extern "C" fn semphr_take(semphr: *mut c_void, tick: u32) -> i32 {
-    trace!(">>>> semphr_take {:?} block_time_tick {}", semphr, tick);
-    sem_take(semphr, blob_ticks_to_micros(tick))
+    //trace!(">>>> semphr_take {:?} block_time_tick {:x}", semphr, tick);
+    trace!(">>>> semphr_take_start {:?} block_time_tick {}", semphr, tick);
+    let r = sem_take(semphr, blob_ticks_to_micros(tick));
+    trace!(">>>> semphr_take_end {:?} {:?}", semphr, if r == 0 {false} else {true});
+    r
 }
 
 /// **************************************************************************
@@ -197,8 +204,11 @@ pub unsafe extern "C" fn semphr_take(semphr: *mut c_void, tick: u32) -> i32 {
 // 99
 #[ram]
 pub unsafe extern "C" fn semphr_give(semphr: *mut c_void) -> i32 {
-    trace!(">>>> semphr_give {:?}", semphr);
-    sem_give(semphr)
+    //trace!(">>>> semphr_give {:?}", semphr);
+    trace!(">>>> semphr_give_start {:?}", semphr);
+    let r = sem_give(semphr);
+    trace!(">>>> semphr_give_end {:?} {:?}", semphr, if r == 0 {false} else {true});
+    r
 }
 
 #[unsafe(no_mangle)]
@@ -291,9 +301,10 @@ pub unsafe extern "C" fn __esp_radio_esp_event_post(
 
 // 346
 pub(crate) fn enable_wifi_power_domain() {
-    const SYSTEM_WIFIBB_RST: u32 = 1 << 0;
-    const SYSTEM_FE_RST: u32 = 1 << 1;
-    const SYSTEM_WIFIMAC_RST: u32 = 1 << 2;
+    const SYSTEM_WIFIBB_RST: u32 = 1 << 0; // Wi-Fi baseband
+    const SYSTEM_FE_RST: u32 = 1 << 1; // RF Frontend RST
+    const SYSTEM_WIFIMAC_RST: u32 = 1 << 2; // Wi-Fi MAC
+
     const SYSTEM_BTBB_RST: u32 = 1 << 3; // Bluetooth Baseband
     const SYSTEM_BTMAC_RST: u32 = 1 << 4; // deprecated
     const SYSTEM_RW_BTMAC_RST: u32 = 1 << 9; // Bluetooth MAC

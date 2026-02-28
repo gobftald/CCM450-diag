@@ -315,6 +315,8 @@ TEND
 
 // DTCs: 0031 0108 0113 0118 0122 0201 0222 0351 0480 0638 1231 1615
 
+echo -en '\x01\x04\x18\x02\xFF\xFF' | nc -nu -q0 -p 20000 192.168.3.1 19924
+
 
 5 JOBNAME: FS_READ_DETAIL
     Read error log (one error / all details)

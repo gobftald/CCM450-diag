@@ -9,7 +9,7 @@ use allocator_api2::boxed::Box;
 // 11
 use enumset::EnumSet;
 use esp_phy::PhyController;
-use esp_sync::RawMutex;
+use esp_sync::{RawMutex, NonReentrantMutex};
 
 // 15
 use super::WifiEvent;
@@ -23,7 +23,6 @@ use crate::{
         clock::ModemClockController,
         //peripherals::RADIO_CLK,
         peripherals::WIFI,
-        sync::NonReentrantMutex,
     },
     memory_fence::memory_fence,
     time::{blob_ticks_to_micros, millis_to_blob_ticks},
@@ -229,7 +228,6 @@ pub unsafe extern "C" fn wifi_int_restore(
 // 243
 pub unsafe extern "C" fn task_yield_from_isr() {
     // original: /* Do nothing */
-    trace!("task_yield_from_isr");
     //yield_task();
     crate::preempt::yield_task_from_isr();
 }
@@ -308,9 +306,11 @@ pub unsafe extern "C" fn mutex_delete(mutex: *mut crate::binary::c_types::c_void
 /// *************************************************************************
 // 331
 pub unsafe extern "C" fn mutex_lock(mutex: *mut crate::binary::c_types::c_void) -> i32 {
-    trace!("mutex_lock {:?}", mutex);
-    //lock_mutex(mutex)
-    crate::compat::mutex::mutex_lock(mutex)
+    //trace!("mutex_lock {:?}", mutex);
+    trace!("mutex_lock_start {:?}", mutex);
+    let r = crate::compat::mutex::mutex_lock(mutex);
+    trace!("mutex_lock_end {:?} {:?}", mutex, if r == 0 {false} else {true});
+    r
 }
 
 /// **************************************************************************
@@ -328,9 +328,11 @@ pub unsafe extern "C" fn mutex_lock(mutex: *mut crate::binary::c_types::c_void) 
 /// *************************************************************************
 // 348
 pub unsafe extern "C" fn mutex_unlock(mutex: *mut crate::binary::c_types::c_void) -> i32 {
-    trace!("mutex_unlock {:?}", mutex);
-    //unlock_mutex(mutex)
-    crate::compat::mutex::mutex_unlock(mutex)
+    //trace!("mutex_unlock {:?}", mutex);
+    trace!("mutex_unlock_start {:?}", mutex);
+    let r = crate::compat::mutex::mutex_unlock(mutex);
+    trace!("mutex_unlock_end {:?} {:?}", mutex, if r == 0 {false} else {true});
+    r
 }
 
 /*
@@ -424,7 +426,7 @@ fn common_task_create(
 ) -> i32 {
     let task_name = unsafe { str_from_c(name as _) };
     trace!(
-        "task_create task_func {:?} name {} stack_depth {} param {:?} prio {}, task_handle {:?} core_id {:?}",
+        "common_task_create() func: {:?}, name: {}, stack_depth: {}, param: {:?}, prio: {}, task_handle: {:?}, core_id: {:?}",
         task_func, task_name, stack_depth, param, prio, task_handle, core_id
     );
 
@@ -583,10 +585,11 @@ pub unsafe extern "C" fn task_ms_to_tick(ms: u32) -> i32 {
 /// *************************************************************************
 // 587
 pub unsafe extern "C" fn task_get_current_task() -> *mut crate::binary::c_types::c_void {
-    let res = crate::preempt::current_task() as *mut crate::binary::c_types::c_void;
-    trace!("task get current task - return {:?}", res);
+    //let res = crate::preempt::current_task() as *mut crate::binary::c_types::c_void;
+    let (ptr, name) = crate::preempt::current_task();
+    trace!("task get current task - return {} ({:?})", name, ptr);
 
-    res
+    ptr as *mut crate::binary::c_types::c_void
 }
 
 /// **************************************************************************
@@ -604,9 +607,11 @@ pub unsafe extern "C" fn task_get_current_task() -> *mut crate::binary::c_types:
 /// *************************************************************************
 // 607
 pub unsafe extern "C" fn task_get_max_priority() -> i32 {
-    trace!("task_get_max_priority");
+    //trace!("task_get_max_priority");
     //255
-    crate::preempt::max_task_priority() as i32
+    let r = crate::preempt::max_task_priority() as i32;
+    trace!("task_get_max_priority {}", r);
+    r
 }
 
 /// **************************************************************************
@@ -695,7 +700,6 @@ pub unsafe extern "C" fn event_post(
         unsafe { super::event::dispatch_event_handler(event, event_data, event_data_size) };
 
     super::state::update_state(event, handled);
-
     event.waker().wake();
 
     match event {
@@ -968,8 +972,9 @@ pub unsafe extern "C" fn log_timestamp() -> u32 {
 /// *************************************************************************
 // 1297
 pub unsafe extern "C" fn malloc_internal(size: usize) -> *mut crate::binary::c_types::c_void {
-    //unsafe { crate::compat::malloc::malloc(size).cast() }
-    unsafe { crate::compat::malloc::malloc_internal(size).cast() }
+    let ptr = unsafe { crate::compat::malloc::malloc_internal(size).cast() };
+    trace!("malloc_internal size: {}, ptr: {}, ", size, ptr);
+    ptr
 }
 
 /* wifi_realloc does not used
@@ -1010,7 +1015,9 @@ pub unsafe extern "C" fn realloc_internal(ptr: *mut c_void, size: usize) -> *mut
 // 1333
 pub unsafe extern "C" fn calloc_internal_wrapper(n: usize, size: usize) -> *mut c_void {
     trace!("calloc_internal_wrapper {} {}", n, size);
-    unsafe { calloc_internal(n as u32, size) as *mut c_void }
+    let ptr = unsafe { calloc_internal(n as u32, size) };
+    trace!("calloc_internal n: {}, size: {}, ptr: {}, ", n, size, ptr);
+    ptr as *mut c_void
 }
 
 /// **************************************************************************
@@ -1029,8 +1036,10 @@ pub unsafe extern "C" fn calloc_internal_wrapper(n: usize, size: usize) -> *mut 
 // 1350
 pub unsafe extern "C" fn zalloc_internal(size: usize) -> *mut crate::binary::c_types::c_void {
     trace!("zalloc_internal {}", size);
-    //unsafe { calloc(size as u32, 1usize) as *mut crate::binary::c_types::c_void }
-    unsafe { calloc_internal(size as u32, 1usize) as *mut c_void }
+    let ptr = unsafe { calloc_internal(size as u32, 1usize) };
+    trace!("calloc_internal {} {}", size, ptr);
+    ptr as *mut c_void
+
 }
 
 /// **************************************************************************
@@ -1069,8 +1078,9 @@ pub unsafe extern "C" fn wifi_malloc(size: usize) -> *mut crate::binary::c_types
 // 1403
 pub unsafe extern "C" fn wifi_calloc(n: usize, size: usize) -> *mut crate::binary::c_types::c_void {
     trace!("wifi_calloc {} {}", n, size);
-    //unsafe { calloc(n as u32, size) as *mut crate::binary::c_types::c_void }
-    unsafe { calloc_internal(n as u32, size) as *mut c_void }
+    let ptr = unsafe { calloc_internal(n as u32, size) };
+    trace!("calloc_internal n: {}, size: {}, ptr: {}", n, size, ptr);
+    ptr as *mut c_void
 }
 
 /// **************************************************************************

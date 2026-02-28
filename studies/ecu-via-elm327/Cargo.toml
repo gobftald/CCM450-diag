@@ -16,8 +16,7 @@ opt-level = "s"     # "s" or "z" for size optimizations often helps elision
                     # this is what really removes frame pointers (about 8K savings)
 
 [dependencies]
-esp-println = { version = "0.16.0", default-features = false }
-#esp-println = { version = "0.16.0", default-features = false, features = ["critical-section"] }
+esp-println = { version = "0.16.0", default-features = false, features = ["critical-section"] }
 esp-backtrace = { version = "0.18.0",features = ["panic-handler"], optional = true }
 defmt = { version = "1.0.1", optional = true }
 log = { version = "0.4.14", optional = true }
@@ -43,7 +42,9 @@ esp-rtos = { path = "../../esp-hal/esp-rtos", features = ["esp-radio", "embassy"
 esp-bootloader-esp-idf = { path = "../../esp-hal/esp-bootloader-esp-idf.me" }
 
 rtos-trace = { version = "0.2.1", optional = true }
-rtt-target = { version = "0.6", optional = true }
+rtt-target = { version = "0.6.2", optional = true }
+# this defintion above stucked to referrring defmt 0.3.100 and cause linker catastrophes
+#rtt-target = { git = "https://github.com/probe-rs/rtt-target", optional = true, features = ["defmt"] }
 systemview-target = { version = "0.3", optional = true, default-feature = false, features = ["callbacks-os", "ext-rtt-channels-2"] }
 
 [features]
@@ -69,7 +70,6 @@ esp32c3 = [
 
 defmt = [
     "dep:defmt",
-    #"esp-println/defmt-espflash",
     "esp-backtrace?/defmt",
     "esp-hal/defmt",
     #"esp-hal-embassy/defmt",
@@ -78,10 +78,14 @@ defmt = [
     "embassy-time/defmt-timestamp-uptime",
     #"esp-wifi/defmt",
     "esp-radio/defmt",
-    "esp-rtos/defmt",
     "embassy-net/defmt",
     "embassy-futures/defmt",
+    "esp-rtos/defmt",
+
+    "esp-println/defmt-espflash",      # if you use esp-rtos and rtt_target it should be commented out
+                                        # since rtt-target/defmt also defines defmt symbols
     "rtt-target?/defmt",
+    "esp-alloc/defmt",
 ]
 
 backtrace = ["dep:esp-backtrace"]       # needs "-C", "force-frame-pointers" rustflag in config.toml

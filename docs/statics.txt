@@ -1,0 +1,108 @@
+esp-hal
+    clock/mod.rs
+        use esp_sync::RawMutex;
+        static PHY_CLOCK_REF_COUNTER: embassy_sync::blocking_mutex::Mutex<RawMutex, Cell<u8>> =
+            embassy_sync::blocking_mutex::Mutex::new(Cell::new(0));
+
+    lib.rs
+        use esp_sync::RawMutex;
+        /// A spinlock for seldom called stuff. Users assume that lock contention is not an issue.
+        pub(crate) static ESP_HAL_LOCK: RawMutex = RawMutex::new();
+    
+    gpio/mod.rs
+        pub(crate) static GPIO_LOCK: RawMutex = RawMutex::new();
+
+    system.rs
+        use esp_sync::NonReentrantMutex;
+        static PERIPHERAL_REF_COUNT: NonReentrantMutex<RefCounts> =
+            NonReentrantMutex::new(RefCounts::new());
+
+    rng/ll.rs
+        static LAST_READ: NonReentrantMutex<usize> = NonReentrantMutex::new(0);
+
+
+esp-phy
+    lib.rs
+        /// Global PHY initialization state
+        static PHY_STATE: NonReentrantMutex<PhyState> = NonReentrantMutex::new(PhyState::new());
+
+
+esp-radio
+    wifi/os_adapter/mod.rs
+        static WIFI_LOCK: RawMutex = RawMutex::new();
+        pub(crate) static WIFI_EVENTS: NonReentrantMutex<EnumSet<WifiEvent>> =
+            NonReentrantMutex::new(enumset::enum_set!());
+
+    wifi/mod.rs
+        pub(crate) static DATA_QUEUE_RX_AP: NonReentrantMutex<VecDeque<PacketBuffer>> =
+            NonReentrantMutex::new(VecDeque::new());
+        pub(crate) static DATA_QUEUE_RX_STA: NonReentrantMutex<VecDeque<PacketBuffer>> =
+            NonReentrantMutex::new(VecDeque::new());
+
+
+esp-rtos
+    scheduler.rs
+        pub(crate) struct Scheduler {
+            // a bit bigger than to store it in cell
+            inner: Mutex<RawMutex, RefCell<SchedulerState>>,
+        }
+        then 
+        impl Scheduler {
+            pub(crate) fn with<R>(&self, cb: impl FnOnce(&mut SchedulerState) -> R) -> R {
+                self.with_shared(|shared| cb(&mut *unwrap!(shared.try_borrow_mut())))
+            }
+
+            pub(crate) fn with_shared<R>(&self, cb: impl FnOnce(&RefCell<SchedulerState>) -> R) -> R {
+                self.inner.lock(|shared| cb(shared))
+            }
+            ...
+        }
+
+    embassy/mod.rs
+        struct ThreadFlag {
+            inner: NonReentrantMutex<FlagsInner>,
+        }
+
+    esp_radio/timer_queue.rs
+        static TIMER_QUEUE: TimerQueue = TimerQueue::new();
+
+        struct TimerQueue {
+            inner: NonReentrantMutex<TimerQueueInner>,
+        }
+
+    timer/embassy.rs
+        pub(crate) struct TimerQueue {
+            inner: NonReentrantMutex<TimerQueueInner>,
+        }
+    
+    lib.rs
+        static TIMER_QUEUE: TimerQueue = TimerQueue::new();
+        static SCHEDULER: Scheduler = Scheduler {
+            inner: Mutex::new(RefCell::new(SchedulerState::new()))
+        };
+
+
+embassy-executor
+    raw/run_queue_critical_section.rs
+        use critical_section::{CriticalSection, Mutex};
+        // use the original/general critical_section's Mutex, but critical_section
+        // impl is using the multicore aware esp_sync::RawMutex;
+        // but there is some difference using CriticalSectionRawMutex or esp_sync::RawMutex
+        // the former will spinlock on the same (static CRITICAL_SECTION:) memory for every mutex
+        // tha latter can be spinlock on a specific static
+        pub(crate) struct RunQueueItem {
+            // Cell is enough, since we only replace its contents
+            next: Mutex<Cell<Option<TaskRef>>>,
+        }
+
+        use critical_section::{CriticalSection, Mutex};
+        pub(crate) struct RunQueue {
+            head: Mutex<Cell<Option<TaskRef>>>,
+        }
+
+    raw/state_critical_section.rs
+        use critical_section::{CriticalSection, Mutex};
+        pub(crate) struct State {
+            // Cell is enough for an u8 state
+            state: Mutex<Cell<u8>>,
+        }

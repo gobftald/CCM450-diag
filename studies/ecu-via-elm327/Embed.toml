@@ -41,5 +41,5 @@ format = "BinaryLE"
 socket = "127.0.0.1:19001"
 
 #[default.gdb]
-#enabled = true
-#gdb_connection_string = "127.0.0.1:3333"
+enabled = true
+gdb_connection_string = "127.0.0.1:3333"

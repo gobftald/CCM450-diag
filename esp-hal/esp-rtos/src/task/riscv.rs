@@ -338,6 +338,8 @@ pub(crate) fn yield_task() {
         rtos_trace::trace::marker_end(TraceEvents::YieldTask as u32);
     }
 
+    trace!("YieldTask");
+
     match Cpu::current() {
         Cpu::ProCpu => unsafe { SoftwareInterrupt::<'static, 0>::steal() }.raise(),
         #[cfg(multi_core)]

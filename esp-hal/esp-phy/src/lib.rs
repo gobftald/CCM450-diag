@@ -5,6 +5,8 @@ use esp_hal::clock::{ModemClockController, PhyClockGuard};
 use esp_sync::NonReentrantMutex;
 use esp_wifi_sys_esp32c3::include::*;
 
+mod phy_init_data;
+
 // 37
 pub(crate) mod private {
     pub trait Sealed {}
@@ -74,9 +76,70 @@ impl PhyState {
         }
     }
 
+    /// Get a reference to the calibration data.
+    ///
+    /// If no calibration data is available, it will be initialized to zero.
+    pub fn calibration_data(&mut self) -> &mut PhyCalibrationData {
+        self.calibration_data
+            .get_or_insert([0u8; PHY_CALIBRATION_DATA_LENGTH])
+    }
+
     /// Calibrate the PHY.
     // 119
-    fn calibrate(&mut self) {}
+    fn calibrate(&mut self) {
+        #[cfg(esp32s2)]
+        unsafe {
+            use esp_hal::efuse::Efuse;
+            sys::include::phy_eco_version_sel(Efuse::major_chip_version());
+        }
+        // Causes headaches for some reason.
+        // See: https://github.com/esp-rs/esp-hal/issues/4015
+        // #[cfg(phy_combo_module)]
+        // unsafe {
+        // phy_init_param_set(1);
+        // }
+
+        #[cfg(all(
+            phy_enable_usb,
+            any(soc_has_usb0, soc_has_usb_device),
+            not(any(esp32s2, esp32h2))
+        ))]
+        unsafe {
+            // FIXME: we should be using from esp-wifi-sys, but the function is missing for C6
+            // (CONFIG_ESP_PHY_ENABLE_USB is not defined)
+            unsafe extern "C" {
+                fn phy_bbpll_en_usb(param: bool);
+            }
+            phy_bbpll_en_usb(true);
+        }
+
+        let calibration_data_available = self.calibration_data.is_some();
+        let calibration_mode = if calibration_data_available {
+            // If the SOC just woke up from deep sleep and
+            // `phy_skip_calibration_after_deep_sleep` is enabled, no calibration will be
+            // performed.
+            if cfg!(phy_skip_calibration_after_deep_sleep)
+                //&& reset_reason(Cpu::current()) == Some(SocResetReason::CoreDeepSleep)
+            {
+                esp_wifi_sys_esp32c3::include::esp_phy_calibration_mode_t_PHY_RF_CAL_NONE
+            } else if cfg!(phy_full_calibration) {
+                esp_wifi_sys_esp32c3::include::esp_phy_calibration_mode_t_PHY_RF_CAL_FULL
+            } else {
+                esp_wifi_sys_esp32c3::include::esp_phy_calibration_mode_t_PHY_RF_CAL_PARTIAL
+            }
+        } else {
+            esp_wifi_sys_esp32c3::include::esp_phy_calibration_mode_t_PHY_RF_CAL_FULL
+        };
+        let init_data = &phy_init_data::PHY_INIT_DATA_DEFAULT;
+        unsafe {
+            esp_wifi_sys_esp32c3::include::register_chipv7_phy(
+                init_data,
+                self.calibration_data() as *mut PhyCalibrationData as *mut _,
+                calibration_mode,
+            );
+        }
+        self.calibrated = true;
+    }
 
     #[cfg(phy_backed_up_digital_register_count_is_set)]
     /// Backup the digital PHY register into memory.

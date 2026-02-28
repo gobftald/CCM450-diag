@@ -73,6 +73,8 @@
 // MUST be the first module
 mod fmt;
 
+mod exception_handler;
+
 //#[macro_use(assert, unreachable, panic, debug, info, unwrap)]
 //extern crate console;
 

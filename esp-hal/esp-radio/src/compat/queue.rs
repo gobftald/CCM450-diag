@@ -30,10 +30,12 @@ pub(crate) fn queue_delete(queue: *mut c_void) {
 
 // 29
 pub(crate) fn queue_send_to_back(queue: *mut c_void, item: *const c_void, tick: u32) -> i32 {
+    /*
     trace!(
-        "queue_send queue {:?} item {:x} tick {}",
+        "queue_send queue {:?} item {:?} tick {}",
         queue, item as usize, tick
     );
+    */
 
     let ptr = unwrap!(QueuePtr::new(queue.cast()), "queue is null");
 
@@ -45,7 +47,22 @@ pub(crate) fn queue_send_to_back(queue: *mut c_void, item: *const c_void, tick: 
         Some(tick)
     };
 
-    unsafe { handle.send_to_back(item.cast(), timeout) as i32 }
+    let mut buf: [u8; 8] = [0; 8];
+    unsafe { core::ptr::copy(item as *const u8, &mut buf as *mut u8, buf.len()); }
+        trace!(
+        "queue_send queue_start {:?} item {:?} tick {}",
+        queue, buf, tick
+    );
+
+    let r = unsafe { handle.send_to_back(item.cast(), timeout) as i32 };
+
+    unsafe { core::ptr::copy(item as *const u8, &mut buf as *mut u8, buf.len()); }
+        trace!(
+        "queue_send queue_end {:?} item {:?} tick {}",
+        queue, buf, tick
+    );
+
+    r
 }
 
 // 48
@@ -54,9 +71,12 @@ pub(crate) fn queue_try_send_to_back_from_isr(
     item: *const c_void,
     higher_priority_task_waken: *mut bool,
 ) -> i32 {
+    let mut buf: [u8; 8] = [0; 8];
+    unsafe { core::ptr::copy(item as *const u8, &mut buf as *mut u8, buf.len()); }
     trace!(
-        "queue_try_send_to_back_from_isr queue {:?} item {:x}",
-        queue, item as usize
+        "queue_try_send_to_back_from_isr queue {:?} item {:?}",
+        //queue, item as usize
+        queue, buf
     );
 
     let ptr = unwrap!(QueuePtr::new(queue.cast()), "queue is null");
@@ -70,7 +90,8 @@ pub(crate) fn queue_try_send_to_back_from_isr(
 
 // 85
 pub(crate) fn queue_receive(queue: *mut c_void, item: *mut c_void, tick: u32) -> i32 {
-    trace!("queue_recv {:?} item {:?} tick {}", queue, item, tick);
+    //trace!("queue_recv {:?} item {:?} tick {}", queue, item, tick);
+    trace!("queue_recv_start {:?} item {:?} tick {}", queue, item, tick);
 
     let ptr = unwrap!(QueuePtr::new(queue.cast()), "queue is null");
 
@@ -82,5 +103,9 @@ pub(crate) fn queue_receive(queue: *mut c_void, item: *mut c_void, tick: u32) ->
         Some(tick)
     };
 
-    unsafe { handle.receive(item.cast(), timeout) as i32 }
+    let r = unsafe { handle.receive(item.cast(), timeout) as i32 };
+    let mut buf: [u8; 8] = [0; 8];
+    unsafe { core::ptr::copy(item as *const u8, &mut buf as *mut u8, buf.len()); }
+    trace!("queue_recv_end {:?} item {:?} tick {:x}", queue, buf, tick);
+    r
 }

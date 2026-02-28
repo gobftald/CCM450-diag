@@ -14,8 +14,8 @@ embassy-time = { path = "../embassy-time" }
 #embassy-sync = { path = "../embassy-sync.me" }
 embassy-sync = "0.7"
 smoltcp = { path = "../../smoltcp/smoltcp", default-features = false, features = ["socket", "async"] }
-#allocator-api2 = { path = "../../allocator-api2", features = ["alloc"] }
-allocator-api2 = { version = "0.3.0", default-features = false, features = ["alloc"] }
+allocator-api2 = { path = "../../allocator-api2.me", features = ["alloc"] }
+#allocator-api2 = { version = "0.3.0", default-features = false, features = ["alloc"] }
 
 [features]
 #defmt = ["dep:defmt", "embassy-net-driver/defmt", "smoltcp/defmt", "allocator-api2/defmt"]

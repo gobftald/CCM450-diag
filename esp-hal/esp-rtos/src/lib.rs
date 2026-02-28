@@ -217,7 +217,7 @@ pub fn start_with_idle_hook(
         rtos_trace::trace::start();
     }
 
-    trace!("Starting scheduler for the first core");
+    trace!("start_with_idle_hook(): Starting scheduler for the first core");
     assert_eq!(Cpu::current(), Cpu::ProCpu);
 
     SCHEDULER.with(move |scheduler| {
@@ -237,6 +237,8 @@ pub fn start_with_idle_hook(
             stack_top as usize - stack_bottom as usize,
         );
 
+        info!("stack_top {}, stack_bottom {}, size {}",
+            stack_top, &raw const _stack_end_cpu0, stack_top as usize - &raw const _stack_end_cpu0 as usize);
         task::allocate_main_task(
             scheduler,
             stack_slice,

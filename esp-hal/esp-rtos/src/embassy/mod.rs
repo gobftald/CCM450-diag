@@ -88,9 +88,15 @@ impl ThreadFlag {
             if let Some(waiting) = inner.waiting.take() {
                 // The task is waiting, there is no need to set the flag - resuming the thread
                 // is all the signal we need.
+                /*
+                unsafe {
+                    info!("ThreadFlag::set - waiting.resume() {}", waiting.as_ref().name);
+                }
+                */
                 waiting.resume();
             } else {
                 // The task isn't waiting, set the flag.
+                //info!("ThreadFlag::set - inner.set = true");
                 inner.set = true;
             }
         });
@@ -108,7 +114,35 @@ impl ThreadFlag {
                 // SCHEDULER.sleep_until, but we know the current task's ID, and we know there
                 // is no timeout.
                 SCHEDULER.with(|scheduler| {
+                    /*
+                    let forever_duration = Duration::from_secs(60 * 60 * 24 * 365 * 100); 
+                    let forever_instant = Instant::now() + forever_duration;
+
+                    info!("wait Instant::now() {:?}, forever_duration {:?}, sum {:?}",
+                        Instant::now(), forever_duration, forever_instant);
+                    */
+
+                    /*
+                    let ie = Instant::EPOCH;
+                    info!("wait Instant::EPOCH {:?}, Duration::MAX {:?}, sum {:?}",
+                        ie, Duration::MAX, Instant::EPOCH + Duration::MAX);
+                    */
+
                     scheduler.sleep_task_until(inner.owner, Instant::EPOCH + Duration::MAX);
+                    //scheduler.sleep_task_until(inner.owner, forever_instant);
+
+                    /*
+                    let now_u64 = Instant::now().duration_since_epoch().as_micros();
+                    let dur_u64 = Duration::from_secs(3600).as_micros();
+                    let sum_u64 = now_u64 + dur_u64;
+
+                    info!("wait now_u64 {:?}, dur_u64 {:?}, sum {:?}",
+                        now_u64, dur_u64, sum_u64);
+
+                    scheduler.sleep_task_until(inner.owner, Instant::micros());
+                    */
+
+                    //info!("yield from wait after scheduler.sleep_task_until forever");
                     crate::task::yield_task();
                 });
             }
@@ -120,6 +154,7 @@ impl ThreadFlag {
 #[unsafe(export_name = "__pender")]
 #[ram]
 fn __pender(context: *mut ()) {
+    info!("__pender {:x}", context as usize);
     match context as usize {
         0 => unsafe { SoftwareInterrupt::<0>::steal().raise() },
         1 => unsafe { SoftwareInterrupt::<1>::steal().raise() },
@@ -130,6 +165,7 @@ fn __pender(context: *mut ()) {
             // reentrantly lock SCHEDULER.
             let flags = unwrap!(unsafe { context.cast::<ThreadFlag>().as_ref() });
             flags.set();
+            //info!("after flags.set()");
         }
     }
 }
@@ -267,7 +303,6 @@ impl Executor {
             hooks.before_poll();
 
             unsafe { executor.poll() };
-
             hooks.on_idle();
 
             // Wait for work to become available.

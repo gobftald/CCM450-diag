@@ -187,7 +187,7 @@ impl TimeDriver {
         // assume 52-bit underlying timer. it's not a big deal to sleep for a shorter time
         let mut timeout = sleep_duration & ((1 << 52) - 1);
 
-        trace!("Arming timer for {} (target = {})", timeout, next_wakeup);
+        trace!("arm_next_wakeup - Arming timer for {} (target = {})", timeout, next_wakeup);
         loop {
             match self.timer.schedule(Duration::from_micros(timeout)) {
                 Ok(_) => break,
@@ -211,14 +211,24 @@ impl TimeDriver {
 
         // Target time is infinite, suspend task without waking up via timer.
         if at == Instant::EPOCH + Duration::MAX {
+            /*
+            info!("schedule_wakeup EPOCH {:?}, duration {:?}, sum {:?}",
+                Instant::EPOCH, Duration::MAX, Instant::EPOCH + Duration::MAX);
+            */
+
             current_task.set_state(TaskState::Sleeping);
-            debug!("Suspending task: {:?}", current_task);
+            /*
+            unsafe {
+                info!("schedule_wakeup() - Suspending task: {} ({:?})",
+                    current_task.as_ref().name, current_task);
+            }
+            */
             return true;
         }
 
         // Target time is in the past, don't sleep.
         if at <= Instant::now() {
-            debug!("Target time is in the past");
+            debug!("schedule_wakeup() - Target time is in the past");
             return false;
         }
 
@@ -253,10 +263,13 @@ extern "C" fn timer_tick_handler() {
             #[cfg(feature = "rtos-trace")]
             rtos_trace::trace::marker_begin(TraceEvents::ProcessEmbassyTimerQueue as u32);
 
+            trace!("timer_tick_handler - ProcessEmbassyTimerQueue_begin");
+
             TIMER_QUEUE.handle_alarm(now);
 
             #[cfg(feature = "rtos-trace")]
             rtos_trace::trace::marker_end(TraceEvents::ProcessEmbassyTimerQueue as u32);
+            trace!("timer_tick_handler - ProcessEmbassyTimerQueue_end")
         }
 
         let mut scheduler = unwrap!(scheduler.try_borrow_mut());
@@ -268,6 +281,7 @@ extern "C" fn timer_tick_handler() {
 
         #[cfg(feature = "rtos-trace")]
         rtos_trace::trace::marker_begin(TraceEvents::ProcessTimerQueue as u32);
+        trace!("timer_tick_handler - ProcessTimerQueue_begin");
 
         // Process timer queue. This will wake up ready tasks, and set a new alarm.
         time_driver.handle_alarm(now, |ready_task| {
@@ -278,7 +292,9 @@ extern "C" fn timer_tick_handler() {
                 ready_task
             );
 
-            debug!("Task {:?} is ready", ready_task);
+            unsafe {
+                debug!("Task {} ({:?}) is ready", ready_task.as_ref().name, ready_task);
+            }
 
             match scheduler
                 .run_queue
@@ -293,6 +309,8 @@ extern "C" fn timer_tick_handler() {
 
         #[cfg(feature = "rtos-trace")]
         rtos_trace::trace::marker_end(TraceEvents::ProcessTimerQueue as u32);
+
+        trace!("ProcessTimerQueue_end");
 
         if now >= time_driver.timer_queue.time_slice_target[0] {
             crate::task::yield_task();

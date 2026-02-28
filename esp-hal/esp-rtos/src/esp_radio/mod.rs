@@ -70,7 +70,7 @@ impl esp_radio_rtos_driver::Scheduler for Scheduler {
     // 59
     fn task_create(
         &self,
-        name: &str,
+        name: &'static str,
         task: extern "C" fn(*mut c_void),
         param: *mut c_void,
         priority: u32,
@@ -97,8 +97,12 @@ impl esp_radio_rtos_driver::Scheduler for Scheduler {
         .cast()
     }
 
-    fn current_task(&self) -> *mut c_void {
-        self.current_task().as_ptr().cast()
+    fn current_task(&self) -> (*mut c_void, &'static str) {
+        //self.current_task().as_ptr().cast()
+        (
+            self.current_task().as_ptr().cast(),
+            unsafe{ self.current_task().as_ref().name }
+        )
     }
 
     fn schedule_task_deletion(&self, task_handle: *mut c_void) {
