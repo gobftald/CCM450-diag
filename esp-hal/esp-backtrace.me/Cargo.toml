@@ -4,7 +4,6 @@ version = "0.18.0"
 edition = "2024"
 
 [dependencies]
-#console  = { path = "../../console", features = ["jtag_serial"] }      # default console
 defmt = { version = "1.0.1", optional = true }
 #esp-println = { version = "0.16.1", optional = true, default-features = false, path = "../esp-println" }
 esp-println = { version = "0.16.0", default-features = false, features = ["critical-section"] }
@@ -21,8 +20,6 @@ esp-metadata-generated = { version = "0.3.0", features = ["build-script"] }
 default = ["esp32c3"]
 
 esp32c3 = []
-#defmt   = ["dep:defmt", "console/defmt"]
-#defmt   = ["dep:defmt"]
 
 panic-handler     = []
 exception-handler = []
