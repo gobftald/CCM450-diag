@@ -26,7 +26,6 @@ cfg-if = "1.0.0"
 esp-alloc = { version = "0.9.0", default-features = false }
 strum_macros = "0.27"
 
-#esp-hal-embassy = { path = "../../esp-hal/esp-hal-embassy"  }
 embassy-executor = { path = "../../embassy/embassy-executor.me" }
 # although we don't plan to use "dhcpv4" feature we define it
 # since it products less code in icmp and udp because we can implement only "icmp echo" 
@@ -60,7 +59,6 @@ esp32c3 = [
     "esp-hal/esp32c3",
     "esp-hal/rt",
     #"esp-hal/unstable",
-    #"esp-hal-embassy/esp32c3",
     "embassy-executor/nightly",     # for 'task' embassy-executor-macro
     "esp-radio/esp32c3",
     "esp-rtos/esp32c3",
@@ -70,7 +68,6 @@ defmt = [
     "dep:defmt",
     "esp-backtrace?/defmt",
     "esp-hal/defmt",
-    #"esp-hal-embassy/defmt",
     "embassy-executor/defmt",
     "embassy-time/defmt",
     "embassy-time/defmt-timestamp-uptime",
