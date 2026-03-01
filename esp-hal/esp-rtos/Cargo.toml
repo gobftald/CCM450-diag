@@ -78,5 +78,4 @@ defmt = ["dep:defmt", "esp-hal/defmt"]
 
 [build-dependencies]
 esp-config = { version = "0.6.1", features = ["build"] }
-#esp-metadata-generated = { version = "0.3.0", path = "../esp-metadata-generated", features = ["build-script"] }
 esp-metadata-generated = { version = "0.3.0", features = ["build-script"] }

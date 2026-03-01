@@ -3,6 +3,4 @@ resolver = "2"
 exclude  = [
     "esp-hal",
     "esp-hal-embassy",
-    "esp-metadata.me",
-    "esp-riscv-rt.me",
 ]
