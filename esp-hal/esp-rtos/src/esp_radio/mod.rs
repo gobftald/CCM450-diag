@@ -70,6 +70,9 @@ impl esp_radio_rtos_driver::Scheduler for Scheduler {
     // 59
     fn task_create(
         &self,
+        #[cfg(not(esp_rtos_task_name_str))]
+        name: &str,
+        #[cfg(esp_rtos_task_name_str)]
         name: &'static str,
         task: extern "C" fn(*mut c_void),
         param: *mut c_void,
@@ -97,6 +100,12 @@ impl esp_radio_rtos_driver::Scheduler for Scheduler {
         .cast()
     }
 
+    #[cfg(not(esp_rtos_task_name_str))]
+    fn current_task(&self) -> *mut c_void {
+        self.current_task().as_ptr().cast()
+    }
+
+    #[cfg(esp_rtos_task_name_str)]
     fn current_task(&self) -> (*mut c_void, &'static str) {
         //self.current_task().as_ptr().cast()
         (

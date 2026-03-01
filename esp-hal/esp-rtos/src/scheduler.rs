@@ -137,6 +137,9 @@ impl SchedulerState {
     #[cfg(feature = "esp-radio")]
     pub(crate) fn create_task(
         &mut self,
+        #[cfg(not(esp_rtos_task_name_str))]
+        name: &str,
+        #[cfg(esp_rtos_task_name_str)]
         name: &'static str,
         task: extern "C" fn(*mut c_void),
         param: *mut c_void,
@@ -505,6 +508,9 @@ impl Scheduler {
     #[cfg(feature = "esp-radio")]
     pub(crate) fn create_task(
         &self,
+        #[cfg(not(esp_rtos_task_name_str))]
+        name: &str,
+        #[cfg(esp_rtos_task_name_str)]
         name: &'static str,
         task: extern "C" fn(*mut c_void),
         param: *mut c_void,

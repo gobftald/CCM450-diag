@@ -15,6 +15,21 @@ git remote add origin https://github.com/gobftald/CCM450-diag.git
 git push -u origin main                 // push and add upstream (tracking) reference,
                                         // used by argument-less git-pull and other command
 
+git remote -v
+origin	https://github.com/gobftald/esp-hal.git (fetch)
+origin	https://github.com/gobftald/esp-hal.git (push)
+
+git add .
+git commit
+git branch
+  hal_1.0.0
+  main
+* patches
+
+git push origin patches
+
+    
+
 mkdir studies
 cd studies
 cargo new --bin esp-minimal

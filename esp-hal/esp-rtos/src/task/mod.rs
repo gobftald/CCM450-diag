@@ -351,6 +351,9 @@ impl<E: TaskListElement> TaskQueue<E> {
 // 323
 #[repr(C)]
 pub(crate) struct Task {
+    #[cfg(not(esp_rtos_task_name_str))]
+    pub name: &str,
+    #[cfg(esp_rtos_task_name_str)]
     pub name: &'static str,
     pub cpu_context: CpuContext,
     #[cfg(feature = "esp-radio")]
@@ -406,6 +409,9 @@ extern "C" fn task_wrapper(task_fn: extern "C" fn(*mut c_void), param: *mut c_vo
 impl Task {
     #[cfg(feature = "esp-radio")]
     pub(crate) fn new(
+        #[cfg(not(esp_rtos_task_name_str))]
+        name: &str,
+        #[cfg(esp_rtos_task_name_str)]
         name: &'static str,
         task_fn: extern "C" fn(*mut c_void),
         param: *mut c_void,

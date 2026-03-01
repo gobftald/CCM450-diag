@@ -39,6 +39,7 @@ esp-hal-procmacros = { git = "https://github.com/gobftald/esp-hal.git", branch =
 esp-metadata-generated = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 esp-metadata = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 esp-println = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
+esp-radio-rtos-driver = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 esp-riscv-rt = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 esp-sync = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 
@@ -46,10 +47,11 @@ esp-sync = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches"
 #esp-backtrace = { path = "../esp-hal/esp-backtrace" }
 #esp-config = { path = "../esp-hal/esp-config" }
 #esp-hal = { path = "../esp-hal/esp-hal" }
-#esp-hal-procmacros = { path = "../esp-hal/esp-hal" }
+#esp-hal-procmacros = { path = "../esp-hal/esp-hal-procmacros" }
 #esp-metadata-generated = { path = "../esp-hal/esp-metadata-generated" }
-#esp-metadata = { path = "../esp-hal/esp-metadata-generated" }
+#esp-metadata = { path = "../esp-hal/esp-metadata" }
 #esp-println = { path = "../esp-hal/esp-println" }
+#esp-radio-rtos-driver = { path = "../esp-hal/esp-radio-rtos-driver" }
 #esp-riscv-rt = { path = "../esp-hal/esp-riscv-rt" }
 #esp-sync = { path = "../esp-hal/esp-sync" }
 
@@ -57,6 +59,12 @@ rtos-trace = { path = "../rtos-trace/rtos_trace" }
 systemview-target = { path = "../rtos-trace/systemview_target" }
 
 [env]
+# Manually register and import this shared cfg used by esp-rtos, esp-radio
+# and esp-radio-rtos-driver.
+# It enables task name string support in the RTOS scheduler, significantly
+# facilitate tracing in eps-rtos.
+ESP_RTOS_TASK_NAME_STR = "true"
+
 # Explicitly add _zicsr to the architecture string for C/C++ builds
 CFLAGS = "-march=rv32imc_zicsr"
 

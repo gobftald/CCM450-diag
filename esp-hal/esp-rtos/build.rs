@@ -27,5 +27,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     {
         println!("cargo:rustc-cfg=debug_build")
     }
+
+    // Manually register and import this shared cfg used by esp-rtos, esp-radio
+    // and esp-radio-rtos-driver.
+    // It enables task name string support in the RTOS scheduler, significantly
+    // facilitate tracing in eps-rtos.
+    println!("cargo:rustc-check-cfg=cfg(esp_rtos_task_name_str)");
+    if std::env::var("ESP_RTOS_TASK_NAME_STR").map(|v| v == "true").unwrap_or(false) {
+        println!("cargo:rustc-cfg=esp_rtos_task_name_str");
+    }
+
     Ok(())
 }

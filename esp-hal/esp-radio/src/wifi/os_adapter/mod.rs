@@ -586,10 +586,20 @@ pub unsafe extern "C" fn task_ms_to_tick(ms: u32) -> i32 {
 // 587
 pub unsafe extern "C" fn task_get_current_task() -> *mut crate::binary::c_types::c_void {
     //let res = crate::preempt::current_task() as *mut crate::binary::c_types::c_void;
-    let (ptr, name) = crate::preempt::current_task();
-    trace!("task get current task - return {} ({:?})", name, ptr);
 
-    ptr as *mut crate::binary::c_types::c_void
+    #[cfg(not(esp_rtos_task_name_str))]
+    {
+        let ptr = crate::preempt::current_task();
+        trace!("task get current task - return {:?}", ptr);
+        ptr as *mut crate::binary::c_types::c_void
+    }
+
+    #[cfg(esp_rtos_task_name_str)]
+    {
+        let (ptr, name) = crate::preempt::current_task();
+        trace!("task get current task - return {} ({:?})", name, ptr);
+        ptr as *mut crate::binary::c_types::c_void
+    }
 }
 
 /// **************************************************************************
