@@ -30,8 +30,7 @@ enumset   = { version = "1.1.6", default-features = false, optional = true }
 smoltcp = { path = "../../smoltcp/smoltcp", default-features = false, features = ["medium-ethernet"], optional = true }
 embassy-net-driver = { path = "../../embassy/embassy-net-driver", optional = true }
 embassy-time-driver = { path = "../../embassy/embassy-time-driver", features = [ "tick-hz-1_000_000" ] }
-#portable-atomic = { path = "../../portable-atomic", default-features = false }
-portable-atomic = { version = "1.11", default-features = false }
+portable-atomic = { version = "1.5", default-features = false }
 #portable-atomic-enum = { path = "../../portable-atomic-enum", features = ["portable-atomic"] }
 portable_atomic_enum = { version = "0.3.1", features = ["portable-atomic"] }
 esp-sync = "0.1.0"
