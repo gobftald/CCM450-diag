@@ -71,7 +71,6 @@ esp32s3 = []
 defmt   = [
     "dep:defmt",
     "esp-riscv-rt/defmt",
-    #"riscv/defmt",
     "esp32c3/defmt",
     "esp-sync/defmt",
     "enumset/defmt",
@@ -92,7 +91,6 @@ rt = [
 ]
 
 [target.'cfg(target_arch = "riscv32")'.dependencies]
-#riscv = { path = "../../riscv.me/riscv.me" }
 
 # we don't use critical-section-single-hart feature of riscv, so we don't
 # implement critical section from here,

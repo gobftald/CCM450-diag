@@ -8,8 +8,8 @@ test = false
 bench = false
 
 [dependencies]
-esp-config = "0.6.0"
+esp-config = "0.6.1"
 
 [build-dependencies]
 jiff = { version = "0.2.13", default-features = false, features = ["std"] }
-esp-config = { version = "0.6.0", features = ["build"] }
+esp-config = { version = "0.6.1", features = ["build"] }
