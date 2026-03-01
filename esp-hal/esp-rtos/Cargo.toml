@@ -23,8 +23,7 @@ embassy-executor = { path = "../../embassy/embassy-executor.me", features = ["ni
 embassy-time-driver = { path = "../../embassy/embassy-time-driver", features = [ "tick-hz-1_000_000" ], optional = true }
 esp-config = "0.6.1"
 portable-atomic = { version = "1.5", default-features = false }
-#macros = { version = "0.21.0", package = "esp-hal-procmacros", path = "../esp-hal-procmacros" }
-macros = { package = "esp-hal-procmacros", path = "../esp-hal-procmacros" }
+macros = { version = "0.21.0", package = "esp-hal-procmacros" }
 embassy-time-queue-utils = { path = "../../embassy/embassy-time-queue-utils", optional = true }
 
 # Logging interfaces, they are mutually exclusive so they need to be behind separate features.

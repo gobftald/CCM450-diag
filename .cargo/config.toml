@@ -35,6 +35,7 @@ esp-alloc = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches
 esp-backtrace = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 esp-config = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 #esp-hal = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
+esp-hal-procmacros = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 esp-metadata-generated = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 esp-println = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 esp-riscv-rt = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }

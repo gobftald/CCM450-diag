@@ -10,7 +10,7 @@ cfg-if = "1.0.0"
 critical-section = { version = "1.2.0" }
 esp-hal = { path = "../esp-hal" }
 #esp-hal = { version = "1.0.0", default-features = false, features = ["requires-unstable"] }
-macros = { features = ["embassy"], package = "esp-hal-procmacros", path = "../esp-hal-procmacros" }
+macros = { version = "0.21.0", package = "esp-hal-procmacros" }
 embassy-executor = { path = "../../embassy/embassy-executor.me", optional = true }
 embassy-time-driver = { path = "../../embassy/embassy-time-driver", features = [ "tick-hz-1_000_000" ] }
 
