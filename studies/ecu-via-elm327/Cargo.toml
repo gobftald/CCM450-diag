@@ -25,7 +25,7 @@ cfg-if = "1.0.0"
 esp-alloc = { version = "0.9.0", default-features = false }
 strum_macros = "0.27"
 
-embassy-executor = { path = "../../embassy/embassy-executor.me" }
+embassy-executor = "0.9.0"
 # although we don't plan to use "dhcpv4" feature we define it
 # since it products less code in icmp and udp because we can implement only "icmp echo" 
 embassy-net = { version = "0.7.1", features = ["udp", "dhcpv4"]}
