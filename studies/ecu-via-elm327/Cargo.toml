@@ -28,10 +28,10 @@ strum_macros = "0.27"
 embassy-executor = { path = "../../embassy/embassy-executor.me" }
 # although we don't plan to use "dhcpv4" feature we define it
 # since it products less code in icmp and udp because we can implement only "icmp echo" 
-embassy-net = { path =  "../../embassy/embassy-net", features = ["udp", "dhcpv4"]}
+embassy-net = { version = "0.7.1", features = ["udp", "dhcpv4"]}
 embassy-time = "0.5.0"
 embassy-sync = "0.7"
-embassy-futures = { path = "../../embassy/embassy-futures" }
+embassy-futures = "0.1.2"
 esp-radio = { path = "../../esp-hal/esp-radio", features = ["wifi"] }
 esp-rtos = { path = "../../esp-hal/esp-rtos", features = ["esp-radio", "embassy", "esp-alloc"] }
 esp-bootloader-esp-idf = { path = "../../esp-hal/esp-bootloader-esp-idf.me" }
