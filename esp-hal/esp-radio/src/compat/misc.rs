@@ -41,23 +41,3 @@ unsafe extern "C" fn __esp_radio_fgets(str: *const u8, count: u32, file: *const 
 unsafe extern "C" fn __esp_radio_fclose(stream: *const ()) -> i32 {
     todo!("fclose {:?}", stream);
 }
-
-/// This is needed by `libesp_rom.a` (if used)
-/// Other crates (i.e. esp-radio) also rely on this being defined somewhere
-#[unsafe(no_mangle)]
-unsafe extern "C" fn __assert_func(
-    file: *const core::ffi::c_char,
-    line: i32,
-    func: *const core::ffi::c_char,
-    expr: *const core::ffi::c_char,
-) -> ! {
-    unsafe {
-        panic!(
-            "__assert_func in {}:{} ({}): {}",
-            core::ffi::CStr::from_ptr(file).to_str().unwrap(),
-            line,
-            core::ffi::CStr::from_ptr(func).to_str().unwrap(),
-            core::ffi::CStr::from_ptr(expr).to_str().unwrap(),
-        );
-    }
-}

@@ -217,7 +217,7 @@ pub unsafe extern "C" fn __esp_radio_esp_fill_random(dst: *mut u8, len: u32) {
     unsafe {
         let dst = core::slice::from_raw_parts_mut(dst, len as usize);
 
-        let mut rng = esp_hal::rng::Rng::new();
+        let rng = esp_hal::rng::Rng::new();
         for chunk in dst.chunks_mut(4) {
             let bytes = rng.random().to_le_bytes();
             chunk.copy_from_slice(&bytes[..chunk.len()]);

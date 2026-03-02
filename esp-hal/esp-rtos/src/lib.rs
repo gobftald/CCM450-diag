@@ -70,6 +70,7 @@ use esp_hal::timer::systimer::Alarm;
 #[cfg(timergroup)]
 use esp_hal::timer::timg::Timer;
 use esp_hal::{
+    Blocking,
     system::Cpu,
     time::{Duration, Instant},
     timer::{AnyTimer, OneShotTimer, any::Degrade},
@@ -85,8 +86,7 @@ pub(crate) use scheduler::SCHEDULER;
 use crate::{task::IdleFn, timer::TimeDriver};
 
 // 128
-//type TimeBase = OneShotTimer<'static, Blocking>;
-type TimeBase = OneShotTimer<'static>;
+type TimeBase = OneShotTimer<'static, Blocking>;
 
 /// Trace events, emitted via `marker_begin` and `marker_end`
 // 131

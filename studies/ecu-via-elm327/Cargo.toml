@@ -20,8 +20,7 @@ esp-println = { version = "0.16.0", default-features = false, features = ["criti
 esp-backtrace = { version = "0.18.0",features = ["panic-handler"], optional = true }
 defmt = { version = "1.0.1", optional = true }
 log = { version = "0.4.14", optional = true }
-esp-hal = { path = "../../esp-hal/esp-hal", default-features = false, features = ["rt"]}
-#esp-hal = { version = "1.0.0", default-features = false, features = ["requires-unstable"] }
+esp-hal = "1.0.0"
 cfg-if = "1.0.0"
 esp-alloc = { version = "0.9.0", default-features = false }
 strum_macros = "0.27"
@@ -58,7 +57,6 @@ esp32c3 = [
     "esp-backtrace?/esp32c3",
     "esp-hal/esp32c3",
     "esp-hal/rt",
-    #"esp-hal/unstable",
     "embassy-executor/nightly",     # for 'task' embassy-executor-macro
     "esp-radio/esp32c3",
     "esp-rtos/esp32c3",

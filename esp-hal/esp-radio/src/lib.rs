@@ -73,7 +73,6 @@ use hal::{
     clock::{Clocks, init_radio_clocks},
     rng::Rng,
     time::Rate,
-    timer::{AnyTimer, PeriodicTimer},
 };
 
 // 153
@@ -124,10 +123,6 @@ const _: () = {
     };
 };
 
-// 246
-//type TimeBase = PeriodicTimer<'static, Blocking>;
-type TimeBase = PeriodicTimer<'static>;
-
 /*
 // 248
 pub(crate) mod  {
@@ -144,43 +139,6 @@ pub(crate) mod  {
 //pub struct EspWifiController<'d> {
 pub struct Controller<'d> {
     _inner: PhantomData<&'d ()>,
-}
-
-/// A trait to allow better UX for initializing esp-wifi.
-///
-/// This trait is meant to be used only for the `init` function.
-/// Calling `timers()` multiple times may panic.
-// 302
-//pub trait EspWifiTimerSource: private::Sealed {
-pub trait EspWifiTimerSource {
-    //pub trait EspWifiTimerSource {
-    /// Returns the timer source.
-    ///
-    /// # Safety
-    ///
-    /// It is UB to call this method outside of [`init`].
-    unsafe fn timer(self) -> TimeBase;
-}
-
-// 317
-impl<T> EspWifiTimerSource for T
-where
-    //T: esp_hal::timer::IntoAnyTimer + private::Sealed,
-    T: esp_hal::timer::any::Degrade,
-{
-    // 321
-    unsafe fn timer(self) -> TimeBase {
-        let any_timer: AnyTimer<'_> = self.degrade();
-        let any_timer: AnyTimer<'static> = unsafe {
-            // Safety: this method is only safe to be called from within `init`.
-            // This 'static lifetime is a fake one, the timer is only used for the lifetime
-            // of the `EspWifiController` instance. The lifetime bounds on `init` and
-            // `EspWifiTimerSource` ensure that the timer is not used after the
-            // `EspWifiController` is dropped.
-            core::mem::transmute(any_timer)
-        };
-        TimeBase::new(any_timer)
-    }
 }
 
 /// A marker trait for suitable Rng sources for esp-wifi

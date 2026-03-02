@@ -1,6 +1,7 @@
 //#![allow(non_snake_case)]
 
 use esp_hal::{
+    Async,
     gpio::AnyPin,
     uart::{AnyUart, Config, Uart, UartRx, UartTx},
 };
@@ -12,8 +13,8 @@ use crate::CHANNEL_ITEM_SIZE;
 use super::{AdapterError, Adapters, utils::*};
 
 pub struct Adapter<'a> {
-    pub(crate) rx: UartRx<'a>,
-    pub(crate) tx: UartTx<'a>,
+    pub(crate) rx: UartRx<'a, Async>,
+    pub(crate) tx: UartTx<'a, Async>,
 }
 
 impl<'a> Adapter<'a> {
@@ -21,6 +22,7 @@ impl<'a> Adapter<'a> {
         // configure UART
         let config = Config::default().with_baudrate(115_200);
         let mut uart = unwrap!(Uart::new(uart, config))
+            .into_async()
             .with_tx(tx_pin)
             .with_rx(rx_pin);
         uart.set_at_cmd(esp_hal::uart::AtCmdConfig::default().with_cmd_char(b'>'));
@@ -39,7 +41,8 @@ impl<'a> Adapter<'a> {
         let mut size = 0;
         loop {
             match select(
-                self.rx.read_async(&mut buf[size..], false),
+                //self.rx.read_async(&mut buf[size..], false),
+                self.rx.read_async(&mut buf[size..]),
                 embassy_time::Timer::after(embassy_time::Duration::from_millis(timeout)),
             )
             .await
@@ -350,7 +353,8 @@ impl<'a> Adapters for Adapter<'a> {
 
     async fn read(&mut self, response: &mut [u8]) -> Result<usize, AdapterError> {
         self.rx
-            .read_async(response, false)
+            //.read_async(response, false)
+            .read_async(response)
             .await
             .map_err(AdapterError::Rx)
     }

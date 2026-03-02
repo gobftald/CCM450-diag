@@ -8,7 +8,7 @@ test = false
 bench = false
 
 [dependencies]
-esp-hal = { path = "../esp-hal", default-features = false, features = ["rt"]}
+esp-hal = { version = "1.0.0", default-features = false, features = ["requires-unstable"] }
 esp-sync = "0.1.0"
 esp-wifi-sys-esp32c3 = { path = "../../esp-wifi-sys" }
 esp-metadata-generated = "0.3.0"

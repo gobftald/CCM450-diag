@@ -69,7 +69,8 @@ mod rtt_trace;
 
 #[esp_rtos::main]
 async fn main(spawner: embassy_executor::Spawner) {
-    let config = esp_hal::Config::new_and_default(esp_hal::clock::CpuClock::max());
+    //let config = esp_hal::Config::new_and_default(esp_hal::clock::CpuClock::max());
+    let config = esp_hal::Config::default().with_cpu_clock(esp_hal::clock::CpuClock::max());
     let peripherals = esp_hal::init(config);
 
     // initializing rtt_target, rtos-trace and systemview backend
