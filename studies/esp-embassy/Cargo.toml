@@ -10,7 +10,7 @@ esp-hal = { path = "../../esp-hal/esp-hal" }
 
 esp-hal-embassy  = { path = "../../esp-hal/esp-hal-embassy"  }
 embassy-executor = { path = "../../embassy/embassy-executor" }
-embassy-time = { path = "../../embassy/embassy-time" }
+embassy-time = "0.5.0"
 
 [dependencies.esp-backtrace]
     version = "0.15.1"

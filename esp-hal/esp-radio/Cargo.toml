@@ -26,7 +26,7 @@ num-traits = { version = "0.2.19", default-features = false }
 critical-section = { version = "1.2.0" }
 enumset   = { version = "1.1.6", default-features = false, optional = true }
 smoltcp = { path = "../../smoltcp/smoltcp", default-features = false, features = ["medium-ethernet"], optional = true }
-embassy-net-driver = { path = "../../embassy/embassy-net-driver", optional = true }
+embassy-net-driver = { version = "0.2.0", optional = true }
 portable-atomic = { version = "1.5", default-features = false }
 portable_atomic_enum = { version = "0.3.1", features = ["portable-atomic"] }
 esp-sync = "0.1.0"
