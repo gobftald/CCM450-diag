@@ -1,6 +1,0 @@
-[package]
-name = "embassy-sync"
-version = "0.7.0"
-edition = "2021"
-
-[dependencies]

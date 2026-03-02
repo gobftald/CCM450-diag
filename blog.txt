@@ -320,3 +320,8 @@ macro
 rustc -Z unstable-options --pretty expanded hello.rs
 
 DEFMT_LOG=off,udp=trace,ecu_via_elm327=trace,esp_radio=trace,esp_wifi_sys_esp32c3=trace,esp_rtos=trace cargo run --features=esp-radio/sys-logs
+
+# restart wifi on rpi4
+sudo systemctl stop ifup@wlan0
+sudo ip addr flush dev wlan0
+sudo systemctl restart ifup@wlan0

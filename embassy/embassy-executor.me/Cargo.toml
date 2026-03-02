@@ -11,7 +11,7 @@ bench = false
 defmt = { version = "1.0.1", optional = true }
 log = { version = "0.4.14", optional = true }
 critical-section = { version = "1.1" }
-embassy-executor-macros = { path = "../embassy-executor-macros.me" }
+embassy-executor-macros = "0.7.0"
 embassy-executor-timer-queue = { path = "../embassy-executor-timer-queue" }
 portable-atomic = { version = "1.5", optional = true }
 
