@@ -32,7 +32,7 @@ embassy-net = { version = "0.7.1", features = ["udp", "dhcpv4"]}
 embassy-time = "0.5.0"
 embassy-sync = "0.7"
 embassy-futures = "0.1.2"
-esp-radio = { path = "../../esp-hal/esp-radio", features = ["wifi"] }
+esp-radio = { version = "0.17.0", features = ["wifi"] }
 esp-rtos = { path = "../../esp-hal/esp-rtos", features = ["esp-radio", "embassy", "esp-alloc"] }
 esp-bootloader-esp-idf = { path = "../../esp-hal/esp-bootloader-esp-idf.me" }
 

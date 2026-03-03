@@ -119,7 +119,7 @@ async fn main(spawner: embassy_executor::Spawner) {
 
     let esp_radio_ctrl = &*mk_static!(esp_radio::Controller<'static>, unwrap!(esp_radio::init()));
 
-    let (mut controller, interfaces) = unwrap!(esp_radio::wifi::new(
+    let (controller, interfaces) = unwrap!(esp_radio::wifi::new(
         &esp_radio_ctrl,
         peripherals.WIFI,
         Default::default()
@@ -134,7 +134,7 @@ async fn main(spawner: embassy_executor::Spawner) {
         dns_servers: Default::default(),
     });
 
-    let mut rng = esp_hal::rng::Rng::new();
+    let rng = esp_hal::rng::Rng::new();
     let seed = (rng.random() as u64) << 32 | rng.random() as u64;
 
     // Init AP network stack
