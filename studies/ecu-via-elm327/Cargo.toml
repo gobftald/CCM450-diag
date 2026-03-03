@@ -17,10 +17,10 @@ opt-level = "s"     # "s" or "z" for size optimizations often helps elision
 
 [dependencies]
 esp-println = { version = "0.16.0", default-features = false, features = ["critical-section"] }
-esp-backtrace = { version = "0.18.0",features = ["panic-handler"], optional = true }
+esp-backtrace = { version = "0.18.0", features = ["panic-handler"], optional = true }
 defmt = { version = "1.0.1", optional = true }
 log = { version = "0.4.14", optional = true }
-esp-hal = "1.0.0"
+esp-hal = { version = "1.0.0", features = ["unstable"] }
 cfg-if = "1.0.0"
 esp-alloc = { version = "0.9.0", default-features = false }
 strum_macros = "0.27"
@@ -33,7 +33,7 @@ embassy-time = "0.5.0"
 embassy-sync = "0.7"
 embassy-futures = "0.1.2"
 esp-radio = { version = "0.17.0", features = ["wifi"] }
-esp-rtos = { path = "../../esp-hal/esp-rtos", features = ["esp-radio", "embassy", "esp-alloc"] }
+esp-rtos = { version = "0.2.0", features = ["esp-radio", "embassy", "esp-alloc"] }
 esp-bootloader-esp-idf = { path = "../../esp-hal/esp-bootloader-esp-idf.me" }
 
 rtos-trace = { version = "0.2.1", optional = true }
