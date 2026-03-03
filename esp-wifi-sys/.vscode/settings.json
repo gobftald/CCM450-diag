@@ -1,7 +1,0 @@
-{
-    "rust-analyzer.cargo.features": [
-        "esp32c3",
-        "sys-logs"
-    ],
-    "rust-analyzer.checkOnSave.allTargets": false,
-}

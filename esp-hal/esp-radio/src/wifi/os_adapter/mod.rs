@@ -1496,3 +1496,31 @@ pub unsafe extern "C" fn slowclk_cal_get() -> u32 {
     #[cfg(esp32c3)]
     return 28639;
 }
+
+pub unsafe extern "C" fn coex_schm_get_phase_by_idx(
+    _phase_idx: i32,
+) -> *mut esp_wifi_sys_esp32c3::c_types::c_void {
+    #[cfg(coex)]
+    return unsafe { crate::sys::include::coex_schm_get_phase_by_idx(_phase_idx) };
+
+    #[cfg(not(coex))]
+    core::ptr::null_mut()
+}
+
+/// **************************************************************************
+/// Name: esp_mutex_create
+///
+/// Description:
+///   Create mutex
+///
+/// Input Parameters:
+///   None
+///
+/// Returned Value:
+///   Mutex data pointer
+///
+/// *************************************************************************
+pub unsafe extern "C" fn mutex_create() -> *mut c_void {
+    trace!("mutex_create");
+    crate::compat::mutex::mutex_create(false)
+}

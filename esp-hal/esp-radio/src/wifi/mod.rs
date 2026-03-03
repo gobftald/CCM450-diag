@@ -1930,7 +1930,14 @@ impl WifiController<'_> {
                 },
                 sae_pwe_h2e: 0,
                 csa_count: 3,
-                dtim_period: 2,
+                dtim_period: config.dtim_period,
+                transition_disable: 0,
+                sae_ext: 0,
+                bss_max_idle_cfg: include::wifi_bss_max_idle_config_t {
+                    period: 0,
+                    protected_keep_alive: false,
+                },
+                gtk_rekey_interval: 0,
             },
         };
 
@@ -1963,6 +1970,7 @@ impl WifiController<'_> {
                 threshold: wifi_scan_threshold_t {
                     rssi: -99,
                     authmode: config.auth_method.to_raw(),
+                    rssi_5g_adjustment: 0,
                 },
                 pmf_cfg: wifi_pmf_config_t {
                     capable: true,

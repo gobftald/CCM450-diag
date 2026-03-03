@@ -16,7 +16,7 @@ use super::os_adapter::{
     task_delay, task_get_current_task, task_get_max_priority, task_ms_to_tick, task_yield_from_isr,
     wifi_apb80m_request, wifi_calloc, wifi_clock_enable, wifi_create_queue, wifi_delete_queue,
     wifi_int_disable, wifi_int_restore, wifi_malloc, wifi_reset_mac, wifi_thread_semphr_get,
-    wifi_zalloc, zalloc_internal,
+    wifi_zalloc, zalloc_internal, coex_schm_get_phase_by_idx, mutex_create,
 };
 
 #[cfg(feature = "sys-logs")]
@@ -50,7 +50,7 @@ pub(crate) static __ESP_RADIO_G_WIFI_OSI_FUNCS: wifi_osi_funcs_t = wifi_osi_func
     _semphr_take: Some(semphr_take),                   // 60
     _semphr_give: Some(semphr_give),                   // 64
     _wifi_thread_semphr_get: Some(wifi_thread_semphr_get), // 68
-    _mutex_create: None,                               // 72 Some(mutex_create),
+    _mutex_create: Some(mutex_create),                 // 72
     _recursive_mutex_create: Some(recursive_mutex_create), // 76
     _mutex_delete: Some(mutex_delete),                 // 80
     _mutex_lock: Some(mutex_lock),                     // 84
@@ -174,8 +174,9 @@ pub(crate) static __ESP_RADIO_G_WIFI_OSI_FUNCS: wifi_osi_funcs_t = wifi_osi_func
 
     _coex_schm_flexible_period_set: Some(coex_schm_flexible_period_set), // 464
     _coex_schm_flexible_period_get: Some(coex_schm_flexible_period_get), // 468
+    _coex_schm_get_phase_by_idx: Some(coex_schm_get_phase_by_idx),       // 472
 
-    _magic: ESP_WIFI_OS_ADAPTER_MAGIC as i32, // 472
+    _magic: ESP_WIFI_OS_ADAPTER_MAGIC as i32, // 476
 };
 
 // 233

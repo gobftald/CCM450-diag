@@ -337,47 +337,6 @@ pub(crate) fn enable_wifi_power_domain() {
         .modify(|_, w| w.wifi_force_iso().clear_bit());
 }
 
-/* this wifi_osi_func is not needed
-/// **************************************************************************
-/// Name: esp_queue_create
-///
-/// Description:
-///   Create message queue
-///
-/// Input Parameters:
-///   queue_len - queue message number
-///   item_size - message size
-///
-/// Returned Value:
-///   Message queue data pointer
-///
-/// *************************************************************************
-// 438
-pub unsafe extern "C" fn queue_create(queue_len: u32, item_size: u32) -> *mut c_void {
-    crate::compat::queue::queue_create(queue_len as i32, item_size as i32).cast()
-}
-*/
-
-/* this wifi_osi_func is not needed
-/// **************************************************************************
-/// Name: esp_queue_delete
-///
-/// Description:
-///   Delete message queue
-///
-/// Input Parameters:
-///   queue - Message queue data pointer
-///
-/// Returned Value:
-///   None
-///
-/// *************************************************************************
-// 455
-pub unsafe extern "C" fn queue_delete(queue: *mut c_void) {
-    crate::compat::queue::queue_delete(queue.cast());
-}
-*/
-
 /// **************************************************************************
 /// Name: esp_queue_send
 ///
@@ -435,36 +394,6 @@ pub unsafe extern "C" fn queue_send_from_isr(
     )
 }
 
-/* this wifi_osi_func is not needed
-/// **************************************************************************
-/// Name: esp_queue_send_to_back
-///
-/// Description:
-///   Send message of low priority to queue within a certain period of time
-///
-/// Input Parameters:
-///   queue - Message queue data pointer
-///   item  - Message data pointer
-///   ticks - Wait ticks
-///
-/// Returned Value:
-///   True if success or false if fail
-///
-/// *************************************************************************
-// 529
-pub unsafe extern "C" fn queue_send_to_back(
-    queue: *mut c_void,
-    item: *mut c_void,
-    block_time_tick: u32,
-) -> i32 {
-    crate::compat::queue::queue_send_to_back(
-        queue.cast(),
-        item,
-        blob_ticks_to_micros(block_time_tick),
-    )
-}
-*/
-
 /// **************************************************************************
 /// Name: esp_queue_recv
 ///
@@ -487,4 +416,11 @@ pub unsafe extern "C" fn queue_recv(
     block_time_ms: u32,
 ) -> i32 {
     crate::compat::queue::queue_receive(queue.cast(), item, blob_ticks_to_micros(block_time_ms))
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn __esp_radio_vTaskDelay(ticks: u32) {
+    unsafe {
+        crate::compat::common::__esp_radio_usleep(crate::time::blob_ticks_to_micros(ticks));
+    }
 }
