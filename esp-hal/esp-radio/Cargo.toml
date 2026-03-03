@@ -37,8 +37,6 @@ esp-phy = { path = "../esp-phy/" }
 esp-config = { version = "0.6.1", features = ["build"] }
 esp-metadata = "0.10.0"
 esp-metadata-generated = { version = "0.3.0", features = ["build-script"] }
-#esp32c3 = { version = "0.31", features = ["critical-section", "rt"], optional = true }
-#esp32c3 = { path = "../../../w/esp-pacs/esp32c3", features = ["critical-section", "rt"], optional = true }
 
 [features]
 #default = ["builtin-scheduler", "esp-alloc"]
