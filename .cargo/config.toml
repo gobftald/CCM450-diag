@@ -33,6 +33,7 @@ build-std = ["core", "alloc"]
 [patch.crates-io]
 esp-alloc = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 esp-backtrace = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
+esp-bootloader-esp-idf = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 esp-config = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 esp-hal = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 esp-metadata-generated = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
@@ -42,6 +43,7 @@ esp-rtos = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches"
 
 #esp-alloc = { path = "../esp-hal/esp-alloc" }
 #esp-backtrace = { path = "../esp-hal/esp-backtrace" }
+#esp-bootloader-esp-idf = { path = "../esp-hal/esp-bootloader-esp-idf" }
 #esp-config = { path = "../esp-hal/esp-config" }
 #esp-hal = { path = "../esp-hal/esp-hal" }
 #esp-metadata-generated = { path = "../esp-hal/esp-metadata-generated" }

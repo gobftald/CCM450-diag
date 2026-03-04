@@ -100,8 +100,8 @@ async fn main(spawner: embassy_executor::Spawner) {
         rtos_trace::trace::start();
     }
 
-    //esp_alloc::heap_allocator!(size: 64 * 1024);
-    esp_alloc::heap_allocator!(size: 96 * 1024);
+    esp_alloc::heap_allocator!(#[esp_hal::ram(reclaimed)] size: 64 * 1024);
+    esp_alloc::heap_allocator!(size: 32 * 1024);
 
     //let systimer = esp_hal::timer::systimer::SystemTimer::new(peripherals.SYSTIMER);
     //esp_hal_embassy::init(systimer.alarm0);

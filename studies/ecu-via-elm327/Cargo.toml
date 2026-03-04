@@ -34,7 +34,7 @@ embassy-sync = "0.7"
 embassy-futures = "0.1.2"
 esp-radio = { version = "0.17.0", features = ["wifi"] }
 esp-rtos = { version = "0.2.0", features = ["esp-radio", "embassy", "esp-alloc"] }
-esp-bootloader-esp-idf = { path = "../../esp-hal/esp-bootloader-esp-idf.me" }
+esp-bootloader-esp-idf = "0.4.0"
 
 rtos-trace = { version = "0.2.1", optional = true }
 rtt-target = { version = "0.6.2", optional = true }
@@ -53,6 +53,7 @@ esp32c3 = [
     "esp-println/esp32c3",
     "esp-println/jtag-serial",
     "esp-backtrace?/esp32c3",
+    "esp-bootloader-esp-idf/esp32c3",
     "esp-hal/esp32c3",
     "esp-hal/rt",
     "embassy-executor/nightly",     # for 'task' embassy-executor-macro
@@ -63,6 +64,7 @@ esp32c3 = [
 defmt = [
     "dep:defmt",
     "esp-backtrace?/defmt",
+    "esp-bootloader-esp-idf/defmt",
     "esp-hal/defmt",
     "embassy-executor/defmt",
     "embassy-time/defmt",
