@@ -1,4 +1,5 @@
-DEFMT_LOG=off,udp=trace,ecu_via_elm327=trace,esp_radio=debug,embassy_net=trace,esp_rtos=off,ecu=trace cargo build --release
+DEFMT_LOG=off,udp=trace,ecu_via_elm327=trace,esp_radio=debug,embassy_net=trace,esp_rtos=info,ecu=trace \
+cargo build --release --features=heap_stats,idle_stats
 #cargo build --release --features=backtrace,defmt
 #cargo build --release --features=backtrace
 #cargo build --release

@@ -193,13 +193,43 @@ async fn main(spawner: embassy_executor::Spawner) {
         .ok();
 
     spawner.spawn(net_task(ap_runner)).ok();
-    spawner.spawn(run()).ok();
+
+    #[cfg(feature = "heap_stats")]
+    let heap_stats: esp_alloc::HeapStats = esp_alloc::HEAP.stats();
+    spawner.spawn(system_stats(#[cfg(feature = "heap_stats")] heap_stats)).ok();
 }
 
 #[embassy_executor::task]
-async fn run() {
+async fn system_stats(#[cfg(feature = "heap_stats")] heap_stats: esp_alloc::HeapStats) {
+    #[cfg(not(feature = "idle_stats"))]
+    let mut counter = 0;
+
+    #[cfg(feature = "heap_stats")]
+    let mut current_heap_usage = 0;
+    
+    #[cfg(feature = "idle_stats")]
+    let mut idle_prev: esp_hal::time::Duration = esp_hal::time::Duration::ZERO;
+
     loop {
-        esp_println::println!("0");
+        #[cfg(feature = "heap_stats")]
+        {
+            if heap_stats.current_usage != current_heap_usage {
+                esp_println::println!("{}", heap_stats);
+                current_heap_usage = heap_stats.current_usage;
+            }
+        }
+
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "idle_stats")]
+            {
+                let idle_current = esp_rtos::idle_stats();
+                esp_println::println!("idle: {} ms", (idle_current - idle_prev).as_millis() );
+                idle_prev = idle_current;
+            } else {
+                esp_println::println!("{counter}");
+                counter += 1;
+            }
+        }
 
         embassy_time::Timer::after(embassy_time::Duration::from_millis(1_000)).await;
     }
