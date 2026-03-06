@@ -38,9 +38,7 @@ esp-bootloader-esp-idf = "0.4.0"
 
 rtos-trace = { version = "0.2.1", optional = true }
 rtt-target = { version = "0.6.2", optional = true }
-# this defintion above stucked to referrring defmt 0.3.100 and cause linker catastrophes
-#rtt-target = { git = "https://github.com/probe-rs/rtt-target", optional = true, features = ["defmt"] }
-systemview-target = { version = "0.3", optional = true, default-feature = false, features = ["callbacks-os", "ext-rtt-channels-2"] }
+systemview-target = { version = "0.3", optional = true, default-features = false, features = ["ext-rtt-channels-2"] }
 
 [features]
 default = [
@@ -74,7 +72,7 @@ defmt = [
     "embassy-futures/defmt",
     "esp-rtos/defmt",
 
-    "esp-println/defmt-espflash",      # if you use esp-rtos and rtt_target it should be commented out
+    "esp-println/defmt-espflash",       # if you use rtt (rtt_target) it should be commented out
                                         # since rtt-target/defmt also defines defmt symbols
     "rtt-target?/defmt",
     "esp-alloc/defmt",
@@ -82,9 +80,6 @@ defmt = [
 
 backtrace = ["dep:esp-backtrace"]       # needs "-C", "force-frame-pointers" rustflag in config.toml
                                         # needs to comment build-std-features = ["panic_immediate_abort"] out
-
-heap_stats = ["esp-alloc/internal-heap-stats"]
-idle_stats = ["esp-rtos/idle_stats"]
 
 ## ECU related features
 ##
@@ -101,8 +96,16 @@ kwp2000 = []
 # selected ECU
 ecu = ["ccm450"]
 
-# rtos-trace
-rtos-trace = ["esp-rtos/rtos-trace", "dep:rtos-trace", "systemview-target", "rtt-target"]
+rtos-trace = ["esp-rtos/rtos-trace", "dep:rtos-trace", "dep:systemview-target", "rtt"]
+rtt = ["dep:rtt-target"]                   # "esp-println/defmt-espflash" should be commented out
+
+## My custom features (some of them needs esp-hal patches)
+heap_stats = ["esp-alloc/internal-heap-stats"]
+idle_stats = ["esp-rtos/idle_stats"]
+dump_packets_pretty = ["esp-radio/dump_packets_pretty"]     # it does not need ESP_RADIO_CONFIG_DUMP_PACKETS=true
+                                                            # that env var dumps raw packets (for e.g. WireShark)
+                                                            # this feature traces formatted packets
+                                                            # both of them needs esp-radio= info (as minimal)
 
 [build-dependencies]
 esp-config = { version = "0.6.1", features = ["build"] }

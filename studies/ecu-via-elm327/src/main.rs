@@ -12,7 +12,15 @@ pub(crate) mod fmt;
 // panic_handler
 mod panic;
 
-use esp_println as _;
+#[cfg(not(feature = "rtt"))]
+use esp_println as _;           // if no "rtt-target/defmt" we need #"esp-println/defmt-espflash" in "dfmt"
+
+#[cfg(feature = "rtt")]
+mod rtt_trace;                  // since "rtt-target/defmt" also defines defmt symbols
+                                // #"esp-println/defmt-espflash" should be commented out in "dfmt"
+
+#[cfg(feature = "rtt")]
+mod rtt_init;
 
 mod adapter;
 mod debug_pin;
@@ -56,49 +64,14 @@ macro_rules! mk_static {
 
 esp_bootloader_esp_idf::esp_app_desc!();
 
-#[cfg(feature = "rtos-trace")]
-use rtt_target::{rtt_init, /*rprintln,*/ ChannelMode};
-#[cfg(feature = "rtos-trace")]
-use systemview_target::SystemView;
-
-#[cfg(feature = "rtos-trace")]
-rtos_trace::global_trace! { SystemView }
-
-#[cfg(feature = "rtos-trace")]
-mod rtt_trace;
-
 #[esp_rtos::main]
 async fn main(spawner: embassy_executor::Spawner) {
     //let config = esp_hal::Config::new_and_default(esp_hal::clock::CpuClock::max());
     let config = esp_hal::Config::default().with_cpu_clock(esp_hal::clock::CpuClock::max());
     let peripherals = esp_hal::init(config);
 
-    // initializing rtt_target, rtos-trace and systemview backend
-    #[cfg(feature = "rtos-trace")]
-    {
-        // creating rtt channels - SysView should be the first
-        // to be compatible with systemview_target
-        let channels = rtt_init! {
-            up: {
-                0: { size: 1024, mode: ChannelMode::NoBlockSkip, name: "Terminal" }
-                1: { }
-                //1: { size: 2048, name: "SysView" } 
-            }
-            down: {
-                0: { size: 32, mode: ChannelMode::NoBlockSkip, name: "Terminal" }
-                1: { }
-                //1: { size: 8, name: "SysView" }
-            }
-        };
-        //rtt_target::set_print_channel(channels.up.0);
-        //rtt_target::set_defmt_channel(channels.up.0);
-        
-        SystemView::new().init();
-
-        // although there will be the offical start in esp-rtos but
-        // systemview app cannot start capturing without this call
-        rtos_trace::trace::start();
-    }
+    #[cfg(feature = "rtt")]
+    rtt_init::rtt_init();
 
     esp_alloc::heap_allocator!(#[esp_hal::ram(reclaimed)] size: 64 * 1024);
     esp_alloc::heap_allocator!(size: 32 * 1024);
@@ -214,7 +187,7 @@ async fn system_stats(#[cfg(feature = "heap_stats")] heap_stats: esp_alloc::Heap
         #[cfg(feature = "heap_stats")]
         {
             if heap_stats.current_usage != current_heap_usage {
-                esp_println::println!("{}", heap_stats);
+                info!("{}", heap_stats);
                 current_heap_usage = heap_stats.current_usage;
             }
         }
@@ -223,10 +196,10 @@ async fn system_stats(#[cfg(feature = "heap_stats")] heap_stats: esp_alloc::Heap
             if #[cfg(feature = "idle_stats")]
             {
                 let idle_current = esp_rtos::idle_stats();
-                esp_println::println!("idle: {} ms", (idle_current - idle_prev).as_millis() );
+                info!("idle: {} ms", (idle_current - idle_prev).as_millis() );
                 idle_prev = idle_current;
             } else {
-                esp_println::println!("{counter}");
+                esp_println::println!("{}", counter);
                 counter += 1;
             }
         }

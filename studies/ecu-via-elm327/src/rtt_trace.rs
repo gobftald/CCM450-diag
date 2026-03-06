@@ -43,7 +43,7 @@ unsafe extern "C" {
     );
     fn SEGGER_SYSVIEW_SendSysDesc(desc: *const u8);
     fn SEGGER_SYSVIEW_SetRAMBase(addr: u32);
-    pub fn SEGGER_SYSVIEW_Start();
+    //pub fn SEGGER_SYSVIEW_Start();
 }
 
 // We defined/implemented SEGGER_SYSVIEW_OS_API functions

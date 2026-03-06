@@ -41,6 +41,9 @@ esp-println = { git = "https://github.com/gobftald/esp-hal.git", branch = "patch
 esp-radio = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 esp-rtos = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 
+rtos-trace = { git = "https://github.com/gobftald/rtos-trace.git" }
+systemview-target = { git = "https://github.com/gobftald/rtos-trace.git" }
+
 #esp-alloc = { path = "../esp-hal/esp-alloc" }
 #esp-backtrace = { path = "../esp-hal/esp-backtrace" }
 #esp-bootloader-esp-idf = { path = "../esp-hal/esp-bootloader-esp-idf" }
@@ -51,9 +54,6 @@ esp-rtos = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches"
 #esp-radio = { path = "../esp-hal/esp-radio" }
 #esp-rtos = { path = "../esp-hal/esp-rtos" }
 
-rtos-trace = { path = "../rtos-trace/rtos_trace" }
-systemview-target = { path = "../rtos-trace/systemview_target" }
-
 [env]
 # Manually register and import this shared cfg used by esp-rtos, esp-radio
 # and esp-radio-rtos-driver.
@@ -62,8 +62,5 @@ systemview-target = { path = "../rtos-trace/systemview_target" }
 ESP_RTOS_TASK_NAME_STR = "true"
 
 # Explicitly add _zicsr to the architecture string for C/C++ builds
+# SEGGER/SEGGER_SYSVIEW.c needs it.
 CFLAGS = "-march=rv32imc_zicsr"
-
-# This defines exactly what you see in the console. 
-# {t} = time, {L} = level (INFO/DEBUG), {s} = your message.
-DEFMT_LOG_FORMAT = "{t} [{L}] {s}"

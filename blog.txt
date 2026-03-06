@@ -312,6 +312,8 @@ watch *(unsigned int*)0x3fc891e4
 
 # conecting two client sockets
 socat TCP4-LISTEN:19001 TCP4-LISTEN:19002
+# dump both direction
+socat -x TCP4-LISTEN:19001,reuseaddr TCP4-LISTEN:19002,reuseaddr
 
 # macro expansion (macro_rules)
 #![feature(trace_macros)]

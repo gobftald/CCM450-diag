@@ -24,5 +24,37 @@
             ],
             //"showDevDebugOutput": "raw",
         },
+        {
+            //"preLaunchTask": "flash-esp32c3",
+            //"preLaunchTask": "cargo-build",
+            "type": "probe-rs-debug",
+            "request": "launch",
+            "name": "probe-rs-debug",
+            "chip": "esp32c3",
+            "flashingConfig": {
+                "flashingEnabled": true,
+                "haltAfterReset": false,
+                "formatOptions": {
+                "binaryFormat": "elf"
+                }
+            },
+            "coreConfigs": [
+                {
+                    "programBinary": "${workspaceRoot}/target/riscv32imc-unknown-none-elf/debug/ecu-via-elm327",
+                    "rttEnabled": true,
+                    "rttChannelFormats": [
+                        {
+                        "channelNumber": 0,
+                        "dataFormat": "Defmt",
+                        "showTimestamps": true
+                        },
+                        {
+                        "channelNumber": 1,
+                        "dataFormat": "BinaryLE",
+                        }
+                    ],
+                }
+            ],
+        }
     ]
 }

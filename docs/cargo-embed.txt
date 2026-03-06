@@ -1,0 +1,51 @@
+Based on my experience, currently cargo-embed (cargo emabed) is the only working rtt viewer in the esp
+ecosystem. It launch its rttui a terminal program with tabs.
+
+Theoretically and as they are documented probe-rs run and probe-rs attach can also be working as rtt viewer,
+but (for defmt streams and currently in probe-rs-tools version 0.30.0) it surely does not work. Maybe it
+works for pure string/logs (once and somewhere I can see it) but for defmt does not. If they were working
+the output (without rttui) is the merged outputs of the channels, some tab related string when it changes
+from one tab to the other.
+
+So if I run cargo embed on my local terminal it builds, flashed and runs the program and open rttui terminal.
+
+If I run it remotely in rpi4 I build on mac:
+DEFMT_LOG=off,udp=trace,ecu_via_elm327=trace,esp_radio=debug,embassy_net=trace,esp_rtos=info,ecu=trace \
+cargo build --release --features=heap_stats,idle_stats,rtos-trace
+then I copy the image to rpi4:
+sshpass -p haho-piv scp target/riscv32imc-unknown-none-elf/release/ecu-via-elm327 dietpi@192.168.2.100:
+finally run the flashing and runing version of cargo embed:
+sshpass -p haho-piv ssh -t dietpi@192.168.2.100 'cargo embed --path ecu-via-elm327'.
+
+Flashing from rpi4 is slow, it is why I would prefer to flash from mac with probe-rs run and attach only
+with probe-rs attach from rpi4. But I've been trying this for hours and did not work.
+
+BTW I was catched not working cargo embed in version 0.31.0 at all. There was a hint among probe-rs Issues
+from bugadani that: This will need an esp-hal update. I don't understand why this poroblem depends from the
+version of esp-hal. Since I'm on esp-hal 1.0.0 I don't investigate this problem further. Maybe this is the 
+original problem with probe-rs run and probe-rs attach.
+
+Let's back to rtt. When I'm using rtt for connecting systemiew app to the open socket of SysView channel it
+needs a socket bridge between the two sockets. Both of them behaves as client.
+If I run cargo embed so rttui on my mac socat can be used for that purposes:
+socat TCP4-LISTEN:19001 TCP4-LISTEN:19002
+or if I want to see the flowing data:
+socat -x TCP4-LISTEN:19001 TCP4-LISTEN:19002
+or if I don't want to problem with the open socket stayed after kill this command:
+socat -x TCP4-LISTEN:19001,reuseaddr TCP4-LISTEN:19002,reuseaddr.
+
+But If I want to run cargo embed on rpi (any remote linux) and using not only Termninal but also SysView
+channel forwarding the sysview socket a bit tricky.
+At first sight it can be solved with two socat commands on both rpi4 and mac, but after painfull tryings I
+gave up. For AI suggestion a solution can be to run socat on rpi4:
+socat -TCP4-LISTEN:19001,reuseaddr,fork TCP4:192.168.2.15:19001,reuseaddr,fork
+(fork is needed at least into the channel direction 19001 on linux in order to wait untill the cargo embed
+opens its port)
+then using a pipe on mac side (created by mkfifo /tmp/sysview_pipe):
+nc -l 19001 < /tmp/sysview_pipe | nc -l 19002 > /tmp/sysview_pipe
+(19002 is the systemview app port configured/set on that application).
+
+So it is beautifull but a bit complicate. I tend to use cargo embed only without sysview on remote rpi4.
+
+It should be also mentioned that probe-rs-debugger vscode extension can also open rtt terminal tabs inside vscode.
+But this debugger has much less functionality the gdb.
