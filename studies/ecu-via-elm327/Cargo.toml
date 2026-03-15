@@ -112,6 +112,8 @@ dump_packets_pretty = ["esp-radio/dump_packets_pretty"]     # it does not need E
                                                             # that env var dumps raw packets (for e.g. WireShark)
                                                             # this feature traces formatted packets
                                                             # both of them needs esp-radio= info (as minimal)
+no-wpa-supplicant = []      # ap only configuration -> no wpa-supplicant needed 
+                            # we can save 2K space
 
 [build-dependencies]
 esp-config = { version = "0.6.1", features = ["build"] }
