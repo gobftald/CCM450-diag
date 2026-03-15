@@ -199,7 +199,8 @@ async fn system_stats(#[cfg(feature = "heap_stats")] heap_stats: esp_alloc::Heap
                 info!("idle: {} ms", (idle_current - idle_prev).as_millis() );
                 idle_prev = idle_current;
             } else {
-                esp_println::println!("{}", counter);
+                //esp_println::println!("{}", counter);
+                info!("{}", counter);
                 counter += 1;
             }
         }

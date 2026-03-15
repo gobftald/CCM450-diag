@@ -1,0 +1,47 @@
+#[cfg_attr(not(feature = "panic_immediate_abort"), inline(never), cold)]
+#[cfg_attr(feature = "panic_immediate_abort", inline)]
+#[track_caller]
+#[lang = "panic_fmt"] // needed for const-evaluated panics
+#[rustc_do_not_const_check] // hooked by const-eval
+#[rustc_const_stable_indirect] // must follow stable const rules since it is exposed to stable
+pub const fn panic_fmt(fmt: fmt::Arguments<'_>) -> ! {
+    if cfg!(feature = "panic_immediate_abort") {
+        super::intrinsics::abort()
+    }
+
+    // NOTE This function never crosses the FFI boundary; it's a Rust-to-Rust call
+    // that gets resolved to the `#[panic_handler]` function.
+    unsafe extern "Rust" {
+        #[lang = "panic_impl"]
+        fn panic_impl(pi: &PanicInfo<'_>) -> !;
+    }
+
+    let pi = PanicInfo::new(
+        &fmt,
+        Location::caller(),
+        /* can_unwind */ true,
+        /* force_no_backtrace */ false,
+    );
+
+    // SAFETY: `panic_impl` is defined in safe Rust code and thus is safe to call.
+    unsafe { panic_impl(&pi) }
+}
+
+# convert any panic (unwrap) into "noop/unimp", even before panic message formatting
+# even the core::slice::index::slice_index_fail and esp_hal::fmt::__unwrap_failed will be "noop/unimp"
+super::intrinsics::abort() ->  goes to a "noop/unimp" instruction causing invalid instruction exception
+
+panic_impl(&pi) -> goes to out panic_handler
+
+in case of defmt panic (unwrap) calls defmt::panic which format and prints and only then goes to core::panic
+
+so if demft activated, and DEFMT_LOG=<crate>=ERROR (as a minimum) panic messages wil be generated before 
+"panic_immediate_abort"
+
+if DEFMT_LOG=off then
+defmt::export::acquire_and_header
+defmt::export::fmt
+_defmt_release
+__defmt_default_panic
+will be generated but nothing printed
+and __defmt_default_panic will call core::panic and the "panic_immediate_abort" effects happens

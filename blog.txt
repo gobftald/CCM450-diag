@@ -327,3 +327,6 @@ DEFMT_LOG=off,udp=trace,ecu_via_elm327=trace,esp_radio=trace,esp_wifi_sys_esp32c
 sudo systemctl stop ifup@wlan0
 sudo ip addr flush dev wlan0
 sudo systemctl restart ifup@wlan0
+
+#dump archive file content
+riscv32-unknown-elf-nm -A libnet80211.a

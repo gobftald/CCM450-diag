@@ -11,9 +11,15 @@ bench = false
 doctest = false
 
 [profile.release]
-debug = 0           # Set to 0 to prevent frame pointer preservation for debugging
+# this following two needs for the minimum size for panic_immediate_abort
+lto = "fat"         # Allows the compiler to see across crate boundaries
 opt-level = "s"     # "s" or "z" for size optimizations often helps elision
-                    # this is what really removes frame pointers (about 8K savings)
+                    # this is what really removes frame pointers
+
+#debug = 0          # Set to 0 to prevent frame pointer preservation for debugging
+#panic = "abort"
+#codegen-units = 1   # Maximizes the chance to delete unused strings
+#strip = "debuginfo" # Removes remaining symbol table entries
 
 [dependencies]
 esp-println = { version = "0.16.0", default-features = false, features = ["critical-section"] }
@@ -43,7 +49,7 @@ systemview-target = { version = "0.3", optional = true, default-features = false
 [features]
 default = [
     "esp32c3",
-    "defmt",
+    #"defmt",
     "ecu",
 ]
 
