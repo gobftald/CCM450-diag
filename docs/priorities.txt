@@ -1,0 +1,9 @@
+main: 1         // main_task: Task { name: "main\0", ... priority: Priority::ZERO, ...}
+                // then promote itself in start -> start_with_idle_hook -> task::setup_multitasking to
+                // priority 1
+
+timer: 2        // SCHEDULER.create_task("timer\0", timer_task, core::ptr::null_mut(), 8192, 2, None);
+// and the scheduler's timer_tick_handler is also at priority 1
+
+wifi: 31        // task_get_max_priority -> 0x1f
+                // task_create_pinned_to_core task_func(.... name wifi\0, stack_depth 6656, ..., prio 0x1f, ...)

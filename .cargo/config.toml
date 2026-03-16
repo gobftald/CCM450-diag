@@ -2,17 +2,17 @@
 target = "riscv32imc-unknown-none-elf"
 
 [target.riscv32imc-unknown-none-elf]
-runner = "espflash flash --monitor"
+#runner = "espflash flash --monitor"
 
 # using defmt crate - together with "link-arg=-Tdefmt.x" below
-#runner = "espflash flash --monitor --log-format defmt"
+runner = "espflash flash --monitor --log-format defmt"
 
 
 rustflags = [
     #"-C", "link-arg=-Tlinkall.x",          # esp-hal master linker script
     "-C", "link-arg=-Tlinkall_debug.x",     # my master linker script
     "-C", "link-arg=-Map=riscv32.map",
-    #"-C", "link-arg=-Tdefmt.x",             # for defmt
+    "-C", "link-arg=-Tdefmt.x",             # for defmt
     #"-C", "force-frame-pointers",           # for esp-backtrace and probe-rs-debug
                                             # otherwise some size ovehead occurs (in ELF file only)
                                             # when making frame for every real (not inlined) function call
@@ -31,28 +31,28 @@ build-std-features = ["panic_immediate_abort"]
 build-std = ["core", "alloc"]
 
 [patch.crates-io]
-esp-alloc = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
-esp-backtrace = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
-esp-bootloader-esp-idf = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
-esp-config = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
-esp-hal = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
-esp-metadata-generated = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
-esp-println = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
-esp-radio = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
-esp-rtos = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
+#esp-alloc = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
+#esp-backtrace = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
+#esp-bootloader-esp-idf = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
+#esp-config = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
+#esp-hal = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
+#esp-metadata-generated = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
+#esp-println = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
+#esp-radio = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
+#esp-rtos = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 
 rtos-trace = { git = "https://github.com/gobftald/rtos-trace.git" }
 systemview-target = { git = "https://github.com/gobftald/rtos-trace.git" }
 
-#esp-alloc = { path = "../esp-hal/esp-alloc" }
-#esp-backtrace = { path = "../esp-hal/esp-backtrace" }
-#esp-bootloader-esp-idf = { path = "../esp-hal/esp-bootloader-esp-idf" }
-#esp-config = { path = "../esp-hal/esp-config" }
-#esp-hal = { path = "../esp-hal/esp-hal" }
-#esp-metadata-generated = { path = "../esp-hal/esp-metadata-generated" }
-#esp-println = { path = "../esp-hal/esp-println" }
-#esp-radio = { path = "../esp-hal/esp-radio" }
-#esp-rtos = { path = "../esp-hal/esp-rtos" }
+esp-alloc = { path = "../esp-hal/esp-alloc" }
+esp-backtrace = { path = "../esp-hal/esp-backtrace" }
+esp-bootloader-esp-idf = { path = "../esp-hal/esp-bootloader-esp-idf" }
+esp-config = { path = "../esp-hal/esp-config" }
+esp-hal = { path = "../esp-hal/esp-hal" }
+esp-metadata-generated = { path = "../esp-hal/esp-metadata-generated" }
+esp-println = { path = "../esp-hal/esp-println" }
+esp-radio = { path = "../esp-hal/esp-radio" }
+esp-rtos = { path = "../esp-hal/esp-rtos" }
 
 [env]
 # Explicitly add _zicsr to the architecture string for C/C++ builds

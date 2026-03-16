@@ -38,7 +38,7 @@ embassy-net = { version = "0.7.1", features = ["udp", "dhcpv4"]}
 embassy-time = "0.5.0"
 embassy-sync = "0.7"
 embassy-futures = "0.1.2"
-esp-radio = { version = "0.17.0", features = ["wifi"] }
+esp-radio = { version = "0.17.0", features = ["wifi", "no_wpa_supplicant"] }
 esp-rtos = { version = "0.2.0", features = ["esp-radio", "embassy", "esp-alloc"] }
 esp-bootloader-esp-idf = "0.4.0"
 
@@ -49,7 +49,7 @@ systemview-target = { version = "0.3", optional = true, default-features = false
 [features]
 default = [
     "esp32c3",
-    #"defmt",
+    "defmt",
     "ecu",
 ]
 
@@ -78,7 +78,7 @@ defmt = [
     "embassy-futures/defmt",
     "esp-rtos/defmt",
 
-    "esp-println/defmt-espflash",       # if you use rtt (rtt_target) it should be commented out
+    #"esp-println/defmt-espflash",       # if you use rtt (rtt_target) it should be commented out
                                         # since rtt-target/defmt also defines defmt symbols
     "rtt-target?/defmt",
     "esp-alloc/defmt",

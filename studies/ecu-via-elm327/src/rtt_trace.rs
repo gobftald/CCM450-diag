@@ -12,7 +12,17 @@ pub extern "C" fn SEGGER_SYSVIEW_X_GetTimestamp() -> u32 {
     //esp_hal::cpu::get_cycle_count() // using this fucntion we read mpccr, but it is disbaled during wifi mode
     
     // hard coded direct access to systimer 0 !!!
-    unsafe { (*esp_hal::peripherals::SYSTIMER::PTR).unit_value(0).lo().read().bits() }
+    unsafe {
+        let systimer = &*esp_hal::peripherals::SYSTIMER::PTR;
+
+        systimer.unit_op(0).modify(|_, w| w.update().set_bit());
+
+        // theoretically it is needed but practically it is nit necesary
+        // since the next read is almost always ready
+        //while systimer.unit_op(0).read().value_valid().bit_is_set() {}
+
+        systimer.unit_value(0).lo().read().bits()
+    }
 }
 
 #[unsafe(no_mangle)]
