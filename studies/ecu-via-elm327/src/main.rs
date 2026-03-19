@@ -16,11 +16,11 @@ mod panic;
 use esp_println as _;           // if no "rtt-target/defmt" we need #"esp-println/defmt-espflash" in "dfmt"
 
 #[cfg(feature = "rtt")]
-mod rtt_trace;                  // since "rtt-target/defmt" also defines defmt symbols
+mod rtt_init;                   // since "rtt-target/defmt" also defines defmt symbols
                                 // #"esp-println/defmt-espflash" should be commented out in "dfmt"
 
-#[cfg(feature = "rtt")]
-mod rtt_init;
+#[cfg(feature = "rtos_trace")]
+mod rtt_trace;
 
 mod adapter;
 mod debug_pin;
@@ -179,9 +179,16 @@ async fn system_stats(#[cfg(feature = "heap_stats")] heap_stats: esp_alloc::Heap
 
     #[cfg(feature = "heap_stats")]
     let mut current_heap_usage = 0;
-    
-    #[cfg(feature = "idle_stats")]
-    let mut idle_prev: esp_hal::time::Duration = esp_hal::time::Duration::ZERO;
+
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "idle_stats")]
+        {
+            use esp_hal::time::Instant;
+
+            let mut idle_prev: esp_hal::time::Duration = esp_hal::time::Duration::ZERO;
+            let mut prev_time_stamp: Instant = Instant::now();
+        }
+    }
 
     loop {
         #[cfg(feature = "heap_stats")]
@@ -193,11 +200,25 @@ async fn system_stats(#[cfg(feature = "heap_stats")] heap_stats: esp_alloc::Heap
         }
 
         cfg_if::cfg_if! {
-            if #[cfg(feature = "idle_stats")]
+            if #[cfg(any(feature = "idle_stats", feature = "irq_stats"))]
             {
-                let idle_current = esp_rtos::idle_stats();
-                info!("idle: {} ms", (idle_current - idle_prev).as_millis() );
-                idle_prev = idle_current;
+                #[cfg(feature = "idle_stats")]
+                {
+                    let time_stamp = Instant::now();
+                    let idle_current = (esp_rtos::idle_stats() - idle_prev).as_millis() as f32
+                        / (time_stamp - prev_time_stamp).as_millis() as f32 * 100f32;
+                    info!("idle: {}.{:02}%", idle_current as i32, (idle_current * 100.0) as i32 % 100 );
+
+                    // don't include the division and formatting time in the measurement
+                    idle_prev = esp_rtos::idle_stats();
+                    prev_time_stamp = time_stamp;
+                }
+                
+                #[cfg(feature = "irq_stats")]
+                {
+                    let irq_stats = esp_hal::interrupt::irq_stats();
+                    info!("irq: {}", irq_stats.1[0..irq_stats.0]);
+                }
             } else {
                 //esp_println::println!("{}", counter);
                 info!("{}", counter);

@@ -1,15 +1,15 @@
 #[cfg(feature = "rtt")]
 use rtt_target::{rtt_init, /*rprintln,*/ ChannelMode};
 
-#[cfg(feature = "rtos-trace")]
+#[cfg(feature = "rtos_trace")]
 use systemview_target::SystemView;
 
-#[cfg(feature = "rtos-trace")]
+#[cfg(feature = "rtos_trace")]
 rtos_trace::global_trace! { SystemView }
 
 pub(crate) fn rtt_init() {
 // initializing rtt_target only
-    #[cfg(all(feature = "rtt", not(feature = "rtos-trace")))]
+    #[cfg(all(feature = "rtt", not(feature = "rtos_trace")))]
     {
         let channels = rtt_init! {
             // creating rtt channels
@@ -23,7 +23,7 @@ pub(crate) fn rtt_init() {
     }
 
     // initializing rtt_target, rtos-trace and systemview backend
-    #[cfg(feature = "rtos-trace")]
+    #[cfg(feature = "rtos_trace")]
     {
         let channels = rtt_init! {
             // creating rtt channels - SysView should be the second

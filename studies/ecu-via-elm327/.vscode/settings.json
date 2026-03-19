@@ -1,7 +1,6 @@
 {
     "rust-analyzer.cargo.features": [
         "default",
-        "rtos-trace",
         "esp32c3",
         "defmt",
         "ccm450",

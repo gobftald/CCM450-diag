@@ -102,12 +102,13 @@ kwp2000 = []
 # selected ECU
 ecu = ["ccm450"]
 
-rtos-trace = ["esp-rtos/rtos-trace", "dep:rtos-trace", "dep:systemview-target", "rtt"]
+rtos_trace = ["esp-rtos/rtos-trace", "dep:rtos-trace", "dep:systemview-target", "rtt"]
 rtt = ["dep:rtt-target"]                   # "esp-println/defmt-espflash" should be commented out
 
 ## My custom features (some of them needs esp-hal patches)
 heap_stats = ["esp-alloc/internal-heap-stats"]
 idle_stats = ["esp-rtos/idle_stats"]
+irq_stats = ["esp-hal/irq_stats"]
 dump_packets_pretty = ["esp-radio/dump_packets_pretty"]     # it does not need ESP_RADIO_CONFIG_DUMP_PACKETS=true
                                                             # that env var dumps raw packets (for e.g. WireShark)
                                                             # this feature traces formatted packets
