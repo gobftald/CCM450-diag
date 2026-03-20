@@ -2,9 +2,8 @@
 #![no_main]
 // for 'task' embassy-executor-macro, when embassy-executor/nightly
 #![feature(impl_trait_in_assoc_type)]
+// for debug_ping
 #![feature(once_cell_get_mut)]
-#![allow(static_mut_refs)]
-#![feature(ascii_char)]
 
 // This mod MUST go first, so that the others see its macros.
 pub(crate) mod fmt;
@@ -22,17 +21,18 @@ mod rtt_init;                   // since "rtt-target/defmt" also defines defmt s
 #[cfg(feature = "rtos_trace")]
 mod rtt_trace;
 
-mod adapter;
 mod debug_pin;
-mod ecu;
 mod udp;
+mod adapter;
+mod ecu;
 
 #[cfg(target_arch = "riscv32")]
 use esp_hal::interrupt::software::SoftwareInterruptControl;
 
 // we can use NoopRawMutex since we use channel between two tasks in the same executor,
 // in single core environment and not using from interrupt
-//use esp_hal::sync::RawMutex;
+// the more future-proof ThreadModeRawMutex is implemented only for cortex_m in embassy_synx
+// and CriticalSectionRawMutex is unecessary for this case
 use embassy_sync::{blocking_mutex::raw::NoopRawMutex, zerocopy_channel::Channel};
 
 const CHANNEL_ITEM_SIZE: usize = 64 - size_of::<usize>();
@@ -53,12 +53,12 @@ impl ChannelItem {
     }
 }
 
-use core::cell::OnceCell;
-#[macro_export]
 macro_rules! mk_static {
     ($t:ty,$val:expr) => {{
-        static mut STATIC_CELL: OnceCell<$t> = OnceCell::new();
-        unsafe { STATIC_CELL.get_mut_or_init(|| $val) }
+        static STATIC_CELL: static_cell::StaticCell<$t> = static_cell::StaticCell::new();
+        #[deny(unused_attributes)]
+        let x = STATIC_CELL.uninit().write(($val));
+        x
     }};
 }
 
@@ -66,7 +66,6 @@ esp_bootloader_esp_idf::esp_app_desc!();
 
 #[esp_rtos::main]
 async fn main(spawner: embassy_executor::Spawner) {
-    //let config = esp_hal::Config::new_and_default(esp_hal::clock::CpuClock::max());
     let config = esp_hal::Config::default().with_cpu_clock(esp_hal::clock::CpuClock::max());
     let peripherals = esp_hal::init(config);
 

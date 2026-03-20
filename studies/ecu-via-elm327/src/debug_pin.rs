@@ -4,12 +4,14 @@ use esp_hal::gpio::{Level, Output, OutputConfig, OutputPin};
 static mut DEBUG_PIN: OnceCell<Output> = OnceCell::new();
 
 #[allow(dead_code)]
+#[allow(static_mut_refs)]
 pub fn init_debug_pin(pin: impl OutputPin + 'static) {
     unsafe {
         DEBUG_PIN.get_mut_or_init(|| Output::new(pin, Level::High, OutputConfig::default()));
     }
 }
 #[allow(unused)]
+#[allow(static_mut_refs)]
 pub fn debug_pin(level: u8) {
     unsafe {
         DEBUG_PIN
