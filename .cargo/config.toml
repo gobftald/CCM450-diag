@@ -61,3 +61,7 @@ systemview-target = { git = "https://github.com/gobftald/rtos-trace.git" }
 # Explicitly add _zicsr to the architecture string for C/C++ builds
 # SEGGER/SEGGER_SYSVIEW.c needs it.
 CFLAGS = "-march=rv32imc_zicsr"
+
+SSID = "CCM-GP450"
+GATEWAY_IP = "192.168.3.1"
+UDP_PORT = "19924"

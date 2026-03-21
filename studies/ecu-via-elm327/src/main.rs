@@ -35,7 +35,7 @@ use esp_hal::interrupt::software::SoftwareInterruptControl;
 // and CriticalSectionRawMutex is unecessary for this case
 use embassy_sync::{blocking_mutex::raw::NoopRawMutex, zerocopy_channel::Channel};
 
-const CHANNEL_ITEM_SIZE: usize = 64 - size_of::<usize>();
+const CHANNEL_ITEM_SIZE: usize = 64;
 const CHANNEL_ITEMS_MAX: usize = 1;
 
 #[derive(Clone, Copy)]
@@ -64,6 +64,9 @@ macro_rules! mk_static {
 
 esp_bootloader_esp_idf::esp_app_desc!();
 
+const SSID: Option<&'static str> = option_env!("SSID");
+const GATEWAY_IP: Option<&'static str> = option_env!("GATEWAY_IP");
+
 #[esp_rtos::main]
 async fn main(spawner: embassy_executor::Spawner) {
     let config = esp_hal::Config::default().with_cpu_clock(esp_hal::clock::CpuClock::max());
@@ -73,36 +76,50 @@ async fn main(spawner: embassy_executor::Spawner) {
     rtt_init::rtt_init();
 
     esp_alloc::heap_allocator!(#[esp_hal::ram(reclaimed)] size: 64 * 1024);
-    esp_alloc::heap_allocator!(size: 32 * 1024);
+    //esp_alloc::heap_allocator!(size: 32 * 1024);
 
     //let systimer = esp_hal::timer::systimer::SystemTimer::new(peripherals.SYSTIMER);
     //esp_hal_embassy::init(systimer.alarm0);
 
-    // WIFI setup
     let timg0 = esp_hal::timer::timg::TimerGroup::new(peripherals.TIMG0);
     #[cfg(target_arch = "riscv32")]
     let sw_int = SoftwareInterruptControl::new(peripherals.SW_INTERRUPT);
 
+    // it should be placed after heap allocation, since esp-rtos
+    // main task will allocate all remaining memory
     esp_rtos::start(
         timg0.timer0,
         #[cfg(target_arch = "riscv32")]
         sw_int.software_interrupt0,
     );
 
+    // WIFI setup
     let esp_radio_ctrl = &*mk_static!(esp_radio::Controller<'static>, unwrap!(esp_radio::init()));
 
-    let (controller, interfaces) = unwrap!(esp_radio::wifi::new(
+    let (mut controller, interfaces) = unwrap!(esp_radio::wifi::new(
         &esp_radio_ctrl,
         peripherals.WIFI,
         Default::default()
     ));
 
+    let client_config =
+        esp_radio::wifi::ModeConfig::AccessPoint(
+                esp_radio::wifi::AccessPointConfig::default().with_ssid(unwrap!(SSID).into())
+        );
+    unwrap!(controller.set_config(&client_config));
+
+
     let wifi_ap_device = interfaces.ap;
 
-    use core::net::Ipv4Addr;
+    use core::{net::Ipv4Addr, str::FromStr};
+    let gw_ip_addr = unwrap!(
+        Ipv4Addr::from_str(GATEWAY_IP.unwrap_or("192.168.2.1")),
+        "failed to parse gateway ip"
+    );
+
     let ap_config = embassy_net::Config::ipv4_static(embassy_net::StaticConfigV4 {
-        address: embassy_net::Ipv4Cidr::new(Ipv4Addr::new(192, 168, 3, 1), 24),
-        gateway: Some(Ipv4Addr::new(192, 168, 3, 1)),
+        address: embassy_net::Ipv4Cidr::new(gw_ip_addr, 24),
+        gateway: Some(gw_ip_addr),
         dns_servers: Default::default(),
     });
 
@@ -157,17 +174,26 @@ async fn main(spawner: embassy_executor::Spawner) {
 
     // spawn tasks
     spawner
-        .spawn(udp::server(controller, ap_stack, udp_sender, udp_receiver))
+        .spawn(udp::server(ap_stack, udp_sender, udp_receiver))
         .ok();
 
     spawner
-        .spawn(ecu::server(ecu_sender, ecu_receiver, ecu_adapter))
+        .spawn(ecu::server(ecu_adapter, ecu_sender, ecu_receiver))
         .ok();
 
-    spawner.spawn(net_task(ap_runner)).ok();
+    // We should move out 'controller' from this main/loader task since
+    // although finally it exits these spawns (which finally conclude to 'await's)
+    // will force this main/loader task state machine to maintain this value in its memory,
+    // increasing the wasted memory footprint of this exited so practically zombie task.
+    //
+    // Because of the compiler optimisation even we should use controller,
+    // handed over by value in the spawned net_task, otherwise the controller
+    // also stays and increse the wasted memory footprint of exited main task
+    spawner.spawn(net_task(controller, ap_runner)).ok();
 
     #[cfg(feature = "heap_stats")]
     let heap_stats: esp_alloc::HeapStats = esp_alloc::HEAP.stats();
+
     spawner.spawn(system_stats(#[cfg(feature = "heap_stats")] heap_stats)).ok();
 }
 
@@ -231,7 +257,14 @@ async fn system_stats(#[cfg(feature = "heap_stats")] heap_stats: esp_alloc::Heap
 
 #[embassy_executor::task()]
 pub async fn net_task(
+    mut controller: esp_radio::wifi::WifiController<'static>,
     mut runner: embassy_net::Runner<'static, esp_radio::wifi::WifiDevice<'static>>,
 ) {
+    // we should bring and use controller here
+    // see comments above at spawing net_task
+    debug!("Starting wifi");
+    unwrap!(controller.start_async().await);
+    debug!("AP started");
+
     runner.run().await
 }

@@ -46,10 +46,9 @@ trait Ecu {
 
 #[embassy_executor::task()]
 pub async fn server(
+    adapter: crate::adapter::Adapter<'static>,
     mut sender: Sender<'static, NoopRawMutex, ChannelItem>,
     mut receiver: Receiver<'static, NoopRawMutex, ChannelItem>,
-
-    adapter: crate::adapter::Adapter<'static>,
 ) {
     // get a specific ECU
     #[cfg(feature = "ccm450")]

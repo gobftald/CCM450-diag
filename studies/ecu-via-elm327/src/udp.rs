@@ -26,40 +26,35 @@ pub enum Reply {
     InvalidSubystem,
 }
 
+const UDP_PORT: Option<&'static str> = option_env!("UDP_PORT");
+
 #[embassy_executor::task()]
 pub async fn server(
-    mut controller: esp_radio::wifi::WifiController<'static>,
     ap_stack: embassy_net::Stack<'static>,
     mut uart_sender: Sender<'static, NoopRawMutex, crate::ChannelItem>,
     mut uart_receiver: Receiver<'static, NoopRawMutex, crate::ChannelItem>,
 ) {
-    // config AP and start WiFi
-    let client_config =
-        esp_radio::wifi::ModeConfig::AccessPoint(
-                esp_radio::wifi::AccessPointConfig::default().with_ssid("CCM-GP450".into())
-        );
-    unwrap!(controller.set_config(&client_config));
-
-    debug!("Starting wifi");
-    unwrap!(controller.start_async().await);
-    debug!("AP started");
-
     // setup UDP server socket
     use embassy_net::udp::PacketMetadata;
 
-    let mut ap_udp_server_rx_meta = [PacketMetadata::EMPTY; UDP_PACKET_MAX];
-    let mut ap_udp_server_tx_meta = [PacketMetadata::EMPTY; UDP_PACKET_MAX];
-    let mut ap_udp_server_rx_buffer = [0; UDP_BUFFER_SIZE * UDP_PACKET_MAX];
-    let mut ap_udp_server_tx_buffer = [0; UDP_BUFFER_SIZE * UDP_PACKET_MAX];
+    let mut rx_meta = [PacketMetadata::EMPTY; UDP_PACKET_MAX];
+    let mut tx_meta = [PacketMetadata::EMPTY; UDP_PACKET_MAX];
+    let mut rx_buffer = [0; UDP_BUFFER_SIZE * UDP_PACKET_MAX];
+    let mut tx_buffer = [0; UDP_BUFFER_SIZE * UDP_PACKET_MAX];
 
-    let mut ap_udp_server_socket = embassy_net::udp::UdpSocket::new(
+    let mut socket = embassy_net::udp::UdpSocket::new(
         ap_stack,
-        &mut ap_udp_server_rx_meta,
-        &mut ap_udp_server_rx_buffer,
-        &mut ap_udp_server_tx_meta,
-        &mut ap_udp_server_tx_buffer,
+        &mut rx_meta,
+        &mut rx_buffer,
+        &mut tx_meta,
+        &mut tx_buffer,
     );
-    unwrap!(ap_udp_server_socket.bind(19924));
+
+    let port = unwrap!(
+        UDP_PORT.unwrap_or("19924").parse::<u16>(),
+        "failed to parse UDP socket"
+    );
+    unwrap!(socket.bind(port));
     let mut end_point: Option<UdpMetadata> = None;
 
     loop {
@@ -68,7 +63,7 @@ pub async fn server(
 
         // waiting for request or response
         match select(
-            ap_udp_server_socket.recv_from(&mut request_item.data),
+            socket.recv_from(&mut request_item.data),
             uart_receiver.receive(),
         )
         .await
@@ -78,7 +73,7 @@ pub async fn server(
                 let (n, ep) = unwrap!(result);
 
                 trace!(
-                    "#### UDP: ap_udp_server_socket.recv_from(): {}",
+                    "#### UDP: socket.recv_from(): {}",
                     request_item.data[..n]
                 );
 
@@ -96,12 +91,12 @@ pub async fn server(
                     }
                 } else {
                     unwrap!(
-                        ap_udp_server_socket
-                            // error sending subsystem is the system itself, which is 0 as u8
-                            .send_to(&[Subsystem::System as u8, Reply::InvalidSubystem as u8], ep)
-                            .await
+                        socket
+                        // error sending subsystem is the system itself, which is 0 as u8
+                        .send_to(&[Subsystem::System as u8, Reply::InvalidSubystem as u8], ep)
+                        .await
                     );
-                    debug!("#### ap_udp_server_socket.send_to() returned");
+                    debug!("#### UDP: socket.send_to() returned");
                 }
 
                 end_point = Some(ep);
@@ -117,11 +112,11 @@ pub async fn server(
                 // forward response via UDP
                 if let Some(end_point) = end_point {
                     unwrap!(
-                        ap_udp_server_socket
-                            .send_to(&received_item.data[..received_item.size], end_point)
-                            .await
+                        socket
+                        .send_to(&received_item.data[..received_item.size], end_point)
+                        .await
                     );
-                    debug!("#### ap_udp_server_socket.send_to() returned");
+                    debug!("#### UDP: socket.send_to() returned");
                 }
 
                 uart_receiver.receive_done();
