@@ -77,8 +77,8 @@ impl Reply {
 #[embassy_executor::task()]
 pub async fn server(
     ap_stack: embassy_net::Stack<'static>,
-    mut uart_sender: Sender<'static, NoopRawMutex, crate::ChannelItem>,
-    mut uart_receiver: Receiver<'static, NoopRawMutex, crate::ChannelItem>,
+    mut ecu_sender: Sender<'static, NoopRawMutex, crate::ChannelItem>,
+    mut ecu_receiver: Receiver<'static, NoopRawMutex, crate::ChannelItem>,
 ) {
     // setup UDP server socket
     use embassy_net::udp::PacketMetadata;
@@ -105,12 +105,12 @@ pub async fn server(
 
     loop {
         // wait for the channel to clear
-        let request = uart_sender.send().await;
+        let request = ecu_sender.send().await;
 
-        // waiting for udp request or uart response
+        // waiting for udp request or ecu response
         match select(
             socket.recv_from(&mut request.data),
-            uart_receiver.receive(),
+            ecu_receiver.receive(),
         )
         .await
         {
@@ -131,8 +131,8 @@ pub async fn server(
                                     // send all icoming data
                                     request.size = n;
 
-                                    // send/forward request to uart
-                                    uart_sender.send_done();
+                                    // send/forward request to ecu
+                                    ecu_sender.send_done();
                                 }
                                 Subsystem::Gps => {}
                             }
@@ -161,7 +161,7 @@ pub async fn server(
             // Uart answer arrived
             Either::Second(response) => {
                 trace!(
-                    "#### UDP: uart_receiver.receive(): size: {}",
+                    "#### UDP: ecu_receiver.receive(): size: {}",
                     response.size
                 );
 
@@ -170,7 +170,7 @@ pub async fn server(
 
                 debug!("#### UDP: send_to() returned");
 
-                uart_receiver.receive_done();
+                ecu_receiver.receive_done();
             }
         };
 

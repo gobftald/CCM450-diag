@@ -29,7 +29,6 @@ log = { version = "0.4.14", optional = true }
 esp-hal = { version = "1.0.0", features = ["unstable"] }
 cfg-if = "1.0.0"
 esp-alloc = { version = "0.9.0", default-features = false }
-strum_macros = "0.27"
 
 embassy-executor = "0.9.0"
 # although we don't plan to use "dhcpv4" feature we define it
@@ -38,6 +37,7 @@ embassy-net = { version = "0.7.1", features = ["udp", "dhcpv4"]}
 embassy-time = "0.5.0"
 embassy-sync = "0.7"
 embassy-futures = "0.1.2"
+# if we use only udp we don't need most of wpa-supplicant library
 esp-radio = { version = "0.17.0", features = ["wifi", "no_wpa_supplicant"] }
 esp-rtos = { version = "0.2.0", features = ["esp-radio", "embassy", "esp-alloc"] }
 esp-bootloader-esp-idf = "0.4.0"
@@ -46,6 +46,11 @@ static_cell = "2.1.0"
 rtos-trace = { version = "0.2.1", optional = true }
 rtt-target = { version = "0.6.2", optional = true }
 systemview-target = { version = "0.3", optional = true, default-features = false, features = ["ext-rtt-channels-2"] }
+
+[build-dependencies]
+esp-config = { version = "0.6.1", features = ["build"] }
+esp-metadata-generated = { version = "0.3.0", features = ["build-script"] }
+
 
 [features]
 default = [
@@ -88,11 +93,12 @@ defmt = [
 backtrace = ["dep:esp-backtrace"]       # needs "-C", "force-frame-pointers" rustflag in config.toml
                                         # needs to comment build-std-features = ["panic_immediate_abort"] out
 
+rtos_trace = ["esp-rtos/rtos-trace", "dep:rtos-trace", "dep:systemview-target", "rtt"]
+rtt = ["dep:rtt-target"]                   # "esp-println/defmt-espflash" should be commented out
+
+
 ## ECU related features
 ##
-# supported ECUs
-ccm450 = ["elm327", "kwp2000"]
-
 # ECU adapters
 elm327 = []
 l9637 = []
@@ -100,11 +106,11 @@ l9637 = []
 # ECU protocols
 kwp2000 = []
 
+# supported ECUs
+ccm450 = ["elm327", "kwp2000"]
+
 # selected ECU
 ecu = ["ccm450"]
-
-rtos_trace = ["esp-rtos/rtos-trace", "dep:rtos-trace", "dep:systemview-target", "rtt"]
-rtt = ["dep:rtt-target"]                   # "esp-println/defmt-espflash" should be commented out
 
 ## My custom features (some of them needs esp-hal patches)
 heap_stats = ["esp-alloc/internal-heap-stats"]
@@ -114,9 +120,5 @@ dump_packets_pretty = ["esp-radio/dump_packets_pretty"]     # it does not need E
                                                             # that env var dumps raw packets (for e.g. WireShark)
                                                             # this feature traces formatted packets
                                                             # both of them needs esp-radio= info (as minimal)
-no-wpa-supplicant = []      # ap only configuration -> no wpa-supplicant needed 
-                            # we can save 2K space
-
-[build-dependencies]
-esp-config = { version = "0.6.1", features = ["build"] }
-esp-metadata-generated = { version = "0.3.0", features = ["build-script"] }
+no-wpa-supplicant = []      # AP only configuration -> no wpa-supplicant needed 
+                            # we can save 35K Flash and 1K RAM space

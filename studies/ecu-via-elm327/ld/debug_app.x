@@ -15,4 +15,6 @@
     *(.text.*ecu_via_elm327*adapter*utils*from_ascii_bytes_to_u16*)
     *(.text.*ecu_via_elm327*adapter*utils*from_u16_to_ascii_bytes*)
 
+    *(.text.*ecu_via_elm327*udp*send_to*closure*)
+
 } > ROTEXT

@@ -33,7 +33,6 @@
     *(.text.*esp_radio*wifi*os_adapter*nvs_set_i8*)
     *(.text.*esp_radio*wifi*os_adapter*nvs_set_u8*)
     *(.text.*esp_radio*wifi*os_adapter*phy_enable*)
-    *(.text.*esp_radio*wifi*os_adapter*task_delay*)
     *(.text.*esp_radio*wifi*os_adapter*nvs_set_u16*)
     *(.text.*esp_radio*wifi*os_adapter*phy_disable*)
     *(.text.*esp_radio*wifi*os_adapter*task_create*)
@@ -128,11 +127,7 @@
     *(.text.WIFI_MAC)
     *(.text.WIFI_PWR)
 
-    
-
-    *(.text.*num_traits*cast*FromPrimitive*from_i32*)
     *(.text.*esp_radio*wifi*WifiController*clear_events*)
     *(.text.*esp_radio*compat*mutex*mutex_create*)
-    *(.text.*esp_radio*compat*semaphore*sem_create*)
 
 } > ROTEXT

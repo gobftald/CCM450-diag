@@ -14,7 +14,7 @@ SECTIONS {
 }
 */
 
-.init : ALIGN(4)
+.text : ALIGN(4)
 {
     /* first part of the spitted original
         the second part is in debug_text.x */

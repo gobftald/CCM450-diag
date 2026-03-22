@@ -1,5 +1,3 @@
-//#![allow(non_snake_case)]
-
 use esp_hal::{
     Async,
     gpio::AnyPin,

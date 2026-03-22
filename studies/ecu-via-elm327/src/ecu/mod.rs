@@ -1,21 +1,19 @@
 #[cfg_attr(feature = "ccm450", path = "ccm450.rs")]
-mod ecu_implementation;
-use ecu_implementation::ECU;
+mod ecu_impl;
+use ecu_impl::ECU;
 
-use embassy_futures::select::{Either, select};
-// we can use NoopRawMutex since we use channel between two tasks in the same executor,
-// in single core environment and not using from interrupt
-//use esp_hal::sync::RawMutex;
+// we can use NoopRawMutex since we use channel between two tasks in the
+// same executor in single core environment and not using from interrupt
 use embassy_sync::{
     blocking_mutex::raw::NoopRawMutex,
     zerocopy_channel::{Receiver, Sender},
 };
+use embassy_futures::select::{Either, select};
 
 use crate::{ChannelItem, adapter::AdapterError};
 
 #[allow(clippy::enum_variant_names)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-#[derive(strum_macros::FromRepr)]
 enum Request {
     Connect,
     ReadData,
@@ -24,6 +22,23 @@ enum Request {
     RawRequest,
     LiveDataStart,
     LiveDataStop,
+}
+
+impl TryFrom<u8> for Request {
+    type Error = ();
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(Self::Connect),
+            1 => Ok(Self::ReadData),
+            2 => Ok(Self::ReadDTC),
+            3 => Ok(Self::ClearDTC),
+            4 => Ok(Self::RawRequest),
+            5 => Ok(Self::LiveDataStart),
+            6 => Ok(Self::LiveDataStop),
+            _ => Err(()),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -64,7 +79,7 @@ pub async fn server(
             Either::First(request) => {
                 trace!("#### ECU: received: {}", request.data[..request.size]);
 
-                if let Some(reqst) = Request::from_repr(request.data[1] as usize) {
+                if let Ok(reqst) = Request::try_from(request.data[1] as u8) {
                     match reqst {
                         Request::Connect => {
                             if let Err(err) = ecu.connect().await {

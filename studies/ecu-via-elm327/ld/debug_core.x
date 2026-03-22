@@ -24,8 +24,6 @@
     *(.text.*core*slice*index*slice_index_fail*)
     *(.text.*core*slice*memchr*memchr_aligned*)
 
-    *(.text.*core*cell*once*OnceCell*try_init*)
-
     *(.text.*core*future*poll_fn*PollFn*as*core*future*future*Future*poll*)
     
     *(.text.*core*ffi*c_str*CStr*to_str*)
