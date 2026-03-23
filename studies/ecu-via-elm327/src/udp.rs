@@ -151,8 +151,8 @@ pub async fn server(
                         end_point = Some(ep);
                     },
 
-                    Err(err) => {
-                        let err_buf = [Subsystem::System as u8, ReplyCode::UdpRecvError as u8, err as u8];
+                    Err(recv_err) => {
+                        let err_buf = [Subsystem::System as u8, ReplyCode::UdpRecvError as u8, recv_err as u8];
                         send_to(&mut socket, &err_buf, end_point).await;
                     }
                 }
@@ -197,10 +197,10 @@ async fn send_to(socket: &mut UdpSocket<'_>, buf: &[u8], end_point: Option<UdpMe
 
     if let Err(err) = socket.send_to(buf, end_point)
         .await
-        .map_err(|err|
-            match err {
+        .map_err(|send_err|
+            match send_err {
                 SendError::PacketTooLarge => Reply::UdpSendError(SendError::PacketTooLarge),
-                _ => panic!("UDP send error: {:?}", err),
+                _ => panic!("UDP send error: {:?}", send_err),
             })
         {
             let err_buf = [Subsystem::System as u8, err.code(), err.sub_code()];

@@ -374,3 +374,19 @@ fn decode_err_status(reply: &mut [u8]) -> AdapterError {
         AdapterError::EcuSpecificError(0)
     }
 }
+
+#[macro_export]
+macro_rules! create_adapter {
+    ($peripherals:ident) => {
+        crate::adapter::Adapter::new(
+            /*
+            $peripherals.UART0.into(),
+            $peripherals.GPIO21.into(),
+            $peripherals.GPIO20.into(),
+                */
+            $peripherals.UART1.into(),
+            $peripherals.GPIO2.into(),
+            $peripherals.GPIO3.into(),
+        )
+    }
+}

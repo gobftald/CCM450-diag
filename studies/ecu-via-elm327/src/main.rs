@@ -8,193 +8,77 @@
 // This mod MUST go first, so that the others see its macros.
 pub(crate) mod fmt;
 
-// panic_handler
+mod adapter;
+mod debug_pin;
+mod ecu;
+mod macros;
 mod panic;
+mod udp;
 
 #[cfg(not(feature = "rtt"))]
-use esp_println as _;           // if no "rtt-target/defmt" we need #"esp-println/defmt-espflash" in "dfmt"
+use esp_println as _;           // if no "rtt-target/defmt" we need "esp-println/defmt-espflash" in "dfmt"
 
 #[cfg(feature = "rtt")]
 mod rtt_init;                   // since "rtt-target/defmt" also defines defmt symbols
                                 // #"esp-println/defmt-espflash" should be commented out in "dfmt"
 
 #[cfg(feature = "rtos_trace")]
-mod rtt_trace;
+mod rttos_trace;
 
-mod debug_pin;
-mod udp;
-mod adapter;
-mod ecu;
-
-#[cfg(target_arch = "riscv32")]
-use esp_hal::interrupt::software::SoftwareInterruptControl;
-
-// we can use NoopRawMutex since we use channel between two tasks in the same executor,
-// in single core environment and not using from interrupt
-// the more future-proof ThreadModeRawMutex is implemented only for cortex_m in embassy_synx
-// and CriticalSectionRawMutex is unecessary for this case
-use embassy_sync::{blocking_mutex::raw::NoopRawMutex, zerocopy_channel::Channel};
-
-const CHANNEL_ITEM_SIZE: usize = 64;
-const CHANNEL_ITEMS_MAX: usize = 1;
-
-#[derive(Clone, Copy)]
-pub struct ChannelItem {
-    pub size: usize,
-    pub data: [u8; CHANNEL_ITEM_SIZE],
-}
-
-impl ChannelItem {
-    const fn empty() -> Self {
-        Self {
-            size: 0,
-            data: [0; CHANNEL_ITEM_SIZE],
-        }
-    }
-}
-
-macro_rules! mk_static {
-    ($t:ty,$val:expr) => {{
-        static STATIC_CELL: static_cell::StaticCell<$t> = static_cell::StaticCell::new();
-        #[deny(unused_attributes)]
-        let x = STATIC_CELL.uninit().write(($val));
-        x
-    }};
-}
-
+// for consuming bootlader RAM segment for heap
 esp_bootloader_esp_idf::esp_app_desc!();
 
-const SSID: Option<&'static str> = option_env!("SSID");
-const GATEWAY_IP: Option<&'static str> = option_env!("GATEWAY_IP");
+// communication channels between tasks
+create_channels!(TYPE ChannelItem, CHANNEL_ITEM_SIZE, 64, CHANNEL_ITEMS_MAX, 1);
 
 #[esp_rtos::main]
 async fn main(spawner: embassy_executor::Spawner) {
-    let config = esp_hal::Config::default().with_cpu_clock(esp_hal::clock::CpuClock::max());
-    let peripherals = esp_hal::init(config);
-
     #[cfg(feature = "rtt")]
     rtt_init::rtt_init();
+
+    let config = esp_hal::Config::default().with_cpu_clock(esp_hal::clock::CpuClock::max());
+    let peripherals = esp_hal::init(config);
 
     esp_alloc::heap_allocator!(#[esp_hal::ram(reclaimed)] size: 64 * 1024);
     //esp_alloc::heap_allocator!(size: 32 * 1024);
 
-    //let systimer = esp_hal::timer::systimer::SystemTimer::new(peripherals.SYSTIMER);
-    //esp_hal_embassy::init(systimer.alarm0);
+    // we need to use macros, since Peripherals cannot be moved out to sub functions partially
 
-    let timg0 = esp_hal::timer::timg::TimerGroup::new(peripherals.TIMG0);
-    #[cfg(target_arch = "riscv32")]
-    let sw_int = SoftwareInterruptControl::new(peripherals.SW_INTERRUPT);
+    esp_rtos_start!(peripherals);
 
-    // it should be placed after heap allocation, since esp-rtos
-    // main task will allocate all remaining memory
-    esp_rtos::start(
-        timg0.timer0,
-        #[cfg(target_arch = "riscv32")]
-        sw_int.software_interrupt0,
-    );
+    let (
+        controller,
+        ap_runner,
+        ap_stack) = create_access_point!(peripherals);
 
-    // WIFI setup
-    let esp_radio_ctrl = &*mk_static!(esp_radio::Controller<'static>, unwrap!(esp_radio::init()));
+    let  (
+        udp_sender,
+        udp_receiver,
+        ecu_sender,
+        ecu_receiver) = create_channels!(INIT ChannelItem, CHANNEL_ITEMS_MAX);
 
-    let (mut controller, interfaces) = unwrap!(esp_radio::wifi::new(
-        &esp_radio_ctrl,
-        peripherals.WIFI,
-        Default::default()
-    ));
-
-    let client_config =
-        esp_radio::wifi::ModeConfig::AccessPoint(
-                esp_radio::wifi::AccessPointConfig::default().with_ssid(unwrap!(SSID).into())
-        );
-    unwrap!(controller.set_config(&client_config));
-
-
-    let wifi_ap_device = interfaces.ap;
-
-    use core::{net::Ipv4Addr, str::FromStr};
-    let gw_ip_addr = unwrap!(
-        Ipv4Addr::from_str(GATEWAY_IP.unwrap_or("192.168.2.1")),
-        "failed to parse gateway ip"
-    );
-
-    let ap_config = embassy_net::Config::ipv4_static(embassy_net::StaticConfigV4 {
-        address: embassy_net::Ipv4Cidr::new(gw_ip_addr, 24),
-        gateway: Some(gw_ip_addr),
-        dns_servers: Default::default(),
-    });
-
-    let rng = esp_hal::rng::Rng::new();
-    let seed = (rng.random() as u64) << 32 | rng.random() as u64;
-
-    // Init AP network stack
-    use embassy_net::StackResources;
-    let (ap_stack, ap_runner) = embassy_net::new(
-        wifi_ap_device,
-        ap_config,
-        mk_static!(StackResources<3>, StackResources::<3>::new()),
-        seed,
-    );
-    // EOF WIFI setup
-
-    // Init communication back and forth channel between udp and uart task
-    let udp2ecu_buffer = mk_static!(
-        [ChannelItem; CHANNEL_ITEMS_MAX],
-        [ChannelItem::empty(); CHANNEL_ITEMS_MAX]
-    );
-    let udp2ecu_channel = mk_static!(
-        Channel<'_, NoopRawMutex, ChannelItem>,
-        Channel::new(udp2ecu_buffer)
-    );
-    let (udp_sender, ecu_receiver) = udp2ecu_channel.split();
-
-    let ecu2udp_buffer = mk_static!(
-        [ChannelItem; CHANNEL_ITEMS_MAX],
-        [ChannelItem::empty(); CHANNEL_ITEMS_MAX]
-    );
-    let ecu2udp_channel = mk_static!(
-        Channel<'_, NoopRawMutex, ChannelItem>,
-        Channel::new(ecu2udp_buffer)
-    );
-    let (ecu_sender, udp_receiver) = ecu2udp_channel.split();
-
-    // initialize ECU specific adapter
-    #[cfg(any(feature = "elm327", feature = "l9637"))]
-    let ecu_adapter = adapter::Adapter::new(
-        /*
-        peripherals.UART0.into(),
-        peripherals.GPIO21.into(),
-        peripherals.GPIO20.into(),
-        */
-        peripherals.UART1.into(),
-        peripherals.GPIO2.into(),
-        peripherals.GPIO3.into(),
-    );
-
-    //crate::debug_pin::init_debug_pin(peripherals.GPIO0);
+    let adapter = create_adapter!(peripherals);
 
     // spawn tasks
-    spawner
-        .spawn(udp::server(ap_stack, udp_sender, udp_receiver))
-        .ok();
 
-    spawner
-        .spawn(ecu::server(ecu_adapter, ecu_sender, ecu_receiver))
-        .ok();
-
-    // We should move out 'controller' from this main/loader task since
-    // although finally it exits these spawns (which finally conclude to 'await's)
-    // will force this main/loader task state machine to maintain this value in its memory,
+    // We should move out all created type (controller, ap_runner, ap_stack senders and receivers
+    // from this main/loader task. Although finally it/we exit(s), spawns below (which finally 
+    // conclude to 'await's) will force task's state machine to keep these value in its memory,
     // increasing the wasted memory footprint of this exited so practically zombie task.
     //
-    // Because of the compiler optimisation even we should use controller,
-    // handed over by value in the spawned net_task, otherwise the controller
-    // also stays and increse the wasted memory footprint of exited main task
+    // Because of the compiler optimisation even we should not only move out but also
+    // should use these types handed over by value in the spawned tasks, otherwise they
+    // are also staying and increasing the wasted memory footprint of exited main task
     spawner.spawn(net_task(controller, ap_runner)).ok();
+
+    spawner.spawn(udp::server(ap_stack, udp_sender, udp_receiver)).ok();
+    spawner.spawn(ecu::server(adapter, ecu_sender, ecu_receiver)).ok();
 
     #[cfg(feature = "heap_stats")]
     let heap_stats: esp_alloc::HeapStats = esp_alloc::HEAP.stats();
-
     spawner.spawn(system_stats(#[cfg(feature = "heap_stats")] heap_stats)).ok();
+    
+    //crate::debug_pin::init_debug_pin(peripherals.GPIO0);
 }
 
 #[embassy_executor::task]

@@ -2,17 +2,17 @@
 target = "riscv32imc-unknown-none-elf"
 
 [target.riscv32imc-unknown-none-elf]
-runner = "espflash flash --monitor"
+#runner = "espflash flash --monitor"
 
 # using defmt crate - together with "link-arg=-Tdefmt.x" below
-#runner = "espflash flash --monitor --log-format defmt"
+runner = "espflash flash --monitor --log-format defmt"
 
 
 rustflags = [
     #"-C", "link-arg=-Tlinkall.x",          # esp-hal master linker script
     "-C", "link-arg=-Tlinkall_debug.x",     # my master linker script
     "-C", "link-arg=-Map=riscv32.map",
-    #"-C", "link-arg=-Tdefmt.x",             # for defmt
+    "-C", "link-arg=-Tdefmt.x",             # for defmt
     #"-C", "force-frame-pointers",           # for esp-backtrace and probe-rs-debug
                                             # otherwise some size ovehead occurs (in ELF file only)
                                             # when making frame for every real (not inlined) function call
