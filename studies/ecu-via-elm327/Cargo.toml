@@ -84,7 +84,7 @@ defmt = [
     "embassy-futures/defmt",
     "esp-rtos/defmt",
 
-    #"esp-println/defmt-espflash",       # if you use rtt (rtt_target) it should be commented out
+    "esp-println/defmt-espflash",       # if you use rtt (rtt_target) it should be commented out
                                         # since rtt-target/defmt also defines defmt symbols
     "rtt-target?/defmt",
     "esp-alloc/defmt",

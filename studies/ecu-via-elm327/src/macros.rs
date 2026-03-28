@@ -108,7 +108,7 @@ macro_rules! create_channels {
     (INIT $ChannelItem:ident, $ChannelItemMax:ident) => {{
         // we can use NoopRawMutex since we use channel between two tasks in the same executor,
         // in single core environment and not using from interrupt
-        // the more future-proof ThreadModeRawMutex is implemented only for cortex_m in embassy_synx
+        // the more future-proof ThreadModeRawMutex is implemented only for cortex_m in embassy_sync
         // and CriticalSectionRawMutex is unecessary for this case
         use embassy_sync::{blocking_mutex::raw::NoopRawMutex, zerocopy_channel::Channel};
 

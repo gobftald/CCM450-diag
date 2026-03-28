@@ -8,7 +8,36 @@ use embassy_futures::select::{Either, select};
 
 use crate::CHANNEL_ITEM_SIZE;
 
-use super::{AdapterError, Adapters, utils::*};
+use esp_hal::uart::{RxError, TxError};
+#[allow(unused)]
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum AdapterError {
+    TxError(TxError),
+    RxError(RxError),
+    Timeout,
+    Elm327Nok,
+    InitError,
+    AuthError,
+    ParseIntError,
+    EcuSpecificError(u8),
+}
+
+impl From<AdapterError> for u8 {
+    fn from(value: AdapterError) -> Self {
+        match value {
+            AdapterError::TxError(_) => 0,
+            AdapterError::RxError(_) => 1,
+            AdapterError::Timeout => 2,
+            AdapterError::Elm327Nok => 3,
+            AdapterError::InitError => 4,
+            AdapterError::AuthError => 5,
+            AdapterError::ParseIntError => 6,
+            AdapterError::EcuSpecificError(_) => 7,
+        }
+    }
+}
 
 pub struct Adapter<'a> {
     pub(crate) rx: UartRx<'a, Async>,
@@ -30,7 +59,7 @@ impl<'a> Adapter<'a> {
     }
 
     #[allow(non_snake_case)]
-    async fn wait_AT_prompt(
+    pub async fn wait_AT_prompt(
         &mut self,
         buf: &mut [u8],
         timeout: u64,
@@ -46,7 +75,7 @@ impl<'a> Adapter<'a> {
             .await
             {
                 Either::First(result) => {
-                    size += result.map_err(AdapterError::Rx)?;
+                    size += result.map_err(AdapterError::RxError)?;
                     trace!("read buf: {:a}", buf[..size]);
                     if buf[size - 1] == b'>' {
                         if !check_ok || buf[size - 5] == b'O' && buf[size - 4] == b'K' {
@@ -67,16 +96,16 @@ impl<'a> Adapter<'a> {
 }
 
 #[allow(unused_must_use)]
-impl<'a> Adapters for Adapter<'a> {
-    async fn connect(&mut self, secret_key: u32) -> Result<(), AdapterError> {
+impl<'a> Adapter<'a> {
+    pub async fn connect(&mut self, secret_key: u32) -> Result<(), AdapterError> {
         let mut buf: [u8; 32] = [0; 32];
 
         // Warm (Re)Start - ELM327 specific command
-        self.tx.write(b"ATWS\r").map_err(AdapterError::Tx)?;
+        self.tx.write(b"ATWS\r").map_err(AdapterError::TxError)?;
         self.wait_AT_prompt(&mut buf, 100, false).await?;
 
         // echo off - ELM327 specific command
-        self.tx.write(b"ATE0\r").map_err(AdapterError::Tx)?;
+        self.tx.write(b"ATE0\r").map_err(AdapterError::TxError)?;
         self.wait_AT_prompt(&mut buf, 100, true).await?;
 
         // set WakeUp Message
@@ -89,13 +118,13 @@ impl<'a> Adapters for Adapter<'a> {
         // checksum will be added by ELM327
         self.tx
             .write(b"AT WM 82 12 F1 3E 00\r")
-            .map_err(AdapterError::Tx)?;
+            .map_err(AdapterError::TxError)?;
         self.wait_AT_prompt(&mut buf, 100, true).await?;
 
         // defult is 3 sec (0x92 * 20.48 msec)
         // set WakeUp frequency (4900/20.48 in hex) - ELM327 specific command
         // a bit less then 5sec, since 5sec was  unstable
-        self.tx.write(b"AT SW EF\r").map_err(AdapterError::Tx)?;
+        self.tx.write(b"AT SW EF\r").map_err(AdapterError::TxError)?;
         self.wait_AT_prompt(&mut buf, 100, true).await?;
 
         // set Header
@@ -108,16 +137,16 @@ impl<'a> Adapters for Adapter<'a> {
         // finally ELM327 calculate cheksum and wiill send it as the last byte
         self.tx
             .write(b"AT SH 81 12 F1\r")
-            .map_err(AdapterError::Tx)?;
+            .map_err(AdapterError::TxError)?;
         self.wait_AT_prompt(&mut buf, 100, true).await?;
 
         // Fast Init - ELM327 specific command
-        self.tx.write(b"AT FI\r").map_err(AdapterError::Tx)?;
+        self.tx.write(b"AT FI\r").map_err(AdapterError::TxError)?;
         self.wait_AT_prompt(&mut buf, 500, true).await?;
 
         // StartCommunication request
         // 0x81 = startCommunication Request Service Id
-        self.tx.write(b"81\r").map_err(AdapterError::Tx)?;
+        self.tx.write(b"81\r").map_err(AdapterError::TxError)?;
         self.wait_AT_prompt(&mut buf, 500, false).await?;
 
         #[allow(unused_parens)]
@@ -161,7 +190,7 @@ impl<'a> Adapters for Adapter<'a> {
             // 0x27 - Security Access Request Service ID
             // 0x03 - Access Mode - '03 secure mode Request Seed'
             // only the last bit is important -> 1, 3, 5 ... -> request a seed, even numbers -> error
-            self.tx.write(b"27 03\r").map_err(AdapterError::Tx)?;
+            self.tx.write(b"27 03\r").map_err(AdapterError::TxError)?;
             self.wait_AT_prompt(&mut buf, 500, false).await?;
 
             // extract Seed
@@ -195,7 +224,7 @@ impl<'a> Adapters for Adapter<'a> {
         // 0x27 - Security Access Request Service ID
         // 04 - Access Mode - '04 secure mode Send Key'
         // response key calculated based on our Secret Key applied to Seed
-        self.tx.write(&buf[..11]).map_err(AdapterError::Tx)?;
+        self.tx.write(&buf[..11]).map_err(AdapterError::TxError)?;
         self.wait_AT_prompt(&mut buf, 500, false).await?;
 
         #[allow(unused_parens)]
@@ -219,7 +248,7 @@ impl<'a> Adapters for Adapter<'a> {
         Ok(())
     }
 
-    async fn read_data_by_common_id(
+    pub async fn read_data_by_common_id(
         &mut self,
         ids: &[u8],
         reply: &mut [u8],
@@ -245,7 +274,7 @@ impl<'a> Adapters for Adapter<'a> {
 
             trace!("read_data_by_common_id is sending: {:a}", &buf[..7]);
 
-            self.tx.write(&buf[..7]).map_err(AdapterError::Tx)?;
+            self.tx.write(&buf[..7]).map_err(AdapterError::TxError)?;
             let size = self.wait_AT_prompt(&mut buf, 500, false).await?;
 
             if buf[0] == b'6' && buf[1] == b'2' {
@@ -261,7 +290,7 @@ impl<'a> Adapters for Adapter<'a> {
     }
 
     #[allow(unused_assignments)]
-    async fn read_diagnostic_trouble_codes_by_status(
+    pub async fn read_diagnostic_trouble_codes_by_status(
         &mut self,
         reply: &mut [u8],
     ) -> Result<usize, AdapterError> {
@@ -272,7 +301,7 @@ impl<'a> Adapters for Adapter<'a> {
         // 0x18 - Read Diagnostic Trouble Codes By Status Request Service ID
         // 0x02 - Request 2 byte hex DTC
         // 0xFFFF - All DTCs
-        self.tx.write(b"18 02 FF FF\r").map_err(AdapterError::Tx)?;
+        self.tx.write(b"18 02 FF FF\r").map_err(AdapterError::TxError)?;
         let size = self.wait_AT_prompt(&mut buf, 500, false).await?;
         let mut dtc_num = 0;
 
@@ -300,10 +329,10 @@ impl<'a> Adapters for Adapter<'a> {
         Ok(dtc_num * 2 + 2)
     }
 
-    async fn clear_diagnostic_information(&mut self) -> Result<(), AdapterError> {
+    pub async fn clear_diagnostic_information(&mut self) -> Result<(), AdapterError> {
         let mut buf: [u8; 16] = [0; 16];
 
-        self.tx.write(b"14 FF FF\r").map_err(AdapterError::Tx)?;
+        self.tx.write(b"14 FF FF\r").map_err(AdapterError::TxError)?;
         let size = self.wait_AT_prompt(&mut buf, 500, false).await?;
 
         if buf[0] != b'5' || buf[1] != b'4' {
@@ -313,7 +342,7 @@ impl<'a> Adapters for Adapter<'a> {
         Ok(())
     }
 
-    async fn raw_request(
+    pub async fn raw_request(
         &mut self,
         request: &[u8],
         reply: &mut [u8],
@@ -327,7 +356,7 @@ impl<'a> Adapters for Adapter<'a> {
 
         self.tx
             .write(&buf[..request.len() * 2 + 1])
-            .map_err(AdapterError::Tx)?;
+            .map_err(AdapterError::TxError)?;
         let size = self.wait_AT_prompt(&mut buf, 500, false).await?;
 
         let mut i = 0;
@@ -345,16 +374,16 @@ impl<'a> Adapters for Adapter<'a> {
         Ok(i + 2)
     }
 
-    async fn write(&mut self, request: &[u8]) -> Result<usize, AdapterError> {
-        self.tx.write_async(request).await.map_err(AdapterError::Tx)
+    pub async fn write(&mut self, request: &[u8]) -> Result<usize, AdapterError> {
+        self.tx.write_async(request).await.map_err(AdapterError::TxError)
     }
 
-    async fn read(&mut self, response: &mut [u8]) -> Result<usize, AdapterError> {
+    pub async fn read(&mut self, response: &mut [u8]) -> Result<usize, AdapterError> {
         self.rx
-            //.read_async(response, false)
-            .read_async(response)
-            .await
-            .map_err(AdapterError::Rx)
+        //.read_async(response, false)
+        .read_async(response)
+        .await
+        .map_err(AdapterError::RxError)
     }
 }
 
@@ -373,6 +402,82 @@ fn decode_err_status(reply: &mut [u8]) -> AdapterError {
         // when we cannot interpret the error response
         AdapterError::EcuSpecificError(0)
     }
+}
+
+fn char_to_num(char: u8) -> Result<u8, AdapterError> {
+    if char.is_ascii_digit() {
+        Ok(char - b'0')
+    } else if (b'A'..=b'F').contains(&char) {
+        Ok(char - b'A' + 10)
+    } else {
+        Err(AdapterError::ParseIntError)
+    }
+}
+
+pub fn from_ascii_bytes_to_u8(buf: &[u8]) -> Result<u8, AdapterError> {
+    if buf.len() != 2 {
+        return Err(AdapterError::ParseIntError);
+    }
+
+    let mut val = char_to_num(buf[0])? << 4;
+    val += char_to_num(buf[1])?;
+
+    Ok(val)
+}
+
+pub fn from_ascii_bytes_to_u16(buf: &[u8]) -> Result<u16, AdapterError> {
+    if buf.len() < 4 {
+        return Err(AdapterError::ParseIntError);
+    }
+
+    let mut i = 0;
+    let mut val = (from_ascii_bytes_to_u8(&buf[i..i + 2])? as u16) << 8;
+    i += 2;
+    while buf[i] == b' ' {
+        i += 1;
+        continue;
+    }
+    val += from_ascii_bytes_to_u8(&buf[i..i + 2])? as u16;
+
+    Ok(val)
+}
+
+pub fn from_u8_to_ascii_bytes(value: u8, buf: &mut [u8]) -> Result<(), AdapterError> {
+    if buf.len() < 2 {
+        return Err(AdapterError::ParseIntError);
+    }
+
+    let digits = [
+        b'0', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9', b'A', b'B', b'C', b'D', b'E',
+        b'F',
+    ];
+    buf[0] = digits[(value / 16) as usize];
+    buf[1] = digits[(value % 16) as usize];
+
+    Ok(())
+}
+
+pub fn from_u16_to_ascii_bytes(value: u16, buf: &mut [u8]) -> Result<(), AdapterError> {
+    if buf.len() < 4 {
+        return Err(AdapterError::ParseIntError);
+    }
+
+    from_u8_to_ascii_bytes((value / 256) as u8, &mut buf[0..2])?;
+    from_u8_to_ascii_bytes((value % 256) as u8, &mut buf[2..4])?;
+
+    Ok(())
+}
+
+pub fn compare_bytes(one: &[u8], another: &[u8]) -> bool {
+    if one.len() != another.len() {
+        return false;
+    }
+    for (i, one) in one.iter().enumerate() {
+        if *one != another[i] {
+            return false;
+        }
+    }
+    true
 }
 
 #[macro_export]

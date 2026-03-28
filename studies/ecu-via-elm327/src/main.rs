@@ -13,6 +13,7 @@ mod debug_pin;
 mod ecu;
 mod macros;
 mod panic;
+mod protocol;
 mod udp;
 
 #[cfg(not(feature = "rtt"))]
