@@ -1,0 +1,60 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "probe-rs-gdb",
+            "type": "cortex-debug", // it is needed for probe-rs gdb
+            // probe-rs-debug is only used for probe-rs debugging
+            // but probe-rs debugging is much less functionalities then gdb
+            "request": "attach",
+            //"preLaunchTask": "Start-GDB-Server",
+            "cwd": "${workspaceRoot}",
+            "executable": "${workspaceRoot}/target/riscv32imc-unknown-none-elf/release/ecu-via-elm327",
+            "servertype": "external",
+            "gdbTarget": "localhost:3333",
+            //"gdbPath": "/Users/piv/.rustup/toolchains/esp/riscv32-esp-elf-gdb/bin/riscv32-esp-elf-gdb",
+            "gdbPath": "/Users/piv/.rustup/toolchains/esp/riscv32-esp-elf-gdb/bin/riscv32-esp-elf-gdb-no-python",
+            "toolchainPrefix": "riscv32-esp-elf",
+            "armToolchainPath": "/Users/piv/.rustup/toolchains/esp/riscv32-esp-elf/esp-12.2.0_20230208/riscv32-esp-elf/bin",
+            "overrideAttachCommands": [
+                "set mem inaccessible-by-default off",
+                "mem 0x42000000 0x42ffffff ro",
+                "interpreter-exec console \"monitor reset halt\"",
+                "-enable-pretty-printing",
+            ],
+            //"showDevDebugOutput": "raw",
+        },
+        {
+            //"preLaunchTask": "flash-esp32c3",
+            //"preLaunchTask": "cargo-build",
+            "type": "probe-rs-debug",
+            "request": "launch",
+            "name": "probe-rs-debug",
+            "chip": "esp32c3",
+            "flashingConfig": {
+                "flashingEnabled": true,
+                "haltAfterReset": false,
+                "formatOptions": {
+                "binaryFormat": "elf"
+                }
+            },
+            "coreConfigs": [
+                {
+                    "programBinary": "${workspaceRoot}/target/riscv32imc-unknown-none-elf/debug/ecu-via-elm327",
+                    "rttEnabled": true,
+                    "rttChannelFormats": [
+                        {
+                        "channelNumber": 0,
+                        "dataFormat": "Defmt",
+                        "showTimestamps": true
+                        },
+                        {
+                        "channelNumber": 1,
+                        "dataFormat": "BinaryLE",
+                        }
+                    ],
+                }
+            ],
+        }
+    ]
+}

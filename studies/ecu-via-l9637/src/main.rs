@@ -1,0 +1,155 @@
+#![no_std]
+#![no_main]
+// for 'task' embassy-executor-macro, when embassy-executor/nightly
+#![feature(impl_trait_in_assoc_type)]
+// for debug_ping
+#![feature(once_cell_get_mut)]
+
+// This mod MUST go first, so that the others see its macros.
+pub(crate) mod fmt;
+
+mod adapter;
+mod debug_pin;
+mod ecu;
+mod macros;
+mod panic;
+mod protocol;
+mod udp;
+
+#[cfg(not(feature = "rtt"))]
+use esp_println as _;           // if no "rtt-target/defmt" we need "esp-println/defmt-espflash" in "dfmt"
+
+#[cfg(feature = "rtt")]
+mod rtt_init;                   // since "rtt-target/defmt" also defines defmt symbols
+                                // #"esp-println/defmt-espflash" should be commented out in "dfmt"
+
+#[cfg(feature = "rtos_trace")]
+mod rttos_trace;
+
+// for consuming bootlader RAM segment for heap
+esp_bootloader_esp_idf::esp_app_desc!();
+
+// communication channels between tasks
+create_channels!(TYPE ChannelItem, CHANNEL_ITEM_SIZE, 64, CHANNEL_ITEMS_MAX, 1);
+
+#[esp_rtos::main]
+async fn main(spawner: embassy_executor::Spawner) {
+    #[cfg(feature = "rtt")]
+    rtt_init::rtt_init();
+
+    let config = esp_hal::Config::default().with_cpu_clock(esp_hal::clock::CpuClock::max());
+    let peripherals = esp_hal::init(config);
+
+    esp_alloc::heap_allocator!(#[esp_hal::ram(reclaimed)] size: 64 * 1024);
+    //esp_alloc::heap_allocator!(size: 32 * 1024);
+
+    // we need to use macros, since Peripherals cannot be moved out to sub functions partially
+
+    esp_rtos_start!(peripherals);
+
+    let (
+        controller,
+        ap_runner,
+        ap_stack) = create_access_point!(peripherals);
+
+    let  (
+        udp_sender,
+        udp_receiver,
+        ecu_sender,
+        ecu_receiver) = create_channels!(INIT ChannelItem, CHANNEL_ITEMS_MAX);
+
+    let adapter = create_adapter!(peripherals);
+
+    // spawn tasks
+
+    // We should move out all created type (controller, ap_runner, ap_stack senders and receivers
+    // from this main/loader task. Although finally it/we exit(s), spawns below (which finally 
+    // conclude to 'await's) will force task's state machine to keep these value in its memory,
+    // increasing the wasted memory footprint of this exited so practically zombie task.
+    //
+    // Because of the compiler optimisation even we should not only move out but also
+    // should use these types handed over by value in the spawned tasks, otherwise they
+    // are also staying and increasing the wasted memory footprint of exited main task
+    spawner.spawn(net_task(controller, ap_runner)).ok();
+
+    spawner.spawn(udp::server(ap_stack, udp_sender, udp_receiver)).ok();
+    spawner.spawn(ecu::server(adapter, ecu_sender, ecu_receiver)).ok();
+
+    #[cfg(feature = "heap_stats")]
+    let heap_stats: esp_alloc::HeapStats = esp_alloc::HEAP.stats();
+    spawner.spawn(system_stats(#[cfg(feature = "heap_stats")] heap_stats)).ok();
+    
+    //crate::debug_pin::init_debug_pin(peripherals.GPIO0);
+}
+
+#[embassy_executor::task]
+async fn system_stats(#[cfg(feature = "heap_stats")] heap_stats: esp_alloc::HeapStats) {
+    #[cfg(not(feature = "idle_stats"))]
+    let mut counter = 0;
+
+    #[cfg(feature = "heap_stats")]
+    let mut current_heap_usage = 0;
+
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "idle_stats")]
+        {
+            use esp_hal::time::Instant;
+
+            let mut idle_prev: esp_hal::time::Duration = esp_hal::time::Duration::ZERO;
+            let mut prev_time_stamp: Instant = Instant::now();
+        }
+    }
+
+    loop {
+        #[cfg(feature = "heap_stats")]
+        {
+            if heap_stats.current_usage != current_heap_usage {
+                info!("{}", heap_stats);
+                current_heap_usage = heap_stats.current_usage;
+            }
+        }
+
+        cfg_if::cfg_if! {
+            if #[cfg(any(feature = "idle_stats", feature = "irq_stats"))]
+            {
+                #[cfg(feature = "idle_stats")]
+                {
+                    let time_stamp = Instant::now();
+                    let idle_current = (esp_rtos::idle_stats() - idle_prev).as_millis() as f32
+                        / (time_stamp - prev_time_stamp).as_millis() as f32 * 100f32;
+                    info!("idle: {}.{:02}%", idle_current as i32, (idle_current * 100.0) as i32 % 100 );
+
+                    // don't include the division and formatting time in the measurement
+                    idle_prev = esp_rtos::idle_stats();
+                    prev_time_stamp = time_stamp;
+                }
+                
+                #[cfg(feature = "irq_stats")]
+                {
+                    let irq_stats = esp_hal::interrupt::irq_stats();
+                    info!("irq: {}", irq_stats.1[0..irq_stats.0]);
+                }
+            } else {
+                //esp_println::println!("{}", counter);
+                info!("{}", counter);
+                counter += 1;
+            }
+        }
+
+        embassy_time::Timer::after(embassy_time::Duration::from_millis(1_000)).await;
+    }
+}
+
+#[embassy_executor::task()]
+pub async fn net_task(
+    mut controller: esp_radio::wifi::WifiController<'static>,
+    mut runner: embassy_net::Runner<'static, esp_radio::wifi::WifiDevice<'static>>,
+) {
+    // we should bring and use controller here
+    // see comments above at spawing net_task
+    debug!("Starting wifi");
+    unwrap!(controller.start_async().await);
+    debug!("AP started");
+
+    runner.run().await
+}

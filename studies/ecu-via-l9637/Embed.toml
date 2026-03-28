@@ -1,0 +1,45 @@
+[default.general]
+chip = "esp32c3"
+#log_level = "INFO"
+
+[default.probe]
+protocol = "Jtag"
+
+[default.flashing]
+enabled = true
+restore_unwritten_bytes = false
+do_chip_erase = false
+disable_double_buffering = false
+preverify = false
+verify = false
+
+[default.reset]
+enabled = true
+halt_afterwards = false
+
+[default.rtt]
+enabled = true
+#log_enabled = true
+
+[[default.rtt.up_channels]]
+channel = 0
+#format = "String"
+format = "Defmt"
+
+[[default.rtt.up_channels]]
+channel = 1
+format = "BinaryLE"
+socket = "127.0.0.1:19001"
+
+[[default.rtt.down_channels]]
+channel = 0
+format = "String"
+    
+[[default.rtt.down_channels]]
+channel = 1
+format = "BinaryLE"
+socket = "127.0.0.1:19001"
+
+#[default.gdb]
+enabled = true
+gdb_connection_string = "127.0.0.1:3333"

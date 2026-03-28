@@ -1,0 +1,12 @@
+{
+    "rust-analyzer.cargo.features": [
+        "default",
+        "esp32c3",
+        "defmt",
+        "ccm450",
+        "elm327",
+        "kwp2000",
+        "ecu"
+    ],
+    "cortex-debug.variableUseNaturalFormat": false
+}

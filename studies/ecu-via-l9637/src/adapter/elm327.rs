@@ -373,6 +373,10 @@ impl<'a> Adapter<'a> {
         Ok(i + 2)
     }
 
+    pub async fn write(&mut self, request: &[u8]) -> Result<usize, AdapterError> {
+        self.tx.write_async(request).await.map_err(AdapterError::TxError)
+    }
+
     pub async fn read(&mut self, response: &mut [u8]) -> Result<usize, AdapterError> {
         self.rx
         //.read_async(response, false)
