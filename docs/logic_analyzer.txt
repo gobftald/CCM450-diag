@@ -1,0 +1,162 @@
+82 12 F1 3E 00 C3
+1000 0010   0001 0010   1111 0001   0011 1110   0000 0000   1100 0011
+
+83 F1 12 7F 3E 12 55
+1000 0011   1111 0001   0001 0010   0111 1111   0011 1110   0001 0010   0101 0101
+
+
+
+25 ms low
+25 ms high
+
+then 10400 baud
+
+50.2 ms
+1000 0001   81   
+56.3 ms
+0001 0010   12  CCM (targe)
+62.4 ms
+1111 0001   F1  tester (source)
+68.6 ms
+1000 0001   81  StartCommunication
+74.7
+0000 0101   05  chksum
+
+119.1 ms
+1000 0011   83
+120.0 ms
+1111 0001   F1  tester (target)
+121.0 ms
+0001 0010   12  CCM (source)
+122.0 ms
+1100 0001   C1  StartCommunication Positive Response
+122.9 ms
+0101 1011   5B  Key byte 1 (Low byte)
+                bit7 = Parity = 0
+                bit6 = 1 <- fix 1
+                bit5 = TP1 = 0 -> extended timing parameter set
+                bit4 = TP0 = 1 -> extended timing parameter set
+                bit3 = HB1 = 1 -> Target/Source address in header supported
+                bit2 = HB0 = 0 -> 1 byte header not supported
+                bit1 = AL1 = 1 -> additional length byte supported
+                bit0 = AL0 = 1 -> length information in format byte supported
+123.9 ms
+1000 1111   8F  8F - key byte 2 is a fix 0x8F
+124.9 ms
+0011 0001   31  chksum
+
+188.5 ms
+1000 0001   81
+194.7 ms
+0001 0010   12  CCM (target)
+200.8 ms
+1111 0001   F1  tester (source)
+207.0 ms
+1000 0001   81  StartCommunication
+213.2 ms
+0000 0101   05  chksum
+
+259.1 ms
+1000 0011   83
+260.1 ms
+1111 0001   F1  tester (target)
+261.0 ms
+0001 0010   12  CCM (source)
+262.0 ms
+1100 0001   C1  StartCommunication Positive Response
+262.9 ms
+0101 1011   5B  Key byte 1 (Low byte)
+263.9 ms
+1000 1111   8F  8F - key byte 2 is a fix 0x8F
+264.9 ms
+0011 0001   31  chksum
+
+528.5 ms
+1000 0010   82
+534.7 ms
+0001 0010   12  CCM (target)
+540.8 ms
+1111 0001   F1  tester (source)
+547.0 ms
+0010 0111   27  Security Access Request
+553.2 ms
+0000 0011   03  Access Mode - '03 secure mode Request Seed'
+559.3 ms
+1010 1111   AF  chksum
+
+599.1 ms
+1000 0100   84
+600.0 ms
+1111 0001   F1  tester (target)
+601.0
+0001 0010   12  CCM (source)
+602.0
+0110 0111   67  Positive Response
+602.9
+0000 0011   03  Access Mode
+603.8
+0111 0001   71  seed high byte
+604.9
+1111 0011   F3  seed low byte       // even number => repate
+605.8 ms
+0101 0101   55  chksum
+
+872.6 ms
+1000 0010   82
+878.8 ms
+0001 0010   12  CCM (target)
+884.9 ms
+1111 0001   F1  tester (source)
+891.1 ms
+0010 0111   27  Security Access Request
+897.2 ms
+0000 0011   03  Access Mode
+903.4 ms
+1010 1111   AF  chksum
+
+949.1 ms
+1000 0100   84
+950.0 ms
+1111 0001   F1  tester (target)
+951.0 ms
+0001 0010   12  CCM (source)
+952.0 ms
+0110 0111   67  Positive Response
+952.9 ms
+0000 0011   03  Access Mode
+953.9 ms
+0011 0001   31  seed high byte
+954.8 ms
+1000 1100   8C  seed low byte
+955.8 ms
+1010 1110   AE  chksum
+
+1220.8 ms
+1000 0100   84
+1226.9 ms
+0001 0010   12  CCM (target)
+1233.1 ms
+1111 0001   F1  tester (source)
+1239.2 ms
+0010 0111   27  Security Access Request
+1245.4 ms
+0000 0100   04  Access Mode
+1251.5 ms
+0010 0101   25  secret code/answer high byte
+1257.7 ms
+1010 0100   A4  secret code/answer low byte
+1263.8 ms
+0111 1011   7B
+
+1309.1 ms
+1000 0010   82
+1310.0 ms
+1111 0001   F1  F1  tester (target)
+1311.0 ms
+0001 0010   12  12  CCM (source)
+1311.9 ms
+0110 0111   67  Positive Response
+1312.9 ms
+0000 0100   04  Access Mode
+1313.9 ms
+1111 0000   F0  chesksum

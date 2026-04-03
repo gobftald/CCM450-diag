@@ -4,9 +4,9 @@
         "esp32c3",
         "defmt",
         "ccm450",
-        "elm327",
         "kwp2000",
-        "ecu"
+        "ecu",
+        "l9637"
     ],
     "cortex-debug.variableUseNaturalFormat": false
 }

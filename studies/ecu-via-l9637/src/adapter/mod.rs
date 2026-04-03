@@ -4,6 +4,6 @@ mod adapter_impl;
 pub use adapter_impl::{Adapter, AdapterError};
 
 pub trait Adapters {
-    async fn write(&mut self, request: &[u8]) -> Result<usize, AdapterError>;
-    async fn read(&mut self, response: &mut [u8]) -> Result<usize, AdapterError>;
+    async fn transmit(&mut self, request: &[u8]) -> Result<usize, AdapterError>;
+    async fn receive(&mut self, response: &mut [u8]) -> Result<usize, AdapterError>;
 }

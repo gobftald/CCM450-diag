@@ -1,7 +1,5 @@
 use esp_hal::{
-    Async,
-    gpio::AnyPin,
-    uart::{AnyUart, Config, Uart, UartRx, UartTx},
+    Async, gpio::AnyPin, peripherals, uart::{AnyUart, Config, Uart, UartRx, UartTx}
 };
 
 use esp_hal::uart::{RxError, TxError};
@@ -29,19 +27,30 @@ pub struct Adapter<'a> {
 }
 
 impl<'a> Adapter<'a> {
-    pub fn new(uart: AnyUart<'static>, tx_pin: AnyPin<'static>, rx_pin: AnyPin<'static>) -> Self {
+    pub fn new(any_uart: AnyUart<'static>, tx_pin: AnyPin<'static>, rx_pin: AnyPin<'static>) -> Self {
+        // configure UART
+        let config = Config::default().with_baudrate(10_400);
+        let mut uart;
+        unsafe {
+            uart = unwrap!(Uart::new(any_uart, config))
+                .into_async()
+                .with_tx(tx_pin.clone_unchecked())
+                .with_rx(rx_pin);
+        }
+        uart.set_at_cmd(esp_hal::uart::AtCmdConfig::default().with_cmd_char(b'>'));
+        let (rx, tx) = uart.split();
+
         Self { rx, tx }
     }
 }
 
 impl<'a> Adapters for Adapter<'a> {
-    async fn write(&mut self, request: &[u8]) -> Result<usize, AdapterError> {
+    async fn transmit(&mut self, request: &[u8]) -> Result<usize, AdapterError> {
         self.tx.write_async(request).await.map_err(AdapterError::TxError)
     }
 
-    async fn read(&mut self, response: &mut [u8]) -> Result<usize, AdapterError> {
+    async fn receive(&mut self, response: &mut [u8]) -> Result<usize, AdapterError> {
         self.rx
-        //.read_async(response, false)
         .read_async(response)
         .await
         .map_err(AdapterError::RxError)

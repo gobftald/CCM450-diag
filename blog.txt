@@ -325,10 +325,6 @@ rustc -Z unstable-options --pretty expanded hello.rs
 DEFMT_LOG=off,udp=trace,ecu_via_elm327=trace,esp_radio=trace,esp_wifi_sys_esp32c3=trace,esp_rtos=trace cargo run --features=esp-radio/sys-logs
 DEFMT_LOG=off,udp=trace,ecu_via_elm327=trace,esp_radio=debug,embassy_net=trace,esp_rtos=info,ecu=trace,esp_hal=info cargo embed --release --features=heap_stats,idle_stats,irq_stats,rtos_trace
 
-# restart wifi on rpi4
-sudo systemctl stop ifup@wlan0
-sudo ip addr flush dev wlan0
-sudo systemctl restart ifup@wlan0
 
 #dump archive file content
 riscv32-unknown-elf-nm -A libnet80211.a
@@ -347,6 +343,43 @@ systemview_target::SEGGER_SYSVIEW_PrintfHost(
     "schedule to switch from Idle (None) -> %s\0".as_ptr() as *const u8,
     next_task.as_ref().name.as_ptr() as u32
 );
+
+# nmcli on rpi4
+nmcli device wifi rescan
+nmcli device wifi list
+sudo nmcli device wifi connect "CCM-GP450"
+#but using fix ip to connect to it
+sudo nmcli connection modify "CCM-GP450" ipv4.addresses 192.168.3.2/24
+sudo nmcli connection modify "CCM-GP450" ipv4.gateway 192.168.3.1
+sudo nmcli connection modify "CCM-GP450" ipv4.method manual
+sudo nmcli connection up "CCM-GP450"
+# monitor status and during connect
+nmcli device
+# nmcli stores these connection profiles in individual text files located in:
+/etc/NetworkManager/system-connections/
+/etc/NetworkManager/system-connections/CCM-GP450.nmconnection
+# auto connect/reconnect
+sudo nmcli connection modify "CCM-GP450" connection.autoconnect yes
+sudo nmcli connection modify "CCM-GP450" connection.autoconnect-priority 10
+# Set Reconnection Behavior (Persistence)
+sudo nmcli connection modify "CCM-GP450" connection.autoconnect-retries 0
+# Ensure NetworkManager starts at Boot
+sudo systemctl enable NetworkManager
+# check status
+nmcli -f connection.autocnnect,connection.autoconnect-priority,connection.autoconnect-retries connection show "CCM-GP450"
+connection.autoconnect:                 yes
+connection.autoconnect-priority:        10
+connection.autoconnect-retries:         0 (forever)
+
+# pinalyzer on rpi
+sudo ./build/pinalyzer -tf -s 100000 -l5000 -p17 -n17
+# -tf = failing edge 
+# -s smaple rate (Hz) - 100.000 = 10 usec (since we sample a 10.4 baud signal it means 9-10 samples per bit)
+# -l length (ms) - 5000 = 5 sec 
+# -p GPIO ping number
+# -n pin name in file
+
+
 
 #########
 in esp rust ecosystem how can I use embassy interrupt executor with esp-rtos crate
