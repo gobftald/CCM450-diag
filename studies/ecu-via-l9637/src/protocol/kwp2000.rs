@@ -1,3 +1,20 @@
+use crate::ecu::EcuError;
+
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum ProtocolError {
+    InvalidChecksum,
+    EcuError(EcuError)
+}
+
+impl From<ProtocolError> for u8 {
+    fn from(value: ProtocolError) -> Self {
+        match value {
+            ProtocolError::InvalidChecksum => 0,
+            ProtocolError::EcuError(_) => 1,
+        }
+    }
+}
+
 pub struct Protocol {
     format: u8,
     target: u8,
@@ -13,7 +30,7 @@ pub enum ServiceId {
     StartCommunication = 0x81,
 }
 
-use super::{Protocols, EcuError};
+use super::Protocols;
 
 impl Protocol {
     pub fn new (format: u8, target: u8, source: u8) -> Self {
@@ -34,7 +51,7 @@ impl Protocols for Protocol {
         }
 
         let mut checksum: u8 = 0;
-        for byte in buf[..plen + 4].iter_mut() {
+        for byte in buf[..plen + 4].iter() {
             checksum += *byte;
         }
         buf[plen + 4] = checksum;
@@ -42,7 +59,23 @@ impl Protocols for Protocol {
         plen + 5
     }
 
-    fn parse_response<'a>(&self, service_id: u8, response: &[u8]) -> Result<usize, EcuError> {
-        Ok(0)
+    fn parse_response<'a>(&self, service_id: u8, response: &[u8]) -> Result<usize, ProtocolError> {
+        let len = response.len();
+        // check checksum
+        let mut checksum: u8 = 0;
+        for byte in response[..len - 1].iter() {
+            checksum += *byte;
+        }
+        if checksum != response[response.len() - 1] {
+            return Err(ProtocolError::InvalidChecksum)
+        }
+
+        // check for negative response and send error coming from ecu
+        if service_id + 0x40 != response[3] {
+            return Err(ProtocolError::EcuError(EcuError(response[4])))
+        }
+
+        // response[4..len-1]
+        Ok(len - 5)
     }
 }

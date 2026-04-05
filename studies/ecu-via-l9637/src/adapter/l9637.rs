@@ -1,8 +1,10 @@
 use esp_hal::{
-    Async, gpio::AnyPin, peripherals, uart::{AnyUart, Config, Uart, UartRx, UartTx}
+    Async, gpio::AnyPin, uart::{AnyUart, Config, Uart, UartRx, UartTx}
 };
 
 use esp_hal::uart::{RxError, TxError};
+
+const KWP2000_BAUDRATE: u32 = 10_400;
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum AdapterError {
@@ -29,31 +31,38 @@ pub struct Adapter<'a> {
 impl<'a> Adapter<'a> {
     pub fn new(any_uart: AnyUart<'static>, tx_pin: AnyPin<'static>, rx_pin: AnyPin<'static>) -> Self {
         // configure UART
-        let config = Config::default().with_baudrate(10_400);
-        let mut uart;
-        unsafe {
-            uart = unwrap!(Uart::new(any_uart, config))
-                .into_async()
-                .with_tx(tx_pin.clone_unchecked())
-                .with_rx(rx_pin);
-        }
-        uart.set_at_cmd(esp_hal::uart::AtCmdConfig::default().with_cmd_char(b'>'));
-        let (rx, tx) = uart.split();
+        let config = Config::default()
+            .with_baudrate(KWP2000_BAUDRATE);
+
+        let (rx, tx) = unwrap!(Uart::new(any_uart, config))
+            .into_async()
+            .with_tx(tx_pin)
+            .with_rx(rx_pin)
+            .split();
 
         Self { rx, tx }
     }
 }
 
 impl<'a> Adapters for Adapter<'a> {
-    async fn transmit(&mut self, request: &[u8]) -> Result<usize, AdapterError> {
-        self.tx.write_async(request).await.map_err(AdapterError::TxError)
+    async fn transmit(&mut self, request: &mut [u8]) -> Result<(), AdapterError> {
+        trace!("transmit {:x}", request);
+        self.tx.write_async(request).await.map_err(AdapterError::TxError)?;
+
+        // K-Line echo elimination
+        self.rx.read_exact_async(request).await.map_err(AdapterError::RxError)
     }
 
     async fn receive(&mut self, response: &mut [u8]) -> Result<usize, AdapterError> {
-        self.rx
-        .read_async(response)
-        .await
-        .map_err(AdapterError::RxError)
+        self.rx.read_exact_async(&mut response[..1]).await.map_err(AdapterError::RxError)?;
+
+        // calculate remaining size of message from the leading bytes
+        // OK I know this is too specific for adapter level, even for KWP2000 protocol
+        // but for now this is the most comfortable
+        let len = ((response[0] - 0x80) + 4) as usize;
+        self.rx.read_exact_async(&mut response[1..len]).await.map_err(AdapterError::RxError)?;
+        trace!("receive {:x}", &response[..len]);
+        Ok(len)
     }
 }
 

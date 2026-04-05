@@ -36,7 +36,7 @@ impl TryFrom<u8> for Subsystem {
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum Reply {
+pub enum Response{
     #[allow(dead_code)]
     // RecvError: 0 = Truncated,
     UdpRecvError(RecvError),
@@ -48,18 +48,18 @@ pub enum Reply {
 }
 
 #[repr(u8)]
-pub enum ReplyCode {
+pub enum ResponseCode {
     UdpRecvError = 0x01,
     UdpSendError = 0x02,
     InvalidSubsystem = 0x03,
 }
 
-impl Reply {
+impl Response {
     pub fn code(&self) -> u8 {
         match self {
-            Self::UdpRecvError(_) => ReplyCode::UdpRecvError as u8,
-            Self::UdpSendError(_) => ReplyCode::UdpSendError as u8,
-            Self::InvalidSubsystem => ReplyCode::InvalidSubsystem as u8,
+            Self::UdpRecvError(_) => ResponseCode::UdpRecvError as u8,
+            Self::UdpSendError(_) => ResponseCode::UdpSendError as u8,
+            Self::InvalidSubsystem => ResponseCode::InvalidSubsystem as u8,
         }
     }
 
@@ -69,7 +69,7 @@ impl Reply {
             Self::UdpRecvError(err) => *err as u8,
             // SendError: 0 = NoRoute, 1 = SocketNotBound, 2 = PacketTooLarge,
             Self::UdpSendError(err) => *err as u8,
-            Self::InvalidSubsystem => ReplyCode::InvalidSubsystem as u8,
+            Self::InvalidSubsystem => ResponseCode::InvalidSubsystem as u8,
         }
     }
 }
@@ -137,10 +137,10 @@ pub async fn server(
                                 Subsystem::Gps => {}
                             }
                         } else {
-                            // reply error by System: InvalidSubystem
+                            // response error by System: InvalidSubystem
                             send_to(
                                 &mut socket,
-                                &[Subsystem::System as u8, Reply::InvalidSubsystem.code()],
+                                &[Subsystem::System as u8, Response::InvalidSubsystem.code()],
                                 Some(ep)
                                 )
                                 .await;
@@ -152,7 +152,7 @@ pub async fn server(
                     },
 
                     Err(recv_err) => {
-                        let err_buf = [Subsystem::System as u8, ReplyCode::UdpRecvError as u8, recv_err as u8];
+                        let err_buf = [Subsystem::System as u8, ResponseCode::UdpRecvError as u8, recv_err as u8];
                         send_to(&mut socket, &err_buf, end_point).await;
                     }
                 }
@@ -199,7 +199,7 @@ async fn send_to(socket: &mut UdpSocket<'_>, buf: &[u8], end_point: Option<UdpMe
         .await
         .map_err(|send_err|
             match send_err {
-                SendError::PacketTooLarge => Reply::UdpSendError(SendError::PacketTooLarge),
+                SendError::PacketTooLarge => Response::UdpSendError(SendError::PacketTooLarge),
                 _ => panic!("UDP send error: {:?}", send_err),
             })
         {

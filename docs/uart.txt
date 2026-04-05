@@ -1,0 +1,17 @@
+read_async with calling wait_for_buffered_data with rx timeout is for reading at max of the "preferred" so buf.len() data or
+returning got data when after getting the first byte any of the following byte does not received within rx timeout. Then 
+calling read_buffered reads untill max of buf.len() the bytes received (the legnth of "preferred or timed out) bytes from rx fifo.
+
+It typically called when we have no idea of the length of incoming data. We give some preference, when it should be return, or
+return if some bytes begin to come then finish. rx timout default value is 10 times the length of a byte in the current baudrate,
+so we notice that something begints to receive with no more then this timeout between the receiving bytes, then stop to come.
+So we can get random length messages (timout continuous bytes) after 10 bytes time of its end.
+
+read_exact_async on the other hand calls wait_for_buffered_data without rx timout, so latter returns when exactly the buf.len()
+bytes received then those bytes read out from fifo with read_buffered. Although in a normal situation wait_for_buffered_data
+returns only at the exact number of bytes, calling these two functions in a while cycle until really the buf is full, is for
+data length whichj bigger the the fifo size (default 128 bytes)
+
+wait_for_buffered_data and its UartRxFuture can be awakened at the reception of exeact byte because it decrease its
+fifo_full_threshold to the min of the given "preferred" number or the length of fifo, and at that number of received bytes
+it gets a UART_RXFIFO_FULL_INT interrupt.

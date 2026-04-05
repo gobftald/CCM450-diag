@@ -2,11 +2,15 @@ use super::{EcuApi, Error, EcuApiError};
 use crate::adapter::{ Adapters, Adapter};
 use crate::protocol::{Protocols, Protocol, ServiceId};
 
-const FORMAT_BYTE: u8 = 0x80;       // physical addressing
-const TARGET_ADDR: u8 = 0x12;       // ECU address
-const SOURCE_ADDR: u8 = 0xF1;       // Tester address
-
+const FORMAT_BYTE: u8 = 0x80;               // physical addressing
+const TARGET_ADDR: u8 = 0x12;               // ECU address
+const SOURCE_ADDR: u8 = 0xF1;               // Tester address
+const FAST_INIT_HALF_PERIOD: u32 = 25_000;  // 25ms in usec
 const SECRET_KEY: u32 = 0x1EC3;
+
+#[derive(Clone, Copy)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct EcuError(pub u8);
 
 #[derive(PartialEq)]
 enum State {
@@ -33,43 +37,48 @@ impl<'a> ECU<'a> {
         }
     }
 
-    async fn poll(&mut self, sid: ServiceId, param: &[u8], reply: &mut [u8]) -> Result<usize, Error> {
+    async fn poll(&mut self, sid: ServiceId, param: &[u8], response: &mut [u8]) -> Result<usize, Error> {
         let mut buf = [0u8; 8];
-        let len = self.protocol.format_request(sid as u8, param, &mut buf);
 
-        trace!("#### poll transmit: {:x}", &buf[..len]);
-        self.adapter.transmit(&buf[..len]).await.map_err(Error::AdapterError)?;
-        let len = self.adapter.receive(reply).await.map_err(Error::AdapterError)?;
-        trace!("#### poll receive: {:x}", reply);
+        let mut len = self.protocol.format_request(sid as u8, param, &mut buf);
+        self.adapter.transmit(&mut buf[..len]).await.map_err(Error::AdapterError)?;
 
-        self.protocol.parse_response(sid as u8, &mut reply[..len]).map_err(Error::EcuError)
+        len = self.adapter.receive(response).await.map_err(Error::AdapterError)?;
+
+        self.protocol.parse_response(sid as u8, &mut response[..len]).map_err(Error::ProtocolError)
     }
 }
 
 #[cfg(feature = "l9637")]
 impl<'a> EcuApi for ECU<'a> {
-    async fn connect(&mut self) -> Result<(), Error> {
+    async fn connect(&mut self) -> Result<usize, Error> {
         if self.state == State::Disconnected {
-            self.poll(ServiceId::StartCommunication, &[], &mut []).await?;
-            self.state = State::Connected;
-            Ok(())
+            // Fast Init
+            self.adapter.tx.send_break(FAST_INIT_HALF_PERIOD);
+            esp_hal::rom::ets_delay_us(FAST_INIT_HALF_PERIOD);
+
+            let mut buf = [0u8; 15];
+            let ret = self.poll(ServiceId::StartCommunication, &[], &mut buf).await;
+    
+            //self.state = State::Connected;
+            ret
         } else {
             Err(EcuApiError::AlreadyConnected.into())
         }
     }
 
-    async fn read_data(&mut self, ids: &[u8], reply: &mut [u8]) -> Result<usize, Error> {
+    async fn read_data(&mut self, ids: &[u8], response: &mut [u8]) -> Result<usize, Error> {
         if self.state != State::Disconnected {
-            self.poll(ServiceId::ReadDataByCommonId, &ids[..1], reply).await
+            self.poll(ServiceId::ReadDataByCommonId, &ids[..1], response).await
         } else {
             Err(EcuApiError::NotConnected.into())
         }
     }
 
-    async fn read_dtc(&mut self, reply: &mut [u8]) -> Result<usize, Error> {
+    async fn read_dtc(&mut self, response: &mut [u8]) -> Result<usize, Error> {
         if self.state != State::Disconnected {
             // 0x02 - Request 2 byte hex DTC, 
-            self.poll(ServiceId::ReadDiagnosticTroubleCodesByStatus, &[0x02, 0xFF], reply).await
+            self.poll(ServiceId::ReadDiagnosticTroubleCodesByStatus, &[0x02, 0xFF], response).await
         } else {
             Err(EcuApiError::NotConnected.into())
         }
@@ -83,7 +92,7 @@ impl<'a> EcuApi for ECU<'a> {
         }
     }
 
-    async fn raw_request(&mut self, request: &[u8], reply: &mut [u8]) -> Result<usize, Error> {
+    async fn raw_request(&mut self, request: &[u8], response: &mut [u8]) -> Result<usize, Error> {
         if self.state != State::Disconnected { 
             Ok(0)
         } else {
@@ -92,8 +101,8 @@ impl<'a> EcuApi for ECU<'a> {
     }
 
     // we cannot shortcut async-await with future since here we convert errors
-    async fn reply(&mut self, reply: &mut [u8]) -> Result<usize, Error> {
-        self.adapter.receive(reply).await.map_err(Error::AdapterError)
+    async fn response(&mut self, response: &mut [u8]) -> Result<usize, Error> {
+        self.adapter.receive(response).await.map_err(Error::AdapterError)
     }
 }
 
@@ -112,22 +121,22 @@ impl<'a> EcuApi for ECU<'a> {
         Ok(())
     }
 
-    async fn read_data(&mut self, ids: &[u8], reply: &mut [u8]) -> Result<usize, EcuError> {
+    async fn read_data(&mut self, ids: &[u8], response: &mut [u8]) -> Result<usize, EcuError> {
         match self.state {
             State::Connected => self
                 .adapter
-                .read_data_by_common_id(ids, reply)
+                .read_data_by_common_id(ids, response)
                 .await
                 .map_err(EcuError::AdapterError),
             _ => Err(EcuError::NotConnected),
         }
     }
 
-    async fn read_dtc(&mut self, reply: &mut [u8]) -> Result<usize, EcuError> {
+    async fn read_dtc(&mut self, response: &mut [u8]) -> Result<usize, EcuError> {
         match self.state {
             State::Connected => self
                 .adapter
-                .read_diagnostic_trouble_codes_by_status(reply)
+                .read_diagnostic_trouble_codes_by_status(response)
                 .await
                 .map_err(EcuError::AdapterError),
             _ => Err(EcuError::NotConnected),
@@ -145,11 +154,11 @@ impl<'a> EcuApi for ECU<'a> {
         }
     }
 
-    async fn raw_request(&mut self, request: &[u8], reply: &mut [u8]) -> Result<usize, EcuError> {
+    async fn raw_request(&mut self, request: &[u8], response: &mut [u8]) -> Result<usize, EcuError> {
         match self.state {
             State::Connected => self
                 .adapter
-                .raw_request(request, reply)
+                .raw_request(request, response)
                 .await
                 .map_err(EcuError::AdapterError),
             _ => Err(EcuError::NotConnected),
@@ -157,9 +166,9 @@ impl<'a> EcuApi for ECU<'a> {
     }
 
     // we cannot shortcut async-await with future since here we convert errors
-    async fn reply(&mut self, reply: &mut [u8]) -> Result<usize, EcuError> {
+    async fn response(&mut self, response: &mut [u8]) -> Result<usize, EcuError> {
         self.adapter
-            .read(reply)
+            .read(response)
             .await
             .map_err(EcuError::AdapterError)
     }

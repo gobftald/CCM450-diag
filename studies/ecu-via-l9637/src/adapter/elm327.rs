@@ -250,7 +250,7 @@ impl<'a> Adapter<'a> {
     pub async fn read_data_by_common_id(
         &mut self,
         ids: &[u8],
-        reply: &mut [u8],
+        response: &mut [u8],
     ) -> Result<usize, AdapterError> {
         if ids[0] == 0x25 {
             // ERROR_ECU_SUBFUNCTION_NOT_SUPPORTED__INVALID_FORMAT
@@ -278,8 +278,8 @@ impl<'a> Adapter<'a> {
 
             if buf[0] == b'6' && buf[1] == b'2' {
                 let res = from_ascii_bytes_to_u16(&buf[9..14])?;
-                reply[2 + i * 2] = (res / 256) as u8;
-                reply[2 + i * 2 + 1] = (res % 256) as u8;
+                response[2 + i * 2] = (res / 256) as u8;
+                response[2 + i * 2 + 1] = (res % 256) as u8;
             } else {
                 return Err(decode_err_status(&mut buf[..size]));
             }
@@ -291,7 +291,7 @@ impl<'a> Adapter<'a> {
     #[allow(unused_assignments)]
     pub async fn read_diagnostic_trouble_codes_by_status(
         &mut self,
-        reply: &mut [u8],
+        response: &mut [u8],
     ) -> Result<usize, AdapterError> {
         // when I detached the ECU the max nmber of read DTC was 12
         // which fits in a 117 bytes length response message
@@ -317,10 +317,10 @@ impl<'a> Adapter<'a> {
 
             for i in 0..dtc_num {
                 let dtc = from_ascii_bytes_to_u16(&buf[6 + i * 9..6 + i * 9 + 5])?;
-                reply[2 + i * 2] = (dtc / 256) as u8;
-                reply[2 + i * 2 + 1] = (dtc % 256) as u8;
+                response[2 + i * 2] = (dtc / 256) as u8;
+                response[2 + i * 2 + 1] = (dtc % 256) as u8;
             }
-            trace!("reply {}", &reply[..dtc_num * 2 + 2]);
+            trace!("response {}", &response[..dtc_num * 2 + 2]);
         } else {
             return Err(decode_err_status(&mut buf[..size]));
         }
@@ -344,7 +344,7 @@ impl<'a> Adapter<'a> {
     pub async fn raw_request(
         &mut self,
         request: &[u8],
-        reply: &mut [u8],
+        response: &mut [u8],
     ) -> Result<usize, AdapterError> {
         let mut buf: [u8; 128] = [0; 128];
 
@@ -365,7 +365,7 @@ impl<'a> Adapter<'a> {
                 flag = false;
                 continue;
             }
-            reply[2 + i] = from_ascii_bytes_to_u8(&buf[j..j + 2])?;
+            response[2 + i] = from_ascii_bytes_to_u8(&buf[j..j + 2])?;
             flag = true;
             i += 1;
         }
@@ -388,12 +388,12 @@ impl<'a> Adapter<'a> {
 
 #[allow(clippy::map_identity)]
 #[allow(clippy::needless_return)]
-fn decode_err_status(reply: &mut [u8]) -> AdapterError {
-    if compare_bytes(b"NO DATA\r\r>", reply) {
+fn decode_err_status(response: &mut [u8]) -> AdapterError {
+    if compare_bytes(b"NO DATA\r\r>", response) {
         return AdapterError::Timeout;
     }
-    if reply[0] == b'7' && reply[1] == b'F' {
-        let res = unwrap!(from_ascii_bytes_to_u8(&reply[6..8]).map_err(|err| return err));
+    if response[0] == b'7' && response[1] == b'F' {
+        let res = unwrap!(from_ascii_bytes_to_u8(&response[6..8]).map_err(|err| return err));
         AdapterError::EcuSpecificError(res)
     } else {
         // O means OK in Ecu's status values, but here it is only

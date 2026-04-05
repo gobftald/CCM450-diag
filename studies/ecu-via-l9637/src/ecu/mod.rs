@@ -2,6 +2,8 @@
 mod ecu_impl;
 use ecu_impl::ECU;
 
+pub use ecu_impl::EcuError;
+
 // we can use NoopRawMutex since we use channel between two tasks in the same executor,
 // in single core environment and not using from interrupt
 // the more future-proof ThreadModeRawMutex is implemented only for cortex_m in embassy_sync
@@ -14,7 +16,7 @@ use embassy_futures::select::{Either, select};
 
 use crate::ChannelItem;
 // adapter and ecu specific errors
-use crate::{adapter::AdapterError, protocol::EcuError};
+use crate::{adapter::AdapterError, protocol::ProtocolError};
 
 macro_rules! ecu_api {
     ($($enum_variant:ident $enum_id:literal $fn_name:ident ( $($arg_name:ident : $arg_type:ty),* ) $(-> $ret:ty)? );* $(;)?) => {
@@ -40,18 +42,18 @@ macro_rules! ecu_api {
                 async fn $fn_name(&mut self, $($arg_name : $arg_type),*) $(-> $ret)?;
             )*
 
-            async fn reply(&mut self, reply: &mut [u8]) -> Result<usize, Error>;
+            async fn response(&mut self, response: &mut [u8]) -> Result<usize, Error>;
             }
     }
 }
 
 // Map EcuRequest enum and EcuApi trait together tightly
 ecu_api! {
-    Connect    0  connect() -> Result<(), Error>;
-    ReadData   1  read_data(ids: &[u8], reply: &mut [u8]) -> Result<usize, Error>;
-    ReadDTC    2  read_dtc(reply: &mut [u8]) -> Result<usize, Error>;
+    Connect    0  connect() -> Result<usize, Error>;
+    ReadData   1  read_data(ids: &[u8], response: &mut [u8]) -> Result<usize, Error>;
+    ReadDTC    2  read_dtc(response: &mut [u8]) -> Result<usize, Error>;
     ClearDTC   3  clear_dtc() -> Result<(), Error>;
-    RawRequest 4  raw_request(request: &[u8], reply: &mut [u8]) -> Result<usize, Error>;
+    RawRequest 4  raw_request(request: &[u8], response: &mut [u8]) -> Result<usize, Error>;
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -67,7 +69,7 @@ pub enum Error {
     Ok,
     EcuApiError(EcuApiError),
     AdapterError(AdapterError),
-    EcuError(EcuError),
+    ProtocolError(ProtocolError),
 }
 
 impl From<EcuApiError> for Error {
@@ -82,6 +84,12 @@ impl From<AdapterError> for Error {
     }
 }
 
+impl From<ProtocolError> for Error {
+    fn from(err: ProtocolError) -> Self {
+        Error::ProtocolError(err)
+    }
+}
+
 #[embassy_executor::task()]
 pub async fn server(
     adapter: crate::adapter::Adapter<'static>,
@@ -93,15 +101,15 @@ pub async fn server(
     // ECU and Protocol specification handled by feature gated modules.
     // see e.g. ecu_impl::ECU above
     // Specific Adapter as the only parameter comes from the main module,
-    // because specific Periherals can be created only there.
+    // because specific Periherals can be created and used only there.
     let mut ecu = ECU::new(adapter);
 
     loop {
         // get a fresh channel item to write to
-        let reply = sender.send().await;
+        let response = sender.send().await;
 
-        // waiting for request or reply
-        match select(receiver.receive(), ecu.reply(&mut reply.data)).await {
+        // waiting for request or response
+        match select(receiver.receive(), ecu.response(&mut response.data)).await {
             // received an ecu request
             Either::First(request) => {
                 trace!("#### ECU: received: {}", request.data[..request.size]);
@@ -109,18 +117,14 @@ pub async fn server(
                 if let Ok(reqst) = EcuRequest::try_from(request.data[1] as u8) {
                     match reqst {
                         EcuRequest::Connect => {
-                            if let Err(err) = ecu.connect().await {
-                                ecu_reply(reply, err);
-                            } else {
-                                ecu_reply(reply, Error::Ok);
-                            }
+                            ecu_response(response, ecu.connect().await);
                             sender.send_done();
                         }
 
                         EcuRequest::ReadData => {
                             // check that input(s) are 16-bit common identifier(s)
                             if request.data.len() % 2 != 0 {
-                                ecu_reply(reply, EcuApiError::InvalidRequest.into());
+                                ecu_response(response, Err(EcuApiError::InvalidRequest.into()));
                             }
 
                             match ecu
@@ -128,44 +132,44 @@ pub async fn server(
                                     // common identifier(s)
                                     &request.data[2..request.size],
                                     // borrow the full buffer
-                                    &mut reply.data[..(crate::CHANNEL_ITEM_SIZE)],
+                                    &mut response.data[..(crate::CHANNEL_ITEM_SIZE)],
                                 )
                                 .await
                             {
                                 Ok(size) => {
                                     // copy the payload of ecu answer
-                                    ecu_reply(reply, Error::Ok);
-                                    // setting the size to sending the payload of got reply
-                                    reply.size = size;
+                                    ecu_response(response, Err(Error::Ok));
+                                    // setting the size to sending the payload of got response
+                                    response.size = size;
                                 }
                                 Err(err) => {
-                                    ecu_reply(reply, err);
+                                    ecu_response(response, Err(err));
                                 }
                             }
                             sender.send_done();
                         }
                         EcuRequest::ReadDTC => {
                             match ecu
-                                .read_dtc(&mut reply.data[..(crate::CHANNEL_ITEM_SIZE)])
+                                .read_dtc(&mut response.data[..(crate::CHANNEL_ITEM_SIZE)])
                                 .await
                             {
                                 Ok(size) => {
                                     // copy the payload of ecu answer
-                                    ecu_reply(reply, Error::Ok);
-                                    // setting the size to sending the payload of got reply
-                                    reply.size = size;
+                                    ecu_response(response, Err(Error::Ok));
+                                    // setting the size to sending the payload of got response
+                                    response.size = size;
                                 }
                                 Err(err) => {
-                                    ecu_reply(reply, err);
+                                    ecu_response(response, Err(err));
                                 }
                             }
                             sender.send_done();
                         }
                         EcuRequest::ClearDTC => {
                             if let Err(err) = ecu.clear_dtc().await {
-                                ecu_reply(reply, err);
+                                ecu_response(response, Err(err));
                             } else {
-                                ecu_reply(reply, Error::Ok);
+                                ecu_response(response, Err(Error::Ok));
                             }
                             sender.send_done();
                         }
@@ -173,18 +177,18 @@ pub async fn server(
                             match ecu
                                 .raw_request(
                                     &request.data[2..request.size],
-                                    &mut reply.data[..(crate::CHANNEL_ITEM_SIZE)],
+                                    &mut response.data[..(crate::CHANNEL_ITEM_SIZE)],
                                 )
                                 .await
                             {
                                 Ok(size) => {
                                     // copy the payload of ecu answer
-                                    ecu_reply(reply, Error::Ok);
-                                    // setting the size to sending the payload of got reply
-                                    reply.size = size;
+                                    ecu_response(response, Err(Error::Ok));
+                                    // setting the size to sending the payload of got response
+                                    response.size = size;
                                 }
                                 Err(err) => {
-                                    ecu_reply(reply, err);
+                                    ecu_response(response, Err(err));
                                 }
                             }
                             sender.send_done();
@@ -194,24 +198,24 @@ pub async fn server(
                     receiver.receive_done();
                 } else {
                     // send invalid request error via udp immediately
-                    ecu_reply(reply, EcuApiError::InvalidRequest.into());
-                    trace!("#### ECU: reply: {:a}", &reply.data[..reply.size]);
+                    ecu_response(response, Err(EcuApiError::InvalidRequest.into()));
+                    trace!("#### ECU: response: {:a}", &response.data[..response.size]);
                     sender.send_done();
                 }
             }
 
-            // received reply from ecu
+            // received response from ecu
             Either::Second(result) => {
-                reply.size = result.unwrap_or_else(|_err| {
+                response.size = result.unwrap_or_else(|_err| {
                     trace!("#### ECU #direct/unwaited# error: {}", _err);
                     0
                 });
 
-                // if not error forward reply to udp
-                if reply.size > 0 {
+                // if not error forward response to udp
+                if response.size > 0 {
                     trace!(
-                        "#### ECU #direct/unwaited# reply: {:a}",
-                        &reply.data[..reply.size]
+                        "#### ECU #direct/unwaited# response: {:a}",
+                        &response.data[..response.size]
                     );
 
                     // wake receiver
@@ -220,36 +224,51 @@ pub async fn server(
             }
         }
 
-        // complete the reply frame
-        fn ecu_reply(reply: &mut ChannelItem, error: Error) {
-            reply.data[0] = crate::udp::Subsystem::Ecu as u8;
-            reply.size = 2;
-            reply.data[1] = match error {
+        // complete the response frame
+        fn ecu_response(response: &mut ChannelItem, result: Result<usize, Error>) -> usize {
+            let mut rsize = 0;
+            response.data[0] = crate::udp::Subsystem::Ecu as u8;
+            response.size = 2;
+            response.data[1] = result.map_or_else(|error| match error {
+                // Not used this way, it is only a placeholder
                 Error::Ok => 0,
-                Error::EcuApiError(error) => match error {
-                    EcuApiError::InvalidRequest => 1,
-                    EcuApiError::NotConnected => 2,
-                    EcuApiError::AlreadyConnected => 3,
+                Error::EcuApiError(error) => {
+                    response.data[2] = error as u8;
+                    response.size = 3;
+                    1
                 },
                 Error::AdapterError(error) => match error {
                     AdapterError::RxError(err) => {
-                        reply.data[2] = error.into();
-                        reply.data[3] = err as u8;
-                        reply.size = 4;
-                        4
+                        response.data[2] = error.into();
+                        response.data[3] = err as u8;
+                        response.size = 4;
+                        2
                     },
                     AdapterError::TxError(err) => {
-                        reply.data[2] = error.into();
-                        reply.data[3] = err as u8;
-                        reply.size = 4;
-                        4
+                        response.data[2] = error.into();
+                        response.data[3] = err as u8;
+                        response.size = 4;
+                        2
                     },
                 },
-                Error::EcuError(error) => {
-                    reply.data[2] = error.0 as u8;
-                    5
-                },
-            } as u8;
+                Error::ProtocolError(error) => match error{
+                    ProtocolError::InvalidChecksum => {
+                        response.data[2] = error.into();
+                        response.size = 3;
+                        3
+                    },
+                    ProtocolError::EcuError(err) => {
+                        response.data[2] = error.into();
+                        response.data[3] = err.0;
+                        response.size = 4;
+                        3
+                    },
+                }
+            // if Ok, size information is not set here
+            // Error::Ok => 0
+            }, |size| {rsize = size; 0});
+
+            rsize
         }
     }
 }
