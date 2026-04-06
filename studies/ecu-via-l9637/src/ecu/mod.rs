@@ -70,7 +70,7 @@ ecu_api! {
     Connect    0  connect() -> Result<usize, Error>;
     RawRequest 1  raw_request(request: &[u8], response: &mut [u8]) -> Result<usize, Error>;
     ReadDTC    2  read_dtc(response: &mut [u8]) -> Result<usize, Error>;
-    ClearDTC   3  clear_dtc() -> Result<(), Error>;
+    ClearDTC   3  clear_dtc() -> Result<usize, Error>;
     ReadData   4  read_data(ids: &[u8], response: &mut [u8]) -> Result<usize, Error>;
 }
 
@@ -142,6 +142,8 @@ pub async fn server(
                         EcuRequest::Connect => {
                             response.size = ecu_response(response, ecu.connect().await);
                             spawner.spawn(tester_present()).ok();
+                            // ignore Keyword Bytes
+                            response.size -= 2;
                             sender.send_done();
                         }
 
@@ -253,7 +255,10 @@ pub async fn server(
             response.data[0] = crate::udp::Subsystem::Ecu as u8;
             response.data[1] = result.map_or_else(|error| match error {
                 // Not used this way, it is only a placeholder
-                Error::Ok => 0,
+                Error::Ok => {
+                    rsize1 = 2;
+                    0
+                },
                 Error::EcuApiError(error) => {
                     response.data[2] = error as u8;
                     rsize1 = 3;
@@ -286,8 +291,6 @@ pub async fn server(
                         3
                     },
                 }
-            // if Ok, size information is not set here
-            // Error::Ok => 0
             }, |size| {rsize2 = size + 2; 0});
 
         rsize1 + rsize2

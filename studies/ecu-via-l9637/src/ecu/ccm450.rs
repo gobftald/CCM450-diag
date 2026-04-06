@@ -87,9 +87,10 @@ impl<'a> EcuApi for ECU<'a> {
         }
     }
 
-    async fn clear_dtc(&mut self) -> Result<(), Error> {
+    async fn clear_dtc(&mut self) -> Result<usize, Error> {
         if self.state != State::Disconnected { 
-            self.poll(ServiceId::ClearDiagnosticInformation as u8, &[], &mut []).await.map(|_| ())
+            let mut buf = [0u8; 8];
+            self.poll(ServiceId::ClearDiagnosticInformation as u8, &[0xff, 0xff], &mut buf).await
         } else {
             Err(EcuApiError::NotConnected.into())
         }
