@@ -74,8 +74,8 @@ impl<'a> EcuApi for ECU<'a> {
 
     async fn read_dtc(&mut self, response: &mut [u8]) -> Result<usize, Error> {
         if self.state != State::Disconnected {
-            // 0x02 - Request 2 byte hex DTC, 
-            self.poll(ServiceId::ReadDiagnosticTroubleCodesByStatus as u8, &[0x02, 0xFF], response).await
+            // 0x02 - Request all 2 byte hex DTCs, 
+            self.poll(ServiceId::ReadDiagnosticTroubleCodesByStatus as u8, &[0x02, 0xFF, 0xFF], response).await
         } else {
             Err(EcuApiError::NotConnected.into())
         }

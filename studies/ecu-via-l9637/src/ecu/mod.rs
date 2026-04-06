@@ -122,30 +122,29 @@ pub async fn server(
                         }
 
                         EcuRequest::RawRequest => {
-                            let result = ecu.raw_request(
+                            if request.size > 2 {
+                                let result = ecu.raw_request(
                                     &request.data[2..request.size],
                                     &mut response.data[2..(crate::CHANNEL_ITEM_SIZE)]
                                 )
                                 .await;
-                            response.size = ecu_response(response, result) ;
-                            sender.send_done();
+
+                                response.size = ecu_response(response, result) ;
+                                sender.send_done();
+                            } else {
+                                // send invalid request error via udp immediately
+                                response.size = ecu_response(response, Err(EcuApiError::InvalidRequest.into()));
+                                trace!("#### ECU: response: {:a}", &response.data[..response.size]);
+                                sender.send_done();
+                            }
                         }
 
                         EcuRequest::ReadDTC => {
-                            match ecu
-                                .read_dtc(&mut response.data[..(crate::CHANNEL_ITEM_SIZE)])
-                                .await
-                            {
-                                Ok(size) => {
-                                    // copy the payload of ecu answer
-                                    ecu_response(response, Err(Error::Ok));
-                                    // setting the size to sending the payload of got response
-                                    response.size = size;
-                                }
-                                Err(err) => {
-                                    ecu_response(response, Err(err));
-                                }
-                            }
+                            let result = ecu.read_dtc(
+                                &mut response.data[2..(crate::CHANNEL_ITEM_SIZE)]
+                            )
+                            .await;
+                            response.size = ecu_response(response, result) ;
                             sender.send_done();
                         }
 
@@ -191,7 +190,7 @@ pub async fn server(
                     receiver.receive_done();
                 } else {
                     // send invalid request error via udp immediately
-                    ecu_response(response, Err(EcuApiError::InvalidRequest.into()));
+                    response.size = ecu_response(response, Err(EcuApiError::InvalidRequest.into()));
                     trace!("#### ECU: response: {:a}", &response.data[..response.size]);
                     sender.send_done();
                 }
