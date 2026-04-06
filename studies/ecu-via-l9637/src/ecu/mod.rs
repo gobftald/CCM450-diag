@@ -9,14 +9,31 @@ pub use ecu_impl::EcuError;
 // the more future-proof ThreadModeRawMutex is implemented only for cortex_m in embassy_sync
 // and CriticalSectionRawMutex is unecessary for this case
 use embassy_sync::{
-    blocking_mutex::raw::NoopRawMutex,
+    blocking_mutex::raw::{NoopRawMutex, RawMutex},
     zerocopy_channel::{Receiver, Sender},
+    signal::Signal,
 };
-use embassy_futures::select::{Either, select};
+
+use embassy_futures::select::{Either3, select3};
 
 use crate::ChannelItem;
 // adapter and ecu specific errors
 use crate::{adapter::AdapterError, protocol::ProtocolError};
+
+// force Sync for NoopRawMutex to make a static Signal
+// it is safe since signal will not be used in interrupt,
+// but only in "ThreadMode" in the same Executor
+pub struct SyncNoopRawMutex(NoopRawMutex);
+
+unsafe impl Sync for SyncNoopRawMutex {}
+
+// We must also implement RawMutex by forwarding to the inner Noop
+unsafe impl RawMutex for SyncNoopRawMutex {
+    const INIT: Self = Self(NoopRawMutex::INIT);
+    fn lock<R>(&self, f: impl FnOnce() -> R) -> R { self.0.lock(f) }
+}
+
+static TESTER_PRESENT: Signal<SyncNoopRawMutex, bool> = Signal::new();
 
 macro_rules! ecu_api {
     ($($enum_variant:ident $enum_id:literal $fn_name:ident ( $($arg_name:ident : $arg_type:ty),* ) $(-> $ret:ty)? );* $(;)?) => {
@@ -42,6 +59,7 @@ macro_rules! ecu_api {
                 async fn $fn_name(&mut self, $($arg_name : $arg_type),*) $(-> $ret)?;
             )*
 
+            async fn tester_present(&mut self);
             async fn response(&mut self, response: &mut [u8]) -> Result<usize, Error>;
             }
     }
@@ -92,6 +110,7 @@ impl From<ProtocolError> for Error {
 
 #[embassy_executor::task()]
 pub async fn server(
+    spawner: embassy_executor::Spawner,
     adapter: crate::adapter::Adapter<'static>,
     mut sender: Sender<'static, NoopRawMutex, ChannelItem>,
     mut receiver: Receiver<'static, NoopRawMutex, ChannelItem>,
@@ -109,15 +128,20 @@ pub async fn server(
         let response = sender.send().await;
 
         // waiting for request or response
-        match select(receiver.receive(), ecu.response(&mut response.data)).await {
+        match select3(
+            receiver.receive(),
+            ecu.response(&mut response.data),
+            TESTER_PRESENT.wait()
+        ).await {
             // received an ecu request
-            Either::First(request) => {
+            Either3::First(request) => {
                 trace!("#### ECU: received: {}", request.data[..request.size]);
 
                 if let Ok(reqst) = EcuRequest::try_from(request.data[1] as u8) {
                     match reqst {
                         EcuRequest::Connect => {
-                            ecu_response(response, ecu.connect().await);
+                            response.size = ecu_response(response, ecu.connect().await);
+                            spawner.spawn(tester_present()).ok();
                             sender.send_done();
                         }
 
@@ -128,7 +152,6 @@ pub async fn server(
                                     &mut response.data[2..(crate::CHANNEL_ITEM_SIZE)]
                                 )
                                 .await;
-
                                 response.size = ecu_response(response, result) ;
                                 sender.send_done();
                             } else {
@@ -197,7 +220,7 @@ pub async fn server(
             }
 
             // received response from ecu
-            Either::Second(result) => {
+            Either3::Second(result) => {
                 response.size = result.unwrap_or_else(|_err| {
                     trace!("#### ECU #direct/unwaited# error: {}", _err);
                     0
@@ -214,6 +237,12 @@ pub async fn server(
                     sender.send_done();
                 }
             }
+
+            // received TESTER_RESENT signal
+            Either3::Third(_signal) => {
+                ecu.tester_present().await;
+                TESTER_PRESENT.reset();
+            }
         }
 
         // complete the response frame
@@ -222,7 +251,6 @@ pub async fn server(
             let mut rsize2 = 0;
 
             response.data[0] = crate::udp::Subsystem::Ecu as u8;
-            response.size = 2;
             response.data[1] = result.map_or_else(|error| match error {
                 // Not used this way, it is only a placeholder
                 Error::Ok => 0,
@@ -264,5 +292,13 @@ pub async fn server(
 
         rsize1 + rsize2
         }
+    }
+}
+
+#[embassy_executor::task()]
+async fn tester_present() {
+    loop {
+        embassy_time::Timer::after(embassy_time::Duration::from_millis(4_500)).await;
+        TESTER_PRESENT.signal(true);
     }
 }

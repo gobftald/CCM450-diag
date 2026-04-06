@@ -119,7 +119,7 @@ pub async fn server(
                 match result {
                     Ok((n, ep)) => {
                         trace!(
-                            "#### UDP: socket.recv_from(): {}",
+                            "#### UDP: socket.recv_from(): {:x}",
                             request.data[..n]
                         );
 

@@ -73,7 +73,7 @@ async fn main(spawner: embassy_executor::Spawner) {
     spawner.spawn(net_task(controller, ap_runner)).ok();
 
     spawner.spawn(udp::server(ap_stack, udp_sender, udp_receiver)).ok();
-    spawner.spawn(ecu::server(adapter, ecu_sender, ecu_receiver)).ok();
+    spawner.spawn(ecu::server(spawner, adapter, ecu_sender, ecu_receiver)).ok();
 
     #[cfg(feature = "heap_stats")]
     let heap_stats: esp_alloc::HeapStats = esp_alloc::HEAP.stats();
@@ -141,7 +141,7 @@ async fn system_stats(#[cfg(feature = "heap_stats")] heap_stats: esp_alloc::Heap
 }
 
 #[embassy_executor::task()]
-pub async fn net_task(
+async fn net_task(
     mut controller: esp_radio::wifi::WifiController<'static>,
     mut runner: embassy_net::Runner<'static, esp_radio::wifi::WifiDevice<'static>>,
 ) {
