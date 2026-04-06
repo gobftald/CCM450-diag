@@ -50,10 +50,10 @@ macro_rules! ecu_api {
 // Map EcuRequest enum and EcuApi trait together tightly
 ecu_api! {
     Connect    0  connect() -> Result<usize, Error>;
-    ReadData   1  read_data(ids: &[u8], response: &mut [u8]) -> Result<usize, Error>;
+    RawRequest 1  raw_request(request: &[u8], response: &mut [u8]) -> Result<usize, Error>;
     ReadDTC    2  read_dtc(response: &mut [u8]) -> Result<usize, Error>;
     ClearDTC   3  clear_dtc() -> Result<(), Error>;
-    RawRequest 4  raw_request(request: &[u8], response: &mut [u8]) -> Result<usize, Error>;
+    ReadData   4  read_data(ids: &[u8], response: &mut [u8]) -> Result<usize, Error>;
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -121,6 +121,43 @@ pub async fn server(
                             sender.send_done();
                         }
 
+                        EcuRequest::RawRequest => {
+                            let result = ecu.raw_request(
+                                    &request.data[2..request.size],
+                                    &mut response.data[2..(crate::CHANNEL_ITEM_SIZE)]
+                                )
+                                .await;
+                            response.size = ecu_response(response, result) ;
+                            sender.send_done();
+                        }
+
+                        EcuRequest::ReadDTC => {
+                            match ecu
+                                .read_dtc(&mut response.data[..(crate::CHANNEL_ITEM_SIZE)])
+                                .await
+                            {
+                                Ok(size) => {
+                                    // copy the payload of ecu answer
+                                    ecu_response(response, Err(Error::Ok));
+                                    // setting the size to sending the payload of got response
+                                    response.size = size;
+                                }
+                                Err(err) => {
+                                    ecu_response(response, Err(err));
+                                }
+                            }
+                            sender.send_done();
+                        }
+
+                        EcuRequest::ClearDTC => {
+                            if let Err(err) = ecu.clear_dtc().await {
+                                ecu_response(response, Err(err));
+                            } else {
+                                ecu_response(response, Err(Error::Ok));
+                            }
+                            sender.send_done();
+                        }
+
                         EcuRequest::ReadData => {
                             // check that input(s) are 16-bit common identifier(s)
                             if request.data.len() % 2 != 0 {
@@ -148,51 +185,7 @@ pub async fn server(
                             }
                             sender.send_done();
                         }
-                        EcuRequest::ReadDTC => {
-                            match ecu
-                                .read_dtc(&mut response.data[..(crate::CHANNEL_ITEM_SIZE)])
-                                .await
-                            {
-                                Ok(size) => {
-                                    // copy the payload of ecu answer
-                                    ecu_response(response, Err(Error::Ok));
-                                    // setting the size to sending the payload of got response
-                                    response.size = size;
-                                }
-                                Err(err) => {
-                                    ecu_response(response, Err(err));
-                                }
-                            }
-                            sender.send_done();
-                        }
-                        EcuRequest::ClearDTC => {
-                            if let Err(err) = ecu.clear_dtc().await {
-                                ecu_response(response, Err(err));
-                            } else {
-                                ecu_response(response, Err(Error::Ok));
-                            }
-                            sender.send_done();
-                        }
-                        EcuRequest::RawRequest => {
-                            match ecu
-                                .raw_request(
-                                    &request.data[2..request.size],
-                                    &mut response.data[..(crate::CHANNEL_ITEM_SIZE)],
-                                )
-                                .await
-                            {
-                                Ok(size) => {
-                                    // copy the payload of ecu answer
-                                    ecu_response(response, Err(Error::Ok));
-                                    // setting the size to sending the payload of got response
-                                    response.size = size;
-                                }
-                                Err(err) => {
-                                    ecu_response(response, Err(err));
-                                }
-                            }
-                            sender.send_done();
-                        }
+
                     }
                     // we have finished to process request
                     receiver.receive_done();
@@ -226,7 +219,9 @@ pub async fn server(
 
         // complete the response frame
         fn ecu_response(response: &mut ChannelItem, result: Result<usize, Error>) -> usize {
-            let mut rsize = 0;
+            let mut rsize1 = 0;
+            let mut rsize2 = 0;
+
             response.data[0] = crate::udp::Subsystem::Ecu as u8;
             response.size = 2;
             response.data[1] = result.map_or_else(|error| match error {
@@ -234,41 +229,41 @@ pub async fn server(
                 Error::Ok => 0,
                 Error::EcuApiError(error) => {
                     response.data[2] = error as u8;
-                    response.size = 3;
+                    rsize1 = 3;
                     1
                 },
                 Error::AdapterError(error) => match error {
                     AdapterError::RxError(err) => {
                         response.data[2] = error.into();
                         response.data[3] = err as u8;
-                        response.size = 4;
+                        rsize1 = 4;
                         2
                     },
                     AdapterError::TxError(err) => {
                         response.data[2] = error.into();
                         response.data[3] = err as u8;
-                        response.size = 4;
+                        rsize1 = 4;
                         2
                     },
                 },
                 Error::ProtocolError(error) => match error{
                     ProtocolError::InvalidChecksum => {
                         response.data[2] = error.into();
-                        response.size = 3;
+                        rsize1 = 3;
                         3
                     },
                     ProtocolError::EcuError(err) => {
                         response.data[2] = error.into();
                         response.data[3] = err.0;
-                        response.size = 4;
+                        rsize1 = 4;
                         3
                     },
                 }
             // if Ok, size information is not set here
             // Error::Ok => 0
-            }, |size| {rsize = size; 0});
+            }, |size| {rsize2 = size + 2; 0});
 
-            rsize
+        rsize1 + rsize2
         }
     }
 }

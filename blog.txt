@@ -209,7 +209,10 @@ cat /dev/ttyACM0 | defmt-print -e ./ecu-via-elm327  $ it shows only defmt output
 
 sudo tcpdump -i wlan0 -n udp port 20000 -X &
 echo -en '\x01\x00' | nc -nu -q0 -p 20000 192.168.3.1 19924
-echo -en '\x01\x04\x18\x02\xFF\xFF' | nc -nu -q0 -p 20000 192.168.3.1 19924
+echo -en '\x01\x01\x18\x02\xFF\xFF' | nc -nu -q0 -p 20000 192.168.3.1 19924
+response:
+0100 0d 003168 010868 011368 011868 012268 020168 022268 
+        035168 048068 056068 063868 123168 161568
 
 # I setup an ethernet connection with dhcp to login rpi
 # then setup a wlan0 connection with static (192.168.3.2) configuration to connect to CCM-GP450 AP (192.168.3.1)

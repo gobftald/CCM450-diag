@@ -47,7 +47,7 @@ impl Protocols for Protocol {
         buf[3] = service_id;
         
         if plen > 0 {
-            buf[4..].copy_from_slice(param);
+            buf[4..plen + 4].copy_from_slice(param);
         }
 
         let mut checksum: u8 = 0;
@@ -59,7 +59,7 @@ impl Protocols for Protocol {
         plen + 5
     }
 
-    fn parse_response<'a>(&self, service_id: u8, response: &[u8]) -> Result<usize, ProtocolError> {
+    fn parse_response(&self, service_id: u8, response: &mut [u8]) -> Result<usize, ProtocolError> {
         let len = response.len();
         // check checksum
         let mut checksum: u8 = 0;
@@ -76,6 +76,7 @@ impl Protocols for Protocol {
         }
 
         // response[4..len-1]
+        response.copy_within(4..len -1, 0);
         Ok(len - 5)
     }
 }

@@ -61,7 +61,6 @@ impl<'a> Adapters for Adapter<'a> {
         // but for now this is the most comfortable
         let len = ((response[0] - 0x80) + 4) as usize;
         self.rx.read_exact_async(&mut response[1..len]).await.map_err(AdapterError::RxError)?;
-        trace!("receive {:x}", &response[..len]);
         Ok(len)
     }
 }

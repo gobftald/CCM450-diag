@@ -4,5 +4,5 @@ pub use protocol_impl::{Protocol, ProtocolError, ServiceId};
 
 pub trait Protocols {
     fn format_request(&self, service_id: u8, param: &[u8], buf: &mut [u8]) -> usize;
-    fn parse_response<'a>(&self, service_id: u8, response: &'a [u8]) -> Result<usize, ProtocolError>;
+    fn parse_response(&self, service_id: u8, response: &mut [u8]) -> Result<usize, ProtocolError>;
 }

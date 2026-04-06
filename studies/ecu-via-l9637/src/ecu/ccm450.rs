@@ -37,15 +37,12 @@ impl<'a> ECU<'a> {
         }
     }
 
-    async fn poll(&mut self, sid: ServiceId, param: &[u8], response: &mut [u8]) -> Result<usize, Error> {
-        let mut buf = [0u8; 8];
+    async fn poll(&mut self, sid: u8, param: &[u8], response: &mut [u8]) -> Result<usize, Error> {
+        let len = self.protocol.format_request(sid, param, response);
+        self.adapter.transmit(&mut response[..len]).await.map_err(Error::AdapterError)?;
 
-        let mut len = self.protocol.format_request(sid as u8, param, &mut buf);
-        self.adapter.transmit(&mut buf[..len]).await.map_err(Error::AdapterError)?;
-
-        len = self.adapter.receive(response).await.map_err(Error::AdapterError)?;
-
-        self.protocol.parse_response(sid as u8, &mut response[..len]).map_err(Error::ProtocolError)
+        let len = self.adapter.receive(response).await.map_err(Error::AdapterError)?;
+        self.protocol.parse_response(sid, &mut response[..len]).map_err(Error::ProtocolError)
     }
 }
 
@@ -57,19 +54,19 @@ impl<'a> EcuApi for ECU<'a> {
             self.adapter.tx.send_break(FAST_INIT_HALF_PERIOD);
             esp_hal::rom::ets_delay_us(FAST_INIT_HALF_PERIOD);
 
-            let mut buf = [0u8; 15];
-            let ret = self.poll(ServiceId::StartCommunication, &[], &mut buf).await;
+            let mut buf = [0u8; 8];
+            let ret = self.poll(ServiceId::StartCommunication as u8, &[], &mut buf).await;
     
-            //self.state = State::Connected;
+            self.state = State::Connected;
             ret
         } else {
             Err(EcuApiError::AlreadyConnected.into())
         }
     }
 
-    async fn read_data(&mut self, ids: &[u8], response: &mut [u8]) -> Result<usize, Error> {
+    async fn raw_request(&mut self, request: &[u8], response: &mut [u8]) -> Result<usize, Error> {
         if self.state != State::Disconnected {
-            self.poll(ServiceId::ReadDataByCommonId, &ids[..1], response).await
+            self.poll(request[0], &request[1..], response).await
         } else {
             Err(EcuApiError::NotConnected.into())
         }
@@ -78,7 +75,7 @@ impl<'a> EcuApi for ECU<'a> {
     async fn read_dtc(&mut self, response: &mut [u8]) -> Result<usize, Error> {
         if self.state != State::Disconnected {
             // 0x02 - Request 2 byte hex DTC, 
-            self.poll(ServiceId::ReadDiagnosticTroubleCodesByStatus, &[0x02, 0xFF], response).await
+            self.poll(ServiceId::ReadDiagnosticTroubleCodesByStatus as u8, &[0x02, 0xFF], response).await
         } else {
             Err(EcuApiError::NotConnected.into())
         }
@@ -86,15 +83,15 @@ impl<'a> EcuApi for ECU<'a> {
 
     async fn clear_dtc(&mut self) -> Result<(), Error> {
         if self.state != State::Disconnected { 
-            self.poll(ServiceId::ClearDiagnosticInformation, &[], &mut []).await.map(|_| ())
+            self.poll(ServiceId::ClearDiagnosticInformation as u8, &[], &mut []).await.map(|_| ())
         } else {
             Err(EcuApiError::NotConnected.into())
         }
     }
 
-    async fn raw_request(&mut self, request: &[u8], response: &mut [u8]) -> Result<usize, Error> {
-        if self.state != State::Disconnected { 
-            Ok(0)
+    async fn read_data(&mut self, ids: &[u8], response: &mut [u8]) -> Result<usize, Error> {
+        if self.state != State::Disconnected {
+            self.poll(ServiceId::ReadDataByCommonId as u8, &ids[..1], response).await
         } else {
             Err(EcuApiError::NotConnected.into())
         }
