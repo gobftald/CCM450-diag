@@ -4,7 +4,7 @@
 ;By: BMW_Motorrad UX-EE-1 Stefan_Krimmer
 ;Package Version: 00000000
 
-;ECU:Keihin Motorsteuerng für K16
+;ECU:Keihin Motorsteuerng fï¿½r K16
 ;ORIGIN:BMW UX-EA-5 Joachim Post
 ;REVISION:1.021
 ;AUTHOR:BMW_Motorrad UX-EE-1 Stefan_Krimmer
@@ -47,19 +47,19 @@ HEAD "SB", "STATUS_TEXT"
 LINE "0x00", "Anlieferzustand"
 LINE "0x01", "Normalbetrieb"
 LINE "0x02", "nicht benutzt"
-LINE "0x03", "Speicher gelöscht"
+LINE "0x03", "Speicher gelï¿½scht"
 LINE "0x04", "nicht benutzt"
-LINE "0x05", "Signaturprüfung PAF nicht durchgeführt"
-LINE "0x06", "Signaturprüfung DAF nicht durchgeführt"
+LINE "0x05", "Signaturprï¿½fung PAF nicht durchgefï¿½hrt"
+LINE "0x06", "Signaturprï¿½fung DAF nicht durchgefï¿½hrt"
 LINE "0x07", "Programmprogrammiersitzung aktiv"
 LINE "0x08", "Datenprogrammiersitzung aktiv"
 LINE "0x09", "Hardwarereferenzeintrag fehlerhaft"
 LINE "0x0A", "Programmreferenzeintrag fehlerhaft"
 LINE "0x0B", "Referenzierungsfehler Hardware -> Programm"
-LINE "0x0C", "Programm nicht vorhanden oder nicht vollständig"
+LINE "0x0C", "Programm nicht vorhanden oder nicht vollstï¿½ndig"
 LINE "0x0D", "Datenreferenzeintrag fehlerhaft"
 LINE "0x0E", "Referenzierungsfehler Programm -> Daten"
-LINE "0x0F", "Daten nicht vorhanden oder nicht vollständig"
+LINE "0x0F", "Daten nicht vorhanden oder nicht vollstï¿½ndig"
 LINE "0x10", "Reserviert fuer BMW"
 LINE "0x80", "Reserviert fuer Zulieferer"
 LINE "0xXY", "unbekannter Programmierstatus"
@@ -592,14 +592,14 @@ LINE "0x83", "IEE S.A"
 LINE "0x84", "TEMIC AUTOMOTIVE of NA"
 LINE "0x85", "AKsys GmbH"
 LINE "0x86", "META System"
-LINE "0x87", "Hülsbeck & Fürst GmbH & Co KG"
+LINE "0x87", "Hï¿½lsbeck & Fï¿½rst GmbH & Co KG"
 LINE "0x88", "Mann & Hummel Automotive GmbH"
 LINE "0x89", "Brose Fahrzeugteile GmbH & Co"
 LINE "0x90", "Keihin"
 LINE "0x91", "Vimercati S.p.A."
 LINE "0x92", "CRH"
 LINE "0x93", "TPO Display Corp."
-LINE "0x94", "KÜSTER Automotive Control"
+LINE "0x94", "Kï¿½STER Automotive Control"
 LINE "0x95", "Hitachi Automotive"
 LINE "0x96", "Continental Automotive"
 LINE "0x97", "TI-Automotive"
@@ -636,14 +636,14 @@ LINE "0x01", "Signal oder Wert oberhalb Schwelle"
 LINE "0x02", "Signal oder Wert unterhalb Schwelle"
 LINE "0x04", "kein Signal oder Wert"
 LINE "0x08", "unplausibles Signal oder Wert"
-LINE "0x10", "Testbedingungen erfüllt"
-LINE "0x11", "Testbedingungen noch nicht erfüllt"
+LINE "0x10", "Testbedingungen erfï¿½llt"
+LINE "0x11", "Testbedingungen noch nicht erfï¿½llt"
 LINE "0x20", "Fehler bisher nicht aufgetreten"
 LINE "0x21", "Fehler momentan nicht vorhanden, aber bereits gespeichert"
 LINE "0x22", "Fehler momentan vorhanden, aber noch nicht gespeichert (Entprellphase)"
 LINE "0x23", "Fehler momentan vorhanden und bereits gespeichert"
-LINE "0x30", "Fehler würde kein Aufleuchten einer Warnlampe verursachen"
-LINE "0x31", "Fehler würde das Aufleuchten einer Warnlampe verursachen"
+LINE "0x30", "Fehler wï¿½rde kein Aufleuchten einer Warnlampe verursachen"
+LINE "0x31", "Fehler wï¿½rde das Aufleuchten einer Warnlampe verursachen"
 LINE "0xFF", "unbekannte Fehlerart"
 TEND
 
@@ -699,10 +699,10 @@ INFO#
 ;    JOBCOMMENT:Information SGBD
 ;    RESULT:ECU
 ;    RESULTTYPE:string
-;    RESULTCOMMENT:Steuergerät im Klartext
+;    RESULTCOMMENT:Steuergerï¿½t im Klartext
 ;    RESULT:ORIGIN
 ;    RESULTTYPE:string
-;    RESULTCOMMENT:Steuergeräte-Verantwortlicher
+;    RESULTCOMMENT:Steuergerï¿½te-Verantwortlicher
 ;    RESULT:REVISION
 ;    RESULTTYPE:string
 ;    RESULTCOMMENT:Versions-Nummer
@@ -18144,7 +18144,7 @@ ZIF_BACKUP_LESEN#
 ;    RESULTCOMMENT:x     : nicht programmrelevante Varianten der Hardware
 ;    RESULTCOMMENT:V     : Projektvariante
 ;    RESULTCOMMENT:BB    : Programmstand
-;    RESULTCOMMENT:x     : nicht datenrelevanter Änderungsindex
+;    RESULTCOMMENT:x     : nicht datenrelevanter ï¿½nderungsindex
 ;    RESULTCOMMENT:h     : Programmstandersteller
 ;    RESULT:ZIF_BACKUP_SG_KENNUNG
 ;    RESULTTYPE:string
@@ -20451,7 +20451,7 @@ DATEN_REFERENZ_LESEN#
 ;    RESULTCOMMENT:x     : nicht programmrelevante Varianten der Hardware
 ;    RESULTCOMMENT:V     : Projektvariante
 ;    RESULTCOMMENT:BB    : Programmstand
-;    RESULTCOMMENT:x     : nicht datenrelevanter Änderungsindex
+;    RESULTCOMMENT:x     : nicht datenrelevanter ï¿½nderungsindex
 ;    RESULTCOMMENT:h     : Programmstandersteller
 ;    RESULTCOMMENT:d     : Datenstandersteller
 ;    RESULTCOMMENT:xxxx  : frei aber eindeutig belegt
@@ -31406,7 +31406,7 @@ SEED_KEY#
 ;    JOBNAME:SEED_KEY
 ;    JOBCOMMENT:Security Access 
 ;    JOBCOMMENT:KWP2000: $27 Security Access Request
-;    JOBCOMMENT:$01 ot $04 Access Mode
+;    JOBCOMMENT:$01 or $04 Access Mode
 ;    ARG:SECURITY_LEVEL
 ;    ARGTYPE:int
 ;    ARGCOMMENT:default: 0x01 > Security Level 1 > Access to "normal"
@@ -35628,7 +35628,7 @@ ZIF_LESEN#
 ;    RESULTCOMMENT:x     : nicht programmrelevante Varianten der Hardware
 ;    RESULTCOMMENT:V     : Projektvariante
 ;    RESULTCOMMENT:BB    : Programmstand
-;    RESULTCOMMENT:x     : nicht datenrelevanter Änderungsindex
+;    RESULTCOMMENT:x     : nicht datenrelevanter ï¿½nderungsindex
 ;    RESULTCOMMENT:h     : Programmstandersteller
 ;    RESULT:ZIF_SG_KENNUNG
 ;    RESULTTYPE:string
@@ -38495,7 +38495,7 @@ __00032CD2:         clear      S1
 STEUERN_KRAFTSTOFFPUMPENRELAIS_TEST#
 ;    JOBNAME:STEUERN_KRAFTSTOFFPUMPENRELAIS_TEST
 ;    JOBCOMMENT:Starten des Krafstoffpumpenrelaistest
-;    JOBCOMMENT:damit wird das Kraftstoffpumpenrelais für 10 Sekunden angesteuert
+;    JOBCOMMENT:damit wird das Kraftstoffpumpenrelais fï¿½r 10 Sekunden angesteuert
 ;    JOBCOMMENT:KWP2000: $31 StartRoutineByLocalIdentifier
 ;    JOBCOMMENT:$A7 00 Fuel pump relay ON/OFF test
 ;    JOBCOMMENT:Modus  : Default
@@ -46414,7 +46414,7 @@ __0003E05C:         clear      S1
 STEUERN_DROSSELKLAPPE_2_MOTORTEST#
 ;    JOBNAME:STEUERN_DROSSELKLAPPE_2_MOTORTEST
 ;    JOBCOMMENT:Starten des Schrittmotortests der Drosselklappe
-;    JOBCOMMENT:Drosselklappe 2 wird voll geöffnet und geschlossen
+;    JOBCOMMENT:Drosselklappe 2 wird voll geï¿½ffnet und geschlossen
 ;    JOBCOMMENT:KWP2000: $31 StartRoutineByLocalIdentifier
 ;    JOBCOMMENT:$A9 00 2nd throttle valve control stepper motor test
 ;    JOBCOMMENT:Modus  : Default

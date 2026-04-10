@@ -26,6 +26,7 @@ pub enum ServiceId {
     ClearDiagnosticInformation = 0x14,
     ReadDiagnosticTroubleCodesByStatus = 0x18,
     ReadDataByCommonId = 0x22,
+    SecurityAccess = 0x27,
     TesterPresent = 0x3e,
     StartCommunication = 0x81,
 }
@@ -72,7 +73,7 @@ impl Protocols for Protocol {
 
         // check for negative response and send error coming from ecu
         if service_id + 0x40 != response[3] {
-            return Err(ProtocolError::EcuError(EcuError(response[4])))
+            return Err(ProtocolError::EcuError(EcuError(response[5])))
         }
 
         // response[4..len-1]

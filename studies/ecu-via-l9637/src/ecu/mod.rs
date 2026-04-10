@@ -67,11 +67,12 @@ macro_rules! ecu_api {
 
 // Map EcuRequest enum and EcuApi trait together tightly
 ecu_api! {
-    Connect    0  connect() -> Result<usize, Error>;
-    RawRequest 1  raw_request(request: &[u8], response: &mut [u8]) -> Result<usize, Error>;
-    ReadDTC    2  read_dtc(response: &mut [u8]) -> Result<usize, Error>;
-    ClearDTC   3  clear_dtc() -> Result<usize, Error>;
-    ReadData   4  read_data(ids: &[u8], response: &mut [u8]) -> Result<usize, Error>;
+    Connect         0   connect() -> Result<usize, Error>;
+    RawRequest      1   raw_request(request: &[u8], response: &mut [u8]) -> Result<usize, Error>;
+    ReadDTC         2   read_dtc(response: &mut [u8]) -> Result<usize, Error>;
+    ClearDTC        3   clear_dtc() -> Result<usize, Error>;
+    SecurityAccess  4   security_access() -> Result<usize, Error>;
+    ReadData        5   read_data(ids: &[u8], response: &mut [u8]) -> Result<usize, Error>;
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -142,9 +143,6 @@ pub async fn server(
                         EcuRequest::Connect => {
                             response.size = ecu_response(response, ecu.connect().await);
                             spawner.spawn(tester_present()).ok();
-                            // ignore Keyword Bytes
-                            response.size -= 2;
-                            sender.send_done();
                         }
 
                         EcuRequest::RawRequest => {
@@ -155,12 +153,10 @@ pub async fn server(
                                 )
                                 .await;
                                 response.size = ecu_response(response, result) ;
-                                sender.send_done();
                             } else {
                                 // send invalid request error via udp immediately
                                 response.size = ecu_response(response, Err(EcuApiError::InvalidRequest.into()));
                                 trace!("#### ECU: response: {:a}", &response.data[..response.size]);
-                                sender.send_done();
                             }
                         }
 
@@ -170,7 +166,6 @@ pub async fn server(
                             )
                             .await;
                             response.size = ecu_response(response, result) ;
-                            sender.send_done();
                         }
 
                         EcuRequest::ClearDTC => {
@@ -179,7 +174,10 @@ pub async fn server(
                             } else {
                                 ecu_response(response, Err(Error::Ok));
                             }
-                            sender.send_done();
+                        }
+
+                        EcuRequest::SecurityAccess => {
+                            response.size = ecu_response(response, ecu.security_access().await);
                         }
 
                         EcuRequest::ReadData => {
@@ -207,7 +205,6 @@ pub async fn server(
                                     ecu_response(response, Err(err));
                                 }
                             }
-                            sender.send_done();
                         }
 
                     }
@@ -217,8 +214,8 @@ pub async fn server(
                     // send invalid request error via udp immediately
                     response.size = ecu_response(response, Err(EcuApiError::InvalidRequest.into()));
                     trace!("#### ECU: response: {:a}", &response.data[..response.size]);
-                    sender.send_done();
                 }
+            sender.send_done();
             }
 
             // received response from ecu

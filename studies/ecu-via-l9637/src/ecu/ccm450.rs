@@ -6,7 +6,7 @@ const FORMAT_BYTE: u8 = 0x80;               // physical addressing
 const TARGET_ADDR: u8 = 0x12;               // ECU address
 const SOURCE_ADDR: u8 = 0xF1;               // Tester address
 const FAST_INIT_HALF_PERIOD: u32 = 25_000;  // 25ms in usec
-const SECRET_KEY: u32 = 0x1EC3;
+const SECRET_KEY: u16 = 0x1EC3;
 
 #[derive(Clone, Copy)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -55,10 +55,13 @@ impl<'a> EcuApi for ECU<'a> {
             esp_hal::rom::ets_delay_us(FAST_INIT_HALF_PERIOD);
 
             let mut buf = [0u8; 8];
-            let ret = self.poll(ServiceId::StartCommunication as u8, &[], &mut buf).await;
+            let size = self.poll(ServiceId::StartCommunication as u8, &[], &mut buf)
+                .await
+                // ignore Keyword Bytes
+                .map(|mut size | { size -= 2; size } )?;
     
             self.state = State::Connected;
-            ret
+            Ok(size)
         } else {
             Err(EcuApiError::AlreadyConnected.into())
         }
@@ -91,6 +94,35 @@ impl<'a> EcuApi for ECU<'a> {
         if self.state != State::Disconnected { 
             let mut buf = [0u8; 8];
             self.poll(ServiceId::ClearDiagnosticInformation as u8, &[0xff, 0xff], &mut buf).await
+        } else {
+            Err(EcuApiError::NotConnected.into())
+        }
+    }
+
+    async fn security_access(&mut self,) -> Result<usize,Error> {
+        if self.state != State::Disconnected {
+            let mut buf = [0u8; 8];
+            // request seed
+            loop {
+                self.poll(ServiceId::SecurityAccess as u8, &[0x03], &mut buf).await?;
+                // I found/know secret key only for even seeds
+                if ((buf[5] as u16 * 256) + (buf[6] as u16)) % 2 == 0 {
+                    break
+                }
+            }
+
+            // calculate response
+            let key = ((buf[5] as u16 * 256) + (buf[6] as u16)) * SECRET_KEY;
+
+            // send key
+            let size = self.poll(
+                ServiceId::SecurityAccess as u8,
+                &[0x04, (key / 256) as u8, (key % 256) as u8],
+                &mut buf)
+                .await
+                // ignore positive response in response
+                .map(|mut size | { size -= 1; size } )?;
+            Ok(size)
         } else {
             Err(EcuApiError::NotConnected.into())
         }
