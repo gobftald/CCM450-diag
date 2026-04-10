@@ -130,7 +130,7 @@ impl<'a> EcuApi for ECU<'a> {
 
     async fn read_data(&mut self, ids: &[u8], response: &mut [u8]) -> Result<usize, Error> {
         if self.state != State::Disconnected {
-            self.poll(ServiceId::ReadDataByCommonId as u8, &ids[..1], response).await
+            self.poll(ServiceId::ReadDataByCommonId as u8, &ids[..2], response).await
         } else {
             Err(EcuApiError::NotConnected.into())
         }

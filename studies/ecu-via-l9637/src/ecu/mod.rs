@@ -72,7 +72,7 @@ ecu_api! {
     ReadDTC         2   read_dtc(response: &mut [u8]) -> Result<usize, Error>;
     ClearDTC        3   clear_dtc() -> Result<usize, Error>;
     SecurityAccess  4   security_access() -> Result<usize, Error>;
-    ReadData        5   read_data(ids: &[u8], response: &mut [u8]) -> Result<usize, Error>;
+    ReadData        6   read_data(ids: &[u8], response: &mut [u8]) -> Result<usize, Error>;
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -181,30 +181,12 @@ pub async fn server(
                         }
 
                         EcuRequest::ReadData => {
-                            // check that input(s) are 16-bit common identifier(s)
-                            if request.data.len() % 2 != 0 {
-                                ecu_response(response, Err(EcuApiError::InvalidRequest.into()));
-                            }
-
-                            match ecu
-                                .read_data(
-                                    // common identifier(s)
-                                    &request.data[2..request.size],
-                                    // borrow the full buffer
-                                    &mut response.data[..(crate::CHANNEL_ITEM_SIZE)],
-                                )
-                                .await
-                            {
-                                Ok(size) => {
-                                    // copy the payload of ecu answer
-                                    ecu_response(response, Err(Error::Ok));
-                                    // setting the size to sending the payload of got response
-                                    response.size = size;
-                                }
-                                Err(err) => {
-                                    ecu_response(response, Err(err));
-                                }
-                            }
+                            let result = ecu.read_data(
+                                &request.data[2..request.size],
+                                &mut response.data[2..(crate::CHANNEL_ITEM_SIZE)]
+                            )
+                            .await;
+                            response.size = ecu_response(response, result) ;
                         }
 
                     }
