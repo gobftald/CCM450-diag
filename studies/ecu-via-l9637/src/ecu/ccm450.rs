@@ -8,137 +8,6 @@ const SOURCE_ADDR: u8 = 0xF1;               // Tester address
 const FAST_INIT_HALF_PERIOD: u32 = 25_000;  // 25ms in usec
 const SECRET_KEY: u16 = 0x1EC3;
 
-const IDS_ARRAY: &[(u16, &[u8], &[u8])] = &[
-    (0x0000u16, b"Absolute throttle position sensor voltage -THAD",
-                b"Range from 0 to 5 [V]"),
-
-    (0x0001u16, b"Absolute throttle position sensor - THM/80 deg *100 %",
-                b"Range from 0 to 80 [DEGREES]"),
-
-    (0x0002u16, b"Intake manifold absolute pressure voltage (bank1) - voltage PM1",
-                b"Range from 0 to 5 [V]"),
-
-    (0x0003u16, b"Intake manifold absolute pressure (bank1) - PM1",
-                b"Range from 0 to 65535 [mBar]"),
-
-    (0x0006u16, b"Battery voltage // directly at the AD converter",
-                b"Range from 0 to 5 [V]"),
-
-    (0x0007u16, b"Battery voltage (scaling)",
-                b"Range from 0 to 5 [V]"),
-
-    (0x0008u16, b"Engine coolant temperature voltage",
-                b"Range from 0 to 5 [V]"),
-
-    (0x0009u16, b"Engine coolant temperature - TW",
-                b"Range from -40 to 215 [DEGREES]"),
-
-    (0x0010u16, b"Intake air temperature voltage",
-                b"Range from 0 to 5 [V]"),
-
-    (0x0011u16, b"Intake air temperature - TA",
-                b"Range from -40 to 215 [DEGREES]"),
-
-    (0x0012u16, b"HEGO sensor1 voltage (bank1) - VHG1)",
-                b"Range from 0 to 5 [V]"),
-
-    (0x0018u16, b"2nd throttle actuator on voltage",
-                b"Range from 0 to 5 [V]"),
-
-    (0x0040u16, b"Neutral switch - NEUTRAL",
-                b"0x0000 Neutral / 0x00FF Gear engaged / 0xXYXY unknown"),
-
-    (0x0053u16, b"MAP SW // current state of the sports switch input - MAPCHG",
-                b"0x0000 Standard / 0x00FF Sport / 0xXYXY unknown"),
-
-    (0x0060u16, b"Fuel pump relay - FLPR",
-                b"0x0000 OFF / 0x00FF ON / 0xXYXY unknown"),
-
-    (0x0064u16, b"Heated exhaust gas oxygen sensor Heater1 - HG1HT)",
-                b"0x0000 OFF / 0x00FF ON / 0xXYXY unknown"),
-
-    (0x0100u16, b"Engine rpm (2byte value - high byte/low byte) - NE)",
-                b"Range from 0 to 16384 [rpm]"),
-
-    (0x0102u16, b"Short term fuel trim - bank1 (2byte - high/low byte) - MHG1",
-                b"Range from 0 [] to 2 []"),
-
-    (0x0107u16, b"Calculated load Value - CLV=(PM1M/10103 mba)r * 100%",
-                b"Range from 0 to 100 [%]"),
-
-    (0x0110u16, b"Injector1 ON Time (bank1) - TIOUT1)",
-                b"Range from 0 to 65535 [microsec]"),
-
-    (0x0120u16, b"Ignition timing1 (bank1) - IGAB1",
-                b"Range from -64 [DEGREES] to 64 [DEGREES]"),
-
-    (0x0130u16, b"Ignition coil dwell time1 (bank1) - IGDWELL",
-                b"Range from 0 to 65535 [microsec]"),
-
-    (0x0140u16, b"THREF",
-                b"Range from -3276.8 to 3276.8 [GRAD]"),
-
-    (0x0142u16, b"MREFHG1",
-                b"Range from 0 [] to 2 []"),
-
-    (0x0143u16, b"MREFHG1ID",
-                b"Range from 0 to 2 []"),
-
-    (0x0149u16, b"MRFH1DEC",
-                b"Range from 0 to 2 []"),
-
-    (0x0170u16, b"2nd throttle current angle-(STHAD-STHADL)/(STHADH/STHADL)*100%",
-                b"Range from 0 to 80 [DEGREES]"),
-
-    (0x0171u16, b"2nd throttle target angle - STHTRG",
-                b"Range from 0 to 80 [DEGREES]"),
-
-    (0x0172u16, b"2nd throttle ADLL - STHADLL",
-                b"Range from 0 to 5 [V]"),
-
-    (0x0173u16, b"2nd throttle ADHH - STDHADHH",
-                b"Range from 0 to 5 [V]"),
-
-    (0x0174u16, b"2nd throttle steph - STHSTEPH",
-                b"Range from 0 to 32767 []"),
-
-    (0x0185u16, b"Purge valve duty cycle",
-                b"Range from 0 to 100 [%]"),
-
-    (0x0500u16, b"RaceMAP SW // Sport switch has been activated",
-                b"0x0000 Standard / 0x00FF Sport / 0xXYXY unknown"),
-
-    (0x0501u16, b"High REV counter",
-                b"Range from 0 to 196605 [min]"),
-
-    (0x0502u16, b"High REV counter area 1",
-                b"Range from 0 to 6553.5 [s]"),
-
-    (0x0503u16, b"High REV counter area 2",
-                b"Range from 0 to 6553.5 [s]"),
-
-    (0x0504u16, b"High REV counter area 3",
-                b"Range from 0 to 6553.5 [s]"),
-
-    (0x0505u16, b"High REV counter area 4",
-                b"Range from 0 to 6553.5 [s]"),
-
-    (0x0506u16, b"High REV counter area 5",
-                b"Range from 0 to 6553.5 [s]"),
-
-    (0x0507u16, b"High REV counter area 6",
-                b"Range from 0 [s] to 6553.5 [s]"),
-
-    (0x0508u16, b"High REV counter area 7",
-                b"Range from 0 to 6553.5 [s]"),
-
-    (0x0509u16, b"High REV counter area 8",
-                b"Range from 0 to 6553.5 [s]"),
-
-    (0x0510u16, b"High REV counter area 9",
-                b"Range from 0 to 6553.5 [s]"),
-];
-
 #[derive(Clone, Copy)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct EcuError(pub u8);
@@ -314,6 +183,22 @@ impl<'a> EcuApi for ECU<'a> {
         len * 2 + 4
     }
 
+    fn get_ids_description(&mut self, id: &[u8], response: &mut [u8]) -> Result<usize, Error> {
+        response[0] = id[0];
+        response[1] = id[1];
+
+        let idx = (id[0] as u16) * 256 + (id[1] as u16);
+
+        if let Some(&(_, descr)) = IDS_ARRAY.into_iter().find(|(i, _)| *i == idx) {
+            unsafe {
+                core::ptr::copy_nonoverlapping(descr.as_ptr(), response[2..].as_mut_ptr(), descr.len());
+                Ok(descr.len() + 2)
+            }
+        } else {
+            Err(EcuApiError::InvalidId.into())
+        }
+    }
+
     async fn read_data(&mut self, ids: &[u8], response: &mut [u8]) -> Result<usize, Error> {
         if self.state != State::Disconnected {
             self.poll(ServiceId::ReadDataByCommonId as u8, &ids[..2], response).await
@@ -394,3 +279,91 @@ impl<'a> EcuApi for ECU<'a> {
             .map_err(EcuError::AdapterError)
     }
 }
+
+const IDS_ARRAY: &[(u16, &[u8])] = &[
+    (0x0000u16, b"Absolute throttle position sensor voltage - THAD"),
+
+    (0x0001u16, b"Absolute throttle position sensor - THM/80 deg *100 %"),
+
+    (0x0002u16, b"Intake manifold abs pressure voltage (bank1) - voltage PM1"),
+
+    (0x0003u16, b"Intake manifold absolute pressure (bank1) - PM1"),
+
+    (0x0006u16, b"Battery voltage // directly at the AD converter"),
+
+    (0x0007u16, b"Battery voltage (scaling)"),
+
+    (0x0008u16, b"Engine coolant temperature voltage"),
+
+    (0x0009u16, b"Engine coolant temperature - TW"),
+
+    (0x0010u16, b"Intake air temperature voltage"),
+
+    (0x0011u16, b"Intake air temperature - TA"),
+
+    (0x0012u16, b"HEGO sensor1 voltage (bank1) - VHG1)"),
+
+    (0x0018u16, b"2nd throttle actuator on voltage"),
+
+    (0x0040u16, b"Neutral switch - NEUTRAL"),
+
+    (0x0053u16, b"MAP SW // current state of the sports switch input - MAPCHG"),
+
+    (0x0060u16, b"Fuel pump relay - FLPR"),
+
+    (0x0064u16, b"Heated exhaust gas oxygen sensor Heater1 - HG1HT)"),
+
+    (0x0100u16, b"Engine rpm (2byte value - high byte/low byte) - NE)"),
+
+    (0x0102u16, b"Short term fuel trim - bank1 (2byte - high/low byte) - MHG1"),
+
+    (0x0107u16, b"Calculated load Value - CLV=(PM1M/10103 mba)r * 100%"),
+
+    (0x0110u16, b"Injector1 ON Time (bank1) - TIOUT1)"),
+
+    (0x0120u16, b"Ignition timing1 (bank1) - IGAB1"),
+
+    (0x0130u16, b"Ignition coil dwell time1 (bank1) - IGDWELL"),
+
+    (0x0140u16, b"THREF"),
+
+    (0x0142u16, b"MREFHG1"),
+
+    (0x0143u16, b"MREFHG1ID"),
+
+    (0x0149u16, b"MRFH1DEC"),
+
+    (0x0170u16, b"2nd throttle curr angl - (STHAD-STHADL)/(STHADH/STHADL)*100%"),
+
+    (0x0171u16, b"2nd throttle target angle - STHTRG"),
+
+    (0x0172u16, b"2nd throttle ADLL - STHADLL"),
+
+    (0x0173u16, b"2nd throttle ADHH - STDHADHH"),
+
+    (0x0174u16, b"2nd throttle steph - STHSTEPH"),
+
+    (0x0185u16, b"Purge valve duty cycle"),
+
+    (0x0500u16, b"RaceMAP SW // Sport switch has been activated"),
+
+    (0x0501u16, b"High REV counter"),
+
+    (0x0502u16, b"High REV counter area 1"),
+
+    (0x0503u16, b"High REV counter area 2"),
+
+    (0x0504u16, b"High REV counter area 3"),
+
+    (0x0505u16, b"High REV counter area 4"),
+
+    (0x0506u16, b"High REV counter area 5"),
+
+    (0x0507u16, b"High REV counter area 6"),
+
+    (0x0508u16, b"High REV counter area 7"),
+
+    (0x0509u16, b"High REV counter area 8"),
+
+    (0x0510u16, b"High REV counter area 9"),
+];

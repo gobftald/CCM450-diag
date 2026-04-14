@@ -81,7 +81,8 @@ ecu_api! {
     ClearDTC        3   async clear_dtc() -> Result<usize, Error>;
     SecurityAccess  4   async security_access() -> Result<usize, Error>;
     ReadIds         5   sync  read_ids(response: &mut [u8]) -> usize;
-    ReadData        6   async read_data(ids: &[u8], response: &mut [u8]) -> Result<usize, Error>;
+    GetIdsDescr     6   sync  get_ids_description(id: &[u8], response: &mut [u8]) -> Result<usize, Error>;
+    ReadData        7   async read_data(ids: &[u8], response: &mut [u8]) -> Result<usize, Error>;
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -89,6 +90,7 @@ pub enum EcuApiError {
     InvalidRequest,
     NotConnected,
     AlreadyConnected,
+    InvalidId,
 }
 
 // aggregate error type for response
@@ -210,13 +212,31 @@ pub async fn server(
                             }
                         }
 
+                        EcuRequest::GetIdsDescr => {
+                            if request.size == 4 {
+                                let result = ecu.get_ids_description(
+                                    &request.data[2..request.size],
+                                    &mut response.data[2..(crate::CHANNEL_ITEM_SIZE)]
+                                );
+                                response.size = ecu_response(response, result) ;
+                            } else {
+                                // send invalid request error via udp immediately
+                                response.size = ecu_response(response, Err(EcuApiError::InvalidRequest.into()));
+                            }
+                        }
+
                         EcuRequest::ReadData => {
-                            let result = ecu.read_data(
-                                &request.data[2..request.size],
-                                &mut response.data[2..(crate::CHANNEL_ITEM_SIZE)]
-                            )
-                            .await;
-                            response.size = ecu_response(response, result) ;
+                            if request.size == 4 {
+                                let result = ecu.read_data(
+                                    &request.data[2..request.size],
+                                    &mut response.data[2..(crate::CHANNEL_ITEM_SIZE)]
+                                )
+                                .await;
+                                response.size = ecu_response(response, result) ;
+                            } else {
+                                // send invalid request error via udp immediately
+                                response.size = ecu_response(response, Err(EcuApiError::InvalidRequest.into()));
+                            }
                         }
                     }
                     // we have finished to process request
