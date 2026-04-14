@@ -36,11 +36,11 @@ unsafe impl RawMutex for SyncNoopRawMutex {
 static TESTER_PRESENT: Signal<SyncNoopRawMutex, bool> = Signal::new();
 
 macro_rules! ecu_api {
-    ($($enum_variant:ident $enum_id:literal $fn_name:ident ( $($arg_name:ident : $arg_type:ty),* ) $(-> $ret:ty)? );* $(;)?) => {
+    ($($variant:ident $id:literal $kind:ident $fn:ident ( $($arg:ident : $type:ty),* ) $(-> $ret:ty)? );* $(;)?) => {
         
         #[cfg_attr(feature = "defmt", derive(defmt::Format))]
         pub enum EcuRequest {
-            $($enum_variant),*
+            $($variant),*
         }
 
         impl TryFrom<u8> for EcuRequest {
@@ -48,7 +48,7 @@ macro_rules! ecu_api {
 
             fn try_from(value: u8) -> Result<Self, Self::Error> {
                 match value {
-                    $( $enum_id => Ok(Self::$enum_variant), )*
+                    $( $id => Ok(Self::$variant), )*
                     _ => Err(()),
                 }
             }
@@ -56,23 +56,32 @@ macro_rules! ecu_api {
 
         pub trait EcuApi {
             $(
-                async fn $fn_name(&mut self, $($arg_name : $arg_type),*) $(-> $ret)?;
+                ecu_api!(@expand_fn $kind $fn ( $($arg : $type),* ) $(-> $ret)?);
             )*
 
             async fn tester_present(&mut self);
             async fn response(&mut self, response: &mut [u8]) -> Result<usize, Error>;
-            }
-    }
+        }
+    };
+
+    (@expand_fn async $fn:ident ($($args:tt)*) $(-> $ret:ty)?) => {
+        async fn $fn(&mut self, $($args)*) $(-> $ret)?;
+    };
+
+    (@expand_fn sync $fn:ident ($($args:tt)*) $(-> $ret:ty)?) => {
+        fn $fn(&mut self, $($args)*) $(-> $ret)?;
+    };
 }
 
 // Map EcuRequest enum and EcuApi trait together tightly
 ecu_api! {
-    Connect         0   connect() -> Result<usize, Error>;
-    RawRequest      1   raw_request(request: &[u8], response: &mut [u8]) -> Result<usize, Error>;
-    ReadDTC         2   read_dtc(response: &mut [u8]) -> Result<usize, Error>;
-    ClearDTC        3   clear_dtc() -> Result<usize, Error>;
-    SecurityAccess  4   security_access() -> Result<usize, Error>;
-    ReadData        6   read_data(ids: &[u8], response: &mut [u8]) -> Result<usize, Error>;
+    Connect         0   async connect() -> Result<usize, Error>;
+    RawRequest      1   async raw_request(request: &[u8], response: &mut [u8]) -> Result<usize, Error>;
+    ReadDTC         2   async read_dtc(response: &mut [u8]) -> Result<usize, Error>;
+    ClearDTC        3   async clear_dtc() -> Result<usize, Error>;
+    SecurityAccess  4   async security_access() -> Result<usize, Error>;
+    ReadIds         5   sync  read_ids(response: &mut [u8]) -> usize;
+    ReadData        6   async read_data(ids: &[u8], response: &mut [u8]) -> Result<usize, Error>;
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -84,6 +93,7 @@ pub enum EcuApiError {
 
 // aggregate error type for response
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[allow(dead_code)]
 pub enum Error {
     Ok,
     EcuApiError(EcuApiError),
@@ -126,7 +136,7 @@ pub async fn server(
 
     loop {
         // get a fresh channel item to write to
-        let response = sender.send().await;
+        let mut response = sender.send().await;
 
         // waiting for request or response
         match select3(
@@ -136,7 +146,9 @@ pub async fn server(
         ).await {
             // received an ecu request
             Either3::First(request) => {
-                trace!("#### ECU: received: {}", request.data[..request.size]);
+                // for one request with multiple packet response
+                let mut skip_receive_done = false;
+                trace!("#### ECU: channel receiver.receive(): {}", request.data[..request.size]);
 
                 if let Ok(reqst) = EcuRequest::try_from(request.data[1] as u8) {
                     match reqst {
@@ -169,15 +181,33 @@ pub async fn server(
                         }
 
                         EcuRequest::ClearDTC => {
-                            if let Err(err) = ecu.clear_dtc().await {
-                                ecu_response(response, Err(err));
-                            } else {
-                                ecu_response(response, Err(Error::Ok));
-                            }
+                            response.size = ecu_response(response, ecu.clear_dtc().await);
                         }
 
                         EcuRequest::SecurityAccess => {
                             response.size = ecu_response(response, ecu.security_access().await);
+                        }
+
+                        EcuRequest::ReadIds => {
+                            loop {
+                                let size = ecu.read_ids(
+                                    &mut response.data[2..]
+                                );
+                                response.size = ecu_response(response, Ok(size))    ;
+
+                                if response.data[4] == 0 && response.data[5] == 0 {
+                                    break;
+                                } else {
+                                    if !skip_receive_done {
+                                        receiver.receive_done();
+                                        // skip receive done for all subsequent packets
+                                        skip_receive_done = true;
+                                    }
+                                    sender.send_done();
+
+                                    response = sender.send().await;
+                                }
+                            }
                         }
 
                         EcuRequest::ReadData => {
@@ -188,16 +218,20 @@ pub async fn server(
                             .await;
                             response.size = ecu_response(response, result) ;
                         }
-
                     }
                     // we have finished to process request
-                    receiver.receive_done();
+                    //
+                    // but we should not send receive_done signal
+                    // if we send multiple messages for a request (ReadIds)
+                    if !skip_receive_done {
+                        receiver.receive_done();
+                    }
                 } else {
                     // send invalid request error via udp immediately
                     response.size = ecu_response(response, Err(EcuApiError::InvalidRequest.into()));
-                    trace!("#### ECU: response: {:a}", &response.data[..response.size]);
                 }
-            sender.send_done();
+                // signal sent message packet
+                sender.send_done();
             }
 
             // received response from ecu
