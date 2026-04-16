@@ -666,8 +666,8 @@ FF FF FF FF 00 43 43 4D 5F 47 50 34 35 30 5F 56 31 53 4D 5A 47 50 34 35 41 44 31
 27 JOBNAME: FLASH_CHECKSUM
     $31 StartRoutineByLocalIdentifier
     $01 CheckCodingChecksum
-    $02 Program (Application Code),
-    $04 Data (Calibration Code)
+        $02 Program (Application Code),
+        $04 Data (Calibration Code)
     
 28 JOBNAME: BAUDRATE_62500
     Switching to 62500 baud (and BMW-FAST due to fast initialization)
@@ -753,10 +753,35 @@ FF FF FF FF 00 43 43 4D 5F 47 50 34 35 30 5F 56 31 53 4D 5A 47 50 34 35 41 44 31
 40 JOBNAME: CONTROL_DELETE_ADAPTIONS
     $31 StartRoutineByLocalIdentifier
     $A0 00 all reference reset operation
+                # Modern ECUs are "learning" machines. They constantly adjust parameters to compensate
+                # for wear and tear. This routine wipes that memory.
+                #
+                # What it resets: Fuel trim values (long-term/short-term), throttle body alignment positions,
+                # transmission shift points, and sensor offset calibrations.
+                #
+                # When to use it: After replacing a major engine component (like an O2 sensor, fuel injector, 
+                # or throttle body). It forces the ECU to start learning from a "clean slate" rather than trying 
+                # to apply old, incorrect compensation values to new hardware.
 
 41 JOBNAME: CONTROL_DELIVERY_CONDITION
     $31 StartRoutineByLocalIdentifier
     $91 E2 study control data, breakdown information all reference reset operation
+                # Study Control Data: Resets the "statistical" data the car tracks about the driver
+                # (e.g., driving style maps for automatic transmissions).
+                #
+                # Breakdown Information: Clears historical environmental data related to faults. In some
+                # systems, this resets "first-occurrence" timers or permanent internal counters
+                # that standard DTC (Diagnostic Trouble Code) clearing might not touch.
+                #
+                # Reference Reset: It essentially tells the ECU: "Forget everything that has happened
+                # since you left the factory assembly line."
+                #
+                # When to use it: Typically used at the very end of the production line or when a "remanufactured"
+                # ECU is being installed to ensure it doesn't carry over data from the previous vehicle.
+
+Warning: Using these two above via StartRoutineByLocalIdentifier without following up with the correct re-learning 
+procedure (like a specific idling sequence or driving cycle) can sometimes cause the vehicle to run poorly or throw 
+"Configuration Not Performed" faults.
 
 42 JOBNAME: STATUS_ERROR_MEMORY_ENVIRONMENTAL_CONDITIONS
     $22 ReadDataByCommonIdentifier

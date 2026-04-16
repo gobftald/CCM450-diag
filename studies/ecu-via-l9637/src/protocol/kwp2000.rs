@@ -3,6 +3,7 @@ use crate::ecu::EcuError;
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ProtocolError {
     InvalidChecksum,
+    Timeout,
     EcuError(EcuError)
 }
 
@@ -10,7 +11,8 @@ impl From<ProtocolError> for u8 {
     fn from(value: ProtocolError) -> Self {
         match value {
             ProtocolError::InvalidChecksum => 0,
-            ProtocolError::EcuError(_) => 1,
+            ProtocolError::Timeout => 1,
+            ProtocolError::EcuError(_) => 2,
         }
     }
 }
@@ -27,6 +29,8 @@ pub enum ServiceId {
     ReadDiagnosticTroubleCodesByStatus = 0x18,
     ReadDataByCommonId = 0x22,
     SecurityAccess = 0x27,
+    StartRoutineByLocalIdentifier = 0x31,
+    StopRoutineByLocalIdentifier = 0x32,
     TesterPresent = 0x3e,
     StartCommunication = 0x81,
 }

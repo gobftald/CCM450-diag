@@ -60,6 +60,8 @@ macro_rules! ecu_api {
             )*
 
             async fn tester_present(&mut self);
+            
+            // not used yet
             async fn response(&mut self, response: &mut [u8]) -> Result<usize, Error>;
         }
     };
@@ -81,8 +83,10 @@ ecu_api! {
     ClearDTC        3   async clear_dtc() -> Result<usize, Error>;
     SecurityAccess  4   async security_access() -> Result<usize, Error>;
     ReadIds         5   sync  read_ids(response: &mut [u8]) -> usize;
-    GetIdsDescr     6   sync  get_ids_description(id: &[u8], response: &mut [u8]) -> Result<usize, Error>;
-    ReadData        7   async read_data(ids: &[u8], response: &mut [u8]) -> Result<usize, Error>;
+    GetIdDescr      6   sync  get_id_description(id: &[u8], response: &mut [u8]) -> Result<usize, Error>;
+    ReadData        7   async read_data(id: &[u8], response: &mut [u8]) -> Result<usize, Error>;
+    StartRoutine    8   async start_routine(arg: &[u8], response: &mut [u8]) -> Result<usize, Error>;
+    StopRoutine     9   async stop_routine(arg: &[u8], response: &mut [u8]) -> Result<usize, Error>;
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -212,9 +216,9 @@ pub async fn server(
                             }
                         }
 
-                        EcuRequest::GetIdsDescr => {
+                        EcuRequest::GetIdDescr => {
                             if request.size == 4 {
-                                let result = ecu.get_ids_description(
+                                let result = ecu.get_id_description(
                                     &request.data[2..request.size],
                                     &mut response.data[2..(crate::CHANNEL_ITEM_SIZE)]
                                 );
@@ -237,6 +241,24 @@ pub async fn server(
                                 // send invalid request error via udp immediately
                                 response.size = ecu_response(response, Err(EcuApiError::InvalidRequest.into()));
                             }
+                        }
+
+                        EcuRequest::StartRoutine => {
+                            let result = ecu.start_routine(
+                                &request.data[2..request.size],
+                                &mut response.data[2..(crate::CHANNEL_ITEM_SIZE)]
+                            )
+                            .await;
+                            response.size = ecu_response(response, result) ;
+                        }
+
+                        EcuRequest::StopRoutine => {
+                            let result = ecu.stop_routine(
+                                &request.data[2..request.size],
+                                &mut response.data[2..(crate::CHANNEL_ITEM_SIZE)]
+                            )
+                            .await;
+                            response.size = ecu_response(response, result) ;
                         }
                     }
                     // we have finished to process request
@@ -313,6 +335,11 @@ pub async fn server(
                 },
                 Error::ProtocolError(error) => match error{
                     ProtocolError::InvalidChecksum => {
+                        response.data[2] = error.into();
+                        rsize1 = 3;
+                        3
+                    },
+                    ProtocolError::Timeout => {
                         response.data[2] = error.into();
                         rsize1 = 3;
                         3

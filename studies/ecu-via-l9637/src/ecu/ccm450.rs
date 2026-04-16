@@ -1,6 +1,8 @@
+use embassy_futures::select::{Either,select};
+
 use super::{EcuApi, Error, EcuApiError};
 use crate::adapter::{ Adapters, Adapter};
-use crate::protocol::{Protocols, Protocol, ServiceId};
+use crate::protocol::{Protocol, ProtocolError, Protocols, ServiceId};
 
 const FORMAT_BYTE: u8 = 0x80;               // physical addressing
 const TARGET_ADDR: u8 = 0x12;               // ECU address
@@ -38,12 +40,27 @@ impl<'a> ECU<'a> {
         }
     }
 
-    async fn poll(&mut self, sid: u8, param: &[u8], response: &mut [u8]) -> Result<usize, Error> {
+    async fn poll(&mut self, sid: u8, param: &[u8], response: &mut [u8], timeout_ms: u32) -> Result<usize, Error> {
         let len = self.protocol.format_request(sid, param, response);
         self.adapter.transmit(&mut response[..len]).await.map_err(Error::AdapterError)?;
 
-        let len = self.adapter.receive(response).await.map_err(Error::AdapterError)?;
-        self.protocol.parse_response(sid, &mut response[..len]).map_err(Error::ProtocolError)
+        if timeout_ms > 0 {
+            match select(
+                self.adapter.receive(response),
+                embassy_time::Timer::after(embassy_time::Duration::from_millis(timeout_ms as u64))
+            ).await {
+                Either::First(ret) => {
+                    let len = ret.map_err(Error::AdapterError)?;
+                    self.protocol.parse_response(sid, &mut response[..len]).map_err(Error::ProtocolError)
+                },
+                Either::Second(_) => {
+                    Err(ProtocolError::Timeout.into())
+                }
+            }
+        } else {
+            let len = self.adapter.receive(response).await.map_err(Error::AdapterError)?;
+            self.protocol.parse_response(sid, &mut response[..len]).map_err(Error::ProtocolError)
+        }
     }
 }
 
@@ -56,7 +73,12 @@ impl<'a> EcuApi for ECU<'a> {
             esp_hal::rom::ets_delay_us(FAST_INIT_HALF_PERIOD);
 
             let mut buf = [0u8; 8];
-            let size = self.poll(ServiceId::StartCommunication as u8, &[], &mut buf)
+            let size = self.poll(
+                ServiceId::StartCommunication as u8,
+                &[],
+                &mut buf,
+                0
+            )
                 .await
                 // ignore Keyword Bytes
                 .map(|mut size | { size -= 2; size } )?;
@@ -71,12 +93,12 @@ impl<'a> EcuApi for ECU<'a> {
     async fn tester_present(&mut self) {
         let mut buf = [0u8; 8];
         // 0x01 is the only arg which was accepted, but cannot cancel echo/response
-        self.poll(ServiceId::TesterPresent as u8, &[0x01], &mut buf).await.ok();
+        self.poll(ServiceId::TesterPresent as u8, &[0x01], &mut buf, 0).await.ok();
     }
 
     async fn raw_request(&mut self, request: &[u8], response: &mut [u8]) -> Result<usize, Error> {
         if self.state != State::Disconnected {
-            self.poll(request[0], &request[1..], response).await
+            self.poll(request[0], &request[1..], response, 0).await
         } else {
             Err(EcuApiError::NotConnected.into())
         }
@@ -85,7 +107,12 @@ impl<'a> EcuApi for ECU<'a> {
     async fn read_dtc(&mut self, response: &mut [u8]) -> Result<usize, Error> {
         if self.state != State::Disconnected {
             // 0x02 - Request all 2 byte hex DTCs, 
-            self.poll(ServiceId::ReadDiagnosticTroubleCodesByStatus as u8, &[0x02, 0xFF, 0xFF], response).await
+            self.poll(
+                ServiceId::ReadDiagnosticTroubleCodesByStatus as u8,
+                &[0x02, 0xFF, 0xFF],
+                response,
+                0
+            ).await
         } else {
             Err(EcuApiError::NotConnected.into())
         }
@@ -94,7 +121,12 @@ impl<'a> EcuApi for ECU<'a> {
     async fn clear_dtc(&mut self) -> Result<usize, Error> {
         if self.state != State::Disconnected {
             let mut buf = [0u8; 8];
-            let size = self.poll(ServiceId::ClearDiagnosticInformation as u8, &[0xff, 0xff], &mut buf)
+            let size = self.poll(
+                ServiceId::ClearDiagnosticInformation as u8,
+                &[0xff, 0xff],
+                &mut buf,
+                0
+            )
                 .await
                 .map(|mut size | { size -= 2; size } )?;
             Ok(size)
@@ -108,7 +140,7 @@ impl<'a> EcuApi for ECU<'a> {
             let mut buf = [0u8; 8];
             // request seed
             loop {
-                self.poll(ServiceId::SecurityAccess as u8, &[0x03], &mut buf).await?;
+                self.poll(ServiceId::SecurityAccess as u8, &[0x03], &mut buf, 0).await?;
                 // I found/know secret key only for even seeds
                 if ((buf[5] as u16 * 256) + (buf[6] as u16)) % 2 == 0 {
                     break
@@ -122,7 +154,9 @@ impl<'a> EcuApi for ECU<'a> {
             let size = self.poll(
                 ServiceId::SecurityAccess as u8,
                 &[0x04, (key / 256) as u8, (key % 256) as u8],
-                &mut buf)
+                &mut buf,
+                0
+            )
                 .await
                 // ignore positive response in response
                 .map(|mut size | { size -= 1; size } )?;
@@ -148,7 +182,7 @@ impl<'a> EcuApi for ECU<'a> {
         let (mut counter, index) =  if let State::ReadIds(counter, index) = self.state {
             (counter, index)
         } else {
-            (IDS_ARRAY.len(), 0)
+            (DATA_IDS.len(), 0)
         };
 
         let len = if buf_len < counter{
@@ -175,21 +209,21 @@ impl<'a> EcuApi for ECU<'a> {
 
         let mut j = 0usize;
         for i in index..index + len {
-            response[4 + (j * 2)] = (IDS_ARRAY[i].0 / 256) as u8; 
-            response[4 + (j * 2) + 1] = (IDS_ARRAY[i].0 % 256) as u8;
+            response[4 + (j * 2)] = (DATA_IDS[i].0 / 256) as u8; 
+            response[4 + (j * 2) + 1] = (DATA_IDS[i].0 % 256) as u8;
             j += 1;
         }
 
         len * 2 + 4
     }
 
-    fn get_ids_description(&mut self, id: &[u8], response: &mut [u8]) -> Result<usize, Error> {
+    fn get_id_description(&mut self, id: &[u8], response: &mut [u8]) -> Result<usize, Error> {
         response[0] = id[0];
         response[1] = id[1];
 
         let idx = (id[0] as u16) * 256 + (id[1] as u16);
 
-        if let Some(&(_, descr)) = IDS_ARRAY.into_iter().find(|(i, _)| *i == idx) {
+        if let Some(&(_, descr)) = DATA_IDS.into_iter().find(|(i, _)| *i == idx) {
             unsafe {
                 core::ptr::copy_nonoverlapping(descr.as_ptr(), response[2..].as_mut_ptr(), descr.len());
                 Ok(descr.len() + 2)
@@ -199,14 +233,31 @@ impl<'a> EcuApi for ECU<'a> {
         }
     }
 
-    async fn read_data(&mut self, ids: &[u8], response: &mut [u8]) -> Result<usize, Error> {
+    async fn read_data(&mut self, id: &[u8], response: &mut [u8]) -> Result<usize, Error> {
         if self.state != State::Disconnected {
-            self.poll(ServiceId::ReadDataByCommonId as u8, &ids[..2], response).await
+            self.poll(ServiceId::ReadDataByCommonId as u8, id, response, 0).await
         } else {
             Err(EcuApiError::NotConnected.into())
         }
     }
 
+    async fn start_routine(&mut self, arg: &[u8],response: &mut [u8]) -> Result<usize,Error> {
+        if self.state != State::Disconnected {
+            self.poll(ServiceId::StartRoutineByLocalIdentifier as u8, arg, response, 300).await
+        } else {
+            Err(EcuApiError::NotConnected.into())
+        }
+    }
+
+    async fn stop_routine(&mut self, arg: &[u8],response: &mut [u8]) -> Result<usize,Error> {
+        if self.state != State::Disconnected {
+            self.poll(ServiceId::StopRoutineByLocalIdentifier as u8, arg, response, 0).await
+        } else {
+            Err(EcuApiError::NotConnected.into())
+        }
+    }
+
+    // not used yet
     async fn response(&mut self, response: &mut [u8]) -> Result<usize, Error> {
         self.adapter.receive(response).await.map_err(Error::AdapterError)
     }
@@ -280,7 +331,7 @@ impl<'a> EcuApi for ECU<'a> {
     }
 }
 
-const IDS_ARRAY: &[(u16, &[u8])] = &[
+const DATA_IDS: &[(u16, &[u8])] = &[
     (0x0000u16, b"Absolute throttle position sensor voltage - THAD"),
 
     (0x0001u16, b"Absolute throttle position sensor - THM/80 deg *100 %"),
@@ -366,4 +417,49 @@ const IDS_ARRAY: &[(u16, &[u8])] = &[
     (0x0509u16, b"High REV counter area 8"),
 
     (0x0510u16, b"High REV counter area 9"),
+];
+
+const START_ROUTINE_IDS: &[(u8, &[u8])] = &[
+    (0x01, b"CheckCodingChecksum Progr(Appl Code) 02, Data(Calibr Code) 04)"),
+    (0x0a, b"CheckProgrammingStatus"),
+
+    // Modern ECUs are "learning" machines. They constantly adjust parameters to compensate
+    // for wear and tear. This routine wipes that memory.
+    //
+    // What it resets: Fuel trim values (long-term/short-term), throttle body alignment positions,
+    // and sensor offset calibrations.
+    //
+    // When to use it: After replacing a major engine component (like an O2 sensor, fuel injector,
+    //
+    // or throttle body). It forces the ECU to start learning from a "clean slate" rather than trying
+    // to apply old, incorrect compensation values to new hardware.
+    (0x91, b"study ctrl data, breakdown info, all refrnc reset operatn (E2)"),
+
+    // Study Control Data: Resets the "statistical" data the car tracks about the driver
+    //
+    // Breakdown Information: Clears historical environmental data related to faults. In some
+    // systems, this resets "first-occurrence" timers or permanent internal counters
+    // that standard DTC (Diagnostic Trouble Code) clearing might not touch.
+    //
+    // Reference Reset: It essentially tells the ECU: "Forget everything that has happened
+    // since you left the factory assembly line."
+    //
+    // When to use it: Typically used at the very end of the production line or when a "remanufactured"
+    // ECU is being installed to ensure it doesn't carry over data from the previous vehicle.
+    (0xa0, b"All reference reset operation (00) - (Delete Adaption)"),
+    // Warning: Using these two above via StartRoutineByLocalIdentifier without following up with the correct 
+    // re-learning procedure (like a specific idling sequence or driving cycle) can sometimes cause the vehicle 
+    // to run poorly or throw "Configuration Not Performed" faults.
+    
+    (0xa4, b"Ignition test (01) 'bank1'"),
+    (0xa5, b"Injector test (01)'bank1'"),
+    (0xa6, b"Purge control valve ON/OFF test (00)"),
+    (0xa7, b"Fuel pump relay ON/OFF test (00), operation ON (01)"),
+    (0xa9, b"2nd throttle valve control stepper motor test (00)"),
+    (0xaf, b"HEGO sensor operation (heating) ON (01) 'bank1'"),
+];
+
+const STOP_ROUTINE_IDS: &[(u8, &[u8])] = &[
+    (0xa7, b"Fuel pump relay operation OFF (01)"),
+    (0xaf, b"HEGO sensor operation (heating) OFF (01) 'bank1'"),
 ];
