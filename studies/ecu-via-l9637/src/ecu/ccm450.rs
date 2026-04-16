@@ -45,6 +45,7 @@ impl<'a> ECU<'a> {
         self.adapter.transmit(&mut response[..len]).await.map_err(Error::AdapterError)?;
 
         if timeout_ms > 0 {
+            trace!("timeout");
             match select(
                 self.adapter.receive(response),
                 embassy_time::Timer::after(embassy_time::Duration::from_millis(timeout_ms as u64))
@@ -60,6 +61,79 @@ impl<'a> ECU<'a> {
         } else {
             let len = self.adapter.receive(response).await.map_err(Error::AdapterError)?;
             self.protocol.parse_response(sid, &mut response[..len]).map_err(Error::ProtocolError)
+        }
+    }
+
+    fn read_ids(&mut self, id_descr_array: &[(u16, &[u8])], response: &mut [u8]) -> usize {
+        static mut SAVE_STATE: (State, bool) = (State::Disconnected, false);
+        // Safety: we use this 'static mut' only in this function
+        unsafe {
+            // save State only the first call
+            if !SAVE_STATE.1 {
+                SAVE_STATE.0 = self.state;
+                SAVE_STATE.1 = true;
+            }
+        }
+
+        let buf_len = (response.len() - 4) / 2;
+
+        let (mut counter, index) =  if let State::ReadIds(counter, index) = self.state {
+            (counter, index)
+        } else {
+            (id_descr_array.len(), 0)
+        };
+
+        let len = if buf_len < counter{
+            buf_len
+        } else {
+            counter
+        };
+
+        counter -= len;
+        if counter > 0 {
+            self.state = State::ReadIds(counter, index + len);
+        } else {
+            unsafe {
+                self.state = SAVE_STATE.0;
+                // reset State saving mechanism after the last call
+                SAVE_STATE.1 = false;
+            }
+        }
+
+        response[0] = (len / 256) as u8;
+        response[1] = (len % 256) as u8;
+        response[2] = (counter / 256) as u8;
+        response[3] = (counter % 256) as u8;
+
+        let mut j = 0usize;
+        for i in index..index + len {
+            response[4 + (j * 2)] = (id_descr_array[i].0 / 256) as u8; 
+            response[4 + (j * 2) + 1] = (id_descr_array[i].0 % 256) as u8;
+            j += 1;
+        }
+
+        len * 2 + 4
+    }
+
+    fn id_description(
+        &mut self,
+        id_descr_array: &[(u16, &[u8])],
+        id: &[u8],
+        response: &mut [u8]
+    ) -> Result<usize, Error> {
+
+        response[0] = id[0];
+        response[1] = id[1];
+
+        let idx = (id[0] as u16) * 256 + (id[1] as u16);
+
+        if let Some(&(_, descr)) = id_descr_array.into_iter().find(|(i, _)| *i == idx) {
+            unsafe {
+                core::ptr::copy_nonoverlapping(descr.as_ptr(), response[2..].as_mut_ptr(), descr.len());
+                Ok(descr.len() + 2)
+            }
+        } else {
+            Err(EcuApiError::InvalidId.into())
         }
     }
 }
@@ -166,71 +240,12 @@ impl<'a> EcuApi for ECU<'a> {
         }
     }
 
-    fn read_ids(&mut self,response: &mut [u8]) -> usize {
-        static mut SAVE_STATE: (State, bool) = (State::Disconnected, false);
-        // Safety: we use this 'static mut' only in this function
-        unsafe {
-            // save State only the first call
-            if !SAVE_STATE.1 {
-                SAVE_STATE.0 = self.state;
-                SAVE_STATE.1 = true;
-            }
-        }
-
-        let buf_len = (response.len() - 4) / 2;
-
-        let (mut counter, index) =  if let State::ReadIds(counter, index) = self.state {
-            (counter, index)
-        } else {
-            (DATA_IDS.len(), 0)
-        };
-
-        let len = if buf_len < counter{
-            buf_len
-        } else {
-            counter
-        };
-
-        counter -= len;
-        if counter > 0 {
-            self.state = State::ReadIds(counter, index + len);
-        } else {
-            unsafe {
-                self.state = SAVE_STATE.0;
-                // reset State saving mechanism after the last call
-                SAVE_STATE.1 = false;
-            }
-        }
-
-        response[0] = (len / 256) as u8;
-        response[1] = (len % 256) as u8;
-        response[2] = (counter / 256) as u8;
-        response[3] = (counter % 256) as u8;
-
-        let mut j = 0usize;
-        for i in index..index + len {
-            response[4 + (j * 2)] = (DATA_IDS[i].0 / 256) as u8; 
-            response[4 + (j * 2) + 1] = (DATA_IDS[i].0 % 256) as u8;
-            j += 1;
-        }
-
-        len * 2 + 4
+    fn read_data_ids(&mut self,response: &mut [u8]) -> usize {
+        self.read_ids(DATA_IDS, response)
     }
 
-    fn get_id_description(&mut self, id: &[u8], response: &mut [u8]) -> Result<usize, Error> {
-        response[0] = id[0];
-        response[1] = id[1];
-
-        let idx = (id[0] as u16) * 256 + (id[1] as u16);
-
-        if let Some(&(_, descr)) = DATA_IDS.into_iter().find(|(i, _)| *i == idx) {
-            unsafe {
-                core::ptr::copy_nonoverlapping(descr.as_ptr(), response[2..].as_mut_ptr(), descr.len());
-                Ok(descr.len() + 2)
-            }
-        } else {
-            Err(EcuApiError::InvalidId.into())
-        }
+    fn data_id_description(&mut self,id: &[u8],response: &mut [u8]) -> Result<usize,Error> {
+        self.id_description(DATA_IDS, id, response)
     }
 
     async fn read_data(&mut self, id: &[u8], response: &mut [u8]) -> Result<usize, Error> {
@@ -241,9 +256,26 @@ impl<'a> EcuApi for ECU<'a> {
         }
     }
 
+    fn read_start_ids(&mut self, response: &mut [u8]) -> usize {
+        self.read_ids(START_ROUTINE_IDS, response)
+    }
+
+    fn read_stop_ids(&mut self,response: &mut [u8]) -> usize {
+        self.read_ids(STOP_ROUTINE_IDS, response)
+    }
+
+    fn start_id_description(&mut self,id: &[u8],response: &mut [u8]) -> Result<usize,Error> {
+        self.id_description(START_ROUTINE_IDS, id, response)
+    }
+
+    fn stop_id_description(&mut self,id: &[u8],response: &mut [u8]) -> Result<usize,Error> {
+        self.id_description(STOP_ROUTINE_IDS, id, response)        
+    }
+
     async fn start_routine(&mut self, arg: &[u8],response: &mut [u8]) -> Result<usize,Error> {
+        trace!("start_routine");
         if self.state != State::Disconnected {
-            self.poll(ServiceId::StartRoutineByLocalIdentifier as u8, arg, response, 300).await
+            self.poll(ServiceId::StartRoutineByLocalIdentifier as u8, arg, response, 200).await
         } else {
             Err(EcuApiError::NotConnected.into())
         }
@@ -419,9 +451,12 @@ const DATA_IDS: &[(u16, &[u8])] = &[
     (0x0510u16, b"High REV counter area 9"),
 ];
 
-const START_ROUTINE_IDS: &[(u8, &[u8])] = &[
-    (0x01, b"CheckCodingChecksum Progr(Appl Code) 02, Data(Calibr Code) 04)"),
-    (0x0a, b"CheckProgrammingStatus"),
+const START_ROUTINE_IDS: &[(u16, &[u8])] = &[
+    (0x0102, b"CheckCodingChecksum Program (Applization Code)"),
+    (0x0104, b"CheckCodingChecksum Data (Calibration Code)"),
+    
+    // 0x0a (but we need to define u16)
+    (0x000a, b"CheckProgrammingStatus - ignore 0x00, one byte only: 0x0a"),
 
     // Modern ECUs are "learning" machines. They constantly adjust parameters to compensate
     // for wear and tear. This routine wipes that memory.
@@ -433,7 +468,7 @@ const START_ROUTINE_IDS: &[(u8, &[u8])] = &[
     //
     // or throttle body). It forces the ECU to start learning from a "clean slate" rather than trying
     // to apply old, incorrect compensation values to new hardware.
-    (0x91, b"study ctrl data, breakdown info, all refrnc reset operatn (E2)"),
+    (0x91e2, b"study ctrl data, breakdown info, all reference reset operation"),
 
     // Study Control Data: Resets the "statistical" data the car tracks about the driver
     //
@@ -446,20 +481,21 @@ const START_ROUTINE_IDS: &[(u8, &[u8])] = &[
     //
     // When to use it: Typically used at the very end of the production line or when a "remanufactured"
     // ECU is being installed to ensure it doesn't carry over data from the previous vehicle.
-    (0xa0, b"All reference reset operation (00) - (Delete Adaption)"),
+    (0xa000, b"All reference reset operation - (Delete Adaption)"),
     // Warning: Using these two above via StartRoutineByLocalIdentifier without following up with the correct 
     // re-learning procedure (like a specific idling sequence or driving cycle) can sometimes cause the vehicle 
     // to run poorly or throw "Configuration Not Performed" faults.
     
-    (0xa4, b"Ignition test (01) 'bank1'"),
-    (0xa5, b"Injector test (01)'bank1'"),
-    (0xa6, b"Purge control valve ON/OFF test (00)"),
-    (0xa7, b"Fuel pump relay ON/OFF test (00), operation ON (01)"),
-    (0xa9, b"2nd throttle valve control stepper motor test (00)"),
-    (0xaf, b"HEGO sensor operation (heating) ON (01) 'bank1'"),
+    (0xa401, b"Ignition test 'bank1'"),
+    (0xa501, b"Injector test 'bank1'"),
+    (0xa600, b"Purge control valve ON/OFF test"),
+    (0xa700, b"Fuel pump relay ON/OFF test"),
+    (0xa701, b"Fuel pump relay operation ON"),
+    (0xa900, b"2nd throttle valve control stepper motor test"),
+    (0xaf01, b"HEGO sensor operation (heating) ON 'bank1'"),
 ];
 
-const STOP_ROUTINE_IDS: &[(u8, &[u8])] = &[
-    (0xa7, b"Fuel pump relay operation OFF (01)"),
-    (0xaf, b"HEGO sensor operation (heating) OFF (01) 'bank1'"),
+const STOP_ROUTINE_IDS: &[(u16, &[u8])] = &[
+    (0xa701, b"Fuel pump relay operation OFF"),
+    (0xaf01, b"HEGO sensor operation (heating) OFF 'bank1'"),
 ];

@@ -79,14 +79,22 @@ macro_rules! ecu_api {
 ecu_api! {
     Connect         0   async connect() -> Result<usize, Error>;
     RawRequest      1   async raw_request(request: &[u8], response: &mut [u8]) -> Result<usize, Error>;
+
     ReadDTC         2   async read_dtc(response: &mut [u8]) -> Result<usize, Error>;
     ClearDTC        3   async clear_dtc() -> Result<usize, Error>;
+
     SecurityAccess  4   async security_access() -> Result<usize, Error>;
-    ReadIds         5   sync  read_ids(response: &mut [u8]) -> usize;
-    GetIdDescr      6   sync  get_id_description(id: &[u8], response: &mut [u8]) -> Result<usize, Error>;
+
+    ReadDataIds     5   sync  read_data_ids(response: &mut [u8]) -> usize;
+    DataIdDescr     6   sync  data_id_description(id: &[u8], response: &mut [u8]) -> Result<usize, Error>;
     ReadData        7   async read_data(id: &[u8], response: &mut [u8]) -> Result<usize, Error>;
-    StartRoutine    8   async start_routine(arg: &[u8], response: &mut [u8]) -> Result<usize, Error>;
-    StopRoutine     9   async stop_routine(arg: &[u8], response: &mut [u8]) -> Result<usize, Error>;
+
+    ReadSartIds     8   sync  read_start_ids(response: &mut [u8]) -> usize;
+    ReadStopIds     9   sync  read_stop_ids(response: &mut [u8]) -> usize;
+    StartIdDescr   10   sync  start_id_description(id: &[u8], response: &mut [u8]) -> Result<usize, Error>;
+    StopIdDescr    11   sync  stop_id_description(id: &[u8], response: &mut [u8]) -> Result<usize, Error>;
+    StartRoutine   12   async start_routine(arg: &[u8], response: &mut [u8]) -> Result<usize, Error>;
+    StopRoutine    13   async stop_routine(arg: &[u8], response: &mut [u8]) -> Result<usize, Error>;
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -154,7 +162,7 @@ pub async fn server(
             Either3::First(request) => {
                 // for one request with multiple packet response
                 let mut skip_receive_done = false;
-                trace!("#### ECU: channel receiver.receive(): {}", request.data[..request.size]);
+                trace!("#### ECU: channel receiver.receive(): {:x}", request.data[..request.size]);
 
                 if let Ok(reqst) = EcuRequest::try_from(request.data[1] as u8) {
                     match reqst {
@@ -194,9 +202,9 @@ pub async fn server(
                             response.size = ecu_response(response, ecu.security_access().await);
                         }
 
-                        EcuRequest::ReadIds => {
+                        EcuRequest::ReadDataIds => {
                             loop {
-                                let size = ecu.read_ids(
+                                let size = ecu.read_data_ids(
                                     &mut response.data[2..]
                                 );
                                 response.size = ecu_response(response, Ok(size))    ;
@@ -216,9 +224,9 @@ pub async fn server(
                             }
                         }
 
-                        EcuRequest::GetIdDescr => {
+                        EcuRequest::DataIdDescr => {
                             if request.size == 4 {
-                                let result = ecu.get_id_description(
+                                let result = ecu.data_id_description(
                                     &request.data[2..request.size],
                                     &mut response.data[2..(crate::CHANNEL_ITEM_SIZE)]
                                 );
@@ -236,6 +244,46 @@ pub async fn server(
                                     &mut response.data[2..(crate::CHANNEL_ITEM_SIZE)]
                                 )
                                 .await;
+                                response.size = ecu_response(response, result) ;
+                            } else {
+                                // send invalid request error via udp immediately
+                                response.size = ecu_response(response, Err(EcuApiError::InvalidRequest.into()));
+                            }
+                        }
+
+                        EcuRequest::ReadSartIds => {
+                            let size = ecu.read_start_ids(
+                                    &mut response.data[2..]
+                                );
+                            response.size = ecu_response(response, Ok(size))    ;
+                        }
+
+                        EcuRequest::ReadStopIds => {
+                            let size = ecu.read_stop_ids(
+                                    &mut response.data[2..]
+                                );
+                            response.size = ecu_response(response, Ok(size))    ;
+                        }
+
+                        EcuRequest::StartIdDescr => {
+                            if request.size == 4 {
+                                let result = ecu.start_id_description(
+                                    &request.data[2..request.size],
+                                    &mut response.data[2..(crate::CHANNEL_ITEM_SIZE)]
+                                );
+                                response.size = ecu_response(response, result) ;
+                            } else {
+                                // send invalid request error via udp immediately
+                                response.size = ecu_response(response, Err(EcuApiError::InvalidRequest.into()));
+                            }
+                        }
+
+                        EcuRequest::StopIdDescr => {
+                            if request.size == 4 {
+                                let result = ecu.stop_id_description(
+                                    &request.data[2..request.size],
+                                    &mut response.data[2..(crate::CHANNEL_ITEM_SIZE)]
+                                );
                                 response.size = ecu_response(response, result) ;
                             } else {
                                 // send invalid request error via udp immediately
@@ -261,17 +309,18 @@ pub async fn server(
                             response.size = ecu_response(response, result) ;
                         }
                     }
-                    // we have finished to process request
-                    //
-                    // but we should not send receive_done signal
-                    // if we send multiple messages for a request (ReadIds)
-                    if !skip_receive_done {
-                        receiver.receive_done();
-                    }
                 } else {
                     // send invalid request error via udp immediately
                     response.size = ecu_response(response, Err(EcuApiError::InvalidRequest.into()));
                 }
+                // we have finished to process request
+                //
+                // but we should not send receive_done signal
+                // if we send multiple messages for a request (ReadIds)
+                if !skip_receive_done {
+                    receiver.receive_done();
+                }
+
                 // signal sent message packet
                 sender.send_done();
             }
@@ -279,7 +328,7 @@ pub async fn server(
             // received response from ecu
             Either3::Second(result) => {
                 response.size = result.unwrap_or_else(|_err| {
-                    trace!("#### ECU #direct/unwaited# error: {}", _err);
+                    trace!("#### ECU #direct/unwaited# error: {:x}", _err);
                     0
                 });
 
