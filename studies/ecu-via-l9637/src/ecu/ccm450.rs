@@ -1,6 +1,6 @@
 use embassy_futures::select::{Either,select};
 
-use super::{EcuApi, Error, EcuApiError};
+use super::{EcuApi, Error, EcuApiError, IdType};
 use crate::adapter::{ Adapters, Adapter};
 use crate::protocol::{Protocol, ProtocolError, Protocols, ServiceId};
 
@@ -63,79 +63,6 @@ impl<'a> ECU<'a> {
             self.protocol.parse_response(sid, &mut response[..len]).map_err(Error::ProtocolError)
         }
     }
-
-    fn read_ids(&mut self, id_descr_array: &[(u16, &[u8])], response: &mut [u8]) -> usize {
-        static mut SAVE_STATE: (State, bool) = (State::Disconnected, false);
-        // Safety: we use this 'static mut' only in this function
-        unsafe {
-            // save State only the first call
-            if !SAVE_STATE.1 {
-                SAVE_STATE.0 = self.state;
-                SAVE_STATE.1 = true;
-            }
-        }
-
-        let buf_len = (response.len() - 4) / 2;
-
-        let (mut counter, index) =  if let State::ReadIds(counter, index) = self.state {
-            (counter, index)
-        } else {
-            (id_descr_array.len(), 0)
-        };
-
-        let len = if buf_len < counter{
-            buf_len
-        } else {
-            counter
-        };
-
-        counter -= len;
-        if counter > 0 {
-            self.state = State::ReadIds(counter, index + len);
-        } else {
-            unsafe {
-                self.state = SAVE_STATE.0;
-                // reset State saving mechanism after the last call
-                SAVE_STATE.1 = false;
-            }
-        }
-
-        response[0] = (len / 256) as u8;
-        response[1] = (len % 256) as u8;
-        response[2] = (counter / 256) as u8;
-        response[3] = (counter % 256) as u8;
-
-        let mut j = 0usize;
-        for i in index..index + len {
-            response[4 + (j * 2)] = (id_descr_array[i].0 / 256) as u8; 
-            response[4 + (j * 2) + 1] = (id_descr_array[i].0 % 256) as u8;
-            j += 1;
-        }
-
-        len * 2 + 4
-    }
-
-    fn id_description(
-        &mut self,
-        id_descr_array: &[(u16, &[u8])],
-        id: &[u8],
-        response: &mut [u8]
-    ) -> Result<usize, Error> {
-
-        response[0] = id[0];
-        response[1] = id[1];
-
-        let idx = (id[0] as u16) * 256 + (id[1] as u16);
-
-        if let Some(&(_, descr)) = id_descr_array.into_iter().find(|(i, _)| *i == idx) {
-            unsafe {
-                core::ptr::copy_nonoverlapping(descr.as_ptr(), response[2..].as_mut_ptr(), descr.len());
-                Ok(descr.len() + 2)
-            }
-        } else {
-            Err(EcuApiError::InvalidId.into())
-        }
-    }
 }
 
 #[cfg(feature = "l9637")]
@@ -172,7 +99,7 @@ impl<'a> EcuApi for ECU<'a> {
 
     async fn raw_request(&mut self, request: &[u8], response: &mut [u8]) -> Result<usize, Error> {
         if self.state != State::Disconnected {
-            self.poll(request[0], &request[1..], response, 0).await
+            self.poll(request[0], &request[1..], response, 200).await
         } else {
             Err(EcuApiError::NotConnected.into())
         }
@@ -240,12 +167,88 @@ impl<'a> EcuApi for ECU<'a> {
         }
     }
 
-    fn read_data_ids(&mut self,response: &mut [u8]) -> usize {
-        self.read_ids(DATA_IDS, response)
+    fn get_ids(&mut self, id_type: IdType, response: &mut [u8]) -> usize {        
+        let id_array = match id_type {
+            IdType::ReadData => DATA_IDS,
+            IdType::StartRoutine => START_ROUTINE_IDS,
+            IdType::StopRoutine => STOP_ROUTINE_IDS,
+        };
+
+        static mut SAVE_STATE: (State, bool) = (State::Disconnected, false);
+        // Safety: we use this 'static mut' only in this function
+        unsafe {
+            // save State only the first call
+            if !SAVE_STATE.1 {
+                SAVE_STATE.0 = self.state;
+                SAVE_STATE.1 = true;
+            }
+        }
+
+        let buf_len = (response.len() - 4) / 2;
+
+        let (mut counter, index) =  if let State::ReadIds(counter, index) = self.state {
+            (counter, index)
+        } else {
+            (id_array.len(), 0)
+        };
+
+        let len = if buf_len < counter{
+            buf_len
+        } else {
+            counter
+        };
+
+        counter -= len;
+        if counter > 0 {
+            self.state = State::ReadIds(counter, index + len);
+        } else {
+            unsafe {
+                self.state = SAVE_STATE.0;
+                // reset State saving mechanism after the last call
+                SAVE_STATE.1 = false;
+            }
+        }
+
+        response[0] = (len / 256) as u8;
+        response[1] = (len % 256) as u8;
+        response[2] = (counter / 256) as u8;
+        response[3] = (counter % 256) as u8;
+
+        let mut j = 0usize;
+        for i in index..index + len {
+            response[4 + (j * 2)] = (id_array[i].0 / 256) as u8; 
+            response[4 + (j * 2) + 1] = (id_array[i].0 % 256) as u8;
+            j += 1;
+        }
+
+        len * 2 + 4
     }
 
-    fn data_id_description(&mut self,id: &[u8],response: &mut [u8]) -> Result<usize,Error> {
-        self.id_description(DATA_IDS, id, response)
+    fn get_id_description(
+        &mut self,
+        id_type: IdType,
+        id: &[u8],
+        response: &mut [u8]
+    ) -> Result<usize, Error> {
+        let descr_array = match id_type {
+            IdType::ReadData => DATA_IDS,
+            IdType::StartRoutine => START_ROUTINE_IDS,
+            IdType::StopRoutine => STOP_ROUTINE_IDS,
+        };
+
+        response[0] = id[0];
+        response[1] = id[1];
+
+        let idx= (id[0] as u16) * 256 + (id[1] as u16);
+
+        if let Some(&(_, descr)) = descr_array.into_iter().find(|(i, _)| *i == idx) {
+            unsafe {
+                core::ptr::copy_nonoverlapping(descr.as_ptr(), response[2..].as_mut_ptr(), descr.len());
+                Ok(descr.len() + 2)
+            }
+        } else {
+            Err(EcuApiError::InvalidId.into())
+        }
     }
 
     async fn read_data(&mut self, id: &[u8], response: &mut [u8]) -> Result<usize, Error> {
@@ -256,24 +259,7 @@ impl<'a> EcuApi for ECU<'a> {
         }
     }
 
-    fn read_start_ids(&mut self, response: &mut [u8]) -> usize {
-        self.read_ids(START_ROUTINE_IDS, response)
-    }
-
-    fn read_stop_ids(&mut self,response: &mut [u8]) -> usize {
-        self.read_ids(STOP_ROUTINE_IDS, response)
-    }
-
-    fn start_id_description(&mut self,id: &[u8],response: &mut [u8]) -> Result<usize,Error> {
-        self.id_description(START_ROUTINE_IDS, id, response)
-    }
-
-    fn stop_id_description(&mut self,id: &[u8],response: &mut [u8]) -> Result<usize,Error> {
-        self.id_description(STOP_ROUTINE_IDS, id, response)        
-    }
-
     async fn start_routine(&mut self, arg: &[u8],response: &mut [u8]) -> Result<usize,Error> {
-        trace!("start_routine");
         if self.state != State::Disconnected {
             self.poll(ServiceId::StartRoutineByLocalIdentifier as u8, arg, response, 200).await
         } else {
@@ -449,11 +435,23 @@ const DATA_IDS: &[(u16, &[u8])] = &[
     (0x0509u16, b"High REV counter area 8"),
 
     (0x0510u16, b"High REV counter area 9"),
-];
+
+    (0x2500u16, b"Read backup of the supplier information field"),
+
+    (0x2501u16, b"Read Flash Times"),
+
+    (0x2502u16, b"Read HW Reference"),
+
+    (0x2503u16, b"Read Program Reference"),
+
+    (0x2504u16, b"Read Data Reference"),
+
+    (0x2506u16, b"Read Flash Block Length"),
+    ];
 
 const START_ROUTINE_IDS: &[(u16, &[u8])] = &[
-    (0x0102, b"CheckCodingChecksum Program (Applization Code)"),
-    (0x0104, b"CheckCodingChecksum Data (Calibration Code)"),
+    (0x0102, b"CheckCodingChecksum - Program (Applization Code)"),
+    (0x0104, b"CheckCodingChecksum - Data (Calibration Code)"),
     
     // 0x0a (but we need to define u16)
     (0x000a, b"CheckProgrammingStatus - ignore 0x00, one byte only: 0x0a"),

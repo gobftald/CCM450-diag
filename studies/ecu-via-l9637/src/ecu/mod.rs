@@ -85,16 +85,13 @@ ecu_api! {
 
     SecurityAccess  4   async security_access() -> Result<usize, Error>;
 
-    ReadDataIds     5   sync  read_data_ids(response: &mut [u8]) -> usize;
-    DataIdDescr     6   sync  data_id_description(id: &[u8], response: &mut [u8]) -> Result<usize, Error>;
-    ReadData        7   async read_data(id: &[u8], response: &mut [u8]) -> Result<usize, Error>;
+    GetIds          5   sync  get_ids(id_type: IdType, response: &mut [u8]) -> usize;
+    GetIdDescr      6   sync  get_id_description(
+                                id_type: IdType, id: &[u8], response: &mut [u8]) -> Result<usize, Error>;
 
-    ReadSartIds     8   sync  read_start_ids(response: &mut [u8]) -> usize;
-    ReadStopIds     9   sync  read_stop_ids(response: &mut [u8]) -> usize;
-    StartIdDescr   10   sync  start_id_description(id: &[u8], response: &mut [u8]) -> Result<usize, Error>;
-    StopIdDescr    11   sync  stop_id_description(id: &[u8], response: &mut [u8]) -> Result<usize, Error>;
-    StartRoutine   12   async start_routine(arg: &[u8], response: &mut [u8]) -> Result<usize, Error>;
-    StopRoutine    13   async stop_routine(arg: &[u8], response: &mut [u8]) -> Result<usize, Error>;
+    ReadData        7   async read_data(id: &[u8], response: &mut [u8]) -> Result<usize, Error>;
+    StartRoutine    8   async start_routine(arg: &[u8], response: &mut [u8]) -> Result<usize, Error>;
+    StopRoutine     9   async stop_routine(arg: &[u8], response: &mut [u8]) -> Result<usize, Error>;
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -130,6 +127,27 @@ impl From<AdapterError> for Error {
 impl From<ProtocolError> for Error {
     fn from(err: ProtocolError) -> Self {
         Error::ProtocolError(err)
+    }
+}
+
+#[derive(Clone, Copy)]
+#[repr(u8)]
+pub enum IdType {
+    ReadData,
+    StartRoutine,
+    StopRoutine,
+}
+
+impl TryFrom<u8> for IdType {
+    type Error = ();
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+        x if x == IdType::ReadData as u8 => Ok(IdType::ReadData),
+        x if x == IdType::StartRoutine as u8 => Ok(IdType::StartRoutine),
+        x if x == IdType::StopRoutine as u8 => Ok(IdType::StopRoutine),
+            _ => Err(()),
+        }
     }
 }
 
@@ -202,32 +220,37 @@ pub async fn server(
                             response.size = ecu_response(response, ecu.security_access().await);
                         }
 
-                        EcuRequest::ReadDataIds => {
-                            loop {
-                                let size = ecu.read_data_ids(
-                                    &mut response.data[2..]
-                                );
-                                response.size = ecu_response(response, Ok(size))    ;
+                        EcuRequest::GetIds => {
+                            if let Ok(id_type) = IdType::try_from(request.data[2] as u8) {
+                                loop {
+                                    let size = ecu.get_ids(id_type, &mut response.data[2..]);
+                                    response.size = ecu_response(response, Ok(size))    ;
 
-                                if response.data[4] == 0 && response.data[5] == 0 {
-                                    break;
-                                } else {
-                                    if !skip_receive_done {
-                                        receiver.receive_done();
-                                        // skip receive done for all subsequent packets
-                                        skip_receive_done = true;
+                                    if response.data[4] == 0 && response.data[5] == 0 {
+                                        break;
+                                    } else {
+                                        if !skip_receive_done {
+                                            receiver.receive_done();
+                                            // skip receive done for all subsequent packets
+                                            skip_receive_done = true;
+                                        }
+                                        sender.send_done();
+
+                                        response = sender.send().await;
                                     }
-                                    sender.send_done();
-
-                                    response = sender.send().await;
                                 }
+                            } else {
+                                // send invalid request error via udp immediately
+                                response.size = ecu_response(response, Err(EcuApiError::InvalidRequest.into()));
                             }
                         }
 
-                        EcuRequest::DataIdDescr => {
-                            if request.size == 4 {
-                                let result = ecu.data_id_description(
-                                    &request.data[2..request.size],
+                        EcuRequest::GetIdDescr => {
+                            trace!("EcuRequest::GetIdDescr");
+                            if let Ok(id_type) = IdType::try_from(request.data[2] as u8) && request.size == 5 {
+                                let result = ecu.get_id_description(
+                                    id_type,
+                                    &request.data[3..request.size],
                                     &mut response.data[2..(crate::CHANNEL_ITEM_SIZE)]
                                 );
                                 response.size = ecu_response(response, result) ;
@@ -244,46 +267,6 @@ pub async fn server(
                                     &mut response.data[2..(crate::CHANNEL_ITEM_SIZE)]
                                 )
                                 .await;
-                                response.size = ecu_response(response, result) ;
-                            } else {
-                                // send invalid request error via udp immediately
-                                response.size = ecu_response(response, Err(EcuApiError::InvalidRequest.into()));
-                            }
-                        }
-
-                        EcuRequest::ReadSartIds => {
-                            let size = ecu.read_start_ids(
-                                    &mut response.data[2..]
-                                );
-                            response.size = ecu_response(response, Ok(size))    ;
-                        }
-
-                        EcuRequest::ReadStopIds => {
-                            let size = ecu.read_stop_ids(
-                                    &mut response.data[2..]
-                                );
-                            response.size = ecu_response(response, Ok(size))    ;
-                        }
-
-                        EcuRequest::StartIdDescr => {
-                            if request.size == 4 {
-                                let result = ecu.start_id_description(
-                                    &request.data[2..request.size],
-                                    &mut response.data[2..(crate::CHANNEL_ITEM_SIZE)]
-                                );
-                                response.size = ecu_response(response, result) ;
-                            } else {
-                                // send invalid request error via udp immediately
-                                response.size = ecu_response(response, Err(EcuApiError::InvalidRequest.into()));
-                            }
-                        }
-
-                        EcuRequest::StopIdDescr => {
-                            if request.size == 4 {
-                                let result = ecu.stop_id_description(
-                                    &request.data[2..request.size],
-                                    &mut response.data[2..(crate::CHANNEL_ITEM_SIZE)]
-                                );
                                 response.size = ecu_response(response, result) ;
                             } else {
                                 // send invalid request error via udp immediately
@@ -316,7 +299,7 @@ pub async fn server(
                 // we have finished to process request
                 //
                 // but we should not send receive_done signal
-                // if we send multiple messages for a request (ReadIds)
+                // if we send multiple messages for a request (GetIds)
                 if !skip_receive_done {
                     receiver.receive_done();
                 }
