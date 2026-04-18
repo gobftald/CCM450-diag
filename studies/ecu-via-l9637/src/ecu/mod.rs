@@ -79,19 +79,20 @@ macro_rules! ecu_api {
 ecu_api! {
     Connect         0   async connect() -> Result<usize, Error>;
     RawRequest      1   async raw_request(request: &[u8], response: &mut [u8]) -> Result<usize, Error>;
+    EcuReset        2   async ecu_reset() -> Result<usize, Error>;
 
-    ReadDTC         2   async read_dtc(response: &mut [u8]) -> Result<usize, Error>;
-    ClearDTC        3   async clear_dtc() -> Result<usize, Error>;
+    ReadDTC         3   async read_dtc(response: &mut [u8]) -> Result<usize, Error>;
+    ClearDTC        4   async clear_dtc() -> Result<usize, Error>;
 
-    SecurityAccess  4   async security_access() -> Result<usize, Error>;
+    SecurityAccess  5   async security_access() -> Result<usize, Error>;
 
-    GetIds          5   sync  get_ids(id_type: IdType, response: &mut [u8]) -> usize;
-    GetIdDescr      6   sync  get_id_description(
+    GetIds          6   sync  get_ids(id_type: IdType, response: &mut [u8]) -> usize;
+    GetIdDescr      7   sync  get_id_description(
                                 id_type: IdType, id: &[u8], response: &mut [u8]) -> Result<usize, Error>;
 
-    ReadData        7   async read_data(id: &[u8], response: &mut [u8]) -> Result<usize, Error>;
-    StartRoutine    8   async start_routine(arg: &[u8], response: &mut [u8]) -> Result<usize, Error>;
-    StopRoutine     9   async stop_routine(arg: &[u8], response: &mut [u8]) -> Result<usize, Error>;
+    ReadData        8   async read_data(id: &[u8], response: &mut [u8]) -> Result<usize, Error>;
+    StartRoutine    9   async start_routine(arg: &[u8], response: &mut [u8]) -> Result<usize, Error>;
+    StopRoutine    10   async stop_routine(arg: &[u8], response: &mut [u8]) -> Result<usize, Error>;
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -186,6 +187,8 @@ pub async fn server(
                     match reqst {
                         EcuRequest::Connect => {
                             response.size = ecu_response(response, ecu.connect().await);
+
+                            // after EcuReset then (re)Connect spawn fails but we ignore that Busy error
                             spawner.spawn(tester_present()).ok();
                         }
 
@@ -202,6 +205,10 @@ pub async fn server(
                                 response.size = ecu_response(response, Err(EcuApiError::InvalidRequest.into()));
                                 trace!("#### ECU: response: {:a}", &response.data[..response.size]);
                             }
+                        }
+
+                        EcuRequest::EcuReset => {
+                            response.size = ecu_response(response, ecu.ecu_reset().await);
                         }
 
                         EcuRequest::ReadDTC => {

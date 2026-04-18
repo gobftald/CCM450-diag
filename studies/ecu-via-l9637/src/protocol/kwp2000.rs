@@ -25,6 +25,7 @@ pub struct Protocol {
 
 #[derive(Clone, Copy)] 
 pub enum ServiceId {
+    EcuReset = 0x11,
     ClearDiagnosticInformation = 0x14,
     ReadDiagnosticTroubleCodesByStatus = 0x18,
     ReadDataByCommonId = 0x22,

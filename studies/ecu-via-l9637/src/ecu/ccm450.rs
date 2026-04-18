@@ -92,14 +92,33 @@ impl<'a> EcuApi for ECU<'a> {
     }
 
     async fn tester_present(&mut self) {
-        let mut buf = [0u8; 8];
-        // 0x01 is the only arg which was accepted, but cannot cancel echo/response
-        self.poll(ServiceId::TesterPresent as u8, &[0x01], &mut buf, 0).await.ok();
+        if self.state != State::Disconnected {
+            let mut buf = [0u8; 8];
+            // 0x01 is the only arg which was accepted, but cannot cancel echo/response
+            self.poll(ServiceId::TesterPresent as u8, &[0x01], &mut buf, 0).await.ok();
+        }
     }
 
     async fn raw_request(&mut self, request: &[u8], response: &mut [u8]) -> Result<usize, Error> {
         if self.state != State::Disconnected {
             self.poll(request[0], &request[1..], response, 200).await
+        } else {
+            Err(EcuApiError::NotConnected.into())
+        }
+    }
+
+    async fn ecu_reset(&mut self) -> Result<usize, Error> {
+        if self.state != State::Disconnected {
+            let mut buf = [0u8; 8];
+            let size = self.poll(
+                ServiceId::EcuReset as u8,
+                // power on reset
+                &[0x01],
+                &mut buf,
+                0
+            ).await?;
+            self.state = State::Disconnected;
+            Ok(size)
         } else {
             Err(EcuApiError::NotConnected.into())
         }
