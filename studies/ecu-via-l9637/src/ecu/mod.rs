@@ -203,7 +203,6 @@ pub async fn server(
                             } else {
                                 // send invalid request error via udp immediately
                                 response.size = ecu_response(response, Err(EcuApiError::InvalidRequest.into()));
-                                trace!("#### ECU: response: {:a}", &response.data[..response.size]);
                             }
                         }
 

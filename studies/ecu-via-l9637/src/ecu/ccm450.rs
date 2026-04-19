@@ -454,18 +454,6 @@ const DATA_IDS: &[(u16, &[u8])] = &[
     (0x0509u16, b"High REV counter area 8"),
 
     (0x0510u16, b"High REV counter area 9"),
-
-    (0x2500u16, b"Read backup of the supplier information field"),
-
-    (0x2501u16, b"Read Flash Times"),
-
-    (0x2502u16, b"Read HW Reference"),
-
-    (0x2503u16, b"Read Program Reference"),
-
-    (0x2504u16, b"Read Data Reference"),
-
-    (0x2506u16, b"Read Flash Block Length"),
     ];
 
 const START_ROUTINE_IDS: &[(u16, &[u8])] = &[

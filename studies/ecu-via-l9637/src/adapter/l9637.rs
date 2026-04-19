@@ -74,9 +74,12 @@ macro_rules! create_adapter {
             $peripherals.UART0.into(),
             $peripherals.GPIO21.into(),
             $peripherals.GPIO20.into(),
-                */
-            $peripherals.UART1.into(),
-            $peripherals.GPIO2.into(),
+            */
+
+            // let the UART pins far from wifi antenna and oscillator
+            // in a position wrap/breadboard wires don't cross antenna
+            $peripherals.UART0.into(),
+            $peripherals.GPIO4.into(),
             $peripherals.GPIO3.into(),
         )
     }
