@@ -1,0 +1,63 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build-and-Flash",
+            "type": "shell",
+            //"command": "cargo build --features=esp-radio/sys-logs && espflash flash --chip esp32 --non-interactive target/riscv32imc-unknown-none-elf/debug/ecu-via-elm327",
+            "command": [
+                "cargo build",
+                "--features=esp-radio/sys-logs,rtos-trace",
+                "&&",
+                "espflash flash --chip esp32 --non-interactive",
+                "target/riscv32imc-unknown-none-elf/debug/ecu-via-elm327"
+            ],
+            "options": {
+                "env": {
+                    "DEFMT_LOG": "trace,smoltcp=off"
+                    //"DEFMT_LOG": "off,esp_rtos=trace,esp_radio=trace,esp_wifi_sys_esp32=trace"
+                }
+            },
+            "problemMatcher": [
+                "$rustc"
+            ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "group": "build"
+            }
+        },
+        {
+            "label": "Start-GDB-Server",
+            "type": "shell",
+            "command": "probe-rs gdb --chip esp32 --protocol jtag target/riscv32imc-unknown-none-elf/debug/ecu-via-elm327",
+            "isBackground": true,
+            "dependsOn": [
+                "Build-and-Flash"
+            ],
+            // This regex detects when the server is ready so VS Code can proceed
+            "problemMatcher": [
+                {
+                    "pattern": [
+                        {
+                            "regexp": ".",
+                            "file": 1,
+                            "location": 2,
+                            "message": 3
+                        }
+                    ],
+                    "background": {
+                        "activeOnStart": true,
+                        "beginsPattern": "^.*Firing up GDB stub.*",
+                        "endsPattern": "^.*127.0.0.1:1337.*"
+                    }
+                }
+            ],
+            "presentation": {
+                "group": "gdb",
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        }
+    ]
+}

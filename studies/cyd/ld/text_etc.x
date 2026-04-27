@@ -1,3 +1,4 @@
+
 /* original content
 SECTIONS {
 
@@ -14,16 +15,18 @@ SECTIONS {
 }
 */
 
-.init : ALIGN(4)
+.text_etc : ALIGN(4)
 {
-    /* first part of the splitted original
-        the second part is in debug_text.x */
+/*
     #IF riscv
     KEEP(*(.init));
     KEEP(*(.init.rust));
     KEEP(*(.text.abort));
     #ENDIF
+    */
 
-    /* *(.literal .text .literal.* .text.*) */
+    /* second part of the spitted original
+        the first part is in debug_init.x */
+    *(.literal .text .literal.* .text.*)
 
 } > ROTEXT

@@ -1,0 +1,386 @@
+NMEA
+    RMC - Recommended Minimum Specific GNSS Data. Time, date, position, course, and speed data provided by a GNSS receiver.
+        $<TalkerID>RMC,<UTC>,<Status>,<Lat>,<N/S>,<Lon>,<E/W>,<SOG>,<COG>,<Date>,<MagVar>,<MagVarDir>,<ModeInd>,
+            <NavStatus>*<Checksum><CR><LF>
+
+    GGA - Global Positioning System Fix Data. Time, position, and fix-related data for a GNSS receiver
+         $<TalkerID>GGA,<UTC>,<Lat>,<N/S>,<Lon>,<E/W>,<Quality>,<NumSatUsed>,<HDOP>,<Alt>,M,<Se p>,M,<DiffAge>,
+            <DiffStation>*<Checksum><CR><LF>
+
+    GSV - GNSS Satellites in View. The GSV sentence provides the number of satellites in view (SV), satellite ID numbers, 
+        elevation, azimuth, and SNR value, and it contains maximum four satellites per transmission. Therefore, it may take 
+        several sentences to get complete information. The total number of sentences being transmitted and the sentence number 
+        are indicated in the first two data fields.
+         $<TalkerID>GSV,<TotalNumSen>,<SenNum>,<TotalNumSat>{,<SatID>,<SatElev>,<SatAz>,<SatCN0>}* <Checksum><CR><LF>
+
+    GSA - GNSS DOP and Active Satellites. GNSS receiver operating mode, satellites used in the navigation solution reported 
+        by the GGA sentence, and DOP values.
+         $<TalkerID>GSA,<Mode>,<FixMode>{,<SatID>},<PDOP>,<HDOP>,<VDOP><SystemID>*<Checksum> <CR><LF>
+
+    VTG - Course Over Ground & Ground Speed. The actual course and speed relative to the ground.
+        $<TalkerID>VTG,<COGT>,T,<COGM>,M,<SOGN>,N,<SOGK>,K,<ModeInd>*<Checksum><CR><LF>
+
+    GLL - Geographic Position – Latitude/Longitude. Latitude and longitude of the GNSS receiver position, the time of position 
+        fix and status.
+        $<TalkerID>GLL,<Lat>,<N/S>,<Lon>,<E/W>,<UTC>,<Status>,<ModeInd>*<Checksum><CR><LF>
+
+    ZDA - Time & Date. UTC, day, month, year and local time zone.
+        $<TalkerID>ZDA,<UTC>,<Day>,<Month>,<Year>,<LocalHour>,<LocalMin>*<Checksum><CR><LF>
+
+    GRS - GNSS range residuals. This sentence supports Receiver Autonomous Integrity Monitoring (RAIM). Range residuals can be 
+        computed in two ways for this process. The basic measurement integration cycle of most navigation filters generates a 
+        set of residuals and uses these to update the position state of the receiver.
+        $<TalkerID>GRS,<UTC>,<Mode>{,<Resi>},<SystemID>,<SignalID>*<Checksum><CR><LF>
+
+    GST - GNSS Pseudorange Error Statistics. This sentence supports Receiver Autonomous Integrity Monitoring (RAIM). 
+        Pseudorange measurement error statistics can be translated in the position domain in order to give statistical 
+        measures of the quality of the position solution.
+        $<TalkerID>GST,<UTC>,<STD_RMS>,<STD_Major>,<STD_Minor>,<Orient>,<STD_Lat>,<STD_Lon>,<STD_Alt>*<Checksum><CR><LF>
+
+    GNS - GNSS Fix Data. Fix data for single or combined satellite navigation systems (GNSS).
+        $<TalkerID>GNS,<UTC>,<Lat>,<N/S>,<Lon>,<E/W>,<ModeInd>,<NumSatUsed>,<HDOP>,<Alt>,<Sep>,<DiffAge>,<DiffStation>,
+        <NavStatus>*<Checksum><CR><LF>
+
+
+PQTM
+    PQTMVERNO - Queries the firmware version information.
+        $PQTMVERNO*<Checksum><CR><LF>
+
+    PQTMSAVEPAR - Saves the configurations into NVM.
+        $PQTMSAVEPAR*<Checksum><CR><LF>
+
+    PQTMRESTOREPAR - Restores the parameters configured by all commands to their default values. This command takes effect 
+        after a reboot.
+        $PQTMRESTOREPAR*<Checksum><CR><LF>
+
+    PQTMEPE - Outputs the estimated positioning error.
+         $PQTMEPE,<MsgVer>,<EPE_North>,<EPE_East>,<EPE_Down>,<EPE_2D>,<EPE_3D>*<Checksum> <CR><LF>
+
+    PQTMCFGMSGRATE - Sets/gets the message output rate on the current port.
+        //Set: $PQTMCFGMSGRATE,W,<MsgName>,<Rate>[,<MsgVer>]*<Checksum><CR><LF>
+        //Get: $PQTMCFGMSGRATE,R,<MsgName>[,<MsgVer>]*<Checksum><CR><LF>
+
+    PQTMCFGGEOFENCE - Sets/gets geofence feature.
+        //Set:$PQTMCFGGEOFENCE,W,<Index>,<Status>,<Reserved>,<Shape>,<Lat0>,<Lon0>,<Lat1/Radius>[,
+            <L on1>,<Lat2>,<Lon2>,<Lat3>,<Lon3>]*<Checksum><CR><LF>
+        //Get:$PQTMCFGGEOFENCE,R,<Index>*<Checksum><CR><LF>
+
+    PQTMGEOFENCESTATUS - Outputs the geofences status.
+        $PQTMGEOFENCESTATUS,<MsgVer>,<Time>{,<StateN>}*<Checksum><CR><LF>
+
+    PQTMCFGSVIN - Sets/gets the survey-in feature.
+        //Set: $PQTMCFGSVIN,W,<Mode>,<MinDur>,<3D_AccLimit>,<ECEF_X>,<ECEF_Y>,<ECEF_Z>[,<Distance> ]*<Checksum><CR><LF>
+        //Get: $PQTMCFGSVIN,R*<Checksum><CR><LF>
+
+    PQTMSVINSTATUS - Outputs the Survey-in status.
+         $PQTMSVINSTATUS,<MsgVer>,<TOW>,<Valid>,<Res0>,<Res1>,<Obs>,<CfgDur>,<MeanX>,<MeanY><MeanZ>
+            <MeanAcc>*<Checksum><CR><LF>
+    
+    PQTMGNSSSTART - Starts GNSS engine.
+        $PQTMGNSSSTART*<Checksum><CR><LF>
+
+    PQTMGNSSSTOP - Stops GNSS engine.
+        $PQTMGNSSSTOP*<Checksum><CR><LF>
+
+    PQTMPVT - Outputs the PVT (GNSS only) result.
+         $PQTMPVT,<MsgVer>,<TOW>,<Date>,<Time>,<Res>,<FixMode>,<NumSatUsed>,<LeapS>,<Lat>,<Lo n>,<Alt>,<Sep>,<VelN>,<VelE>,
+            <VelD>,<Spd>,<Heading>,<HDOP>,<PDOP>*<Checksum><CR><LF>
+
+    PQTMCFGNMEADP - Sets/gets the decimal places of NMEA messages.
+        //Set: $PQTMCFGNMEADP ,W,<UTC_DP>,<POS_DP>,<ALT_DP>,<DOP_DP>,<SPD_DP>,<COG_DP>*<Ch ecksum><CR><LF>
+        //Get: $PQTMCFGNMEADP ,R*<Checksum><CR><LF>
+
+    PQTMCFGRCVRMODE - Sets/gets the receiver working mode.
+        //Set: $PQTMCFGRCVRMODE,W,<Mode>*<Checksum><CR><LF> 
+        //Get: $PQTMCFGRCVRMODE,R*<Checksum><CR><LF>
+
+    PQTMPL - Outputs protection level information.
+         $PQTMPL,<MsgVer>,<TOW>,<PUL>,<Res1>,<Res2>,<PL_PosN>,<PL_PosE>,<PL_PosD>,<PL_VelN >,<PL_VelE>,<PL_VelD>,<Res3>,<Res4>,
+            <PL_Time>*<Checksum><CR><LF>
+
+    PQTMCOLD - Performs a cold start, which restarts the GNSS engine without using some location information, including 
+        position and ephemeris data.
+        $PQTMCOLD*<Checksum><CR><LF>
+
+    PQTMHOT - Performs a hot start, which restarts the GNSS engine with the valid position, time, ephemeris, and almanac data, 
+        enabling the fastest location acquisition.
+        $PQTMHOT*<Checksum><CR><LF>
+
+    PQTMWARM - Performs a warm start, which restarts the GNSS engine with the valid position, time, and almanac data. However, 
+        the ephemeris data is invalid, therefore, the receiver must download the updated ephemeris data before achieving a fix
+        $PQTMWARM*<Checksum><CR><LF>
+
+    PQTMSRR - Performs a system reset and reboots the receiver.
+        $PQTMSRR*<Checksum><CR><LF>
+
+    PQTMCFGSBAS - Sets/gets the SBAS configuration.
+        //Set: $PQTMCFGSBAS,W,<Value>*<Checksum><CR><LF> 
+        //Get: $PQTMCFGSBAS,R*<Checksum><CR><LF>
+
+    PQTMCFGCNST - Sets/gets the constellation configuration.
+        //Set: $PQTMCFGCNST,W,<GPS>,<GLONASS>,<Galileo>,<BDS>,<QZSS>,<NavIC>*<Checksum><CR><L F>
+        //Get: $PQTMCFGCNST,R*<Checksum><CR><LF>
+
+    PQTMDOP - Outputs dilution of precision.
+         $PQTMDOP ,<MsgVer>,<TOW>,<GDOP>,<PDOP>,<TDOP>,<VDOP>,<HDOP>,<NDOP>,<EDOP>*<C hecksum><CR><LF>
+
+    PQTMCFGFIXRATE - Sets/gets the position fix interval.
+        //Set: $PQTMCFGFIXRATE,W,<Interval>*<Checksum><CR><LF> 
+        //Get: $PQTMCFGFIXRATE,R*<Checksum><CR><LF>
+
+    PQTMCFGPPS - Sets/gets the 1PPS feature configuration.
+        //Set: $PQTMCFGPPS,W,<Index>,<Enable>,<Duration>,<Mode>,<Polarity>,<Reserved>*<Checksum><CR>< LF>
+        //Get: $PQTMCFGPPS,R,<Index>*<Checksum><CR><LF>
+
+    PQTMDEBUGON - Enables debug logging. The debug-on state can be saved by using the command $PQTMSAVEPAR.
+        $PQTMDEBUGON*<Checksum><CR><LF>
+
+    PQTMDEBUGOFF - Disables debug logging.
+        $PQTMDEBUGOFF*<Checksum><CR><LF>
+
+    PQTMVEL - Outputs the velocity information.
+         $PQTMVEL,1,<Time>,<VelN>,<VelE>,<VelD>,<GrdSpd>,<Spd>,<Heading>,<GrdSpdAcc>,<SpdAcc>,< HeadingAcc>*<Checksum><CR><LF>
+
+    PQTMCFGODO - Sets/gets the odometer feature configuration.
+        //Set: $PQTMCFGODO,W,<State>,<InitDist>*<Checksum><CR><LF> 
+        //Get: $PQTMCFGODO,R*<Checksum><CR><LF>
+
+    PQTMRESETODO - Resets the accumulated distance recorded by the odometer.
+        $PQTMRESETODO*<Checksum><CR><LF>
+
+    PQTMODO - Outputs the odometer information.
+        $PQTMODO,<MsgVer>,<Time>,<State>,<Dist>*<Checksum><CR><LF>
+
+    PQTMJAMMINGSTATUS - Outputs the jamming detection status.
+        $PQTMJAMMINGSTATUS,<MsgVer>,<Status>*<Checksum><CR><LF>
+
+    PQTMLS - Outputs leap second forecast information.
+         $PQTMLS,<MsgVer>,<TOW>,<LS_Ref>,<WN>,<LS>,<Flag>,<LSF_Ref>,<Reserved>,<WNLSF>,<DN> ,<LSF>*<Checksum><CR><LF>
+
+    PQTMCFGRSID - Sets/gets the reference station ID.
+        //Set: $PQTMCFGRSID,W,<ID>*<Checksum><CR><LF> 
+        //Get: $PQTMCFGRSID,R*<Checksum><CR><LF>
+
+    PQTMCFGNMEATID - Sets/gets the NMEA Talker ID.
+        //Set: $PQTMCFGNMEATID,W,<Main_T alkerID>,<GSV_TalkerID>*<Checksum><CR><LF> 
+        //Get: $PQTMCFGNMEATID,R*<Checksum><CR><LF>
+
+    PQTMUNIQID - Queries the chip unique ID of the module.
+        $PQTMUNIQID*<Checksum><CR><LF>
+
+    PQTMVER - Outputs the firmware version. The message is immediately output after the module is powered on, and it is only 
+        output once after the power-on.
+        $PQTMVER,<MsgVer>,<VerName>,<VerStr>,<BuildDate>,<BuildTime>*<Checksum><CR><LF>
+
+    PQTMCFGUART - Sets/gets UART configuration.
+        //Set the current UART port: $PQTMCFGUART,W,<BaudRate>[,<DataBit>,<Parity>,<StopBit>,<FlowCtrl>]*<Checksum><CR><LF> 
+        //Set a specified UART port: $PQTMCFGUART,W,<Index>,<BaudRate>[,<DataBit>,<Parity>,<StopBit>,
+            <FlowCtrl>]*<Checksum><C R><LF>
+        //Get the configuration of the current UART port or a specified UART port: $PQTMCFGUART,R[,<Index>]*<Checksum><CR><LF>
+
+    PQTMCFGPROT - Sets/gets the input and output protocols for a specified port.
+        //Set: $PQTMCFGPROT,W,<PortType>,<PortID>,<InputProt>,<OutputProt>*<Checksum><CR><LF> 
+        //Get: $PQTMCFGPROT,R,<PortType>,<PortID>*<Checksum><CR><LF>
+
+    PQTMBKP - Shuts down all systems at once to save power (that is, sets the module to the Backup mode). In Backup mode, the 
+        module cannot execute PQTM commands and the GNSS engine no longer provides position-related information.
+        $PQTMBKP[,<Second>]*<Checksum><CR><LF>
+
+    PQTMGETUTC - Obtains the current UTC time information.
+        $PQTMGETUTC*<Checksum><CR><LF>
+
+    PQTMCFGNAVMODE - Sets/gets the navigation mode.
+        //Set: $PQTMCFGNAVMODE,W,<Mode>*<Checksum><CR><LF> 
+        //Get: $PQTMCFGNAVMODE,R*<Checksum><CR><LF>
+
+    PQTMQVER - Queries the version information.
+        $PQTMQVER[,<VerID>]*<Checksum><CR><LF>
+
+    PQTMSN - Queries module SN code.
+        $PQTMSN*<Checksum><CR><LF>
+
+    PQTMSTD - Outputs time, position deviations, velocity deviations and attitude deviations.
+        $PQTMSTD,<Reserved>,<UTC>,<WN>,<TOW>,<STD_Lat>,<STD_Lon>,<STD_Alt>,<STD_Sep>,<ST D_VelN>,<STD_VelE>,<STD_VelD>,
+            <STD_Spd>,<STD_Roll>,<STD_Pitch>,<STD_Heading>*<Checks um><CR><LF>
+
+    PQTMCFGAIC - Sets/gets the AIC (Active Interference Cancellation) function.
+        //Set: $PQTMCFGAIC,W,<State>*<Checksum><CR><LF>
+        //Get: $PQTMCFGAIC,R*<Checksum><CR><LF>
+
+
+PAIR 
+    PAIR001: PAIR_ACK - Acknowledges a PAIR command. An acknowledgement packet $PAIR001 is returned to inform the
+        sender that the receiver has received the packet.
+        $PAIR001,<CommandID>,<Result>*<Checksum><CR><LF>
+
+    PAIR002: PAIR_GNSS_SUBSYS_POWER_ON - Powers on the GNSS system, including DSP, RF, PE and clock.
+        $PAIR002*<Checksum><CR><LF>
+
+    PAIR003: PAIR_GNSS_SUBSYS_POWER_OFF - Powers off the GNSS system, including DSP, RF, PE and clock.
+        $PAIR003*<Checksum><CR><LF>
+
+    PAIR004: PAIR_GNSS_SUBSYS_HOT_START - Performs a hot start (uses all available data in the NVRAM). Normally a hot start 
+        means that the GNSS module has been powered down for less than 2 hours (RTC must be alive) and its ephemeris is still  valid. Therefore, there is no need to download an ephemeris again upon a hot start, thus making this startup method  the fastest.
+        $PAIR004*<Checksum><CR><LF>
+
+    PAIR005: PAIR_GNSS_SUBSYS_WARM_START - Performs a warm start. A warm start means that the GNSS module remembers only rough 
+        time, position, and almanac data, and thus needs to download an ephemeris before it can fix a position.
+        $PAIR005*<Checksum><CR><LF>
+
+    PAIR006: PAIR_GNSS_SUBSYS_COLD_START - Performs a cold start, which will not use some valid location information, 
+        including position and ephemeris data.
+        $PAIR006*<Checksum><CR><LF>
+
+    PAIR007: PAIR_GNSS_SUBSYS_FULL_COLD_START - Performs a cold start and clears system and user configurations at the start, 
+        i.e., resets the module to its factory settings. Upon a full cold start, the module loses all data on the previous 
+        position. Therefore, it needs to search over the full frequency spectrum for all visible satellites before it can fix 
+        a position.
+        $PAIR007*<Checksum><CR><LF>
+
+    PAIR010: PAIR_REQUEST_AIDING - Notifies the expiration of GNSS aiding data stored in the module. This message is 
+        automatically output when the module powers on.
+        $PAIR010,<Type>,<GNSS_System>,<WN>,<TOW>*<Checksum><CR><LF>
+
+    PAIR050: PAIR_COMMON_SET_FIX_RATE - Sets position fix interval.
+        $PAIR050,<Time>*<Checksum><CR><LF>
+
+    PAIR051: PAIR_COMMON_GET_FIX_RATE - Gets the position fix interval.
+        $PAIR051*<Checksum><CR><LF>
+
+    PAIR058: PAIR_COMMON_SET_MIN_SNR - Sets the minimum SNR of satellites in use. If the minimum SNR threshold is set, the 
+        module will not use the satellites with SNR below the threshold.
+        $PAIR058,<MIN_SNR>*<Checksum><CR><LF>
+
+    PAIR059: PAIR_COMMON_GET_MIN_SNR - Gets the minimum SNR of satellites in use.
+        $PAIR059*<Checksum><CR><LF>
+
+    PAIR062: PAIR_COMMON_SET_NMEA_OUTPUT_RATE - Sets the output rate of standard NMEA messages of each type.
+        $PAIR062,<Type>,<OutputRate>*<Checksum><CR><LF>
+
+    PAIR063: PAIR_COMMON_GET_NMEA_OUTPUT_RATE - Gets the output rate of standard NMEA messages of each type.
+        $PAIR063,<Type>*<Checksum><CR><LF>
+
+    PAIR066: PAIR_COMMON_SET_GNSS_SEARCH_MODE - Sets the GNSS search mode. The setting is valid if the NVRAM data are valid.
+        $PAIR066,<GPS_Enabled>,<GLONASS_Enabled>,<Galileo_Enabled>,<BDS_Enabled>,<QZSS_Enabl ed>, 
+            <NavIC_Enabled>*<Checksum><CR><LF>
+
+    PAIR067: PAIR_COMMON_GET_GNSS_SEARCH_MODE - Gets the GNSS search mode.
+        $PAIR067*<Checksum><CR><LF>
+
+    PAIR070: PAIR_COMMON_SET_STATIC_THRESHOLD - Sets the static navigation speed threshold. If the actual speed is below the 
+        threshold, the output position remains unchanged and the output speed is 0. If the threshold value is set to 0, this 
+        function is disabled.
+        $PAIR070,<SpeedThreshold>*<Checksum><CR><LF>
+
+    PAIR071: PAIR_COMMON_GET_STATIC_THRESHOLD - Gets the static navigation speed threshold.
+        $PAIR071*<Checksum><CR><LF>
+
+    PAIR072: PAIR_COMMON_SET_ELEV_MASK - Sets the satellite elevation mask.
+        $PAIR072,<Degree>*<Checksum><CR><LF>
+
+    PAIR073: PAIR_COMMON_GET_ELEV_MASK - Gets satellite elevation mask.
+        $PAIR073*<Checksum><CR><LF>
+
+    PAIR074: PAIR_COMMON_SET_AIC_ENABLE - Enables/disables the active interference cancellation (AIC) function.
+        $PAIR074,<Enabled>*<Checksum><CR><LF>
+
+    PAIR075: PAIR_COMMON_GET_AIC_STATUS - Queries the status of active interference cancellation (AIC) function.
+        $PAIR075*<Checksum><CR><LF>
+
+    PAIR080: PAIR_COMMON_SET_NAVIGATION_MODE - Sets navigation mode.
+        $PAIR080,<NavMode>*<Checksum><CR><LF>
+
+    PAIR081: PAIR_COMMON_GET_NAVIGATION_MODE - Queries navigation mode.
+        $PAIR081*<Checksum><CR><LF>
+
+    PAIR086: PAIR_COMMON_SET_DEBUGLOG_OUTPUT - Enables/disables debug log output in binary format.
+        $PAIR086,<Status>*<Checksum><CR><LF>
+
+    PAIR087: PAIR_COMMON_GET_DEBUGLOG_OUTPUT - Queries the debug log output setting.
+        $PAIR087*<Checksum><CR><LF>
+
+    PAIR100: PAIR_COMMON_SET_NMEA_OUTPUT_MODE - Sets output mode of standard NMEA sentences.
+        $PAIR100,<NMEA_Mode>,<Res>*<Checksum><CR><LF>
+
+    PAIR101: PAIR_COMMON_GET_NMEA_OUTPUT_MODE - Queries output mode of standard NMEA sentences.
+        $PAIR101*<Checksum><CR><LF>
+
+    PAIR104: PAIR_COMMON_SET_DUAL_BAND - Enables/disables the dual band feature only when the GNSS system is powered off.
+        $PAIR104,<DualBandEnabled>*<Checksum><CR><LF>
+
+    PAIR105: PAIR_COMMON_GET_DUAL_BAND - Queries whether the dual band feature is enabled or disabled.
+        $PAIR105*<Checksum><CR><LF>
+
+    PAIR382: PAIR_TEST_LOCK_SYSTEM_SLEEP - Enables/disables the locking of sleep mode. The CPU core will lock into the sleep 
+        mode after the command is sent.
+        $PAIR382,<Enabled>*<Checksum><CR><LF>
+
+    PAIR391: PAIR_TEST_JAMMING_DETECT - Enables/disables jamming detection. Jamming status messages will be returned when 
+        jamming detection is enabled.
+        $PAIR391,<CmdType>*<Checksum><CR><LF>
+
+    PAIR400: PAIR_DGPS_SET_MODE - Sets the DGPS correction data source.
+        $PAIR400,<Mode>*<Checksum><CR><LF>
+
+    PAIR401: PAIR_DGPS_GET_MODE - Queries the DGPS correction data source.
+        $PAIR401*<Checksum><CR><LF>
+
+    PAIR410: PAIR_SBAS_ENABLE - Enables/disables SBAS satellite search. SBAS supports wide-area or regional augmentation   
+        through geostationary satellite broadcast messages. The geostationary satellites broadcast GNSS integrity and 
+        correction data with the assistance of multiple ground stations that are located at accurately-surveyed points.
+        $PAIR410,<Enabled>*<Checksum><CR><LF>
+
+    PAIR411: PAIR_SBAS_GET_STATUS - Queries the status of SBAS satellite search.
+        $PAIR411*<Checksum><CR><LF>
+
+    PAIR420: PAIR_SLAS_ENABLE - Enables/disables SLAS satellite search.
+        $PAIR420,<Enabled>*<Checksum><CR><LF>
+
+    PAIR421: PAIR_SLAS_GET_STATUS - Queries the status of SLAS satellite search.
+        $PAIR421*<Checksum><CR><LF>
+
+    PAIR432: PAIR_RTCM_SET_OUTPUT_MODE - Sets RTCM output mode.
+        $PAIR432,<Mode>*<Checksum><CR><LF>
+
+    PAIR433: PAIR_RTCM_GET_OUTPUT_MODE - Queries RTCM output mode.
+        $PAIR433*<Checksum><CR><LF>
+
+    PAIR434: PAIR_RTCM_SET_OUTPUT_ANT_PNT - Enables/disables outputting stationary antenna reference point in RTCM format.
+        $PAIR434,<Enable>*<Checksum><CR><LF>
+
+    PAIR435: PAIR_RTCM_GET_OUTPUT_ANT_PNT - Queries the setting of outputting stationary antenna reference point in RTCM 
+        format.
+        $PAIR435*<Checksum><CR><LF>
+
+    PAIR436: PAIR_RTCM_SET_OUTPUT_EPHEMERIS - Enables/disables outputting satellite ephemeris in RTCM format.
+        $PAIR436,<Enable>*<Checksum><CR><LF>
+
+    PAIR437: PAIR_RTCM_GET_OUTPUT_EPHEMERIS - Queries the status of satellite ephemeris in RTCM format.
+        $PAIR437*<Checksum><CR><LF>
+
+    PAIR511: PAIR_NVRAM_SAVE_NAVIGATION_DATA - Saves current navigation data from RTC RAM to NVM.
+        $PAIR511*<Checksum><CR><LF>
+
+    PAIR513: PAIR_NVRAM_SAVE_SETTING - Saves the current configurations from RTC RAM to NVM.
+        $PAIR513*<Checksum><CR><LF>
+
+    PAIR650: PAIR_LOW_POWER_ENTRY_RTC_MODE - Shuts down the GNSS system, except the clock. The CPU core will be set to the 
+        Backup mode after the command is sent, in which it cannot receive any commands. 
+        $PAIR650,<Second>*<Checksum><CR><LF>
+
+    PAIR752: PAIR_PPS_SET_CONFIG_CMD - $PAIR752,<PPSType>,<PPSPulseWidth>*<Checksum><CR><LF>
+        $PAIR752,<PPSType>,<PPSPulseWidth>*<Checksum><CR><LF>
+
+    PAIR864: PAIR_IO_SET_BAUDRATE - Sets the baud rate of UART interface.
+        $PAIR864,<PortType>,<PortIndex>,<Baudrate>*<Checksum><CR><LF>
+
+    PAIR865: PAIR_IO_GET_BAUDRATE - Gets the baud rate of the UART interface.
+        $PAIR865,<PortType>,<PortIndex>*<Checksum><CR><LF>
+
+    PAIR866: PAIR_IO_SET_FLOW_CONTROL - Sets UART flow control.
+        $PAIR866,<PortType>,<PortIndex>,<FlowControl>*<Checksum><CR><LF>
+
+    PAIR867: PAIR_IO_GET_FLOW_CONTROL - Gets UART flow control setting.
+        $PAIR867,<PortType>,<PortIndex>*<Checksum><CR><LF>
+
+    

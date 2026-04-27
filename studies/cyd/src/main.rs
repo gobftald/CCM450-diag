@@ -4,6 +4,8 @@
 #![feature(impl_trait_in_assoc_type)]
 // for debug_ping
 #![feature(once_cell_get_mut)]
+// for 'waiti 0' instructions in panic handler
+#![cfg_attr(target_arch = "xtensa", feature(asm_experimental_arch))]
 
 // This mod MUST go first, so that the others see its macros.
 pub(crate) mod fmt;
@@ -46,7 +48,6 @@ async fn main(spawner: embassy_executor::Spawner) {
     //esp_alloc::heap_allocator!(size: 32 * 1024);
 
     // we need to use macros, since Peripherals cannot be moved out to subfunctions or tasks partially
-
     esp_rtos_start!(peripherals);
 
     let (

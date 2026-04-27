@@ -1,0 +1,86 @@
+10 JOBNAME: DIAGNOSIS_END
+    $20 StopDiagnosticSession
+
+11 JOBNAME: DIAGNOSE_MODE
+    Put the SG into a specific diagnostic mode
+    $10 StartDiagnosticSession
+    Mode : adjustable with this job
+    If MODE = "ECUPM" ( ECUProgrammingMode )
+    After the job, the control unit reset time
+    After that, the control unit able to be diagnosed again
+    see: Job FLASH_ZEITEN_LESEN Result FLASH_RESETZEIT
+
+    ARG:MODE
+        desired diagnostic mode
+        table DiagMode MODE MODE_TEXT
+        Default value: DEFAULT (DefaultMode)
+    
+    ARG:BAUDRATE
+        optional parameter for the desired baud rate
+        table BaudRate BAUD
+
+    ARG:ARG:SPECIFIC_BAUDRATE_VALUE
+        Parameter only for BAUDRATE = 'SB' (specific baud rate)
+
+
+23 JOBNAME: AIF_READ
+    $23 ReadMemoryByAddress
+    ARG:AIF_NUMMER
+        =0 : current AIF
+        >0 : Number of the AIF
+    AIF_ADRESSE_HIGH - AIF Address of the AIF, high word
+    AIF_ADRESSE_LOW - AIF Address of the AIF, low word
+    AIF_FG_NR - Chassis number 7-digit
+    AIF_FG_NR_LANG - Chassis number 17-digit if available, otherwise 7-digit
+    AIF_DATUM - Date of SG programming in the form DD.MM.YYYY
+    AIF_ZB_NR - BMW/Rover assembly number
+    AIF_SW_NR - BMW/Rover data record number - software number
+    AIF_BEHOERDEN_NR - BMW/Rover authority number
+    AIF_HAENDLER_NR - Dealer number
+    AIF_SERIEN_NR - Tester serial number
+    AIF_KM - Mileage during programming
+    AIF_PROG_NR - Program version number
+    AIF_ANZ_FREI - Number of remaining AIF entries
+    AIF_ANZAHL_PROG - Number of programming operations
+    AIF_ANZ_DATEN - Size of the AIF entry
+    AIF_GROESSE - Size of the AIF
+    
+    
+24 JOBNAME: AIF_WRITE
+    $3D WriteMemoryByAddress
+    ARG:AIF_FG_NR - chassis number
+                    7-digit or 17-digit
+    AIF_DATUM - Date of SG programming
+              - in the form DD.MM.YYYY or DDMMYY
+    AIF_ZB_NR - BMW/Rover assembly number
+    AIF_SW_NR - BMW/Rover data record number - software number
+    AIF_BEHOERDEN_NR - BMW/Rover authority number
+    AIF_HAENDLER_NR - Dealer number
+    AIF_SERIEN_NR - Tester serial number
+    AIF_KM - Mileage during programming
+    AIF_PROG_NR - Program version number
+    AIF_NUMMER - Number of the written AUF
+    AIF_DATEN - AIF hex data
+    
+46 JOBNAME: AIF_READ_FUNCTION
+    $23 ReadMemoryByAddress
+    ARG:AIF_NUMMER
+        =0 : current AIF
+        >0 : Number of the AIF
+    RESULT
+        AIF_ADRESSE_HIGH - AIF Address of the AIF, high word
+        AIF_ADRESSE_LOW - AIF Address of the AIF, low word
+        AIF_FG_NR - Chassis number 7-digit
+        AIF_FG_NR_LANG - Chassis number 17-digit if available, otherwise 7-digit
+        AIF_DATUM - Date of SG programming in the form DD.MM.YYYY
+        AIF_ZB_NR - BMW/Rover assembly number
+        AIF_SW_NR - BMW/Rover data record number - software number
+        AIF_BEHOERDEN_NR - BMW/Rover authority number
+        AIF_HAENDLER_NR - Dealer number
+        AIF_SERIEN_NR - Tester serial number
+        AIF_KM - Mileage during programming
+        AIF_PROG_NR - Program version number
+        AIF_ANZ_FREI - Number of remaining AIF entries
+        AIF_ANZAHL_PROG - Number of programming operations
+        AIF_ANZ_DATEN - Size of the AIF entry
+        AIF_GROESSE - Size of the AIF

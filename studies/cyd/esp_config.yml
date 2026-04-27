@@ -1,0 +1,16 @@
+crate: ecu-via-elm327
+
+options:
+- name: target-has-atomic-load-store
+  description: Manual override for atomic load/store support.
+  default:
+    - value: '"ptr"'
+  constraints:
+    - type:
+        validator: enumeration
+        value:
+          - '8'
+          - '16'
+          - '32'
+          - 'ptr'
+  active: 'chip == "esp32"'

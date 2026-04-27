@@ -1,0 +1,9 @@
+DEFMT_LOG=off,embassy_net=trace,esp_radio=debug,udp=trace,ecu=trace,ecu_via_elm327=trace,esp_rtos=info \
+cargo build --release --features=heap_stats,idle_stats,rtos_trace
+
+#sshpass -p haho-piv scp target/riscv32imc-unknown-none-elf/debug/ecu-via-elm327 dietpi@192.168.2.100:
+sshpass -p haho-piv scp target/riscv32imc-unknown-none-elf/release/ecu-via-elm327 dietpi@192.168.2.100:
+
+#sshpass -p haho-piv ssh -t dietpi@192.168.2.100 'espflash flash --monitor --log-format defmt ecu-via-elm327'
+#sshpass -p haho-piv ssh -t dietpi@192.168.2.100 'espflash flash --monitor ecu-via-elm327'
+sshpass -p haho-piv ssh -t dietpi@192.168.2.100 'cargo embed --path ecu-via-elm327'

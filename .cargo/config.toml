@@ -1,5 +1,21 @@
 [build]
-target = "riscv32imc-unknown-none-elf"
+
+[target.'cfg(all())']
+rustflags = [
+    "-C", "link-arg=-Tdefmt.x",             # for defmt
+    "-C", "force-frame-pointers",           # for esp-backtrace and probe-rs-debug
+                                            # otherwise some size ovehead occurs (in ELF file only)
+                                            # when making frame for every real (not inlined) function call
+                                            # it's not relevant, esp-backtrace uses frame pointers to walk
+                                            # the stack easily and with low overhead, 
+
+    #"-Z", "location-detail=none",           # Removes file, line, and column metadata
+
+    # convert any panic (unwrap) into "noop/unimp", even before panic message formatting
+    # even the core::slice::index::slice_index_fail and esp_hal::fmt::__unwrap_failed will be "noop/unimp"
+    #"-C", "panic=immediate-abort",
+    #"-Z", "unstable-options",               # this needs for panic-immediate-abort
+]
 
 [target.riscv32imc-unknown-none-elf]
 #runner = "espflash flash --monitor"
@@ -7,27 +23,28 @@ target = "riscv32imc-unknown-none-elf"
 # using defmt crate - together with "link-arg=-Tdefmt.x" below
 runner = "espflash flash --monitor --log-format defmt"
 
+rustflags = [
+    "-C", "link-arg=-Tlinkall_debug.x",     # my master linker script
+    "-C", "link-arg=-Map=esp32c3.map",
+]
+
+[target.xtensa-esp32-none-elf]
+#runner = "espflash flash --baud 460800 --monitor"
+
+# using defmt crate - together with "link-arg=-Tdefmt.x" below
+runner = "espflash flash --monitor --baud 460800 --log-format defmt"
+
+linker = "ldproxy"
 
 rustflags = [
-    #"-C", "link-arg=-Tlinkall.x",          # esp-hal master linker script
-    "-C", "link-arg=-Tlinkall_debug.x",     # my master linker script
-    "-C", "link-arg=-Map=riscv32.map",
-    "-C", "link-arg=-Tdefmt.x",             # for defmt
-    #"-C", "force-frame-pointers",           # for esp-backtrace and probe-rs-debug
-                                            # otherwise some size ovehead occurs (in ELF file only)
-                                            # when making frame for every real (not inlined) function call
-                                            # it's not relevant, esp-backtrace uses frame pointers to walk
-                                            # the stack easily and with low overhead, 
-
-    "-Z", "location-detail=none",           # Removes file, line, and column metadata
-    "-Z", "unstable-options",               # this needs for panic-immediate-abort
+    "-C", "link-arg=-Tlinkall.x",          # esp-hal master linker script
+    "-C", "linker=xtensa-esp32-elf-gcc",
+    "-C", "llvm-args=--mtext-section-literals",
+    "-C", "link-arg=-Wl,-Map=esp32.map",
 ]
 
 
 [unstable]
-# convert any panic (unwrap) into "noop/unimp", even before panic message formatting
-# even the core::slice::index::slice_index_fail and esp_hal::fmt::__unwrap_failed will be "noop/unimp"
-build-std-features = ["panic_immediate_abort"]
 build-std = ["core", "alloc"]
 
 [patch.crates-io]
@@ -39,6 +56,7 @@ esp-hal = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" 
 esp-metadata-generated = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 esp-println = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 esp-radio = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
+esp-rom-sys = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 esp-rtos = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 
 rtos-trace = { git = "https://github.com/gobftald/rtos-trace.git" }
@@ -52,6 +70,7 @@ systemview-target = { git = "https://github.com/gobftald/rtos-trace.git" }
 #esp-metadata-generated = { path = "../esp-hal/esp-metadata-generated" }
 #esp-println = { path = "../esp-hal/esp-println" }
 #esp-radio = { path = "../esp-hal/esp-radio" }
+#esp-rom-sys = { path = "../esp-hal/esp-rom-sys" }
 #esp-rtos = { path = "../esp-hal/esp-rtos" }
 
 #rtos-trace = { path = "../rtos-trace/rtos_trace" }

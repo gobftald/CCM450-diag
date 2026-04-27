@@ -1,0 +1,78 @@
+1 GND
+2 3V3
+3 EN                RST Button
+4 SENSOR_VP GPIO36  TP_IRQ
+5 SENSOR_VN GPIO39
+6 IO34*
+7 IO35*
+8 IO32*
+9 IO33              TP_CS
+10 IO25*
+11 IO26*            speaker?
+12 IO27             backlight          
+13 IO14             TFT_SCK TP_CLK
+14 IO12             MTDI strapping  TFT_SDO TP_OUT
+
+15 GND
+16 IO13             TFT_SDI TP_DIN
+17 SD2  GPIO9
+18 SD3  GPIO10
+19 CMD  GPIO11
+20 CLK  GPIO6
+21 SD0  GPIO7
+22 SD1  GPIO8
+23 IO15             MTD0 strapping  TFT_CS
+24 IO2              strapping   TFT_RS
+
+25 IO0              strapping   Boot button
+26 IO4              LED
+27 IO16             LED
+28 IO17             LED
+29 IO5              strapping   TF_CS
+30 IO18             TF_CLK
+31 IO19             MCU_MISO
+32 NC
+33 IO21*
+34 RXD0 GPIO3
+35 TXD0 GPIO1
+36 IO22*
+37 IO23             MCU_MOSI
+38 GND
+
+
+IO0                 strapping   Boot button                 IO
+GPIO 1  TXD0                                                IO
+IO2                 strapping   TFT_RS                      IO
+GPIO 3  RXD0                                                IO
+IO4                 LED                                     IO
+IO5                 strapping   TF_CS                       IO
+GPIO6   CLK                                                 SPI Flash           
+GPIO7   SD0                                                 SPI Flash
+GPIO8   SD1                                                 SPI Flash
+GPIO9   SD2                                                 SPI Flash
+GPIO10  SD3                                                 SPI Flash
+GPIO11  CMD                                                 SPI Flash
+IO12                MTDI strapping  TFT_SDO TP_OUT          IO
+IO13                TFT_SDI TP_DIN                          IO
+IO14                TFT_SCK TP_CLK                          IO
+IO15                MTD0 strapping  TFT_CS                  IO
+IO16                LED                                     IO
+IO17                LED                                     IO
+IO18                TF_CLK                                  IO
+IO19                MCU_MISO                                IO
+                                                            --
+IO21*                                                       IO
+IO22*                                                       IO
+IO23                MCU_MOSI                                IO
+                                                            --
+IO25*                                                       IO
+IO26*               speaker?                                IO
+IO27                backlight                               IO
+                                                            --
+IO32*                                                       IO
+IO33                TP_CS                                   IO
+IO34*                                                       I
+IO35*                                                       I
+GPIO36  SENSOR_VP   TP_IRQ                                  I
+
+GPIO39  SENSOR_VN                                           I
