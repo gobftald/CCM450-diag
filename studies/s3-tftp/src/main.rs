@@ -41,6 +41,7 @@ async fn main(spawner: embassy_executor::Spawner) {
     // should use these types handed over by value in the spawned tasks, otherwise they
     // are also staying and increasing the wasted memory footprint of exited main task
     spawner.spawn(net_task(controller, ap_runner)).ok();
+    spawner.spawn(dhcp_server(ap_stack)).ok();
     spawner.spawn(system_stats()).ok();
 }
 
@@ -116,4 +117,20 @@ async fn net_task(
     debug!("AP started");
 
     runner.run().await
+}
+
+#[embassy_executor::task]
+async fn dhcp_server(ap_stack: embassy_net::Stack<'static>) {
+    use core::net::Ipv4Addr;
+    use leasehund::DhcpServer;
+
+    let mut server: DhcpServer<4, 1> = DhcpServer::new(
+        Ipv4Addr::new(192, 168, 3, 1),
+        Ipv4Addr::new(255, 255, 255, 0),
+        Ipv4Addr::new(192, 168, 3, 1),
+        Ipv4Addr::new(8, 8, 8, 8),
+        Ipv4Addr::new(192, 168, 3, 2),
+        Ipv4Addr::new(192, 168, 3, 5),
+    );
+    server.run(ap_stack).await;
 }

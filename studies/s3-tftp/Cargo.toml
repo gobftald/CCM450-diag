@@ -29,6 +29,8 @@ rtos-trace = { version = "0.2.1", optional = true }
 rtt-target = { version = "0.6.2", optional = true }
 systemview-target = { version = "0.3", optional = true, default-features = false, features = ["ext-rtt-channels-2"] }
 
+leasehund = "0.2.0"
+
 
 [features]
 default = [

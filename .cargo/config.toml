@@ -14,8 +14,8 @@ rustflags = [
 
     # convert any panic (unwrap) into "noop/unimp", even before panic message formatting
     # even the core::slice::index::slice_index_fail and esp_hal::fmt::__unwrap_failed will be "noop/unimp"
-    #"-C", "panic=immediate-abort",
-    #"-Z", "unstable-options",               # this needs for panic-immediate-abort
+    "-C", "panic=immediate-abort",
+    "-Z", "unstable-options",               # this needs for panic-immediate-abort
 ]
 
 [target.riscv32imc-unknown-none-elf]
