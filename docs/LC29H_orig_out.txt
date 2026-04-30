@@ -1,0 +1,284 @@
+$GNGGA,201458.000,4733.486622,N,01901.166500,E,1,09,1.56,163.616,M,41.142,M,,*76
+$
+GN              - Talker ID - Combination of Multiple Satellite Systems
+GGA             - Global Positioning System Fix Data. Time, position, and fix-related data for a GNSS receiver.
+201458.000      - UTC - hhmmss.sss
+4733.486622     - Lat - ddmm.mmmmmm
+N               - N/S
+01901.166500    - Lon - dddmm.mmmmmm
+E               - E/W
+1               - GPS quality indicator - GPS SPS Mode, fix valid
+09              - NumSatUsed
+1.56            - HDOP  - 1-2 Excellent - Very reliable for navigation
+163.616         - Alt
+M               - Meter
+41.142          - Sep - Geoid separation (the difference between the earth ellipsoid surface and the mean-sea-level (geoid) surface
+M               - Meter
+-               - DiffAge - Differential GPS data age.
+*76              - Checksum hex
+<CR><LF>
+
+
+$GNRMC,201458.000,A,4733.486622,N,01901.166500,E,0.007,005.38,280426,,,A,V*31
+$
+RMC             - Recommended Minimum Specific GNSS Data. Time, date, position, course, and speed data provided by a GNSS receiver.
+201458.000      - UTC - hhmmss.sss
+A               - Status - Data valid
+4733.486622     - Lat - ddmm.mmmmmm
+N               - N/S
+01901.166500    - Lon - dddmm.mmmmmm
+E               - E/W
+0.007           - SOG - Speed over ground - Knot
+005.38          - COG - Course over ground - Degree
+280426          - Date - ddmmyy
+-               - MagVar
+-               - MagVarDir
+A               - ModeInd - Mode indicator. - Autonomous mode. Satellite system used for position fixing in non-differential mode.
+V               - NavStatus - Navigational status - Always “V”
+*31             - Checksum hex
+
+
+$GNGLL,4733.486622,N,01901.166500,E,201458.000,A,A*4F
+$
+GLL             - Geographic Position – Latitude/Longitude. Latitude and longitude of the GNSS receiver position, the time of position fix and status.
+4733.486622     - Lat - ddmm.mmmmmm
+N               - N/S
+01901.166500    - Lon - dddmm.mmmmmm
+E               - E/W
+201458.000      - UTC - hhmmss.sss
+A               - Status - Data valid
+A               - ModeInd - Mode indicator. - Autonomous mode. Satellite system used for position fixing in non-differential mode.
+*4F             - Checksum hex
+
+
+$GNVTG,005.38,T,,M,0.007,N,0.014,K,A*2F
+$
+VTG             - Course Over Ground & Ground Speed. The actual course and speed relative to the ground.
+005.38          - COGT - Course over ground - Degree
+T               - Fixed field: true.
+-               - COGM - Course over ground (magnetic).
+0.007           - SOGN - Speed over ground - Knot
+N               - Fixed field: knot.
+0.014           - SOGK - Speed over ground in kilometers per hour.
+K               - Fixed field: kilometers per hour.
+A               - ModeInd - Mode indicator. - Autonomous mode. Satellite system used for position fixing in non-differential mode.
+*2F             - Checksum hex
+
+
+$GNGSA,A,3,04,09,11,,,,,,,,,,2.45,1.56,1.88,1*0C
+$
+GSA             - GNSS DOP and Active Satellites. GNSS receiver operating mode, satellites used in the navigation
+A               - Mode - Automatic, allowed to automatically switch to 2D/3D
+3               - FixMode - 3D
+04              - SatID1
+09              - SatID2
+11              - SatID3
+-
+-
+-
+-
+-
+-
+-
+-
+-               - SatID12
+2.45            - PDOP - Position dilution of precision - 2-3 Good
+1.56            - HDOP - 1-2 Excellent - Very reliable for navigation
+1.88            - VDOP - 1.5-2.5 Good ~5-10 meter vertical error
+1               - SystemID - GPS
+*0C             - Checksum hex
+
+
+$GNGSA,A,3,67,76,77,,,,,,,,,,2.45,1.56,1.88,2*02
+$
+GSA             - GNSS DOP and Active Satellites. GNSS receiver operating mode, satellites used in the navigation
+A               - Mode - Automatic, allowed to automatically switch to 2D/3D
+3               - FixMode - 3D
+67              - SatID1
+76              - SatID2
+77              - SatID3
+-
+-
+-
+-
+-
+-
+-
+-
+-               - SatID12
+2.45            - PDOP - Position dilution of precision - 2-3 Good
+1.56            - HDOP - 1-2 Excellent - Very reliable for navigation
+1.88            - VDOP - 1.5-2.5 Good ~5-10 meter vertical error
+2               - SystemID - GLONASS
+*02             - Checksum hex
+
+
+$GNGSA,A,3,,,,,,,,,,,,,2.45,1.56,1.88,3*03
+$
+GSA             - GNSS DOP and Active Satellites. GNSS receiver operating mode, satellites used in the navigation
+A               - Mode - Automatic, allowed to automatically switch to 2D/3D
+3               - FixMode - 3D
+1               - SatID1
+-               - SatID2
+-               - SatID3
+-
+-
+-
+-
+-
+-
+-
+-
+-               - SatID12
+2.45            - PDOP - Position dilution of precision - 2-3 Good
+1.56            - HDOP - 1-2 Excellent - Very reliable for navigation
+1.88            - VDOP - 1.5-2.5 Good ~5-10 meter vertical error
+3               - SystemID - Galileo
+*03             - Checksum hex
+
+
+$GNGSA,A,3,19,20,37,,,,,,,,,,2.45,1.56,1.88,4*0A
+$
+GSA             - GNSS DOP and Active Satellites. GNSS receiver operating mode, satellites used in the navigation
+A               - Mode - Automatic, allowed to automatically switch to 2D/3D
+3               - FixMode - 3D
+3               - SatID1
+19              - SatID2
+20              - SatID3
+37
+-
+-
+-
+-
+-
+-
+-               - SatID12
+2.45            - PDOP - Position dilution of precision - 2-3 Good
+1.56            - HDOP - 1-2 Excellent - Very reliable for navigation
+1.88            - VDOP - 1.5-2.5 Good ~5-10 meter vertical error
+4               - SystemID - BDS
+*0A             - Checksum hex
+
+
+$GNGSA,A,3,,,,,,,,,,,,,2.45,1.56,1.88,5*05
+$
+GSA             - GNSS DOP and Active Satellites. GNSS receiver operating mode, satellites used in the navigation
+A               - Mode - Automatic, allowed to automatically switch to 2D/3D
+3               - FixMode - 3D
+-               - SatID1
+-               - SatID2
+-               - SatID3
+-
+-
+-
+-
+-
+-
+-
+-               - SatID12
+2.45            - PDOP - Position dilution of precision - 2-3 Good
+1.56            - HDOP - 1-2 Excellent - Very reliable for navigation
+1.88            - VDOP - 1.5-2.5 Good ~5-10 meter vertical error
+5               - SystemID - QZSS
+*05             - Checksum hex
+
+
+$GPGSV,2,1,05,04,28,079,18,07,,,23,09,61,069,46,11,37,268,28,1*5C
+$GP
+GSV             - GNSS Satellites in View. The GSV sentence provides the number of satellites in view (SV), 
+                  satellite ID numbers, elevation, azimuth, and SNR value, and it contains maximum four satellites 
+                  per transmission. Therefore, it may take several sentences to get complete information.
+2               - TotalNumSen - Total number of sentences.
+1               - SenNum - Sentence number.
+05              - TotalNumSat - Total number of satellites in view.
+
+04              - SatID - Satellite ID.
+28              - SatElev - Satellite elevation. - Degree
+079             - SatAz - Satellite azimuth, with true north as the reference plane. 
+18              - SatCN0 - Satellite C/N0 - dB-Hz
+
+07              - SatID - Satellite ID.
+-
+-
+23
+
+09              - SatID - Satellite ID.
+61
+069
+46
+
+11              - SatID - Satellite ID.
+37
+268
+28
+
+1               - SignalID - L1 C/A
+*5C             - Checksum hex
+
+
+$GPGSV,2,2,05,30,,,16,1*65
+$
+GSV
+2               - TotalNumSen - Total number of sentences.
+2               - SenNum - Sentence number.
+05              - TotalNumSat - Total number of satellites in view.
+
+30              - SatID - Satellite ID.
+-               - SatElev - Satellite elevation. - Degree
+-               - SatAz - Satellite azimuth, with true north as the reference plane. 
+16              - SatCN0 - Satellite C/N0 - dB-Hz
+
+1               - SignalID - L1 C/A 
+*65             - Checksum hex
+
+
+$GPGSV,1,1,04,04,28,079,35,09,61,069,43,11,37,268,18,30,,,21,8*58
+$
+GSV
+1               - TotalNumSen - Total number of sentences.
+1               - SenNum - Sentence number.
+04              - TotalNumSat - Total number of satellites in view.
+
+34              - SatID - Satellite ID.
+28              - SatElev - Satellite elevation. - Degree
+079             - SatAz - Satellite azimuth, with true north as the reference plane. 
+35              - SatCN0 - Satellite C/N0 - dB-Hz
+
+09              - SatID - Satellite ID.
+61              - SatElev - Satellite elevation. - Degree
+069             - SatAz - Satellite azimuth, with true north as the reference plane. 
+43              - SatCN0 - Satellite C/N0 - dB-Hz
+
+11              - SatID - Satellite ID.
+37              - SatElev - Satellite elevation. - Degree
+268             - SatAz - Satellite azimuth, with true north as the reference plane. 
+18              - SatCN0 - Satellite C/N0 - dB-Hz
+
+30              - SatID - Satellite ID.
+-               - SatElev - Satellite elevation. - Degree
+-               - SatAz - Satellite azimuth, with true north as the reference plane. 
+21              - SatCN0 - Satellite C/N0 - dB-Hz
+
+8               - SignalID - L5
+*58             - Checksum hex
+
+
+$GLGSV,1,1,03,67,65,043,42,76,27,035,28,77,53,095,32,1*4B
+
+$GAGSV,1,1,00,7*73
+
+$GAGSV,1,1,00,1*75
+
+$GBGSV,2,1,05,12,,,24,19,48,300,29,20,76,076,32,23,,,27,1*7E
+
+$GBGSV,2,2,05,37,53,098,22,1*40
+
+$GBGSV,1,1,04,12,,,25,19,48,300,33,20,76,076,35,37,53,098,31,5*40
+
+$GQGSV,1,1,00,1*65
+
+$GQGSV,1,1,00,8*6C
+
+
+
+$PQTMCFGMSGRATE,R,GSV*6C

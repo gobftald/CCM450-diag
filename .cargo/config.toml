@@ -1,9 +1,10 @@
 [build]
+target = "xtensa-esp32s3-none-elf"
 
 [target.'cfg(all())']
 rustflags = [
     "-C", "link-arg=-Tdefmt.x",             # for defmt
-    "-C", "force-frame-pointers",           # for esp-backtrace and probe-rs-debug
+    #"-C", "force-frame-pointers",           # for esp-backtrace and probe-rs-debug
                                             # otherwise some size ovehead occurs (in ELF file only)
                                             # when making frame for every real (not inlined) function call
                                             # it's not relevant, esp-backtrace uses frame pointers to walk
@@ -20,7 +21,7 @@ rustflags = [
 [target.riscv32imc-unknown-none-elf]
 #runner = "espflash flash --monitor"
 
-# using defmt crate - together with "link-arg=-Tdefmt.x" below
+# using defmt crate - together with "link-arg=-Tdefmt.x" above
 runner = "espflash flash --monitor --log-format defmt"
 
 rustflags = [
@@ -31,7 +32,7 @@ rustflags = [
 [target.xtensa-esp32-none-elf]
 #runner = "espflash flash --baud 460800 --monitor"
 
-# using defmt crate - together with "link-arg=-Tdefmt.x" below
+# using defmt crate - together with "link-arg=-Tdefmt.x" above
 runner = "espflash flash --monitor --baud 460800 --log-format defmt"
 
 linker = "ldproxy"
@@ -43,6 +44,19 @@ rustflags = [
     "-C", "link-arg=-Wl,-Map=esp32.map",
 ]
 
+[target.xtensa-esp32s3-none-elf]
+#runner = "espflash flash --monitor"
+
+# using defmt crate - together with "link-arg=-Tdefmt.x" above
+runner = "espflash flash --monitor --log-format defmt"
+
+linker = "ldproxy"
+
+rustflags = [
+    "-C", "link-arg=-Tlinkall.x",          # esp-hal master linker script
+    "-C", "linker=xtensa-esp32s3-elf-gcc",
+    "-C", "link-arg=-Wl,-Map=esp32s3.map",
+]
 
 [unstable]
 build-std = ["core", "alloc"]

@@ -3,5 +3,5 @@
 #channel = "nightly"
 #channel = "nightly-2025-09-14"
 
-#targets = ["xtensa-esp32s3-none-elf"]
-#channel = "esp"
+targets = ["xtensa-esp32s3-none-elf"]
+channel = "esp"
