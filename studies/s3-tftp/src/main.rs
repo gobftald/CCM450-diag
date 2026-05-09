@@ -10,7 +10,18 @@ pub(crate) mod fmt;
 mod macros;
 mod panic;
 
+mod gps;
+mod lcd;
+mod sd_card;
+
 use embassy_time::Timer;
+use embassy_sync::{blocking_mutex::raw::NoopRawMutex, signal::Signal};
+
+
+// Tis Mutex is ASYNC, even if one user (SD card) is BLOCKING
+type SharedSpiBus = embassy_sync::mutex::Mutex<
+    NoopRawMutex, esp_hal::spi::master::SpiDmaBus<'static, esp_hal::Async>
+>;
 
 #[cfg(not(feature = "rtt"))]
 use esp_println as _;           // if no "rtt-target/defmt" we need "esp-println/defmt-espflash" in "dfmt"
@@ -31,6 +42,8 @@ async fn main(spawner: embassy_executor::Spawner) {
         controller,
         ap_runner,
         ap_stack) = create_access_point!(peripherals);
+
+    let spi_bus = create_spi_bus!(peripherals);
     
     // We should move out all created type (controller, ap_runner, ap_stack senders and receivers
     // from this main/loader task. Although finally it/we exit(s), spawns below (which finally 
@@ -42,6 +55,13 @@ async fn main(spawner: embassy_executor::Spawner) {
     // are also staying and increasing the wasted memory footprint of exited main task
     spawner.spawn(net_task(controller, ap_runner)).ok();
     spawner.spawn(dhcp_server(ap_stack)).ok();
+
+    let sd_ready = &*mk_static!(Signal<NoopRawMutex, ()>, Signal::<NoopRawMutex, ()>::new());
+
+    // based on WaveShare ESP32-S3-Touch-LCD-2 schematic
+    spawner.spawn(sd_card::sd_task(spi_bus, sd_ready, peripherals.GPIO41.into())).ok();
+    //spawner.spawn(lcd::lcd_task(spi_bus, sd_ready, peripherals.GPIO45.into(), peripherals.GPIO42.into())).ok();
+
     spawner.spawn(system_stats()).ok();
 }
 
@@ -134,3 +154,18 @@ async fn dhcp_server(ap_stack: embassy_net::Stack<'static>) {
     );
     server.run(ap_stack).await;
 }
+
+/*
+Why after_ticks(1) is better than yield_now() here:
+yield_now(): Puts you at the back of the line. If no other task is "ready," you start again immediately.
+after_ticks(1): Actually suspends the task for one hardware timer tick. This gives the CPU a guaranteed 
+"breather" to handle any pending interrupts from your UART or Buttons without the SD task immediately 
+trying to hog the SPI bus again.
+*/
+
+/*
+Preventing UART OverflowsIf your UART is high-speed (like 115200+), even a single sector read (512 bytes) 
+can take long enough to overflow a small hardware FIFO.To solve this, ensure your UART Task is running at 
+a higher priority than your SD Task. In Embassy, you can do this by using multiple executors or, more simply, 
+by using Interrupt-driven UART
+*/

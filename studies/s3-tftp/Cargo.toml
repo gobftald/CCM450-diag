@@ -21,6 +21,9 @@ esp-radio = { version = "0.17.0", features = ["wifi", "no_wpa_supplicant"] }
 
 embassy-executor = "0.9.0"
 embassy-time = "0.5.0"
+embassy-sync = "0.7.2"
+embassy-embedded-hal = "0.5.0"
+embassy-futures = "0.1.2"
 # although we don't plan to use "dhcpv4" feature we define it
 # since it products less code in icmp and udp because we can implement only "icmp echo" 
 embassy-net = { version = "0.7.1", features = ["udp", "dhcpv4"]}
@@ -31,6 +34,9 @@ systemview-target = { version = "0.3", optional = true, default-features = false
 
 leasehund = "0.2.0"
 
+embedded-sdmmc = "0.9.0"
+embedded-hal = "1.0.0"
+embedded-hal-async = "1.0.0"
 
 [features]
 default = [

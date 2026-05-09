@@ -80,3 +80,50 @@ macro_rules! create_access_point {
         }
     }
 }
+
+#[macro_export]
+macro_rules! create_spi_bus {
+    ($peripherals:ident) => {
+        {
+            const DMA_BUFFER_SIZE: usize = 2048;
+
+            use esp_hal::dma::{DmaDescriptor, DmaRxBuf, DmaTxBuf};
+            use static_cell::StaticCell;
+
+            static RX_DATA: StaticCell<[u8; DMA_BUFFER_SIZE]> = StaticCell::new();
+            static TX_DATA: StaticCell<[u8; DMA_BUFFER_SIZE]> = StaticCell::new();
+
+            static RX_DESCRIPTORS: StaticCell<[DmaDescriptor; 1]> = StaticCell::new();
+            static TX_DESCRIPTORS: StaticCell<[DmaDescriptor; 1]> = StaticCell::new();
+
+
+            let rx_buf = DmaRxBuf::new(
+                RX_DESCRIPTORS.init([DmaDescriptor::EMPTY; 1]),
+                RX_DATA.init([0u8; DMA_BUFFER_SIZE])
+            ).unwrap();
+
+            let tx_buf = DmaTxBuf::new(
+                TX_DESCRIPTORS.init([DmaDescriptor::EMPTY; 1]),
+                TX_DATA.init([0u8; DMA_BUFFER_SIZE])
+            ).unwrap();
+
+            // Init SPI at 400kHz (needed for safe SD init)
+            let spi = unwrap!(esp_hal::spi::master::Spi::new(
+                    $peripherals.SPI2,
+                    esp_hal::spi::master::Config::default()
+                        .with_frequency(esp_hal::time::Rate::from_khz(400))
+                        .with_mode(esp_hal::spi::Mode::_0)
+                    ), "Failed to initialize SPI bus")
+                    // pins based on WaveShare ESP32-S3-Touch-LCD-2 schematic
+                    .with_sck($peripherals.GPIO39)
+                    .with_mosi($peripherals.GPIO38)
+                    .with_miso($peripherals.GPIO40)
+                    .with_dma($peripherals.DMA_CH0)
+                    .with_buffers(rx_buf, tx_buf)
+                    .into_async();
+
+            static CELL: StaticCell<SharedSpiBus> = StaticCell::new();
+            CELL.init(SharedSpiBus::new(spi))
+        }
+    };
+}
