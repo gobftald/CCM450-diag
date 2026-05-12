@@ -109,18 +109,18 @@ macro_rules! create_spi_bus {
 
             // Init SPI at 400kHz (needed for safe SD init)
             let spi = unwrap!(esp_hal::spi::master::Spi::new(
-                    $peripherals.SPI2,
-                    esp_hal::spi::master::Config::default()
-                        .with_frequency(esp_hal::time::Rate::from_khz(400))
-                        .with_mode(esp_hal::spi::Mode::_0)
-                    ), "Failed to initialize SPI bus")
-                    // pins based on WaveShare ESP32-S3-Touch-LCD-2 schematic
-                    .with_sck($peripherals.GPIO39)
-                    .with_mosi($peripherals.GPIO38)
-                    .with_miso($peripherals.GPIO40)
-                    .with_dma($peripherals.DMA_CH0)
-                    .with_buffers(rx_buf, tx_buf)
-                    .into_async();
+                $peripherals.SPI2,
+                esp_hal::spi::master::Config::default()
+                    .with_frequency(esp_hal::time::Rate::from_khz(400))
+                    .with_mode(esp_hal::spi::Mode::_0)
+                ), "Failed to initialize SPI bus")
+                // pins based on WaveShare ESP32-S3-Touch-LCD-2 schematic
+                .with_sck($peripherals.GPIO39)
+                .with_mosi($peripherals.GPIO38)
+                .with_miso($peripherals.GPIO40)
+                .with_dma($peripherals.DMA_CH0)
+                .with_buffers(rx_buf, tx_buf)
+                .into_async();
 
             static CELL: StaticCell<SharedSpiBus> = StaticCell::new();
             CELL.init(SharedSpiBus::new(spi))

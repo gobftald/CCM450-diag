@@ -158,14 +158,14 @@ async fn dhcp_server(ap_stack: embassy_net::Stack<'static>) {
 /*
 Why after_ticks(1) is better than yield_now() here:
 yield_now(): Puts you at the back of the line. If no other task is "ready," you start again immediately.
-after_ticks(1): Actually suspends the task for one hardware timer tick. This gives the CPU a guaranteed 
-"breather" to handle any pending interrupts from your UART or Buttons without the SD task immediately 
+after_ticks(1): Actually suspends the task for one hardware timer tick. This gives the CPU a guaranteed
+"breather" to handle any pending interrupts from your UART or Buttons without the SD task immediately
 trying to hog the SPI bus again.
 */
 
 /*
-Preventing UART OverflowsIf your UART is high-speed (like 115200+), even a single sector read (512 bytes) 
-can take long enough to overflow a small hardware FIFO.To solve this, ensure your UART Task is running at 
-a higher priority than your SD Task. In Embassy, you can do this by using multiple executors or, more simply, 
+Preventing UART OverflowsIf your UART is high-speed (like 115200+), even a single sector read (512 bytes)
+can take long enough to overflow a small hardware FIFO.To solve this, ensure your UART Task is running at
+a higher priority than your SD Task. In Embassy, you can do this by using multiple executors or, more simply,
 by using Interrupt-driven UART
 */

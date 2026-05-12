@@ -36,77 +36,70 @@ pub(crate) async fn sd_task(
     sd_ready: &'static Signal<NoopRawMutex, ()>,
     cs_pin: AnyPin<'static>) {
 
-    // SCOPED HANDSHAKE (400kHz)
-    {    
-        let cs = Output::new(
-            unsafe { cs_pin.clone_unchecked() }, Level::High,
-            OutputConfig::default().with_pull(esp_hal::gpio::Pull::Up)
-        );
-        let sd_config = esp_hal::spi::master::Config::default()
-            .with_frequency(esp_hal::time::Rate::from_khz(400));
+    use esp_hal::{time::Rate, spi::Mode};
 
-        // Use SpiDeviceWithConfig to allow bus sharing with different settings
-        // and with CS management
-        let sd_device = SpiDeviceWithConfig::new(spi_bus, cs, sd_config);
-
-        // Wrap device in our blocing adapter
-        let sd_adapter = SdSpiAdapter::new(sd_device);
-    
-        // Dealy is a blocking call
-        let sd_card = embedded_sdmmc::SdCard::new(sd_adapter, embassy_time::Delay);
-
-        // Trigger the SPI Mode handshake before the LCD task starts
-        if let Ok(size) = sd_card.num_bytes() {
-            trace!("SD Handshake success: {} bytes", size);
-        } else {
-            error!("SD Handshake failed!");
-            return;
-        }
-        // At the end of this block, sd_card, adapter, device, and cs are all DROPPED.
-        // The pins are now free to be used again.
-    }
-
-    // 2. HIGH-SPEED SETUP (12MHz)
-    let cs = Output::new(
-        cs_pin, Level::High,
-        OutputConfig::default().with_pull(esp_hal::gpio::Pull::Up)
-    );
     let sd_config = esp_hal::spi::master::Config::default()
-        .with_frequency(esp_hal::time::Rate::from_mhz(12));
+        // it is the highest experimental speed for ESP32-S3-Touch-LCD-2
+        // and the currently inserted sd card
+        .with_frequency(Rate::from_mhz(8))
+        .with_mode(Mode::_0);
 
+    let sd_card = 'init: loop {
+        for attempt in 0..5 {
+            let cs = Output::new(
+                unsafe { cs_pin.clone_unchecked() }, Level::High,
+                OutputConfig::default().with_pull(esp_hal::gpio::Pull::Up)
+            );
 
-    let device = SpiDeviceWithConfig::new(spi_bus, cs, sd_config);
-    let adapter = SdSpiAdapter::new(device);
-    let sd_card = embedded_sdmmc::SdCard::new(adapter, embassy_time::Delay);
+            let device = SpiDeviceWithConfig::new(spi_bus, cs, sd_config);
+            let adapter = SdSpiAdapter::new(device);
+            let card = embedded_sdmmc::SdCard::new(adapter, embassy_time::Delay);
+
+            match card.num_bytes() {
+                Ok(size) => {
+                    trace!("SD init OK: {} bytes", size);
+                    break 'init card;
+                }
+                Err(e) if attempt < 4 => {
+                    embassy_time::Timer::after_millis(100).await;
+                    trace!("attempt {} error {}", attempt, e);
+                    continue;
+                }
+                Err(e) => {
+                    panic!("SD init failed: {:?}", e);
+                }
+            }
+        }
+    };
     
     // signaling handshake finised to LCD task
     sd_ready.signal(());
-
-    /*
-    A Note on Speeding Up the SD Card: Once the SD card finishes its initial handshake (after the call to 
-    sdcard.num_bytes()), you can technically increase its speed to 12MHz or 25MHz. However, since you are 
-    prioritizing other communications, like GPS or Wifi, keeping the SD card at a lower speed is actually 
-    safer, as it results in shorter, less demanding SPI bursts that are less likely to block your other tasks.
-
-    If you hammer the card at 25MHz, the card’s internal controller might get "overwhelmed" or run into more 
-    errors, leading to longer internal busy-wait periods.
-    At lower speeds, the communication is more synchronous with the card's internal processing, often leading 
-    to more predictable "Ready" signals.
-    
-    12MHz can be sweet spot.
-    */ 
     
     // Pass the GpsTimeSource here!
-    let mut volume_mgr = embedded_sdmmc::VolumeManager::new(sd_card, GpsTimeSource);
+    let volume_mgr = embedded_sdmmc::VolumeManager::new(sd_card, GpsTimeSource);
     
-    /*
     // Now, every file created or modified will call GpsTimeSource::get_timestamp()
-    if let Ok(mut volume) = volume_mgr.open_volume(embedded_sdmmc::VolumeIdx(0)) {
-        let mut root_dir = volume.open_root_dir().unwrap();
-        let mut file = root_dir.open_file_in_dir("log.txt", embedded_sdmmc::Mode::ReadWriteCreateOrAppend).unwrap();
-        file.write(b"Data logged with GPS time!").unwrap();
+    if let Ok(volume) = volume_mgr.open_volume(embedded_sdmmc::VolumeIdx(0)) {
+        trace!("volume: {}", volume);
+        let root_dir = volume.open_root_dir().unwrap();
+        trace!("root_dir: {}", root_dir);
+        let _ = root_dir.iterate_dir(|entry| {
+            use defmt::Display2Format;
+            info!(
+                "{} {} {} {}",
+                Display2Format(&entry.name),
+                entry.size,
+                Display2Format(&entry.mtime),
+                if entry.attributes.is_directory() {
+                    "<DIR>"
+                } else {
+                    ""
+                }
+            );
+        });
     }
 
+    /*
     // Try to get card size (forces initialization)
     loop {
         match sd_card.num_bytes() {
