@@ -42,8 +42,6 @@ async fn main(spawner: embassy_executor::Spawner) {
         controller,
         ap_runner,
         ap_stack) = create_access_point!(peripherals);
-
-    let spi_bus = create_spi_bus!(peripherals);
     
     // We should move out all created type (controller, ap_runner, ap_stack senders and receivers
     // from this main/loader task. Although finally it/we exit(s), spawns below (which finally 
@@ -56,11 +54,14 @@ async fn main(spawner: embassy_executor::Spawner) {
     spawner.spawn(net_task(controller, ap_runner)).ok();
     spawner.spawn(dhcp_server(ap_stack)).ok();
 
-    let sd_ready = &*mk_static!(Signal<NoopRawMutex, ()>, Signal::<NoopRawMutex, ()>::new());
+    let spi_bus = create_spi_bus!(peripherals);
+    let sd_ready = mk_static!(Signal<NoopRawMutex, ()>, Signal::<NoopRawMutex, ()>::new());
 
     // based on WaveShare ESP32-S3-Touch-LCD-2 schematic
     spawner.spawn(sd_card::sd_task(spi_bus, sd_ready, peripherals.GPIO41.into())).ok();
     //spawner.spawn(lcd::lcd_task(spi_bus, sd_ready, peripherals.GPIO45.into(), peripherals.GPIO42.into())).ok();
+
+    spawner.spawn(gps::gps_task(create_gps!(peripherals))).ok();
 
     spawner.spawn(system_stats()).ok();
 }

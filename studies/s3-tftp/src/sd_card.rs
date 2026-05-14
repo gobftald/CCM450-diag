@@ -98,20 +98,29 @@ pub(crate) async fn sd_task(
             );
         });
     }
-
-    /*
-    // Try to get card size (forces initialization)
-    loop {
-        match sd_card.num_bytes() {
-            Ok(size) => {
-                esp_println::println!("SD Card found! Size: {} bytes", size);
-                break;
-            }
-            Err(_) => {
-                esp_println::println!("Waiting for SD card...");
-                Timer::after_secs(2).await;
-            }
-        }
-    }
-    */
 }
+
+/*
+const SECTOR_SIZE: usize = 512;
+let mut buffer = [0u8; SECTOR_SIZE];
+let mut buf_idx = 0;
+
+loop {
+    delay_1_second();
+    let line = format!("{}\n", get_data());
+    let line_bytes = line.as_bytes();
+
+    // If this line would overflow our 512-byte sector buffer,
+    // write the full sector and continue
+    if buf_idx + line_bytes.len() > SECTOR_SIZE {
+        // Write the complete 512-byte sector
+        my_file.write(&buffer[..buf_idx])?;  // FAT updated here
+        buf_idx = 0;
+        // No need to flush unless you care about directory entry size
+    }
+
+    // Copy into our sector buffer
+    buffer[buf_idx..buf_idx + line_bytes.len()].copy_from_slice(line_bytes);
+    buf_idx += line_bytes.len();
+}
+*/

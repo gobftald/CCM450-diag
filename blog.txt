@@ -388,8 +388,27 @@ cargo run --release --target xtensa-esp32-none-elf --features=heap_stats,idle_st
 RUSTUP_TOOLCHAIN=nightly-2025-09-14 DEFMT_LOG=off,embassy_net=trace,esp_radio=debug,udp=trace,ecu=trace,cyd=trace \
 cargo run --release --target riscv32imc-unknown-none-elf --features=heap_stats,idle_stats
 
-
-
+# the rust-analyzer --lockfile-path problem
+# I need to replace /Users/piv/.rustup/toolchains/esp/bin/cargo to a script, then eliminate those flag:
+cp /Users/piv/.rustup/toolchains/esp/bin/cargo /Users/piv/.rustup/toolchains/esp/bin/cargo.real
+vi /Users/piv/.rustup/toolchains/esp/bin/cargo
+    #!/bin/bash
+    args=()
+    skip_next=0
+    for arg in "$@"; do
+        if [ "$skip_next" = "1" ]; then
+            skip_next=0
+            continue
+        fi
+        if [ "$arg" = "--lockfile-path" ]; then
+            skip_next=1
+            continue
+        fi
+        args+=("$arg")
+    done
+    exec /Users/piv/.rustup/toolchains/esp/bin/cargo.real "${args[@]}"
+# if I need to run espup, I need to remade this changes
+# if esp toolchain will be repaired you the next espup will work (so you can /Users/piv/.rustup/toolchains/esp/bin/cargo.real)
 
 
 
