@@ -2,7 +2,10 @@ use esp_hal::gpio::{Level, Output, AnyPin, OutputConfig};
 use embassy_sync::signal::Signal;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 
-use crate::{SharedSpiBus, gps::GpsTimeSource};
+use crate::{
+    SharedSpiBus,
+    gps::{GpsTimeSource, GPS_DATA, GPS_UPDATED}
+};
 
 // We use the SYNC wrapper, then we will implement 'SdSpiAdapter'
 // a "Blocking-over-Async" wrapper for SD card
@@ -97,6 +100,12 @@ pub(crate) async fn sd_task(
                 }
             );
         });
+    }
+
+    let mut gps_updated = GPS_UPDATED.receiver().unwrap();
+    loop {
+        gps_updated.changed().await;
+        unsafe { debug!("{:a}", *&raw const GPS_DATA); }
     }
 }
 

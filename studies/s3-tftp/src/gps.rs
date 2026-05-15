@@ -39,8 +39,8 @@ impl<'a> GPS<'a> {
     }
 }
 
-use core::marker::PhantomData;
-use embassy_sync::{blocking_mutex::raw::RawMutex, signal::Signal};
+use core::marker::{self, PhantomData};
+use embassy_sync::{blocking_mutex::raw::RawMutex, watch::Watch};
 
 // Custom mutex that is explicitly Sync for Signal
 pub struct SyncNoopRawMutex {
@@ -68,27 +68,30 @@ unsafe impl RawMutex for SyncNoopRawMutex {
     }
 }
 
-static GPS_UPDATED: Signal<SyncNoopRawMutex, u32> = Signal::new();
+// Signal to sd_card and bluetooth
+pub static GPS_UPDATED: Watch<SyncNoopRawMutex, (), 2> = Watch::new();
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[repr(C, packed)]  // Remove all padding
-struct GpsData {
-    date: [u8; 6],
-    time: [u8; 6],
-    lat: [u8; 12],
-    lon: [u8; 13],
-    sat: [u8; 2],
-    alt: [u8; 4],
-    cog: [u8; 3],
-    sog: [u8; 3],
+pub struct GpsData {
+    pub date: [u8; 6],
+    pub time: [u8; 6],
+    pub lat: [u8; 12],
+    pub lon: [u8; 13],
+    pub sat: [u8; 2],
+    pub hdop: [u8;5],
+    pub alt: [u8; 4],
+    pub cog: [u8; 3],
+    pub sog: [u8; 3],
 }
 
-static mut GPS_DATA: GpsData = GpsData {
+pub static mut GPS_DATA: GpsData = GpsData {
     date: *b"yymmdd",
     time: *b"hhmmss",
     lat: *b"0000.000000N",
     lon: *b"00000.000000E",
     sat: *b"00",
+    hdop: *b"00.00",
     alt: *b"0000",
     cog: *b"000",
     sog: *b"000",
@@ -99,144 +102,185 @@ pub async fn gps_task(mut gps: crate::gps::GPS<'static>) {
     use core::ptr::{addr_of_mut, copy_nonoverlapping as cpn};
 
     let mut buf = [0u8; 128];
+    let mut fix: usize = 0;
+    let gps_updated = GPS_UPDATED.sender();
 
     loop {
+        let match_buf: &[u8];
         // wait for incoming NMEA messages but ignore RxError
         // we should made this fn public to receive NMEA messages correctly
-        let _ = gps.rx.wait_for_buffered_data(32, buf.len(), true).await;
+        // minimum comes (below) from the shortest message size ($GNVTG before satelite fix)
+        let _ = gps.rx.wait_for_buffered_data(20, buf.len(), true).await;
 
         if let Ok(size) =  gps.rx.read_buffered(&mut buf) {
-            debug!("{:a}", &buf[..size]);
-            match &buf[..6] {
-                b"$GNGGA" => {
-                    let mut fld= field(2, &buf[..size]);
-                    if fld.len() == 11 {
-                        unsafe {
-                            cpn(
-                                fld.as_ptr(),
-                                addr_of_mut!((*(&raw mut GPS_DATA)).lat) as *mut u8,
-                                11
-                            );
-                        }
+            //debug!("{:a}", &buf[..size]);
+
+            // sometime the first '$' has already read after the last '\n'
+            if buf[0] == b'$' {
+                match_buf = &buf[1..6]
+            } else {
+                match_buf = &buf[..5];
+            }
+
+            match match_buf {
+                b"GNGGA" => {
+                    let mut fld= field(6, &buf[..size]);
+                    if fld[0] == b'0' {
+                        fix = 0;
+                    } else {
+                        fix += 1;
                     }
 
-                    fld = field(3, &buf[..size]);
-                    if fld.len() == 1 {
-                        unsafe { *&raw mut GPS_DATA.lat[11] = fld[0]; }
-                    }
-
-                    fld = field(4, &buf[..size]);
-                    if fld.len() == 12 {
-                        unsafe {
-                            cpn(
-                                fld.as_ptr(),
-                                addr_of_mut!((*(&raw mut GPS_DATA)).lon) as *mut u8,
-                                12
-                            );
-                        }
-                    }
-
-                    fld = field(5, &buf[..size]);
-                    if fld.len() == 1 {
-                        unsafe { *&raw mut GPS_DATA.lon[12] = fld[0]; }
-                    }
-
-                    fld = field(7, &buf[..size]);
-                    if fld.len() == 2 {
-                        unsafe {
-                            cpn(
-                                fld.as_ptr(),
-                                addr_of_mut!((*(&raw mut GPS_DATA)).sat) as *mut u8,
-                                2
-                            );
-                        }
-                    }
-
-                    fld = field(9, &buf[..size]);
-                    for (mut i, p) in fld.iter().enumerate() {
-                        if *p == b'.' {
+                    if fix > 1 {
+                        fld= field(2, &buf[..size]);
+                        if fld.len() == 11 {
                             unsafe {
-                                for p in (*&raw mut GPS_DATA.alt).iter_mut().rev() {
-                                    if i > 0 {
-                                        *p = fld[i - 1];
-                                        i -= 1;
-                                    } else {
-                                        *p = b'0';
-                                    }
+                                cpn(
+                                    fld.as_ptr(),
+                                    addr_of_mut!((*(&raw mut GPS_DATA)).lat) as *mut u8,
+                                    11
+                                );
+                            }
+                        }
+
+                        fld = field(3, &buf[..size]);
+                        if fld.len() == 1 {
+                            unsafe { *&raw mut GPS_DATA.lat[11] = fld[0]; }
+                        }
+
+                        fld = field(4, &buf[..size]);
+                        if fld.len() == 12 {
+                            unsafe {
+                                cpn(
+                                    fld.as_ptr(),
+                                    addr_of_mut!((*(&raw mut GPS_DATA)).lon) as *mut u8,
+                                    12
+                                );
+                            }
+                        }
+
+                        fld = field(5, &buf[..size]);
+                        if fld.len() == 1 {
+                            unsafe { *&raw mut GPS_DATA.lon[12] = fld[0]; }
+                        }
+
+                        fld = field(7, &buf[..size]);
+                        if fld.len() == 2 {
+                            unsafe {
+                                cpn(
+                                    fld.as_ptr(),
+                                    addr_of_mut!((*(&raw mut GPS_DATA)).sat) as *mut u8,
+                                    2
+                                );
+                            }
+                        }
+
+                        fld = field(8, &buf[..size]);
+                        let mut len = fld.len();
+                        unsafe {
+                            for p in (*&raw mut GPS_DATA.hdop).iter_mut().rev() {
+                                if len != 0 {
+                                    *p = fld[len - 1];
+                                    len -= 1;
+                                } else {
+                                    *p = b'0';
                                 }
                             }
-                            break;
+                        }
+
+                        fld = field(9, &buf[..size]);
+                        for (mut i, p) in fld.iter().enumerate() {
+                            if *p == b'.' {
+                                unsafe {
+                                    for p in (*&raw mut GPS_DATA.alt).iter_mut().rev() {
+                                        if i > 0 {
+                                            *p = fld[i - 1];
+                                            i -= 1;
+                                        } else {
+                                            *p = b'0';
+                                        }
+                                    }
+                                }
+                                break;
+                            }
                         }
                     }
                 }
 
-                b"$GNRMC" => {
-                    let mut fld= field(1, &buf[..size]);
-                    if fld.len() == 10 {
-                        unsafe {
-                            cpn(
-                                fld.as_ptr(),
-                                addr_of_mut!((*(&raw mut GPS_DATA)).time) as *mut u8,
-                                6
-                            );
-                            GPS_TIMESTAMP.hours = (fld[0] - b'0') * 10 + (fld[1] - b'0');
-                            GPS_TIMESTAMP.minutes = (fld[2] - b'0') * 10 + (fld[3] - b'0');
-                            GPS_TIMESTAMP.seconds = (fld[4] - b'0') * 10 + (fld[5] - b'0');
+                b"GNRMC" => {
+                    if fix > 1 {
+                        let mut fld= field(1, &buf[..size]);
+                        if fld.len() == 10 {
+                            unsafe {
+                                cpn(
+                                    fld.as_ptr(),
+                                    addr_of_mut!((*(&raw mut GPS_DATA)).time) as *mut u8,
+                                    6
+                                );
+                                GPS_TIMESTAMP.hours = (fld[0] - b'0') * 10 + (fld[1] - b'0');
+                                GPS_TIMESTAMP.minutes = (fld[2] - b'0') * 10 + (fld[3] - b'0');
+                                GPS_TIMESTAMP.seconds = (fld[4] - b'0') * 10 + (fld[5] - b'0');
+                            }
                         }
-                    }
 
-                    fld = field(9, &buf[..size]);
+                        fld = field(9, &buf[..size]);
 
-                    let mut swap: [u8; 6] = [0; 6];
-                    swap[0] = fld[4]; swap[1] = fld[5];
-                    swap[2] = fld[2]; swap[3] = fld[3];
-                    swap[4] = fld[0]; swap[5] = fld[1];
+                        let mut swap: [u8; 6] = [0; 6];
+                        swap[0] = fld[4]; swap[1] = fld[5];
+                        swap[2] = fld[2]; swap[3] = fld[3];
+                        swap[4] = fld[0]; swap[5] = fld[1];
 
-                    if fld.len() == 6 {
-                        unsafe {
-                            cpn(
-                                swap.as_ptr(),
-                                addr_of_mut!((*(&raw mut GPS_DATA)).date) as *mut u8,
-                                6
-                            );
-                            GPS_TIMESTAMP.year_since_1970 = (swap[0] - b'0') * 10 + (swap[1] - b'0') + 30;
-                            GPS_TIMESTAMP.zero_indexed_month = (swap[2] - b'0') * 10 + (swap[3] - b'0') - 1;
-                            GPS_TIMESTAMP.zero_indexed_day = (swap[4] - b'0') * 10 + (swap[5] - b'0') - 1;
+                        if fld.len() == 6 {
+                            unsafe {
+                                cpn(
+                                    swap.as_ptr(),
+                                    addr_of_mut!((*(&raw mut GPS_DATA)).date) as *mut u8,
+                                    6
+                                );
+                                GPS_TIMESTAMP.year_since_1970 = (swap[0] - b'0') * 10 + (swap[1] - b'0') + 30;
+                                GPS_TIMESTAMP.zero_indexed_month = (swap[2] - b'0') * 10 + (swap[3] - b'0') - 1;
+                                GPS_TIMESTAMP.zero_indexed_day = (swap[4] - b'0') * 10 + (swap[5] - b'0') - 1;
+                            }
                         }
                     }
                 }
 
-                b"$GNVTG" => {
-                    let mut fld= field(1, &buf[..size]);
-                    if fld.len() == 6 {
-                        unsafe {
-                            cpn(
-                                fld.as_ptr(),
-                                addr_of_mut!((*(&raw mut GPS_DATA)).cog) as *mut u8,
-                                3
-                            );
-                        }
-                    }
-
-                    fld = field(7, &buf[..size]);
-                    for (mut i, p) in fld.iter().enumerate() {
-                        if *p == b'.' {
+                b"GNVTG" => {
+                    if fix > 1 {
+                        let mut fld= field(1, &buf[..size]);
+                        if fld.len() == 6 {
                             unsafe {
-                                for p in (*&raw mut GPS_DATA.sog).iter_mut().rev() {
-                                    if i > 0 {
-                                        *p = fld[i - 1];
-                                        i -= 1;
-                                    } else {
-                                        *p = b'0';
+                                cpn(
+                                    fld.as_ptr(),
+                                    addr_of_mut!((*(&raw mut GPS_DATA)).cog) as *mut u8,
+                                    3
+                                );
+                            }
+                        }
+
+                        fld = field(7, &buf[..size]);
+                        for (mut i, p) in fld.iter().enumerate() {
+                            if *p == b'.' {
+                                unsafe {
+                                    for p in (*&raw mut GPS_DATA.sog).iter_mut().rev() {
+                                        if i > 0 {
+                                            *p = fld[i - 1];
+                                            i -= 1;
+                                        } else {
+                                            *p = b'0';
+                                        }
                                     }
                                 }
+                                break;
                             }
-                            break;
                         }
-                    }
 
-                    unsafe { debug!("{}", *&raw const GPS_TIMESTAMP); }
-                    unsafe { debug!("{:a}", *&raw const GPS_DATA); }
+                        //unsafe { debug!("{}", *&raw const GPS_TIMESTAMP); }
+                        //unsafe { debug!("{:a}", *&raw const GPS_DATA); }
+
+                        // Signal that GPS_DATA and GPS_TIMESTAMP were updated 
+                        gps_updated.send(());
+                    }
                 }
 
                 _ => {}
