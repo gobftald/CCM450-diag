@@ -39,7 +39,7 @@ impl<'a> GPS<'a> {
     }
 }
 
-use core::marker::{self, PhantomData};
+use core::marker::PhantomData;
 use embassy_sync::{blocking_mutex::raw::RawMutex, watch::Watch};
 
 // Custom mutex that is explicitly Sync for Signal

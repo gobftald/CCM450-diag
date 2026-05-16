@@ -87,6 +87,8 @@ macro_rules! create_spi_bus {
         {
             const DMA_BUFFER_SIZE: usize = 2048;
 
+            //use esp_hal::gpio::{Level, Output, OutputConfig};
+
             use esp_hal::dma::{DmaDescriptor, DmaRxBuf, DmaTxBuf};
             use static_cell::StaticCell;
 
@@ -97,17 +99,18 @@ macro_rules! create_spi_bus {
             static TX_DESCRIPTORS: StaticCell<[DmaDescriptor; 1]> = StaticCell::new();
 
 
-            let rx_buf = DmaRxBuf::new(
+            let rx_buf = unwrap!(DmaRxBuf::new(
                 RX_DESCRIPTORS.init([DmaDescriptor::EMPTY; 1]),
                 RX_DATA.init([0u8; DMA_BUFFER_SIZE])
-            ).unwrap();
+            ));
 
-            let tx_buf = DmaTxBuf::new(
+            let tx_buf = unwrap!(DmaTxBuf::new(
                 TX_DESCRIPTORS.init([DmaDescriptor::EMPTY; 1]),
                 TX_DATA.init([0u8; DMA_BUFFER_SIZE])
-            ).unwrap();
+            ));
 
             // Init SPI at 400kHz (needed for safe SD init)
+            //let mut spi = unwrap!(esp_hal::spi::master::Spi::new(
             let spi = unwrap!(esp_hal::spi::master::Spi::new(
                 $peripherals.SPI2,
                 esp_hal::spi::master::Config::default()
@@ -122,7 +125,21 @@ macro_rules! create_spi_bus {
                 .with_buffers(rx_buf, tx_buf)
                 .into_async();
 
+            /*/
+            // SD card reset sequence: 80 dummy clocks with CS high
+            // At this point spi is not yet async/shared so we can use it directly
+            let mut cs = Output::new(
+                unsafe { $peripherals.GPIO41.clone_unchecked() }, Level::High, OutputConfig::default());
+            cs.set_high();
+            // blocking write is fine here, we're in init
+            spi.write(&[0xFF; 80]).ok();
+
+            // LCD async, SD_CARD is not
+            let async_spi = spi.into_async();
+            */
+
             static CELL: StaticCell<SharedSpiBus> = StaticCell::new();
+            //CELL.init(SharedSpiBus::new(async_spi))
             CELL.init(SharedSpiBus::new(spi))
         }
     };
