@@ -39,6 +39,9 @@ embedded-hal = "1.0.0"
 embedded-hal-bus = { version = "0.3" }
 embedded-hal-async = "1.0.0"
 
+embedded-graphics = "0.8.1"
+lcd-async = "0.1.3"
+
 [features]
 default = [
     "esp32s3",
@@ -62,6 +65,7 @@ defmt = [
     "esp-backtrace?/defmt",
     "esp-bootloader-esp-idf/defmt",
     "esp-hal/defmt",
+    "esp-alloc/defmt",
     "embassy-executor/defmt",
     "embassy-time/defmt",
     "embassy-time/defmt-timestamp-uptime",
@@ -71,9 +75,10 @@ defmt = [
 
     "esp-println/defmt-espflash",       # if you use rtt (rtt_target) it should be commented out
                                         # since rtt-target/defmt also defines defmt symbols
-    "esp-alloc/defmt",
     "embedded-sdmmc/defmt-log",
     "embedded-hal-bus/defmt-03",
+
+    "lcd-async/defmt",
 ]
 
 backtrace = ["dep:esp-backtrace"]       # needs "-C", "force-frame-pointers" rustflag in config.toml

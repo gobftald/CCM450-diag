@@ -55,12 +55,21 @@ async fn main(spawner: embassy_executor::Spawner) {
     //spawner.spawn(dhcp_server(ap_stack)).ok();
 
     //let (sd_spi, lcd_spi) = create_spi_bus!(peripherals);
-    let sd_spi = create_spi_bus!(peripherals);
+    let spi = create_spi_bus!(peripherals);
     let sd_ready = mk_static!(Signal<NoopRawMutex, ()>, Signal::<NoopRawMutex, ()>::new());
 
-    // based on WaveShare ESP32-S3-Touch-LCD-2 schematic
-    spawner.spawn(sd_card::sd_task(sd_spi, sd_ready, peripherals.GPIO41.into())).ok();
-    //spawner.spawn(lcd::lcd_task(lcd_spi, sd_ready, peripherals.GPIO45.into(), peripherals.GPIO42.into())).ok();
+    // pins based on WaveShare ESP32-S3-Touch-LCD-2 schematic
+    spawner.spawn(sd_card::sd_task(
+        spi, sd_ready,
+        peripherals.GPIO41.into()
+    )).ok();
+    spawner.spawn(lcd::lcd_task(
+        spi, sd_ready,
+        peripherals.GPIO45.into(),
+        peripherals.GPIO42.into(),
+        peripherals.GPIO0.into(),
+        peripherals.GPIO1.into(),
+    )).ok();
 
     spawner.spawn(gps::gps_task(create_gps!(peripherals))).ok();
 

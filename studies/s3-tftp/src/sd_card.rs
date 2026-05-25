@@ -1,5 +1,22 @@
 use core::mem::size_of;
+use esp_hal::{
+    gpio::{Level, Output, AnyPin, OutputConfig},
+    spi::master::Config as SpiConfig,
+};
+use embassy_sync::{
+    signal::Signal,
+    blocking_mutex::raw::NoopRawMutex,
+};
 use embedded_sdmmc::{BlockDevice, BlockIdx, Block};
+
+// We use the SYNC wrapper, then we will implement 'SdSpiAdapter'
+// a "Blocking-over-Async" wrapper for SD card
+use embassy_embedded_hal::shared_bus::asynch::spi::SpiDeviceWithConfig;
+
+use crate::{
+    SharedSpiBus,
+    gps::{GPS_DATA, GPS_UPDATED},
+};
 
 pub const FORMAT_NEEDED:       bool      = true;
 //pub const MASTER_OFFSET:       u32     = 0;
@@ -14,25 +31,6 @@ pub const INDEX_SECTORS:       u16     = 256;
 pub const DATA_START:          u32     = 257 + MASTER_OFFSET;
 pub const ENTRIES_PER_SECTOR:  u32     = 32;    // 512 / 16
 // 256 * 32 = 8192 days -> ~22 years
-
-use esp_hal::{
-    gpio::{Level, Output, AnyPin, OutputConfig},
-    spi::master::Config as SpiConfig,
-};
-
-use embassy_sync::{
-    signal::Signal,
-    blocking_mutex::raw::NoopRawMutex,
-};
-
-use crate::{
-    SharedSpiBus,
-    gps::{GPS_DATA, GPS_UPDATED},
-};
-
-// We use the SYNC wrapper, then we will implement 'SdSpiAdapter'
-// a "Blocking-over-Async" wrapper for SD card
-use embassy_embedded_hal::shared_bus::asynch::spi::SpiDeviceWithConfig;
 
 pub struct SdSpiAdapter<T> {
     pub inner: T,
@@ -506,8 +504,6 @@ pub(crate) async fn sd_task(
     sd_ready: &'static Signal<NoopRawMutex, ()>,
     cs_pin: AnyPin<'static>) {
 
-    //embassy_time::Timer::after_millis(5_000).await;
-
     let config = SpiConfig::default()
         .with_frequency(esp_hal::time::Rate::from_khz(400))
         .with_mode(esp_hal::spi::Mode::_0);
@@ -534,7 +530,8 @@ pub(crate) async fn sd_task(
                     card.spi(|spi| 
                         spi.inner.set_config(
                             SpiConfig::default()
-                            .with_frequency(esp_hal::time::Rate::from_mhz(16))
+                            //.with_frequency(esp_hal::time::Rate::from_mhz(16))
+                            .with_frequency(esp_hal::time::Rate::from_mhz(2))
                             .with_mode(esp_hal::spi::Mode::_0)
                         )
                     );

@@ -1,66 +1,142 @@
-use esp_hal::gpio::{Level, Output, AnyPin, OutputConfig};
+use static_cell::StaticCell;
+
+use esp_hal::{
+    gpio::{Level, Output, AnyPin, OutputConfig},
+    spi::master::Config as SpiConfig,
+};
 use embassy_sync::signal::Signal;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
+use embassy_embedded_hal::shared_bus::asynch::spi::SpiDeviceWithConfig;
 
 use crate::SharedSpiBus;
+
+use lcd_async::{
+    interface::SpiInterface,
+    raw_framebuf::RawFrameBuf,
+    options::{Orientation, Rotation, ColorInversion},
+};
+use embedded_graphics::{
+    draw_target::DrawTarget,
+    pixelcolor::Rgb565,
+    prelude::{RgbColor, Point, Primitive, Drawable},
+    primitives::{Circle, Triangle, PrimitiveStyle},
+};
+
+// Display parameters
+const WIDTH: u16 = 240;
+const HEIGHT: u16 = 320;
+const PIXEL_SIZE: usize = 2; // RGB565 = 2 bytes per pixel
+const FRAME_SIZE: usize = (WIDTH as usize) * (HEIGHT as usize) * PIXEL_SIZE;
+
+static FRAME_BUFFER: StaticCell<[u8; FRAME_SIZE]> = StaticCell::new();
 
 #[embassy_executor::task]
 pub(crate) async fn lcd_task(
     spi_bus: &'static SharedSpiBus,
     sd_ready: &'static Signal<NoopRawMutex, ()>,
     cs_pin: AnyPin<'static>,
-    dc_pin: AnyPin<'static>
+    dc_pin: AnyPin<'static>,
+    reset_pin: AnyPin<'static>,
+    backlight_pin: AnyPin<'static>,
 ) {
-    // WAIT for the SD card to finish its sensitive handshake
+    // WAIT for the SD card to finish its handshake
     sd_ready.wait().await;
 
-    // Create the async device
-    let cs = Output::new(
-        cs_pin, Level::High,
-        OutputConfig::default().with_pull(esp_hal::gpio::Pull::Up)
-    );
-
-    /* By making SdSpiAdapter concrete over SpiDmaBus rather than generic over BUS, you sidestep the 
-       SetConfig trait bound issue entirely and can call apply_config directly. The LCD task does the 
-       same — applies its own config after locking the mutex.
-    */
-    
-    /*
+    let cs = Output::new(cs_pin, Level::High, OutputConfig::default());
     let dc = Output::new(dc_pin, Level::Low, OutputConfig::default());
+    let reset = Output::new(reset_pin, Level::High, OutputConfig::default());
+    let backlight = Output::new(backlight_pin, Level::High, OutputConfig::default());
 
-    // Create the Config for the LCD (High Speed 20MHz)
-    let lcd_config = Config::default()
-        .with_frequency(esp_hal::time::Rate::from_mhz(20))
-        .with_mode(SpiMode::Mode0);
+    let config = SpiConfig::default()
+        //.with_frequency(esp_hal::time::Rate::from_mhz(20))
+        .with_frequency(esp_hal::time::Rate::from_mhz(2))
+        .with_mode(esp_hal::spi::Mode::_0);
 
-    // Use SpiDeviceWithConfig to allow bus sharing with different settings
-    // and with CS management
-    let lcd_device = SpiDeviceWithConfig::new(spi_bus, lcd_cs, lcd_config);
+    let device = SpiDeviceWithConfig::new(spi_bus, cs, config);
+    let di = SpiInterface::new(device, dc);
+    
+    let mut display =
+        lcd_async::Builder::new(lcd_async::models::ST7789, di)
+            .reset_pin(reset)
+            .display_size(WIDTH as u16, HEIGHT as u16)
+            .orientation(Orientation {
+                rotation: Rotation::Deg0,
+                mirrored: false,
+            })
+            .display_offset(0, 0)
+            .invert_colors(ColorInversion::Inverted)
+            .init(&mut embassy_time::Delay)
+            .await
+            .unwrap();
+    
+    info!("Display initialized!");
 
-    // 2. Init the driver
-    let di = display_interface_spi::SPIInterfaceNoCS::new(device, dc);
-
-    let mut display = mipidsi::Builder::st7789(di)
-        .init(&mut Delay, None).await.unwrap();
-
-
-    ????
-    // After init, you can change the bus speed inside a lock
-    {
-        let mut bus_lock = bus.lock().await;
-        bus_lock.apply_config(&esp_hal::spi::master::Config::default()
-            .with_frequency(esp_hal::time::Rate::from_khz(20.MHz());
-    }
-
-    // 3. LVGL Integration
-    // You will wrap 'display' in an LVGL "display driver"
-    // Using a crate like 'lvgl' or doing raw FFI
+    let frame_buffer = FRAME_BUFFER.init_with(|| [0; FRAME_SIZE]);
+    RawFrameBuf::<Rgb565, _>::new(frame_buffer.as_mut_slice(), WIDTH.into(), HEIGHT.into())
+        .clear(Rgb565::BLACK).unwrap();
 
     loop {
-        display.clear(embedded_graphics::pixelcolor::Rgb565::RED).unwrap();
-        Timer::after_secs(1).await;
-        display.clear(embedded_graphics::pixelcolor::Rgb565::BLUE).unwrap();
-        Timer::after_secs(1).await;
+        let mut raw_fb =
+                RawFrameBuf::<Rgb565, _>::new(frame_buffer.as_mut_slice(), WIDTH.into(), HEIGHT.into());
+            raw_fb.clear(Rgb565::BLACK).unwrap();
+
+        // Draw a simple smiley face
+        draw_smiley(&mut raw_fb).unwrap();
+
+        // Send the framebuffer data to the display
+        display
+            .show_raw_data(0, 0, WIDTH, HEIGHT, frame_buffer)
+            .await
+            .unwrap();
+
+        info!("Smiley face drawn!");
+        embassy_time::Timer::after_millis(1000).await;
     }
-    */
+}
+
+/*
+ST7789T3 display driver
+CST816D Capacitive Touch // GT911 driver communicates with the Goodix GT911 touch controller
+QMI8658 6-axis IMU
+*/
+
+fn draw_smiley<T>(display: &mut T) -> Result<(), T::Error>
+where
+    T: DrawTarget<Color = Rgb565>,
+{
+    static mut INC: i32 = 0;
+
+    unsafe {
+        // Draw the left eye as a circle located at (80, 80), with a diameter of 30, filled with white
+        Circle::new(Point::new(80 + (INC % 3), 80), 30)
+            .into_styled(PrimitiveStyle::with_fill(Rgb565::WHITE))
+            .draw(display)?;
+
+        // Draw the right eye as a circle located at (130, 80), with a diameter of 30, filled with white
+        Circle::new(Point::new(130 + (INC % 3), 80), 30)
+            .into_styled(PrimitiveStyle::with_fill(Rgb565::WHITE))
+            .draw(display)?;
+
+        // Draw an upside down triangle to represent a smiling mouth
+        Triangle::new(
+            Point::new(80 + (INC % 3), 140),  // Left point
+            Point::new(160 + (INC % 3), 140), // Right point
+            Point::new(120 + (INC % 3), 180), // Bottom point
+        )
+        .into_styled(PrimitiveStyle::with_fill(Rgb565::RED))
+        .draw(display)?;
+
+        // Cover the top part of the mouth with a black triangle so it looks like a smile
+        Triangle::new(
+            Point::new(90 + (INC % 3), 150),  // Left point
+            Point::new(150 + (INC % 3), 150), // Right point
+            Point::new(120 + (INC % 3), 170), // Bottom point
+        )
+        .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
+        .draw(display)?;
+
+        INC += 1;
+    }
+
+    Ok(())
 }
