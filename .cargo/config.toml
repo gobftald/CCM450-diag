@@ -10,7 +10,7 @@ rustflags = [
                                             # it's not relevant, esp-backtrace uses frame pointers to walk
                                             # the stack easily and with low overhead, 
 
-    #"-Z", "location-detail=none",           # Removes file, line, and column metadata
+    "-Z", "location-detail=none",           # Removes file, line, and column metadata
 
     # convert any panic (unwrap) into "noop/unimp", even before panic message formatting
     # even the core::slice::index::slice_index_fail and esp_hal::fmt::__unwrap_failed will be "noop/unimp"
@@ -49,6 +49,10 @@ rustflags = [
 
 # using defmt crate - together with "link-arg=-Tdefmt.x" above
 runner = "espflash flash --monitor --log-format defmt"
+
+# flash only, reset button or power off/on needed to start
+#runner = "espflash flash --non-interactive --no-reset"
+
 
 linker = "ldproxy"
 

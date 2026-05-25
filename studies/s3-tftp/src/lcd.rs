@@ -19,6 +19,12 @@ pub(crate) async fn lcd_task(
         cs_pin, Level::High,
         OutputConfig::default().with_pull(esp_hal::gpio::Pull::Up)
     );
+
+    /* By making SdSpiAdapter concrete over SpiDmaBus rather than generic over BUS, you sidestep the 
+       SetConfig trait bound issue entirely and can call apply_config directly. The LCD task does the 
+       same — applies its own config after locking the mutex.
+    */
+    
     /*
     let dc = Output::new(dc_pin, Level::Low, OutputConfig::default());
 

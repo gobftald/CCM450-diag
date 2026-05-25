@@ -3,6 +3,7 @@ use esp_hal::{
     gpio::AnyPin,
     uart::{AnyUart, Config, Uart, UartRx, UartTx},
 };
+use core::slice::from_raw_parts;
 
 #[macro_export]
 macro_rules! create_gps {
@@ -75,25 +76,41 @@ pub static GPS_UPDATED: Watch<SyncNoopRawMutex, (), 2> = Watch::new();
 #[repr(C, packed)]  // Remove all padding
 pub struct GpsData {
     pub date: [u8; 6],
+    sep0: u8,
     pub time: [u8; 6],
+    sep1: u8,
     pub lat: [u8; 12],
+    sep2: u8,
     pub lon: [u8; 13],
+    sep3: u8,
     pub sat: [u8; 2],
+    sep4: u8,
     pub hdop: [u8;5],
+    sep5: u8,
     pub alt: [u8; 4],
+    sep6: u8,
     pub cog: [u8; 3],
+    sep7: u8,
     pub sog: [u8; 3],
 }
 
 pub static mut GPS_DATA: GpsData = GpsData {
     date: *b"yymmdd",
+    sep0: b',',
     time: *b"hhmmss",
+    sep1: b',',
     lat: *b"0000.000000N",
+    sep2: b',',
     lon: *b"00000.000000E",
+    sep3: b',',
     sat: *b"00",
+    sep4: b',',
     hdop: *b"00.00",
+    sep5: b',',
     alt: *b"0000",
+    sep6: b',',
     cog: *b"000",
+    sep7: b',',
     sog: *b"000",
 };
 
@@ -217,9 +234,11 @@ pub async fn gps_task(mut gps: crate::gps::GPS<'static>) {
                                     addr_of_mut!((*(&raw mut GPS_DATA)).time) as *mut u8,
                                     6
                                 );
+                                /*
                                 GPS_TIMESTAMP.hours = (fld[0] - b'0') * 10 + (fld[1] - b'0');
                                 GPS_TIMESTAMP.minutes = (fld[2] - b'0') * 10 + (fld[3] - b'0');
                                 GPS_TIMESTAMP.seconds = (fld[4] - b'0') * 10 + (fld[5] - b'0');
+                                */
                             }
                         }
 
@@ -237,9 +256,11 @@ pub async fn gps_task(mut gps: crate::gps::GPS<'static>) {
                                     addr_of_mut!((*(&raw mut GPS_DATA)).date) as *mut u8,
                                     6
                                 );
+                                /*
                                 GPS_TIMESTAMP.year_since_1970 = (swap[0] - b'0') * 10 + (swap[1] - b'0') + 30;
                                 GPS_TIMESTAMP.zero_indexed_month = (swap[2] - b'0') * 10 + (swap[3] - b'0') - 1;
                                 GPS_TIMESTAMP.zero_indexed_day = (swap[4] - b'0') * 10 + (swap[5] - b'0') - 1;
+                                */
                             }
                         }
                     }
@@ -293,8 +314,6 @@ pub async fn gps_task(mut gps: crate::gps::GPS<'static>) {
 }
 
 fn field(mut field_num: usize, buf: &[u8]) -> &[u8]{
-    use core::slice::from_raw_parts;
-
     let mut rbuf = buf;
     let mut len = buf.len();
 
@@ -326,7 +345,8 @@ fn field(mut field_num: usize, buf: &[u8]) -> &[u8]{
 }
 
 
-// sd_card needs this TimeSource stuff
+/*
+// FAT VolumeManager needs this TimeSource stuff
 use embedded_sdmmc::{Timestamp, TimeSource};
 
 static mut GPS_TIMESTAMP: Timestamp = Timestamp {
@@ -341,3 +361,4 @@ impl TimeSource for GpsTimeSource {
         unsafe { GPS_TIMESTAMP }
     }
 }
+*/

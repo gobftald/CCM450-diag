@@ -51,15 +51,16 @@ async fn main(spawner: embassy_executor::Spawner) {
     // Because of the compiler optimisation even we should not only move out but also
     // should use these types handed over by value in the spawned tasks, otherwise they
     // are also staying and increasing the wasted memory footprint of exited main task
-    spawner.spawn(net_task(controller, ap_runner)).ok();
-    spawner.spawn(dhcp_server(ap_stack)).ok();
+    //spawner.spawn(net_task(controller, ap_runner)).ok();
+    //spawner.spawn(dhcp_server(ap_stack)).ok();
 
-    let spi_bus = create_spi_bus!(peripherals);
+    //let (sd_spi, lcd_spi) = create_spi_bus!(peripherals);
+    let sd_spi = create_spi_bus!(peripherals);
     let sd_ready = mk_static!(Signal<NoopRawMutex, ()>, Signal::<NoopRawMutex, ()>::new());
 
     // based on WaveShare ESP32-S3-Touch-LCD-2 schematic
-    spawner.spawn(sd_card::sd_task(spi_bus, sd_ready, peripherals.GPIO41.into())).ok();
-    //spawner.spawn(lcd::lcd_task(spi_bus, sd_ready, peripherals.GPIO45.into(), peripherals.GPIO42.into())).ok();
+    spawner.spawn(sd_card::sd_task(sd_spi, sd_ready, peripherals.GPIO41.into())).ok();
+    //spawner.spawn(lcd::lcd_task(lcd_spi, sd_ready, peripherals.GPIO45.into(), peripherals.GPIO42.into())).ok();
 
     spawner.spawn(gps::gps_task(create_gps!(peripherals))).ok();
 

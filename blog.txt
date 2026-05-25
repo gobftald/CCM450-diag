@@ -411,58 +411,22 @@ vi /Users/piv/.rustup/toolchains/esp/bin/cargo
 # if esp toolchain will be repaired you the next espup will work (so you can /Users/piv/.rustup/toolchains/esp/bin/cargo.real)
 
 
+# 0x00 formatting sd card to clear FAT area after SD Card Formatter overwrite format
+diskutil list
+diskutil unmountDisk /dev/disk4
+sudo python3 -c "
+import os
+fd = os.open('/dev/rdisk4', os.O_WRONLY)
+chunk = b'\x00' * (1024 * 1024)
+written = 0
+while True:
+    try:
+        n = os.write(fd, chunk)
+        written += n
+        print(f'\r{written // (1024*1024)} MB written', end='', flush=True)
+    except OSError:
+        print(f'\nDone: {written // (1024*1024)} MB')
+        break
+os.close(fd)
+"
 
-#################
-Since GPS receivers provide a Pulse Per Second (PPS) signal and NMT/ZDA sentences, they are actually more precise 
-than SNTP for timekeeping.
-In your Embassy setup, you can use the GPS time to "seed" the ESP32-S3's internal clock. Here is how to integrate it 
-with your SD card:
-
-1. The Strategy
-- Parse GPS: Use a task to listen to the UART from your GPS. Look for the $GPRMC or $GPZDA sentences, which contain 
-the UTC date and time.
-- Update a Global Variable: Store this time in an embassy_sync Signal or a Mutex.
-- Implement TimeSource: Your embedded-sdmmc TimeSource will read from this variable.
-
-2. The Implementation
-Create a shared structure to hold the "Last Known Time":
-use core::cell::Cell;
-use embassy_sync::blocking_mutex::raw::NoopRawMutex;
-use embassy_sync::blocking_mutex::Mutex as BlockingMutex;
-
-// Global storage for the GPS time
-static LATEST_TIME: BlockingMutex<NoopRawMutex, Cell<embedded_sdmmc::Timestamp>> = 
-    BlockingMutex::new(Cell::new(embedded_sdmmc::Timestamp {
-        year_since_1970: 54, // Default to 2024
-        month: 1,
-        day: 1,
-        hour: 0,
-        minute: 0,
-        second: 0,
-    }));
-
-struct GpsTimeSource;
-
-impl embedded_sdmmc::TimeSource for GpsTimeSource {
-    fn get_timestamp(&self) -> embedded_sdmmc::Timestamp {
-        LATEST_TIME.lock(|cell| cell.get())
-    }
-}
-
-3. Updating the Time
-Inside your GPS parsing task (using a crate like nmea), you update the static value whenever you get a valid lock:
-
-// Inside your GPS UART task
-if let Ok(fix) = nmea.parse(sentence) {
-    if let (Some(date), Some(time)) = (fix.date, fix.time) {
-        let ts = embedded_sdmmc::Timestamp {
-            year_since_1970: (date.year - 1970) as u8,
-            month: date.month,
-            day: date.day,
-            hour: time.hour,
-            minute: time.minute,
-            second: time.second,
-        };
-        LATEST_TIME.lock(|cell| cell.set(ts));
-    }
-}

@@ -36,6 +36,7 @@ leasehund = "0.2.0"
 
 embedded-sdmmc = { version = "0.9.0", default-features = false }
 embedded-hal = "1.0.0"
+embedded-hal-bus = { version = "0.3" }
 embedded-hal-async = "1.0.0"
 
 [features]
@@ -72,6 +73,7 @@ defmt = [
                                         # since rtt-target/defmt also defines defmt symbols
     "esp-alloc/defmt",
     "embedded-sdmmc/defmt-log",
+    "embedded-hal-bus/defmt-03",
 ]
 
 backtrace = ["dep:esp-backtrace"]       # needs "-C", "force-frame-pointers" rustflag in config.toml
