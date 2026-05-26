@@ -49,7 +49,7 @@ pub(crate) async fn lcd_task(
 
     let config = SpiConfig::default()
         //.with_frequency(esp_hal::time::Rate::from_mhz(20))
-        .with_frequency(esp_hal::time::Rate::from_mhz(2))
+        .with_frequency(esp_hal::time::Rate::from_mhz(20))
         .with_mode(esp_hal::spi::Mode::_0);
 
     let device = SpiDeviceWithConfig::new(spi_bus, cs, config);
@@ -72,16 +72,14 @@ pub(crate) async fn lcd_task(
     info!("Display initialized!");
 
     let frame_buffer = FRAME_BUFFER.init_with(|| [0; FRAME_SIZE]);
-    RawFrameBuf::<Rgb565, _>::new(frame_buffer.as_mut_slice(), WIDTH.into(), HEIGHT.into())
-        .clear(Rgb565::BLACK).unwrap();
-
+    let mut inc: i32 = 0;
     loop {
         let mut raw_fb =
                 RawFrameBuf::<Rgb565, _>::new(frame_buffer.as_mut_slice(), WIDTH.into(), HEIGHT.into());
             raw_fb.clear(Rgb565::BLACK).unwrap();
 
         // Draw a simple smiley face
-        draw_smiley(&mut raw_fb).unwrap();
+        draw_smiley(&mut raw_fb, inc).unwrap();
 
         // Send the framebuffer data to the display
         display
@@ -89,8 +87,8 @@ pub(crate) async fn lcd_task(
             .await
             .unwrap();
 
-        info!("Smiley face drawn!");
-        embassy_time::Timer::after_millis(1000).await;
+        embassy_time::Timer::after_millis(200).await;
+        inc += 4;
     }
 }
 
@@ -100,43 +98,37 @@ CST816D Capacitive Touch // GT911 driver communicates with the Goodix GT911 touc
 QMI8658 6-axis IMU
 */
 
-fn draw_smiley<T>(display: &mut T) -> Result<(), T::Error>
+fn draw_smiley<T>(display: &mut T, inc: i32) -> Result<(), T::Error>
 where
     T: DrawTarget<Color = Rgb565>,
 {
-    static mut INC: i32 = 0;
-
-    unsafe {
-        // Draw the left eye as a circle located at (80, 80), with a diameter of 30, filled with white
-        Circle::new(Point::new(80 + (INC % 3), 80), 30)
-            .into_styled(PrimitiveStyle::with_fill(Rgb565::WHITE))
-            .draw(display)?;
-
-        // Draw the right eye as a circle located at (130, 80), with a diameter of 30, filled with white
-        Circle::new(Point::new(130 + (INC % 3), 80), 30)
-            .into_styled(PrimitiveStyle::with_fill(Rgb565::WHITE))
-            .draw(display)?;
-
-        // Draw an upside down triangle to represent a smiling mouth
-        Triangle::new(
-            Point::new(80 + (INC % 3), 140),  // Left point
-            Point::new(160 + (INC % 3), 140), // Right point
-            Point::new(120 + (INC % 3), 180), // Bottom point
-        )
-        .into_styled(PrimitiveStyle::with_fill(Rgb565::RED))
+    // Draw the left eye as a circle located at (80, 80), with a diameter of 30, filled with white
+    Circle::new(Point::new(80 + (inc % 20), 80), 30)
+        .into_styled(PrimitiveStyle::with_fill(Rgb565::WHITE))
         .draw(display)?;
 
-        // Cover the top part of the mouth with a black triangle so it looks like a smile
-        Triangle::new(
-            Point::new(90 + (INC % 3), 150),  // Left point
-            Point::new(150 + (INC % 3), 150), // Right point
-            Point::new(120 + (INC % 3), 170), // Bottom point
-        )
-        .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
+    // Draw the right eye as a circle located at (130, 80), with a diameter of 30, filled with white
+    Circle::new(Point::new(130 + (inc % 20), 80), 30)
+        .into_styled(PrimitiveStyle::with_fill(Rgb565::WHITE))
         .draw(display)?;
 
-        INC += 1;
-    }
+    // Draw an upside down triangle to represent a smiling mouth
+    Triangle::new(
+        Point::new(80 + (inc % 20), 140),  // Left point
+        Point::new(160 + (inc % 20), 140), // Right point
+        Point::new(120 + (inc % 20), 180), // Bottom point
+    )
+    .into_styled(PrimitiveStyle::with_fill(Rgb565::RED))
+    .draw(display)?;
+
+    // Cover the top part of the mouth with a black triangle so it looks like a smile
+    Triangle::new(
+        Point::new(90 + (inc % 20), 150),  // Left point
+        Point::new(150 + (inc % 20), 150), // Right point
+        Point::new(120 + (inc % 20), 170), // Bottom point
+    )
+    .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
+    .draw(display)?;
 
     Ok(())
 }

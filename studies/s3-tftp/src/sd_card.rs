@@ -1,17 +1,15 @@
 use core::mem::size_of;
 use esp_hal::{
     gpio::{Level, Output, AnyPin, OutputConfig},
-    spi::master::Config as SpiConfig,
+    delay::Delay,
+    spi::master::{SpiDmaBus, Config as SpiConfig},
 };
+use embedded_hal::spi::{SpiBus, SpiDevice as SyncSpiDevice, Operation as SyncOp};
 use embassy_sync::{
-    signal::Signal,
     blocking_mutex::raw::NoopRawMutex,
+    signal::Signal
 };
 use embedded_sdmmc::{BlockDevice, BlockIdx, Block};
-
-// We use the SYNC wrapper, then we will implement 'SdSpiAdapter'
-// a "Blocking-over-Async" wrapper for SD card
-use embassy_embedded_hal::shared_bus::asynch::spi::SpiDeviceWithConfig;
 
 use crate::{
     SharedSpiBus,
@@ -32,28 +30,104 @@ pub const DATA_START:          u32     = 257 + MASTER_OFFSET;
 pub const ENTRIES_PER_SECTOR:  u32     = 32;    // 512 / 16
 // 256 * 32 = 8192 days -> ~22 years
 
-pub struct SdSpiAdapter<T> {
-    pub inner: T,
+type BusGuard<'a> = embassy_sync::mutex::MutexGuard<
+    'a, NoopRawMutex, SpiDmaBus<'static, esp_hal::Async>
+>;
+
+pub struct SdSpiBlockingProxy<'a> {
+    pub bus: &'a SharedSpiBus,
+    pub cs_pin: &'a mut esp_hal::gpio::Output<'static>,
+    // UnsafeCell lets us modify the guard using a shared reference (&self)
+    pub active_guard: core::cell::UnsafeCell<Option<BusGuard<'a>>>,
+    // Controls when it is safe to jump to 16 MHz
+    pub use_fast_speed: core::cell::Cell<bool>,
 }
 
-impl<T> SdSpiAdapter<T> {
-    pub fn new(inner: T) -> Self {
-        Self { inner }
+impl<'a> SdSpiBlockingProxy<'a> {
+    pub fn new(bus: &'a SharedSpiBus, cs_pin: &'a mut esp_hal::gpio::Output<'static>) -> Self {
+        Self {
+            bus,
+            cs_pin,
+            active_guard: core::cell::UnsafeCell::new(None),
+            use_fast_speed: core::cell::Cell::new(false)
+        }
+    }
+
+    pub async fn lock_bus_master(&mut self) {
+        let guard = self.bus.lock().await;
+        unsafe { *self.active_guard.get() = Some(guard); }
+    }
+
+    // Call this after your high-level SD / Storage operations are finished
+    pub fn unlock_bus_master(&self) {
+        unsafe { *self.active_guard.get() = None; }
     }
 }
 
-impl<T> embedded_hal::spi::ErrorType for SdSpiAdapter<T>
-where T: embedded_hal_async::spi::SpiDevice {
-    type Error = T::Error;
+impl<'a> embedded_hal::spi::ErrorType for SdSpiBlockingProxy<'a> {
+    type Error = esp_hal::spi::Error;
 }
 
-impl<T> embedded_hal::spi::SpiDevice for SdSpiAdapter<T>
-where T: embedded_hal_async::spi::SpiDevice {
-    fn transaction(
-        &mut self,
-        operations: &mut [embedded_hal::spi::Operation<'_, u8>],
-    ) -> Result<(), Self::Error> {
-        embassy_futures::block_on(self.inner.transaction(operations))
+impl<'a> SyncSpiDevice<u8> for SdSpiBlockingProxy<'a> {
+    fn transaction(&mut self, operations: &mut [SyncOp<'_, u8>]) -> Result<(), Self::Error> {
+        // we need a master lock for the entire sd card operation
+        // not only for its atomic spi bus operations
+        let guard_slot = unsafe { &mut *self.active_guard.get() };
+
+        let mut temp_guard;
+
+        let bus_guard = match guard_slot {
+            Some(g) => g,
+            None => {
+                // it is usefull e.g. in init, when no other device is on the spi bus
+                // so we don't need to use lock/unlock_bus_master
+                temp_guard = loop {
+                    if let Ok(g) = self.bus.try_lock() { break g; }
+                };
+                &mut temp_guard // Returns a reference to temp_guard
+            }
+        };
+
+        // TARGET FREQUENCY DECISION:
+        // Only override to 16 MHz if our loop explicitly turned on fast mode.
+        // Otherwise, force 400 kHz to protect the card's early handshakes!
+        let target_speed = if self.use_fast_speed.get() {
+            esp_hal::time::Rate::from_mhz(16)
+        } else {
+            esp_hal::time::Rate::from_khz(400)
+        };
+
+        // Reconfigure the clock back to 16 MHz in case the LCD altered it
+        bus_guard.apply_config(&SpiConfig::default()
+            .with_frequency(target_speed)
+            .with_mode(esp_hal::spi::Mode::_0)
+        ).ok();
+
+        self.cs_pin.set_low();
+
+        for op in operations {
+            match op {
+                SyncOp::Read(buf) => {
+                    SpiBus::read(&mut **bus_guard, buf)?;
+                }
+                SyncOp::Write(buf) => {
+                    SpiBus::write(&mut **bus_guard, buf)?;
+                }
+                SyncOp::Transfer(read, write) => {
+                    SpiBus::transfer(&mut **bus_guard, read, write)?;
+                }
+                SyncOp::TransferInPlace(buf) => {
+                    SpiBus::transfer_in_place(&mut **bus_guard, buf)?;
+                }
+                SyncOp::DelayNs(ns) => {
+                    esp_hal::delay::Delay::new().delay_nanos(*ns);
+                }
+            }
+        }
+
+        // Release Chip Select
+        self.cs_pin.set_high();
+        Ok(())
     }
 }
 
@@ -98,7 +172,7 @@ pub struct Storage<D> {
     read_buf:           Block,      // read buffer, reused, zero copy
 }
 
-impl<D: BlockDevice> Storage<D>
+impl<'a, D: BlockDevice> Storage<D>
 where
     D::Error: core::fmt::Debug,
 {
@@ -106,7 +180,7 @@ where
 
     fn read_block(&mut self, sector: u32) -> Result<&Block, D::Error> {
         // if read_block in a fast loop - e.g. in mount scan    
-        esp_hal::delay::Delay::new().delay_micros(200);
+        Delay::new().delay_micros(200);
         self.dev.read(
             core::slice::from_mut(&mut self.read_buf),
             BlockIdx(sector)
@@ -115,10 +189,23 @@ where
     }
 
     fn write_block(&mut self, sector: u32, block: &Block) -> Result<(), D::Error> {
-        self.dev.write(
+        for attempt in 0..3 {
+            match self.dev.write(
+                core::slice::from_ref(block),
+                BlockIdx(sector)
+            ) {
+                Ok(_) => return Ok(()),
+                Err(e) => {
+                    warn!("write_block {} attempt {} failed: {:?}",
+                        sector, attempt, defmt::Debug2Format(&e));
+                    Delay::new().delay_millis(10);
+                }
+            }
+        }
+        Err(self.dev.write(
             core::slice::from_ref(block),
             BlockIdx(sector)
-        )
+        ).unwrap_err())
     }
 
 
@@ -374,12 +461,13 @@ where
         let block = Self::block_from(&self.sector_buf);
 
         // physical writes (for logs) happen only here (buffered)
-        self.write_block(self.current_sector, &block)?;
+        let write_result =self.write_block(self.current_sector, &block);
 
         self.current_sector   += 1;
         self.current_sequence += 1;
         self.sector_buf        = unsafe { core::mem::zeroed() };
 
+        write_result?;
         Ok(())
     }
 
@@ -504,39 +592,37 @@ pub(crate) async fn sd_task(
     sd_ready: &'static Signal<NoopRawMutex, ()>,
     cs_pin: AnyPin<'static>) {
 
-    let config = SpiConfig::default()
-        .with_frequency(esp_hal::time::Rate::from_khz(400))
-        .with_mode(esp_hal::spi::Mode::_0);
+    //  Initialize the CS Pin once outside the loop so it lives forever
+    let mut cs = Output::new(cs_pin, Level::High, OutputConfig::default());
+
+    // Create the proxy instance
+    let mut proxy = SdSpiBlockingProxy::new(spi_bus, &mut cs);
+    
+    // Turn it into a long-lived raw pointer reference that can safely bypass the loop boundaries
+    let proxy_ptr = &mut proxy as *mut SdSpiBlockingProxy<'_>;
 
     let mut storage = 'init: loop {
         for attempt in 0..16 {
-            let cs = Output::new(
-                unsafe {
-                    cs_pin.clone_unchecked() },
-                    Level::High,
-                    OutputConfig::default()
-            );
+            let long_lived_proxy_ref = unsafe { &mut *proxy_ptr };
 
-            let device = SpiDeviceWithConfig::new(spi_bus, cs, config);
-            let adapter = SdSpiAdapter::new(device);
+            // Ensure proxy starts at 400 kHz for this handshake attempt
+            proxy.use_fast_speed.set(false);
+
             let card = embedded_sdmmc::SdCard::new(
-                adapter,
-                embassy_time::Delay,
+                // Pass the permanent reference instead of the temporary loop one
+                long_lived_proxy_ref, // Pass proxy via mutable reference
+            Delay::new(),
             );
 
             debug!("card.num_bytes()");
             match card.num_bytes() {
                 Ok(size) => {
-                    card.spi(|spi| 
-                        spi.inner.set_config(
-                            SpiConfig::default()
-                            //.with_frequency(esp_hal::time::Rate::from_mhz(16))
-                            .with_frequency(esp_hal::time::Rate::from_mhz(2))
-                            .with_mode(esp_hal::spi::Mode::_0)
-                        )
-                    );
                     trace!("SD init OK: {} bytes", size);
 
+                    // Safely scale up to 16 MHz for all future work.
+                    proxy.use_fast_speed.set(true);
+
+                    // Storage takes ownership
                     match Storage::mount(card) {
                         Ok(storage) => break 'init storage,
                         Err(e) if attempt < 15 => {
@@ -579,14 +665,19 @@ pub(crate) async fn sd_task(
     let need_new_day = if storage.day_index == 0xFFFF {
         true
     } else {
-        match storage.read_day_date(storage.day_index) {
+        proxy.lock_bus_master().await;
+        let r = match storage.read_day_date(storage.day_index) {
             Ok(last_date) => last_date != date,
             Err(_) => true,
-        }
+        };
+        proxy.unlock_bus_master();
+        r
     };
 
     if need_new_day {
+        proxy.lock_bus_master().await;
         storage.new_day(&date).unwrap();
+        proxy.unlock_bus_master();
     }
 
     let mut current_date = date;
@@ -599,7 +690,9 @@ pub(crate) async fn sd_task(
         unsafe {
             // date changed
             if date != current_date {
+                proxy.lock_bus_master().await;
                 storage.new_day(&date).unwrap();
+                proxy.unlock_bus_master();
                 current_date = date;
             }
 
@@ -608,13 +701,14 @@ pub(crate) async fn sd_task(
                 &raw const GPS_DATA as *const u8,
                 62,
             );
+            proxy.lock_bus_master().await;
             storage.write_record(record.try_into().unwrap()).unwrap_or_else(
                 |error| debug!("*** write error {} ***", error)
-            )
+            );
+            proxy.unlock_bus_master();
         }
 
         // wait for next GPS update
-        gps_updated.changed().await;  // ← missing!
-
+        gps_updated.changed().await;
     }
 }

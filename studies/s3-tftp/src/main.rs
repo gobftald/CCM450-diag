@@ -18,7 +18,6 @@ use embassy_time::Timer;
 use embassy_sync::{blocking_mutex::raw::NoopRawMutex, signal::Signal};
 
 
-// Tis Mutex is ASYNC, even if one user (SD card) is BLOCKING
 type SharedSpiBus = embassy_sync::mutex::Mutex<
     NoopRawMutex, esp_hal::spi::master::SpiDmaBus<'static, esp_hal::Async>
 >;

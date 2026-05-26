@@ -84,10 +84,10 @@ macro_rules! create_access_point {
 #[macro_export]
 macro_rules! create_spi_bus {
     ($peripherals:ident) => {{
-            const DMA_BUFFER_SIZE: usize = 2048;
-
             use esp_hal::dma::{DmaDescriptor, DmaRxBuf, DmaTxBuf};
             use static_cell::StaticCell;
+
+            const DMA_BUFFER_SIZE: usize = 2048;
 
             static RX_DATA: StaticCell<[u8; DMA_BUFFER_SIZE]> = StaticCell::new();
             static TX_DATA: StaticCell<[u8; DMA_BUFFER_SIZE]> = StaticCell::new();
@@ -121,6 +121,5 @@ macro_rules! create_spi_bus {
 
             static CELL: StaticCell<SharedSpiBus> = StaticCell::new();
             CELL.init(SharedSpiBus::new(spi))
-            
-        }};
-    }
+    }};
+}

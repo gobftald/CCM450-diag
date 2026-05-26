@@ -17,7 +17,7 @@ fn core_panic(info: &core::panic::PanicInfo) -> ! {
 
 #[cfg(all(not(feature = "backtrace"), feature = "defmt"))]
 #[panic_handler]
-fn core_panic(_: &core::panic::PanicInfo) -> ! {
+fn core_panic(info: &core::panic::PanicInfo) -> ! {
     // defmt::panic!(...) prints the log messages then calls defmt::export::panic()
     // defmt::export::panic() calls _defmt_panic()
     //
@@ -30,6 +30,8 @@ fn core_panic(_: &core::panic::PanicInfo) -> ! {
     // so we would get PanicInfo from the place where core::panic! was called in the defmt crate
     //
     // that's why we don't show this meaningless information
+
+    defmt::error!("PANIC OCCURRED: {}", defmt::Display2Format(info));
 
     loop {
         #[cfg(target_arch = "riscv32")]
