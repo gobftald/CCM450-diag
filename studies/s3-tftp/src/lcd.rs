@@ -1,7 +1,7 @@
 use static_cell::StaticCell;
 
 use esp_hal::{
-    gpio::{Level, Output, AnyPin, OutputConfig},
+    gpio::{self, AnyPin, Level, Input, Output, OutputConfig},
     spi::master::Config as SpiConfig,
 };
 use embassy_sync::signal::Signal;
@@ -21,6 +21,7 @@ use embedded_graphics::{
     prelude::{RgbColor, Point, Primitive, Drawable},
     primitives::{Circle, Triangle, PrimitiveStyle},
 };
+use cst816s::{CST816S, TouchGesture};
 
 // Display parameters
 const WIDTH: u16 = 240;
@@ -30,8 +31,21 @@ const FRAME_SIZE: usize = (WIDTH as usize) * (HEIGHT as usize) * PIXEL_SIZE;
 
 static FRAME_BUFFER: StaticCell<[u8; FRAME_SIZE]> = StaticCell::new();
 
+pub struct NoInputPin;
+
+impl embedded_hal::digital::ErrorType for NoInputPin {
+    type Error = core::convert::Infallible;
+}
+
+impl embedded_hal::digital::InputPin for NoInputPin {
+    fn is_high(&mut self) -> Result<bool, Self::Error> { Ok(true) }
+    fn is_low(&mut self) -> Result<bool, Self::Error> { Ok(false) }
+}
+
 #[embassy_executor::task]
 pub(crate) async fn lcd_task(
+    i2c_bus: esp_hal::i2c::master::I2c<'static, esp_hal::Blocking>,
+    mut tp_int: Input<'static>,
     spi_bus: &'static SharedSpiBus,
     sd_ready: &'static Signal<NoopRawMutex, ()>,
     cs_pin: AnyPin<'static>,
@@ -45,7 +59,7 @@ pub(crate) async fn lcd_task(
     let cs = Output::new(cs_pin, Level::High, OutputConfig::default());
     let dc = Output::new(dc_pin, Level::Low, OutputConfig::default());
     let reset = Output::new(reset_pin, Level::High, OutputConfig::default());
-    let backlight = Output::new(backlight_pin, Level::High, OutputConfig::default());
+    Output::new(backlight_pin, Level::High, OutputConfig::default());
 
     let config = SpiConfig::default()
         //.with_frequency(esp_hal::time::Rate::from_mhz(20))
@@ -69,6 +83,13 @@ pub(crate) async fn lcd_task(
             .await
             .unwrap();
     
+    // Initialize touch controller
+    let mut touch = CST816S::new(
+        i2c_bus,
+        NoInputPin, // so we can further use it for wait_for_falling_edge()
+        gpio::NoPin
+    );
+    
     info!("Display initialized!");
 
     let frame_buffer = FRAME_BUFFER.init_with(|| [0; FRAME_SIZE]);
@@ -87,8 +108,40 @@ pub(crate) async fn lcd_task(
             .await
             .unwrap();
 
-        embassy_time::Timer::after_millis(200).await;
-        inc += 4;
+        // wait for either touch interrupt OR 200ms timeout
+        match embassy_time::with_timeout(
+            embassy_time::Duration::from_millis(200),
+            tp_int.wait_for_falling_edge()
+        ).await {
+            Ok(_) => {
+                // interrupt fired — touch event ready
+                match touch.read_one_touch_event(false) {  // false = don't check pin, we know it fired
+                    Some(event) => {
+                        match event.action {
+                            0 => debug!("Touch pressed at: ({}, {})", event.x, event.y),
+                            1 => debug!("Touch released at: ({}, {})", event.x, event.y),
+                            2 => debug!("Touch contact at: ({}, {})", event.x, event.y),
+                            _ => {}
+                        }
+                        match event.gesture {
+                            TouchGesture::SlideUp => debug!("Gesture: Slide Up"),
+                            TouchGesture::SlideDown => debug!("Gesture: Slide Down"),
+                            TouchGesture::SlideLeft => debug!("Gesture: Slide Left"),
+                            TouchGesture::SlideRight => debug!("Gesture: Slide Right"),
+                            TouchGesture::SingleClick => debug!("Gesture: Single Click"),
+                            TouchGesture::DoubleClick => debug!("Gesture: Double Click"),
+                            TouchGesture::LongPress => debug!("Gesture: Long Press"),
+                            TouchGesture::None => {}
+                        }
+                    }
+                    None => {}
+                }
+            }
+            Err(_) => {
+                // timeout — no touch, just continue drawing
+                inc += 4;
+            }
+        }
     }
 }
 

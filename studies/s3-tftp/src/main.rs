@@ -14,6 +14,7 @@ mod gps;
 mod lcd;
 mod sd_card;
 
+use esp_hal::gpio::{Input, InputConfig, Pull};
 use embassy_time::Timer;
 use embassy_sync::{blocking_mutex::raw::NoopRawMutex, signal::Signal};
 
@@ -53,21 +54,26 @@ async fn main(spawner: embassy_executor::Spawner) {
     //spawner.spawn(net_task(controller, ap_runner)).ok();
     //spawner.spawn(dhcp_server(ap_stack)).ok();
 
-    //let (sd_spi, lcd_spi) = create_spi_bus!(peripherals);
     let spi = create_spi_bus!(peripherals);
     let sd_ready = mk_static!(Signal<NoopRawMutex, ()>, Signal::<NoopRawMutex, ()>::new());
+    let i2c = create_i2c_bus!(peripherals);
 
     // pins based on WaveShare ESP32-S3-Touch-LCD-2 schematic
     spawner.spawn(sd_card::sd_task(
         spi, sd_ready,
-        peripherals.GPIO41.into()
+        peripherals.GPIO41.into()   // SD CS
     )).ok();
     spawner.spawn(lcd::lcd_task(
+        i2c,
+        Input::new(
+            peripherals.GPIO46,
+            InputConfig::default().with_pull(Pull::Up),  // TP INT
+        ),
         spi, sd_ready,
-        peripherals.GPIO45.into(),
-        peripherals.GPIO42.into(),
-        peripherals.GPIO0.into(),
-        peripherals.GPIO1.into(),
+        peripherals.GPIO45.into(),  // LCD CS
+        peripherals.GPIO42.into(),  // LCD DC
+        peripherals.GPIO0.into(),   // LCD RST
+        peripherals.GPIO1.into(),   // LCD BL
     )).ok();
 
     spawner.spawn(gps::gps_task(create_gps!(peripherals))).ok();
