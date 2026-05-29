@@ -12,8 +12,8 @@ macro_rules! lcd_init {
         Output::new($backlight_pin, Level::High, OutputConfig::default());
 
         let config = SpiConfig::default()
-            //.with_frequency(esp_hal::time::Rate::from_mhz(20))
-            .with_frequency(esp_hal::time::Rate::from_mhz(20))
+            // safe for short bus length on board
+            .with_frequency(esp_hal::time::Rate::from_mhz(40))
             .with_mode(esp_hal::spi::Mode::_0);
 
         let device = SpiDeviceWithConfig::new($spi_bus, cs, config);
@@ -21,7 +21,7 @@ macro_rules! lcd_init {
         
         lcd_async::Builder::new(lcd_async::models::ST7789, di)
             .reset_pin(reset)
-            .display_size(WIDTH as u16, HEIGHT as u16)
+            .display_size(DISPLAY_WIDTH as u16, DISPLAY_HEIGHT as u16)
             .orientation(Orientation {
                 rotation: Rotation::Deg270,
                 mirrored: false,

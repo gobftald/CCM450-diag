@@ -1,4 +1,5 @@
-use lcd_async::raw_framebuf::RawFrameBuf;
+use lcd_async::{raw_framebuf::RawFrameBuf, Display};
+
 use embedded_graphics::{
     draw_target::DrawTarget,
     pixelcolor::Rgb565,
@@ -6,8 +7,52 @@ use embedded_graphics::{
     primitives::{Circle, Triangle, PrimitiveStyle},
 };
 
-pub fn draw_graph(fb: &mut RawFrameBuf<Rgb565, &mut [u8]>, incr: i32) {
-    draw_smiley(fb, incr).unwrap();
+use super::{DISPLAY_WIDTH, DISPLAY_HEIGHT};
+
+pub struct GraphScreen {
+    initial: bool
+}
+
+impl GraphScreen {
+    pub fn new() -> Self {
+        Self {
+            initial: true
+        }
+    }
+
+    pub async fn update<DI, MODEL, RST>(
+        &mut self,
+        display: &mut Display<DI, MODEL, RST>,
+        full_buffer: &mut [u8],
+        incr: i32
+    )
+    where
+        DI:    lcd_async::interface::Interface<Word = u8>,
+        MODEL: lcd_async::models::Model<ColorFormat = Rgb565>,
+        RST:   embedded_hal::digital::OutputPin,
+    {
+        let mut fb = RawFrameBuf::<Rgb565, _>::new(
+            &mut *full_buffer,
+            DISPLAY_WIDTH as usize,
+            DISPLAY_HEIGHT as usize
+        );
+
+        fb.clear(Rgb565::BLACK).unwrap();
+
+        draw_smiley(&mut fb, incr).unwrap();
+
+        display
+            .show_raw_data(
+                0,
+                0,
+                DISPLAY_WIDTH,
+                DISPLAY_HEIGHT,
+                full_buffer)
+            .await
+            .unwrap();
+    }
+
+    pub fn reset(&mut self) { self.initial = true; }
 }
 
 fn draw_smiley<T>(raw_fb: &mut T, inc: i32) -> Result<(), T::Error>

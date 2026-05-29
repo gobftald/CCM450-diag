@@ -7,30 +7,24 @@ use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 
 use lcd_async::{
     interface::SpiInterface,
-    raw_framebuf::RawFrameBuf,
     options::{Orientation, Rotation, ColorInversion},
 };
 use cst816s::{CST816S, TouchGesture};
 
-use embedded_graphics::pixelcolor::Rgb565;
-
 #[macro_use]
 mod macros;
 
-mod screen;
 mod home;
 mod graph;
-mod logs;
-
-use screen::{Screen, draw_screen};
+mod log;
 
 // Display parameters
-const WIDTH: u16 = 240;
-const HEIGHT: u16 = 320;
+pub const DISPLAY_WIDTH: u16 = 320;
+pub const DISPLAY_HEIGHT: u16 = 240;
 const PIXEL_SIZE: usize = 2; // RGB565 = 2 bytes per pixel
-const FRAME_SIZE: usize = (WIDTH as usize) * (HEIGHT as usize) * PIXEL_SIZE;
+const DISPLAY_FRAME_SIZE: usize = (DISPLAY_WIDTH as usize) * (DISPLAY_HEIGHT as usize) * PIXEL_SIZE;
 
-static FRAME_BUFFER: StaticCell<[u8; FRAME_SIZE]> = StaticCell::new();
+static DISPLAY_FRAME_BUFFER: StaticCell<[u8; DISPLAY_FRAME_SIZE]> = StaticCell::new();
 
 #[embassy_executor::task]
 pub(crate) async fn lcd_task(
@@ -60,33 +54,31 @@ pub(crate) async fn lcd_task(
 
     info!("Display initialized!");
 
-    let frame_buffer = FRAME_BUFFER.init_with(|| [0; FRAME_SIZE]);
+    let display_frame_buffer =
+        DISPLAY_FRAME_BUFFER.init_with(|| [0; DISPLAY_FRAME_SIZE]);
 
-    let mut current_screen = Screen::Graph;
-    let mut dirty = true; // only redraw when needed
-    let mut inc: i32 = 0;
+    let mut home = home::HomeScreen::new();
+    let mut graph = graph::GraphScreen::new();
+    let mut log = log::LogScreen::new();
+
+    let mut current = Screen::Home;
+    let mut refresh = true;
+    let mut incr: i32 = 0;
 
     loop {
-        if dirty {
-            let mut raw_fb =
-                RawFrameBuf::<Rgb565, _>::new(
-                    frame_buffer.as_mut_slice(), WIDTH.into(), HEIGHT.into()
-                );
-
-            draw_screen(&mut raw_fb, current_screen, inc);
-
-            // Send the framebuffer data to the display
-            display
-                .show_raw_data(0, 0, WIDTH, HEIGHT, frame_buffer)
-                .await
-                .unwrap();
-
-            dirty = false;
+        if refresh {
+            match current {
+                Screen::Home  => home.update(&mut display, display_frame_buffer, incr).await,
+                Screen::Graph => graph.update(&mut display, display_frame_buffer, incr).await,
+                Screen::Log => log.update(&mut display, display_frame_buffer).await,
+            }
+        } else {
+            refresh = true;
         }
 
         // wait for either touch interrupt OR 200ms timeout
         match embassy_time::with_timeout(
-            embassy_time::Duration::from_millis(200),
+            embassy_time::Duration::from_millis(100),
             tp_int.wait_for_falling_edge()
         ).await {
             Ok(_) => {
@@ -101,35 +93,64 @@ pub(crate) async fn lcd_task(
                             _ => {}
                         }
                         */
-                        match event.gesture {
+                        current = match event.gesture {
                             TouchGesture::SlideUp => {
                                 debug!("Gesture: Slide Up");
-                                current_screen = current_screen.prev();
-                                dirty = true;
+                                current.prev()
                             }
                             TouchGesture::SlideDown => {
                                 debug!("Gesture: Slide Down");
-                                current_screen = current_screen.next();
-                                dirty = true;
+                                current.next()
                             }
+                            /*
                             TouchGesture::SlideLeft => debug!("Gesture: Slide Left"),
                             TouchGesture::SlideRight => debug!("Gesture: Slide Right"),
                             TouchGesture::SingleClick => debug!("Gesture: Single Click"),
                             TouchGesture::DoubleClick => debug!("Gesture: Double Click"),
                             TouchGesture::LongPress => debug!("Gesture: Long Press"),
                             TouchGesture::None => {}
+                            */
+                            _ => {
+                                refresh = false;
+                                current
+                            }
+                        };
+
+                        // reset the screen we're navigating to
+                        match current {
+                            Screen::Home  => home.reset(),
+                            Screen::Graph => graph.reset(),
+                            Screen::Log => log.reset(),
                         }
                     }
                     None => {}
                 }
             }
-            Err(_) => {
-                // only animate screens that need it
-                if current_screen == Screen::Graph {
-                    inc += 4;
-                    dirty = true;
-                }
-            }
+            Err(_) => incr += 4,
+        }
+    }
+}
+
+pub enum Screen {
+    Home,
+    Graph,
+    Log,
+}
+
+impl Screen {
+    pub fn next(self) -> Self {
+        match self {
+            Screen::Home => Screen::Graph,
+            Screen::Graph => Screen::Log,
+            Screen::Log => Screen::Home,   // wrap around
+        }
+    }
+
+    pub fn prev(self) -> Self {
+        match self {
+            Screen::Home => Screen::Log,
+            Screen::Graph => Screen::Home,
+            Screen::Log => Screen::Graph,
         }
     }
 }

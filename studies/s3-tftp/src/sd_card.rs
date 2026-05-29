@@ -251,7 +251,6 @@ where
 
     // resume after boot
     pub fn mount(dev: D) -> Result<Self, D::Error> {
-        debug!("*** mounting ***");
         let mut storage = Self {
             dev,
             day_index:        0xFFFF,
@@ -443,6 +442,7 @@ where
         // the max 8 read-modify-write cycles are not problem
         // advantage: simpler code - we don't need to manage partially written sectors
         if self.sector_buf.record_count == RECORDS_PER_SECTOR {
+            debug!("flush_sector()");
             self.flush_sector()?;
         }
 
@@ -614,7 +614,6 @@ pub(crate) async fn sd_task(
             Delay::new(),
             );
 
-            debug!("card.num_bytes()");
             match card.num_bytes() {
                 Ok(size) => {
                     trace!("SD init OK: {} bytes", size);
