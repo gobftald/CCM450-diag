@@ -189,23 +189,28 @@ where
     }
 
     fn write_block(&mut self, sector: u32, block: &Block) -> Result<(), D::Error> {
-        for attempt in 0..3 {
+        let mut last_err = None;
+        for _attempt in 0..3 {
             match self.dev.write(
                 core::slice::from_ref(block),
                 BlockIdx(sector)
             ) {
                 Ok(_) => return Ok(()),
                 Err(e) => {
-                    warn!("write_block {} attempt {} failed: {:?}",
-                        sector, attempt, defmt::Debug2Format(&e));
+                    cfg_if::cfg_if! {
+                        if #[cfg(feature = "defmt")] {
+                            warn!("write_block {} attempt {} failed: {:?}",
+                                sector, _attempt, defmt::Debug2Format(&e));
+                        } else {
+                            warn!("write_block failed");
+                        }
+                    }
+                    last_err = Some(e);
                     Delay::new().delay_millis(10);
                 }
             }
         }
-        Err(self.dev.write(
-            core::slice::from_ref(block),
-            BlockIdx(sector)
-        ).unwrap_err())
+        last_err.map_or(Ok(()), Err)
     }
 
 
@@ -328,8 +333,7 @@ where
                         block.contents.as_ptr() as *const u32
                     )
                 };
-                debug!("sector {} sequence 0x{:x}", sector, sequence);
-                //if sequence == 0xFFFFFFFF {
+                //debug!("sector {} sequence 0x{:x}", sector, sequence);
                 if sequence == 0x00000000 {
                     storage.current_sector = sector;
                     break;
@@ -477,8 +481,8 @@ where
             let contents = block.contents;
             
             // interpret as DataSector
-            let seq = u32::from_le_bytes(contents[0..4].try_into().unwrap());
-            let day = u16::from_le_bytes(contents[4..6].try_into().unwrap());
+            let seq = u32::from_le_bytes(unwrap!(contents[0..4].try_into()));
+            let day = u16::from_le_bytes(unwrap!(contents[4..6].try_into()));
             let rec_count = contents[6];
             
             //if seq == 0xFFFFFFFF {
@@ -648,7 +652,7 @@ pub(crate) async fn sd_task(
     sd_ready.signal(());
     
     // get GPS_UPDATES watch receiver
-    let mut gps_updated = GPS_UPDATED.receiver().unwrap();
+    let mut gps_updated = unwrap!(GPS_UPDATED.receiver());
 
     // wait for gps fix
     gps_updated.changed().await;
@@ -675,7 +679,7 @@ pub(crate) async fn sd_task(
 
     if need_new_day {
         proxy.lock_bus_master().await;
-        storage.new_day(&date).unwrap();
+        unwrap!(storage.new_day(&date));
         proxy.unlock_bus_master();
     }
 
@@ -690,7 +694,7 @@ pub(crate) async fn sd_task(
             // date changed
             if date != current_date {
                 proxy.lock_bus_master().await;
-                storage.new_day(&date).unwrap();
+                unwrap!(storage.new_day(&date));
                 proxy.unlock_bus_master();
                 current_date = date;
             }
@@ -701,7 +705,7 @@ pub(crate) async fn sd_task(
                 62,
             );
             proxy.lock_bus_master().await;
-            storage.write_record(record.try_into().unwrap()).unwrap_or_else(
+            storage.write_record(unwrap!(record.try_into())).unwrap_or_else(
                 |error| debug!("*** write error {} ***", error)
             );
             proxy.unlock_bus_master();

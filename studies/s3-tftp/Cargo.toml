@@ -48,6 +48,7 @@ cst816s = "1.0.1"
 [features]
 default = [
     "esp32s3",
+    "psram",
     "defmt",
 ]
 
@@ -83,6 +84,8 @@ defmt = [
 
     "lcd-async/defmt",
 ]
+
+psram = ["esp-hal/psram"]
 
 backtrace = ["dep:esp-backtrace"]       # needs "-C", "force-frame-pointers" rustflag in config.toml
                                         # needs to comment build-std-features = ["panic_immediate_abort"] out

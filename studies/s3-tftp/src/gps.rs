@@ -193,32 +193,36 @@ pub async fn gps_task(mut gps: crate::gps::GPS<'static>) {
                         }
 
                         fld = field(8, &buf[..size]);
-                        let mut len = fld.len();
-                        unsafe {
-                            for p in (*&raw mut GPS_DATA.hdop).iter_mut().rev() {
-                                if len != 0 {
-                                    *p = fld[len - 1];
-                                    len -= 1;
-                                } else {
-                                    *p = b'0';
+                        if fld.len() > 0 {
+                            let mut len = fld.len();
+                            unsafe {
+                                for p in (*&raw mut GPS_DATA.hdop).iter_mut().rev() {
+                                    if len != 0 {
+                                        *p = fld[len - 1];
+                                        len -= 1;
+                                    } else {
+                                        *p = b'0';
+                                    }
                                 }
                             }
                         }
 
                         fld = field(9, &buf[..size]);
-                        for (mut i, p) in fld.iter().enumerate() {
-                            if *p == b'.' {
-                                unsafe {
-                                    for p in (*&raw mut GPS_DATA.alt).iter_mut().rev() {
-                                        if i > 0 {
-                                            *p = fld[i - 1];
-                                            i -= 1;
-                                        } else {
-                                            *p = b'0';
+                        if fld.len() > 0 {
+                            for (mut i, p) in fld.iter().enumerate() {
+                                if *p == b'.' {
+                                    unsafe {
+                                        for p in (*&raw mut GPS_DATA.alt).iter_mut().rev() {
+                                            if i > 0 {
+                                                *p = fld[i - 1];
+                                                i -= 1;
+                                            } else {
+                                                *p = b'0';
+                                            }
                                         }
                                     }
+                                    break;
                                 }
-                                break;
                             }
                         }
                     }
@@ -243,13 +247,12 @@ pub async fn gps_task(mut gps: crate::gps::GPS<'static>) {
                         }
 
                         fld = field(9, &buf[..size]);
-
-                        let mut swap: [u8; 6] = [0; 6];
-                        swap[0] = fld[4]; swap[1] = fld[5];
-                        swap[2] = fld[2]; swap[3] = fld[3];
-                        swap[4] = fld[0]; swap[5] = fld[1];
-
                         if fld.len() == 6 {
+                            let mut swap: [u8; 6] = [0; 6];
+                            swap[0] = fld[4]; swap[1] = fld[5];
+                            swap[2] = fld[2]; swap[3] = fld[3];
+                            swap[4] = fld[0]; swap[5] = fld[1];
+
                             unsafe {
                                 cpn(
                                     swap.as_ptr(),
@@ -280,19 +283,21 @@ pub async fn gps_task(mut gps: crate::gps::GPS<'static>) {
                         }
 
                         fld = field(7, &buf[..size]);
-                        for (mut i, p) in fld.iter().enumerate() {
-                            if *p == b'.' {
-                                unsafe {
-                                    for p in (*&raw mut GPS_DATA.sog).iter_mut().rev() {
-                                        if i > 0 {
-                                            *p = fld[i - 1];
-                                            i -= 1;
-                                        } else {
-                                            *p = b'0';
+                        if fld.len() > 0 {
+                            for (mut i, p) in fld.iter().enumerate() {
+                                if *p == b'.' {
+                                    unsafe {
+                                        for p in (*&raw mut GPS_DATA.sog).iter_mut().rev() {
+                                            if i > 0 {
+                                                *p = fld[i - 1];
+                                                i -= 1;
+                                            } else {
+                                                *p = b'0';
+                                            }
                                         }
                                     }
+                                    break;
                                 }
-                                break;
                             }
                         }
 

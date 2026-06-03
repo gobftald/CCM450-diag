@@ -1,6 +1,6 @@
 use static_cell::StaticCell;
 
-use esp_hal::gpio::{AnyPin, Input};
+use esp_hal::gpio::{AnyPin, Input, Level, Output, OutputConfig};
 
 use embassy_sync::signal::Signal;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
@@ -18,12 +18,16 @@ mod home;
 mod graph;
 mod log;
 
-// Display parameters
-pub const DISPLAY_WIDTH: u16 = 320;
-pub const DISPLAY_HEIGHT: u16 = 240;
-const PIXEL_SIZE: usize = 2; // RGB565 = 2 bytes per pixel
-const DISPLAY_FRAME_SIZE: usize = (DISPLAY_WIDTH as usize) * (DISPLAY_HEIGHT as usize) * PIXEL_SIZE;
+pub const SCREEN_TICK: usize = 200; // ms
 
+// Display parameters
+pub const DISPLAY_WIDTH: usize = 320;
+pub const DISPLAY_HEIGHT: usize = 240;
+const PIXEL_SIZE: usize = 2; // RGB565 = 2 bytes per pixel
+const DISPLAY_FRAME_SIZE: usize = DISPLAY_WIDTH * DISPLAY_HEIGHT * PIXEL_SIZE;
+
+// PSRAM — large, free
+#[unsafe(link_section = ".ext_ram.bss")]
 static DISPLAY_FRAME_BUFFER: StaticCell<[u8; DISPLAY_FRAME_SIZE]> = StaticCell::new();
 
 #[embassy_executor::task]
@@ -42,7 +46,7 @@ pub(crate) async fn lcd_task(
 
     // Initialize lcd display
     let mut display =
-        lcd_init!(spi_bus, cs_pin, dc_pin, reset_pin, backlight_pin);
+        lcd_init!(spi_bus, cs_pin, dc_pin, reset_pin);
     
     // Initialize touch controller
     create_no_input_pin!();
@@ -63,13 +67,16 @@ pub(crate) async fn lcd_task(
 
     let mut current = Screen::Home;
     let mut refresh = true;
-    let mut incr: i32 = 0;
+    let mut tick = 0;
+
+    home.update(&mut display, display_frame_buffer, tick).await;
+    Output::new(backlight_pin, Level::High, OutputConfig::default());
 
     loop {
         if refresh {
             match current {
-                Screen::Home  => home.update(&mut display, display_frame_buffer, incr).await,
-                Screen::Graph => graph.update(&mut display, display_frame_buffer, incr).await,
+                Screen::Home  => home.update(&mut display, display_frame_buffer, tick).await,
+                Screen::Graph => graph.update(&mut display, display_frame_buffer, tick).await,
                 Screen::Log => log.update(&mut display, display_frame_buffer).await,
             }
         } else {
@@ -78,7 +85,7 @@ pub(crate) async fn lcd_task(
 
         // wait for either touch interrupt OR 200ms timeout
         match embassy_time::with_timeout(
-            embassy_time::Duration::from_millis(100),
+            embassy_time::Duration::from_millis(SCREEN_TICK as u64),
             tp_int.wait_for_falling_edge()
         ).await {
             Ok(_) => {
@@ -126,7 +133,7 @@ pub(crate) async fn lcd_task(
                     None => {}
                 }
             }
-            Err(_) => incr += 4,
+            Err(_) => tick += 4,
         }
     }
 }

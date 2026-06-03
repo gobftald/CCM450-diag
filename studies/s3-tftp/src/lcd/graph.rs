@@ -24,7 +24,7 @@ impl GraphScreen {
         &mut self,
         display: &mut Display<DI, MODEL, RST>,
         full_buffer: &mut [u8],
-        incr: i32
+        tick: usize,
     )
     where
         DI:    lcd_async::interface::Interface<Word = u8>,
@@ -37,54 +37,53 @@ impl GraphScreen {
             DISPLAY_HEIGHT as usize
         );
 
-        fb.clear(Rgb565::BLACK).unwrap();
+        fb.clear(Rgb565::BLACK).ok();
 
-        draw_smiley(&mut fb, incr).unwrap();
+        draw_smiley(&mut fb, tick).ok();
 
         display
             .show_raw_data(
                 0,
                 0,
-                DISPLAY_WIDTH,
-                DISPLAY_HEIGHT,
+                DISPLAY_WIDTH as u16,
+                DISPLAY_HEIGHT as u16,
                 full_buffer)
-            .await
-            .unwrap();
+            .await.ok();
     }
 
     pub fn reset(&mut self) { self.initial = true; }
 }
 
-fn draw_smiley<T>(raw_fb: &mut T, inc: i32) -> Result<(), T::Error>
+fn draw_smiley<T>(raw_fb: &mut T, tick: usize) -> Result<(), T::Error>
 where
     T: DrawTarget<Color = Rgb565>,
 {
-    const SLIDE: i32 =80;
+    const SLIDE: usize = 80;
 
     // Draw the left eye as a circle located at (80, 80), with a diameter of 30, filled with white
-    Circle::new(Point::new(80 + (inc % SLIDE), 80), 30)
+    Circle::new(Point::new(80 + (tick % SLIDE) as i32, 80), 30)
         .into_styled(PrimitiveStyle::with_fill(Rgb565::WHITE))
         .draw(raw_fb)?;
 
     // Draw the right eye as a circle located at (130, 80), with a diameter of 30, filled with white
-    Circle::new(Point::new(130 + (inc % SLIDE), 80), 30)
+    Circle::new(Point::new(130 + (tick % SLIDE) as i32, 80), 30)
         .into_styled(PrimitiveStyle::with_fill(Rgb565::WHITE))
         .draw(raw_fb)?;
 
     // Draw an upside down triangle to represent a smiling mouth
     Triangle::new(
-        Point::new(80 + (inc % SLIDE), 140),  // Left point
-        Point::new(160 + (inc % SLIDE), 140), // Right point
-        Point::new(120 + (inc % SLIDE), 180), // Bottom point
+        Point::new(80 + (tick % SLIDE) as i32, 140),  // Left point
+        Point::new(160 + (tick % SLIDE) as i32, 140), // Right point
+        Point::new(120 + (tick % SLIDE) as i32, 180), // Bottom point
     )
     .into_styled(PrimitiveStyle::with_fill(Rgb565::RED))
     .draw(raw_fb)?;
 
     // Cover the top part of the mouth with a black triangle so it looks like a smile
     Triangle::new(
-        Point::new(90 + (inc % SLIDE), 150),  // Left point
-        Point::new(150 + (inc % SLIDE), 150), // Right point
-        Point::new(120 + (inc % SLIDE), 170), // Bottom point
+        Point::new(90 + (tick % SLIDE) as i32, 150),  // Left point
+        Point::new(150 + (tick % SLIDE) as i32, 150), // Right point
+        Point::new(120 + (tick % SLIDE) as i32, 170), // Bottom point
     )
     .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
     .draw(raw_fb)?;

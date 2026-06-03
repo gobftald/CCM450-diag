@@ -95,6 +95,9 @@ esp-rtos = { path = "../esp-hal/esp-rtos" }
 #systemview-target = { path = "../rtos-trace/systemview_target" }
 
 [env]
+# esp-hal defaults to "quad" but ESP32-S3-Touch-LCD-2 use "octal" PSRAM
+ESP_HAL_CONFIG_PSRAM_MODE = "octal"
+
 # Explicitly add _zicsr to the architecture string for C/C++ builds
 # SEGGER/SEGGER_SYSVIEW.c needs it.
 CFLAGS = "-march=rv32imc_zicsr"

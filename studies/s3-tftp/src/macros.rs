@@ -1,4 +1,19 @@
 #[macro_export]
+macro_rules! init_psram_heap {
+    ($psram:expr) => {{
+        let (start, size) = esp_hal::psram::psram_raw_parts(&$psram);
+        info!("PSRAM start: {}, size: {} KB", start, size / 1024);
+        unsafe {
+            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
+                start,
+                size,
+                esp_alloc::MemoryCapability::External.into(),
+            ));
+        }
+    }};
+}
+
+#[macro_export]
 macro_rules! mk_static {
     ($t:ty,$val:expr) => {{
         static STATIC_CELL: static_cell::StaticCell<$t> = static_cell::StaticCell::new();
@@ -87,19 +102,22 @@ macro_rules! create_spi_bus {
         use esp_hal::dma::{DmaDescriptor, DmaRxBuf, DmaTxBuf};
         use static_cell::StaticCell;
 
-        const DMA_BUFFER_SIZE: usize = 2048;
+        const DMA_RX_BUFFER_SIZE: usize = 512;          // SD card block size
+        const DMA_TX_BUFFER_SIZE: usize = 4092;         // large for LCD transfers
+        const DMA_RX_TX_DESCRIPTORS_SIZE: usize = 1;    // 1 for every 4092 (not 4096, it is HW limitation)
 
-        static RX_DATA: StaticCell<[u8; DMA_BUFFER_SIZE]> = StaticCell::new();
-        static TX_DATA: StaticCell<[u8; DMA_BUFFER_SIZE]> = StaticCell::new();
-        static RX_DESCRIPTORS: StaticCell<[DmaDescriptor; 1]> = StaticCell::new();
-        static TX_DESCRIPTORS: StaticCell<[DmaDescriptor; 1]> = StaticCell::new();
+        // etiher buffers and descriptors are safe in SRAM (not PSRAM)
+        static RX_DATA: StaticCell<[u8; DMA_RX_BUFFER_SIZE]> = StaticCell::new();
+        static TX_DATA: StaticCell<[u8; DMA_TX_BUFFER_SIZE]> = StaticCell::new();
+        static RX_DESCRIPTORS: StaticCell<[DmaDescriptor; DMA_RX_TX_DESCRIPTORS_SIZE]> = StaticCell::new();
+        static TX_DESCRIPTORS: StaticCell<[DmaDescriptor; DMA_RX_TX_DESCRIPTORS_SIZE]> = StaticCell::new();
         let rx_buf = unwrap!(DmaRxBuf::new(
-            RX_DESCRIPTORS.init([DmaDescriptor::EMPTY; 1]),
-            RX_DATA.init([0u8; DMA_BUFFER_SIZE])
+            RX_DESCRIPTORS.init([DmaDescriptor::EMPTY; DMA_RX_TX_DESCRIPTORS_SIZE]),
+            RX_DATA.init([0u8; DMA_RX_BUFFER_SIZE])
         ));
         let tx_buf = unwrap!(DmaTxBuf::new(
-            TX_DESCRIPTORS.init([DmaDescriptor::EMPTY; 1]),
-            TX_DATA.init([0u8; DMA_BUFFER_SIZE])
+            TX_DESCRIPTORS.init([DmaDescriptor::EMPTY; DMA_RX_TX_DESCRIPTORS_SIZE]),
+            TX_DATA.init([0u8; DMA_TX_BUFFER_SIZE])
         ));
 
         let spi = unwrap!(

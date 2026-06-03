@@ -36,6 +36,10 @@ async fn main(spawner: embassy_executor::Spawner) {
 
     esp_alloc::heap_allocator!(#[esp_hal::ram(reclaimed)] size: 64 * 1024);
 
+    //esp_alloc::psram_allocator!(peripherals.PSRAM, esp_hal::psram);
+    // debug version of the original macro
+    init_psram_heap!(peripherals.PSRAM);
+
     esp_rtos_start!(peripherals);
 
     let (

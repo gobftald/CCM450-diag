@@ -35,17 +35,16 @@ impl LogScreen {
             DISPLAY_HEIGHT as usize
         );
 
-        fb.clear(Rgb565::BLACK).unwrap();
+        fb.clear(Rgb565::BLACK).ok();
         
         display
             .show_raw_data(
                 0,
                 0,
-                DISPLAY_WIDTH,
-                DISPLAY_HEIGHT,
+                DISPLAY_WIDTH as u16,
+                DISPLAY_HEIGHT as u16,
                 full_buffer)
-            .await
-            .unwrap();
+            .await.ok();
     }
 
     pub fn reset(&mut self) { self.initial = true; }

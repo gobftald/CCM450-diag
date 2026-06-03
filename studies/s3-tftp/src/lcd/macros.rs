@@ -1,5 +1,5 @@
 macro_rules! lcd_init {
-    ($spi_bus:ident, $cs_pin:ident, $dc_pin:ident, $reset_pin:ident, $backlight_pin:ident) => {{
+    ($spi_bus:ident, $cs_pin:ident, $dc_pin:ident, $reset_pin:ident) => {{
         use esp_hal::{
             gpio::{Level, Output, OutputConfig},
             spi::master::Config as SpiConfig,
@@ -9,7 +9,6 @@ macro_rules! lcd_init {
         let cs = Output::new($cs_pin, Level::High, OutputConfig::default());
         let dc = Output::new($dc_pin, Level::Low, OutputConfig::default());
         let reset = Output::new($reset_pin, Level::High, OutputConfig::default());
-        Output::new($backlight_pin, Level::High, OutputConfig::default());
 
         let config = SpiConfig::default()
             // safe for short bus length on board
@@ -19,7 +18,7 @@ macro_rules! lcd_init {
         let device = SpiDeviceWithConfig::new($spi_bus, cs, config);
         let di = SpiInterface::new(device, dc);
         
-        lcd_async::Builder::new(lcd_async::models::ST7789, di)
+        unwrap!(lcd_async::Builder::new(lcd_async::models::ST7789, di)
             .reset_pin(reset)
             .display_size(DISPLAY_WIDTH as u16, DISPLAY_HEIGHT as u16)
             .orientation(Orientation {
@@ -29,8 +28,9 @@ macro_rules! lcd_init {
             .display_offset(0, 0)
             .invert_colors(ColorInversion::Inverted)
             .init(&mut embassy_time::Delay)
-            .await
-            .unwrap()            
+            .await,
+            "Cannot create display"
+        )
     }};
 }
 
