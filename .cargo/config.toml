@@ -4,18 +4,18 @@ target = "xtensa-esp32s3-none-elf"
 [target.'cfg(all())']
 rustflags = [
     "-C", "link-arg=-Tdefmt.x",             # for defmt
-    #"-C", "force-frame-pointers",           # for esp-backtrace and probe-rs-debug
+    "-C", "force-frame-pointers",           # for esp-backtrace and probe-rs-debug
                                             # otherwise some size ovehead occurs (in ELF file only)
                                             # when making frame for every real (not inlined) function call
                                             # it's not relevant, esp-backtrace uses frame pointers to walk
                                             # the stack easily and with low overhead, 
 
-    "-Z", "location-detail=none",           # Removes file, line, and column metadata
+    #"-Z", "location-detail=none",           # Removes file, line, and column metadata
 
     # convert any panic (unwrap) into "noop/unimp", even before panic message formatting
     # even the core::slice::index::slice_index_fail and esp_hal::fmt::__unwrap_failed will be "noop/unimp"
-    "-C", "panic=immediate-abort",
-    "-Z", "unstable-options",               # this needs for panic-immediate-abort
+    #"-C", "panic=immediate-abort",
+    #"-Z", "unstable-options",               # this needs for panic-immediate-abort
 ]
 
 [target.riscv32imc-unknown-none-elf]

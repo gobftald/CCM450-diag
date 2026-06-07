@@ -34,6 +34,13 @@ macro_rules! esp_rtos_start {
         #[cfg(target_arch = "riscv32")]
         let sw_int = SoftwareInterruptControl::new($peripherals.SW_INTERRUPT);
 
+        extern "C" fn idle_hook() -> ! {
+            loop {
+                esp_rtos::CurrentThreadHandle::get()
+                    .delay(esp_hal::time::Duration::from_millis(400));
+            }
+        }
+
         // it should be placed after heap allocation, since esp-rtos
         // main task will allocate all remaining memory
         esp_rtos::start(
@@ -41,6 +48,9 @@ macro_rules! esp_rtos_start {
             #[cfg(target_arch = "riscv32")]
             sw_int.software_interrupt0,
         );
+
+        #[cfg(all(feature = "irq_stats", target_arch = "xtensa"))]
+        esp_hal::interrupt::register_cpu_interrupt_stat(7);
     }
 }
 

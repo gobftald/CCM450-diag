@@ -1,6 +1,11 @@
+use embedded_graphics::mono_font::iso_8859_3::FONT_6X13_BOLD;
 use static_cell::StaticCell;
 
-use esp_hal::gpio::{AnyPin, Input, Level, Output, OutputConfig};
+use esp_hal::{
+    //time::Instant,
+    gpio::{AnyPin, Input, Level, Output, OutputConfig}
+};
+use embassy_time::Instant;
 
 use embassy_sync::signal::Signal;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
@@ -74,10 +79,37 @@ pub(crate) async fn lcd_task(
 
     loop {
         if refresh {
+            let start = Instant::now();
             match current {
                 Screen::Home  => home.update(&mut display, display_frame_buffer, tick).await,
                 Screen::Graph => graph.update(&mut display, display_frame_buffer, tick).await,
                 Screen::Log => log.update(&mut display, display_frame_buffer).await,
+            }
+            let took = start.elapsed().as_millis();
+            if took > 100 {
+                let (pender, wait, set, poll, recheck, sleep,
+                    wake, stall_wake, rdcc, fntd,nlw, tdcaw, wbnt, mtc) = 
+                    esp_rtos::embassy::debug_counts();
+                let wakes_during_stall = wake.wrapping_sub(stall_wake);
+                error!(
+                    "SLOW {}ms pender={} wait={} set={} poll={} recheck={} sleep={} wake={} 
+                    wakes_during_stall={}, dma_cc={}, fut_no_trans_done={}, not_listeting_wake={}
+                    trans_done_cleared_after_wake={}, wake_but_no_td={}, max_transfer_cycles={}",
+                    took, pender, wait, set, poll, recheck, sleep, wake, wakes_during_stall,
+                    rdcc, fntd, nlw, tdcaw, wbnt, mtc
+                );
+
+                let (sns, sti, sw, pk, mrs, swrq, ssr, sss, ssd, 
+                    pirn, pirp, pira, nsm, nsh, nsrq, nss) =
+                    esp_rtos::debug_counts_plus();
+                error!("sched_no_switch={}, sched_to_idle={}, sched_switch={},
+                    push_skipped={}, mark_ready_skip={}, sleep_with_run_queued={}
+                    skip_state_ready={}, skip_state_sleeping={}, skip_state_deleted={},
+                    pop_if_reject_none={}, pop_if_reject_pro={}, pop_if_reject_app={}
+                    no_switch_mask={}, no_switch_head={}, no_switch_run_queued={}, no_switch_state={}",
+                    sns, sti, sw, pk, mrs, swrq, ssr, sss, ssd, pirn, pirp, pira, nsm, nsh, nsrq, nss
+                );
+
             }
         } else {
             refresh = true;
