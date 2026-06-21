@@ -34,13 +34,6 @@ macro_rules! esp_rtos_start {
         #[cfg(target_arch = "riscv32")]
         let sw_int = SoftwareInterruptControl::new($peripherals.SW_INTERRUPT);
 
-        extern "C" fn idle_hook() -> ! {
-            loop {
-                esp_rtos::CurrentThreadHandle::get()
-                    .delay(esp_hal::time::Duration::from_millis(400));
-            }
-        }
-
         // it should be placed after heap allocation, since esp-rtos
         // main task will allocate all remaining memory
         esp_rtos::start(
@@ -113,20 +106,28 @@ macro_rules! create_spi_bus {
         use static_cell::StaticCell;
 
         const DMA_RX_BUFFER_SIZE: usize = 512;          // SD card block size
-        const DMA_TX_BUFFER_SIZE: usize = 4092;         // large for LCD transfers
-        const DMA_RX_TX_DESCRIPTORS_SIZE: usize = 1;    // 1 for every 4092 (not 4096, it is HW limitation)
+        const DMA_TX_BUFFER_SIZE: usize = 32 * 128;     // large for LCD transfers
+
+        const DMA_RX_TX_DESCRIPTORS_SIZE: usize = 2;    // 1 for every 4092 (not 4096, it is HW limitation)
 
         // etiher buffers and descriptors are safe in SRAM (not PSRAM)
         static RX_DATA: StaticCell<[u8; DMA_RX_BUFFER_SIZE]> = StaticCell::new();
         static TX_DATA: StaticCell<[u8; DMA_TX_BUFFER_SIZE]> = StaticCell::new();
-        static RX_DESCRIPTORS: StaticCell<[DmaDescriptor; DMA_RX_TX_DESCRIPTORS_SIZE]> = StaticCell::new();
-        static TX_DESCRIPTORS: StaticCell<[DmaDescriptor; DMA_RX_TX_DESCRIPTORS_SIZE]> = StaticCell::new();
+
+        #[repr(align(32))]
+        struct AlignedDmaDescriptors([DmaDescriptor; DMA_RX_TX_DESCRIPTORS_SIZE]);
+        static RX_DESCRIPTORS: static_cell::StaticCell<AlignedDmaDescriptors> = static_cell::StaticCell::new();
+        static TX_DESCRIPTORS: static_cell::StaticCell<AlignedDmaDescriptors> = static_cell::StaticCell::new();
+
+        let rx_descriptors = RX_DESCRIPTORS.init(AlignedDmaDescriptors([esp_hal::dma::DmaDescriptor::EMPTY; DMA_RX_TX_DESCRIPTORS_SIZE]));
+        let tx_descriptors = TX_DESCRIPTORS.init(AlignedDmaDescriptors([esp_hal::dma::DmaDescriptor::EMPTY; DMA_RX_TX_DESCRIPTORS_SIZE]));
+
         let rx_buf = unwrap!(DmaRxBuf::new(
-            RX_DESCRIPTORS.init([DmaDescriptor::EMPTY; DMA_RX_TX_DESCRIPTORS_SIZE]),
+            &mut rx_descriptors.0,
             RX_DATA.init([0u8; DMA_RX_BUFFER_SIZE])
         ));
         let tx_buf = unwrap!(DmaTxBuf::new(
-            TX_DESCRIPTORS.init([DmaDescriptor::EMPTY; DMA_RX_TX_DESCRIPTORS_SIZE]),
+            &mut tx_descriptors.0,
             TX_DATA.init([0u8; DMA_TX_BUFFER_SIZE])
         ));
 
@@ -155,13 +156,25 @@ macro_rules! create_spi_bus {
 #[macro_export]
 macro_rules! create_i2c_bus {
     ($peripherals:ident) => {{
-        use esp_hal::i2c::master::{Config, I2c};
+        use esp_hal::i2c::master::{Config, I2c, BusTimeout, SoftwareTimeout};
+        use esp_hal::time::Duration;
         unwrap!(
-            I2c::new($peripherals.I2C0, Config::default()),
+            //I2c::new($peripherals.I2C1, Config::default()),
+            I2c::new($peripherals.I2C1, 
+                Config::default()
+                    // There was a warning in touch screen cst816s crate, that "on some devices, attempting
+                    // to read registers when there is no data available results in a hang in the i2c read".
+                    //
+                    // But esp-hal's I2C driver does have timeout mechanisms built in, at multiple levels:
+                    // Hardware-level SCL bus timeout (BusTimeout) and Software timeout for I2C operations.
+                    // (it needed a patch in esp-hal/src/i2c/master/mod.rs)
+                    .with_timeout(BusTimeout::Maximum)
+                    .with_software_timeout(SoftwareTimeout::Transaction(Duration::from_millis(50)))
+            ),
             "Failed to initialize I2C"
         )
         .with_sda($peripherals.GPIO48)
         .with_scl($peripherals.GPIO47)
-        //.into_async()
+        //.into_async()                     // touch screen has a blocking driver
     }};
 }

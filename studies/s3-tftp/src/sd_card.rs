@@ -92,7 +92,6 @@ impl<'a> SyncSpiDevice<u8> for SdSpiBlockingProxy<'a> {
             esp_hal::time::Rate::from_khz(400)
         };
 
-        // Reconfigure the clock back to 16 MHz in case the LCD altered it
         bus_guard.apply_config(&SpiConfig::default()
             .with_frequency(target_speed)
             .with_mode(esp_hal::spi::Mode::_0)
@@ -122,11 +121,6 @@ impl<'a> SyncSpiDevice<u8> for SdSpiBlockingProxy<'a> {
 
         // Release Chip Select
         self.cs_pin.set_high();
-
-        bus_guard.apply_config(&SpiConfig::default()
-            .with_frequency(esp_hal::time::Rate::from_mhz(40))
-            .with_mode(esp_hal::spi::Mode::_0)
-        ).ok();
 
         Ok(())
     }
@@ -181,7 +175,7 @@ where
 
     fn read_block(&mut self, sector: u32) -> Result<&Block, D::Error> {
         // if read_block in a fast loop - e.g. in mount scan    
-        Delay::new().delay_micros(200);
+        //Delay::new().delay_micros(200);
         self.dev.read(
             core::slice::from_mut(&mut self.read_buf),
             BlockIdx(sector)
@@ -323,12 +317,15 @@ where
             }
         }
 
+        let mut search_counter: u32 = 0;
+
         // find next free data sector by scanning from last day's start
         if storage.day_index != 0xFFFF {
             let start_sector = storage.read_day_start_sector(storage.day_index)?;
             let mut sector = start_sector;
             loop {
                 let block = storage.read_block(sector)?;
+                search_counter += 1;
                 let sequence = unsafe {
                     core::ptr::read_unaligned(
                         block.contents.as_ptr() as *const u32
@@ -345,10 +342,11 @@ where
         }
 
         info!(
-            "Storage mounted: day_index={} current_sector={} sequence={}",
+            "Storage mounted: day_index={} current_sector={} sequence={} - {} read was needed",
             storage.day_index,
             storage.current_sector,
             storage.current_sequence,
+            search_counter,
         );
 
         Ok(storage)

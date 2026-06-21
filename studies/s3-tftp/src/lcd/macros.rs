@@ -4,8 +4,7 @@ macro_rules! lcd_init {
             gpio::{Level, Output, OutputConfig},
             spi::master::Config as SpiConfig,
         };
-        //use embassy_embedded_hal::shared_bus::asynch::spi::SpiDeviceWithConfig;
-        use embassy_embedded_hal::shared_bus::asynch::spi::SpiDevice;
+        use embassy_embedded_hal::shared_bus::asynch::spi::SpiDeviceWithConfig;
 
         let cs = Output::new($cs_pin, Level::High, OutputConfig::default());
         let dc = Output::new($dc_pin, Level::Low, OutputConfig::default());
@@ -16,8 +15,7 @@ macro_rules! lcd_init {
             .with_frequency(esp_hal::time::Rate::from_mhz(40))
             .with_mode(esp_hal::spi::Mode::_0);
 
-        //let device = SpiDeviceWithConfig::new($spi_bus, cs, config);
-        let device = SpiDevice::new($spi_bus, cs);
+        let device = SpiDeviceWithConfig::new($spi_bus, cs, config);
         let di = SpiInterface::new(device, dc);
         
         unwrap!(lcd_async::Builder::new(lcd_async::models::ST7789, di)

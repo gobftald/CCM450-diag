@@ -22,7 +22,7 @@ esp-radio = { version = "0.17.0", features = ["wifi", "no_wpa_supplicant"] }
 embassy-executor = "0.9.0"
 embassy-time = "0.5.0"
 embassy-sync = "0.7.2"
-embassy-embedded-hal = "0.5.0"
+embassy-embedded-hal = { version = "0.5.0", features = ["time"] }
 embassy-futures = "0.1.2"
 # although we don't plan to use "dhcpv4" feature we define it
 # since it products less code in icmp and udp because we can implement only "icmp echo" 
@@ -36,14 +36,14 @@ leasehund = "0.2.0"
 
 embedded-sdmmc = { version = "0.9.0", default-features = false }
 embedded-hal = "1.0.0"
-embedded-hal-bus = { version = "0.3" }
-embedded-hal-async = "1.0.0"
 
 embedded-graphics = "0.8.1"
 embedded-graphics-core = "0.4.0"
-#lcd-async = "0.1.3"
-lcd-async = { version = "0.1.3", path = "../../../lcd-async" }
+lcd-async = "0.1.3"
 cst816s = "1.0.1"
+
+xtensa-lx = "0.13.0"
+
 
 [features]
 default = [
@@ -80,8 +80,7 @@ defmt = [
     "esp-println/defmt-espflash",       # if you use rtt (rtt_target) it should be commented out
                                         # since rtt-target/defmt also defines defmt symbols
     "embedded-sdmmc/defmt-log",
-    "embedded-hal-bus/defmt-03",
-
+    "embassy-embedded-hal/defmt",
     "lcd-async/defmt",
 ]
 
