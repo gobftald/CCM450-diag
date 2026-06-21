@@ -77,6 +77,8 @@ build-std = ["core", "alloc"]
 #esp-rom-sys = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 #esp-rtos = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 
+lcd-async = { git = "https://github.com/gobftald/lcd-async.git" }
+
 rtos-trace = { git = "https://github.com/gobftald/rtos-trace.git" }
 systemview-target = { git = "https://github.com/gobftald/rtos-trace.git" }
 

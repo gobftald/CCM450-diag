@@ -11,10 +11,11 @@ mod macros;
 mod panic;
 
 mod gps;
+mod gsm;
 mod lcd;
 mod sd_card;
 
-use esp_hal::gpio::{Input, InputConfig, Pull};
+use esp_hal::gpio::{Input, Output, InputConfig, OutputConfig, DriveMode, Level, Pull};
 use embassy_time::Timer;
 use embassy_sync::{blocking_mutex::raw::NoopRawMutex, signal::Signal};
 
@@ -58,6 +59,7 @@ async fn main(spawner: embassy_executor::Spawner) {
     //spawner.spawn(net_task(controller, ap_runner)).ok();
     //spawner.spawn(dhcp_server(ap_stack)).ok();
 
+    /*
     let spi = create_spi_bus!(peripherals);
     let sd_ready = mk_static!(Signal<NoopRawMutex, ()>, Signal::<NoopRawMutex, ()>::new());
     let i2c = create_i2c_bus!(peripherals);
@@ -79,8 +81,12 @@ async fn main(spawner: embassy_executor::Spawner) {
         peripherals.GPIO0.into(),   // LCD RST
         peripherals.GPIO1.into(),   // LCD BL
     )).ok();
-
+    */
+    
     spawner.spawn(gps::gps_task(create_gps!(peripherals))).ok();
+
+    let (gsm, pwk) = create_gsm!(peripherals);
+    spawner.spawn(gsm::gsm_task(gsm, pwk)).ok();
 
     spawner.spawn(system_stats()).ok();
 }

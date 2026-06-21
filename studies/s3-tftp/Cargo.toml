@@ -41,8 +41,7 @@ embedded-hal-async = "1.0.0"
 
 embedded-graphics = "0.8.1"
 embedded-graphics-core = "0.4.0"
-#lcd-async = "0.1.3"
-lcd-async = { version = "0.1.3", path = "../../../lcd-async" }
+lcd-async = "0.1.3"
 cst816s = "1.0.1"
 
 [features]

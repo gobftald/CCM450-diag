@@ -125,7 +125,7 @@ pub async fn gps_task(mut gps: crate::gps::GPS<'static>) {
     loop {
         let match_buf: &[u8];
         // wait for incoming NMEA messages but ignore RxError
-        // we should made this fn public to receive NMEA messages correctly
+        // we should have made this fn public to receive NMEA messages correctly
         // minimum comes (below) from the shortest message size ($GNVTG before satelite fix)
         let _ = gps.rx.wait_for_buffered_data(20, buf.len(), true).await;
 
