@@ -1,4 +1,5 @@
 use core::mem::size_of;
+use embassy_time::Instant;
 use esp_hal::{
     gpio::{Level, Output, AnyPin, OutputConfig},
     delay::Delay,
@@ -74,17 +75,11 @@ impl<'a> SyncSpiDevice<u8> for SdSpiBlockingProxy<'a> {
         // not only for its atomic spi bus operations
         let guard_slot = unsafe { &mut *self.active_guard.get() };
 
-        let mut temp_guard;
-
         let bus_guard = match guard_slot {
             Some(g) => g,
             None => {
-                // it is usefull e.g. in init, when no other device is on the spi bus
-                // so we don't need to use lock/unlock_bus_master
-                temp_guard = loop {
-                    if let Ok(g) = self.bus.try_lock() { break g; }
-                };
-                &mut temp_guard // Returns a reference to temp_guard
+                // Should never happen in normal operation
+                panic!("SD transaction called without holding bus lock");
             }
         };
 
@@ -97,7 +92,6 @@ impl<'a> SyncSpiDevice<u8> for SdSpiBlockingProxy<'a> {
             esp_hal::time::Rate::from_khz(400)
         };
 
-        // Reconfigure the clock back to 16 MHz in case the LCD altered it
         bus_guard.apply_config(&SpiConfig::default()
             .with_frequency(target_speed)
             .with_mode(esp_hal::spi::Mode::_0)
@@ -127,6 +121,7 @@ impl<'a> SyncSpiDevice<u8> for SdSpiBlockingProxy<'a> {
 
         // Release Chip Select
         self.cs_pin.set_high();
+
         Ok(())
     }
 }
@@ -322,12 +317,15 @@ where
             }
         }
 
+        let mut search_counter: u32 = 0;
+
         // find next free data sector by scanning from last day's start
         if storage.day_index != 0xFFFF {
             let start_sector = storage.read_day_start_sector(storage.day_index)?;
             let mut sector = start_sector;
             loop {
                 let block = storage.read_block(sector)?;
+                search_counter += 1;
                 let sequence = unsafe {
                     core::ptr::read_unaligned(
                         block.contents.as_ptr() as *const u32
@@ -344,10 +342,11 @@ where
         }
 
         info!(
-            "Storage mounted: day_index={} current_sector={} sequence={}",
+            "Storage mounted: day_index={} current_sector={} sequence={} - {} read was needed",
             storage.day_index,
             storage.current_sector,
             storage.current_sequence,
+            search_counter,
         );
 
         Ok(storage)
@@ -446,7 +445,6 @@ where
         // the max 8 read-modify-write cycles are not problem
         // advantage: simpler code - we don't need to manage partially written sectors
         if self.sector_buf.record_count == RECORDS_PER_SECTOR {
-            debug!("flush_sector()");
             self.flush_sector()?;
         }
 
@@ -465,7 +463,10 @@ where
         let block = Self::block_from(&self.sector_buf);
 
         // physical writes (for logs) happen only here (buffered)
+        let start = Instant::now();
         let write_result =self.write_block(self.current_sector, &block);
+        // it's typically 2 ms, if it need to wait its Mutex or other tasks, it's max 5ms
+        debug!("write took {}ms", (Instant::now() - start).as_millis());
 
         self.current_sector   += 1;
         self.current_sequence += 1;
@@ -605,6 +606,8 @@ pub(crate) async fn sd_task(
     // Turn it into a long-lived raw pointer reference that can safely bypass the loop boundaries
     let proxy_ptr = &mut proxy as *mut SdSpiBlockingProxy<'_>;
 
+    proxy.lock_bus_master().await;
+
     let mut storage = 'init: loop {
         for attempt in 0..16 {
             let long_lived_proxy_ref = unsafe { &mut *proxy_ptr };
@@ -617,6 +620,7 @@ pub(crate) async fn sd_task(
                 long_lived_proxy_ref, // Pass proxy via mutable reference
             Delay::new(),
             );
+
 
             match card.num_bytes() {
                 Ok(size) => {
@@ -645,8 +649,11 @@ pub(crate) async fn sd_task(
                     panic!("SD init failed: {:?}", e);
                 }
             }
+
         }
     };
+
+    proxy.unlock_bus_master();
 
     // signaling handshake finised to LCD task
     sd_ready.signal(());

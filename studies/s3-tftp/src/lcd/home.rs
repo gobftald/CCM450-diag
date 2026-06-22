@@ -60,6 +60,7 @@ const BIG_FONT: MonoFont = MonoFont {
 pub struct HomeScreen {
     initial: bool
 }
+
 impl HomeScreen {
     pub fn new() -> Self {
         Self {
@@ -108,6 +109,7 @@ impl HomeScreen {
         let text_style = TextStyleBuilder::new().build();
 
         let rpm_buffer = &mut full_buffer[..RPM_FRAME_SIZE];
+
         let mut fb = RawFrameBuf::<Rgb565, _>::new(
             &mut *rpm_buffer,
             RPM_TEXT_WIDTH,
@@ -136,11 +138,16 @@ impl HomeScreen {
             rpm_buffer,
         ).await.ok();
 
+        // Force a voluntary yield point to let the async executor process the scheduler queue
+        embassy_time::Timer::after_ticks(1).await;
+
         // coolant tmp, battery, air tmp
         
         let slow_buffer = &mut full_buffer[..SLOW_FRAME_SIZE];
         let character_style =
                 MonoTextStyle::new(&SMALL_FONT, Rgb565::WHITE);
+
+        static mut FLIP: u32 = 0;
 
         if tick % REFRESH_10_SEC == 0 {
             let mut fb = RawFrameBuf::<Rgb565, _>::new(
@@ -211,13 +218,11 @@ impl HomeScreen {
                 SLOW_TEXT_HEIGHT as u16,
                 slow_buffer
             ).await.ok();
-        }
+
+            embassy_time::Timer::after_ticks(1).await;
 
         // COG, altitude, number of satelite  / hdop
-
-        static mut FLIP: u32 = 0;
-        if tick % REFRESH_1_SEC == 0 {
-
+        } else if tick % REFRESH_1_SEC == 0 {
             //debug!("{:a}", unsafe { core::slice::from_raw_parts(&raw const GPS_DATA as *const u8, 62) } );
 
             let mut fb = RawFrameBuf::<Rgb565, _>::new(
@@ -301,6 +306,7 @@ impl HomeScreen {
                 slow_buffer
             ).await.ok();
 
+            embassy_time::Timer::after_ticks(1).await;
         }
     }
 

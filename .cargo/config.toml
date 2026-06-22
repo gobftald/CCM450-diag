@@ -4,18 +4,18 @@ target = "xtensa-esp32s3-none-elf"
 [target.'cfg(all())']
 rustflags = [
     "-C", "link-arg=-Tdefmt.x",             # for defmt
-    #"-C", "force-frame-pointers",           # for esp-backtrace and probe-rs-debug
+    "-C", "force-frame-pointers",           # for esp-backtrace and probe-rs-debug
                                             # otherwise some size ovehead occurs (in ELF file only)
                                             # when making frame for every real (not inlined) function call
                                             # it's not relevant, esp-backtrace uses frame pointers to walk
                                             # the stack easily and with low overhead, 
 
-    "-Z", "location-detail=none",           # Removes file, line, and column metadata
+    #"-Z", "location-detail=none",           # Removes file, line, and column metadata
 
     # convert any panic (unwrap) into "noop/unimp", even before panic message formatting
     # even the core::slice::index::slice_index_fail and esp_hal::fmt::__unwrap_failed will be "noop/unimp"
-    "-C", "panic=immediate-abort",
-    "-Z", "unstable-options",               # this needs for panic-immediate-abort
+    #"-C", "panic=immediate-abort",
+    #"-Z", "unstable-options",               # this needs for panic-immediate-abort
 ]
 
 [target.riscv32imc-unknown-none-elf]
@@ -76,6 +76,7 @@ build-std = ["core", "alloc"]
 #esp-radio = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 #esp-rom-sys = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 #esp-rtos = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
+#xtensa-lx = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 
 lcd-async = { git = "https://github.com/gobftald/lcd-async.git" }
 
@@ -92,6 +93,7 @@ esp-println = { path = "../esp-hal/esp-println" }
 esp-radio = { path = "../esp-hal/esp-radio" }
 esp-rom-sys = { path = "../esp-hal/esp-rom-sys" }
 esp-rtos = { path = "../esp-hal/esp-rtos" }
+xtensa-lx = { path = "../esp-hal/xtensa-lx" }
 
 #rtos-trace = { path = "../rtos-trace/rtos_trace" }
 #systemview-target = { path = "../rtos-trace/systemview_target" }

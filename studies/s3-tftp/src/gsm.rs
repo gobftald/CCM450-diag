@@ -41,7 +41,6 @@ impl<'a> GSM<'a> {
         uart.set_at_cmd(esp_hal::uart::AtCmdConfig::default()
             .with_pre_idle_count(0)
             .with_post_idle_count(0)
-            .with_gap_timeout(20)
             .with_cmd_char(b'\n'));
         let (rx, tx) = uart.split();
 

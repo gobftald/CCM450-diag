@@ -56,10 +56,9 @@ async fn main(spawner: embassy_executor::Spawner) {
     // Because of the compiler optimisation even we should not only move out but also
     // should use these types handed over by value in the spawned tasks, otherwise they
     // are also staying and increasing the wasted memory footprint of exited main task
-    //spawner.spawn(net_task(controller, ap_runner)).ok();
-    //spawner.spawn(dhcp_server(ap_stack)).ok();
+    spawner.spawn(net_task(controller, ap_runner)).ok();
+    spawner.spawn(dhcp_server(ap_stack)).ok();
 
-    /*
     let spi = create_spi_bus!(peripherals);
     let sd_ready = mk_static!(Signal<NoopRawMutex, ()>, Signal::<NoopRawMutex, ()>::new());
     let i2c = create_i2c_bus!(peripherals);
@@ -81,8 +80,7 @@ async fn main(spawner: embassy_executor::Spawner) {
         peripherals.GPIO0.into(),   // LCD RST
         peripherals.GPIO1.into(),   // LCD BL
     )).ok();
-    */
-    
+
     spawner.spawn(gps::gps_task(create_gps!(peripherals))).ok();
 
     let (gsm, pwk) = create_gsm!(peripherals);

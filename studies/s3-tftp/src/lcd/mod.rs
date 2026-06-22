@@ -26,9 +26,14 @@ pub const DISPLAY_HEIGHT: usize = 240;
 const PIXEL_SIZE: usize = 2; // RGB565 = 2 bytes per pixel
 const DISPLAY_FRAME_SIZE: usize = DISPLAY_WIDTH * DISPLAY_HEIGHT * PIXEL_SIZE;
 
-// PSRAM — large, free
+// Force the compiler to bind the starting address to 32 bytes block of cache lines
+// The CPU accesses PSRAM through this cache.
+#[repr(align(32))]
+struct AlignedBuffer([u8; DISPLAY_FRAME_SIZE]);
+
+// it is a large buffer, so put it into PSRAM
 #[unsafe(link_section = ".ext_ram.bss")]
-static DISPLAY_FRAME_BUFFER: StaticCell<[u8; DISPLAY_FRAME_SIZE]> = StaticCell::new();
+static DISPLAY_FRAME_BUFFER: StaticCell<AlignedBuffer> = StaticCell::new();
 
 #[embassy_executor::task]
 pub(crate) async fn lcd_task(
@@ -59,7 +64,7 @@ pub(crate) async fn lcd_task(
     info!("Display initialized!");
 
     let display_frame_buffer =
-        DISPLAY_FRAME_BUFFER.init_with(|| [0; DISPLAY_FRAME_SIZE]);
+    &mut DISPLAY_FRAME_BUFFER.init_with(|| AlignedBuffer([0; DISPLAY_FRAME_SIZE])).0;
 
     let mut home = home::HomeScreen::new();
     let mut graph = graph::GraphScreen::new();
@@ -74,17 +79,20 @@ pub(crate) async fn lcd_task(
 
     loop {
         if refresh {
+            debug!("SOF lcd refresh");
             match current {
                 Screen::Home  => home.update(&mut display, display_frame_buffer, tick).await,
                 Screen::Graph => graph.update(&mut display, display_frame_buffer, tick).await,
                 Screen::Log => log.update(&mut display, display_frame_buffer).await,
             }
+            debug!("EOF lcdrefresh");
         } else {
             refresh = true;
         }
 
         // wait for either touch interrupt OR 200ms timeout
         match embassy_time::with_timeout(
+            // it is relaunched after screen refresh - so refresh time (30 - 50 ms) is added
             embassy_time::Duration::from_millis(SCREEN_TICK as u64),
             tp_int.wait_for_falling_edge()
         ).await {
@@ -130,10 +138,14 @@ pub(crate) async fn lcd_task(
                             Screen::Log => log.reset(),
                         }
                     }
-                    None => {}
+                    None => {
+                        refresh = false;
+                    }
                 }
             }
-            Err(_) => tick += 4,
+            Err(_) => {
+                tick += 4;
+            }
         }
     }
 }
