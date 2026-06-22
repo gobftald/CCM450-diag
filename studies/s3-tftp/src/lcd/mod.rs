@@ -1,4 +1,3 @@
-use embedded_graphics::mono_font::iso_8859_3::FONT_6X13_BOLD;
 use static_cell::StaticCell;
 
 use esp_hal::{
@@ -31,9 +30,14 @@ pub const DISPLAY_HEIGHT: usize = 240;
 const PIXEL_SIZE: usize = 2; // RGB565 = 2 bytes per pixel
 const DISPLAY_FRAME_SIZE: usize = DISPLAY_WIDTH * DISPLAY_HEIGHT * PIXEL_SIZE;
 
-// PSRAM — large, free
+// Force the compiler to bind the starting address to 32 bytes block of cache lines
+// The CPU accesses PSRAM through this cache.
+#[repr(align(32))]
+struct AlignedBuffer([u8; DISPLAY_FRAME_SIZE]);
+
+// it is a large buffer, so put it into PSRAM
 #[unsafe(link_section = ".ext_ram.bss")]
-static DISPLAY_FRAME_BUFFER: StaticCell<[u8; DISPLAY_FRAME_SIZE]> = StaticCell::new();
+static DISPLAY_FRAME_BUFFER: StaticCell<AlignedBuffer> = StaticCell::new();
 
 #[embassy_executor::task]
 pub(crate) async fn lcd_task(
@@ -64,7 +68,7 @@ pub(crate) async fn lcd_task(
     info!("Display initialized!");
 
     let display_frame_buffer =
-        DISPLAY_FRAME_BUFFER.init_with(|| [0; DISPLAY_FRAME_SIZE]);
+    &mut DISPLAY_FRAME_BUFFER.init_with(|| AlignedBuffer([0; DISPLAY_FRAME_SIZE])).0;
 
     let mut home = home::HomeScreen::new();
     let mut graph = graph::GraphScreen::new();
@@ -79,38 +83,13 @@ pub(crate) async fn lcd_task(
 
     loop {
         if refresh {
-            let start = Instant::now();
+            debug!("SOF lcd refresh");
             match current {
                 Screen::Home  => home.update(&mut display, display_frame_buffer, tick).await,
                 Screen::Graph => graph.update(&mut display, display_frame_buffer, tick).await,
                 Screen::Log => log.update(&mut display, display_frame_buffer).await,
             }
-            let took = start.elapsed().as_millis();
-            if took > 100 {
-                let (pender, wait, set, poll, recheck, sleep,
-                    wake, stall_wake, rdcc, fntd,nlw, tdcaw, wbnt, mtc) = 
-                    esp_rtos::embassy::debug_counts();
-                let wakes_during_stall = wake.wrapping_sub(stall_wake);
-                error!(
-                    "SLOW {}ms pender={} wait={} set={} poll={} recheck={} sleep={} wake={} 
-                    wakes_during_stall={}, dma_cc={}, fut_no_trans_done={}, not_listeting_wake={}
-                    trans_done_cleared_after_wake={}, wake_but_no_td={}, max_transfer_cycles={}",
-                    took, pender, wait, set, poll, recheck, sleep, wake, wakes_during_stall,
-                    rdcc, fntd, nlw, tdcaw, wbnt, mtc
-                );
-
-                let (sns, sti, sw, pk, mrs, swrq, ssr, sss, ssd, 
-                    pirn, pirp, pira, nsm, nsh, nsrq, nss) =
-                    esp_rtos::debug_counts_plus();
-                error!("sched_no_switch={}, sched_to_idle={}, sched_switch={},
-                    push_skipped={}, mark_ready_skip={}, sleep_with_run_queued={}
-                    skip_state_ready={}, skip_state_sleeping={}, skip_state_deleted={},
-                    pop_if_reject_none={}, pop_if_reject_pro={}, pop_if_reject_app={}
-                    no_switch_mask={}, no_switch_head={}, no_switch_run_queued={}, no_switch_state={}",
-                    sns, sti, sw, pk, mrs, swrq, ssr, sss, ssd, pirn, pirp, pira, nsm, nsh, nsrq, nss
-                );
-
-            }
+            debug!("EOF lcdrefresh");
         } else {
             refresh = true;
         }
@@ -162,10 +141,14 @@ pub(crate) async fn lcd_task(
                             Screen::Log => log.reset(),
                         }
                     }
-                    None => {}
+                    None => {
+                        refresh = false;
+                    }
                 }
             }
-            Err(_) => tick += 4,
+            Err(_) => {
+                tick += 4;
+            }
         }
     }
 }

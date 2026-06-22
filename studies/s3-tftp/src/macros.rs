@@ -110,7 +110,6 @@ macro_rules! create_spi_bus {
 
         const DMA_RX_TX_DESCRIPTORS_SIZE: usize = 2;    // 1 for every 4092 (not 4096, it is HW limitation)
 
-        // etiher buffers and descriptors are safe in SRAM (not PSRAM)
         static RX_DATA: StaticCell<[u8; DMA_RX_BUFFER_SIZE]> = StaticCell::new();
         static TX_DATA: StaticCell<[u8; DMA_TX_BUFFER_SIZE]> = StaticCell::new();
 
