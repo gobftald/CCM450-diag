@@ -92,10 +92,10 @@ impl<'a> SyncSpiDevice<u8> for SdSpiBlockingProxy<'a> {
             esp_hal::time::Rate::from_khz(400)
         };
 
-        bus_guard.apply_config(&SpiConfig::default()
+        let _ = bus_guard.apply_config(&SpiConfig::default()
             .with_frequency(target_speed)
             .with_mode(esp_hal::spi::Mode::_0)
-        ).ok();
+        );
 
         self.cs_pin.set_low();
 

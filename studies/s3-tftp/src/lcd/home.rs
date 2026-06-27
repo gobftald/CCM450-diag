@@ -86,14 +86,14 @@ impl HomeScreen {
                 DISPLAY_WIDTH as usize, DISPLAY_HEIGHT as usize
             );
 
-            fb.clear(Rgb565::BLACK).ok();
+            let _ = fb.clear(Rgb565::BLACK);
 
-            display.show_raw_data(
+            let _ = display.show_raw_data(
                 0,
                 0,
                 DISPLAY_WIDTH as u16, DISPLAY_HEIGHT as u16,
                 full_buffer
-            ).await.ok();
+            ).await;
 
             self.initial = false;
             tick = 0; // to refresh both slow regions
@@ -115,28 +115,28 @@ impl HomeScreen {
             RPM_TEXT_WIDTH,
             BIG_FONT_HEIGHT
         );
-        fb.clear(Rgb565::BLACK).ok();
+        let _ = fb.clear(Rgb565::BLACK);
 
         // shifting digits test text
         let mut digits = *b"0123456789012345678";
         let rpm = &mut digits[((tick / 4) % 10)..(((tick / 4) % 10) + RPM_CHAR_NUM)];
         rpm[RPM_CHAR_NUM -1 ] = b'0'; rpm[RPM_CHAR_NUM -2 ] = b'0';
         trail_space( rpm );
-        Text::with_text_style(
+        let _ = Text::with_text_style(
             unsafe { fuu(rpm) },
             Point { x: 0, y: 0 },
             character_style,
             text_style,
         )
-        .draw(&mut fb).ok();
+        .draw(&mut fb);
 
-        display.show_raw_data(
+        let _ = display.show_raw_data(
             ((DISPLAY_WIDTH - RPM_TEXT_WIDTH) / 2) as u16,
             0,
             RPM_TEXT_WIDTH as u16,
             BIG_FONT_HEIGHT as u16,
             rpm_buffer,
-        ).await.ok();
+        ).await;
 
         // Force a voluntary yield point to let the async executor process the scheduler queue
         embassy_time::Timer::after_ticks(1).await;
@@ -155,69 +155,69 @@ impl HomeScreen {
                 SLOW_TEXT_WIDTH as usize,
                 SLOW_TEXT_HEIGHT as usize
             );
-            fb.clear(Rgb565::BLACK).ok();
+            let _ = fb.clear(Rgb565::BLACK);
 
             // Coolant temperature
 
-            Text::with_baseline(
+            let _ = Text::with_baseline(
                 "T +",
                 Point::new(0, 40),
                 MonoTextStyle::new(&FONT_10X20, Rgb565::WHITE),
                 Baseline::Bottom,
             )
-            .draw(&mut fb).ok();
+            .draw(&mut fb);
 
-            Text::with_text_style(
+            let _ = Text::with_text_style(
                 unsafe { fuu(b"00") },
                 Point { x: 38, y: 0 },
                 character_style,
                 text_style,
             )
-            .draw(&mut fb).ok();
+            .draw(&mut fb);
 
             // Battey voltage
 
-            Text::with_baseline(
+            let _ = Text::with_baseline(
                 "B ",
                 Point::new(112, 40),
                 MonoTextStyle::new(&FONT_10X20, Rgb565::WHITE),
                 Baseline::Bottom,
             )
-            .draw(&mut fb).ok();
+            .draw(&mut fb);
 
-            Text::with_text_style(
+            let _ = Text::with_text_style(
                 unsafe { fuu(b"000") },
                 Point { x: 132, y: 0 },
                 character_style,
                 text_style,
             )
-            .draw(&mut fb).ok();
+            .draw(&mut fb);
 
             // Air temperature
 
-            Text::with_baseline(
+            let _ = Text::with_baseline(
                 "A +",
                 Point::new(234, 40),
                 MonoTextStyle::new(&FONT_10X20, Rgb565::WHITE),
                 Baseline::Bottom,
             )
-            .draw(&mut fb).ok();
+            .draw(&mut fb);
 
-            Text::with_text_style(
+            let _ = Text::with_text_style(
                 unsafe { fuu(b"00") },
                 Point { x: 272, y: 0 },
                 character_style,
                 text_style,
             )
-            .draw(&mut fb).ok();
+            .draw(&mut fb);
 
-            display.show_raw_data(
+            let _ = display.show_raw_data(
                 0,
                 130,
                 SLOW_TEXT_WIDTH as u16,
                 SLOW_TEXT_HEIGHT as u16,
                 slow_buffer
-            ).await.ok();
+            ).await;
 
             embassy_time::Timer::after_ticks(1).await;
 
@@ -230,31 +230,31 @@ impl HomeScreen {
                 SLOW_TEXT_WIDTH as usize,
                 SLOW_TEXT_HEIGHT as usize
             );
-            fb.clear(Rgb565::BLACK).ok();
+            let _ = fb.clear(Rgb565::BLACK);
 
             // COG
             let cog: &mut [u8] = &mut[ b'0', b'0', b'0'];
             unsafe { cpn(&raw const GPS_DATA.cog as *const u8, cog.as_mut_ptr(), 3) };
             trail_space( cog );
-            Text::with_text_style(
+            let _ = Text::with_text_style(
                 unsafe { fuu(cog) },
                 Point { x: 0, y: 0 },
                 character_style,
                 text_style,
             )
-            .draw(&mut fb).ok();
+            .draw(&mut fb);
 
             // Altitude
             let alt: &mut [u8] = &mut[ b'0', b'0', b'0', b'0'];
             unsafe { cpn(&raw const GPS_DATA.alt as *const u8, alt.as_mut_ptr(), 4) };
             trail_space( alt );
-            Text::with_text_style(
+            let _ = Text::with_text_style(
                 unsafe { fuu(alt) },
                 Point { x: 97, y: 0 },
                 character_style,
                 text_style,
             )
-            .draw(&mut fb).ok();
+            .draw(&mut fb);
 
             if unsafe { FLIP % 8 == 0 || FLIP % 8 == 1 || FLIP % 8 == 2
                         || FLIP % 8 == 4 || FLIP % 8 == 5 || FLIP % 8 == 6 } {
@@ -262,49 +262,49 @@ impl HomeScreen {
                 let time: &mut [u8] = &mut[ b'0', b'0', b'0', b'0'];
                 unsafe { cpn(&raw const GPS_DATA.time as *const u8, time.as_mut_ptr(), 4) };
                 if time[0] != b'h' || time[1] != b'h' || time[2] != b'm' || time[3] != b'm' { 
-                    Text::with_text_style(
+                    let _ = Text::with_text_style(
                         unsafe { fuu(time) },
                         Point { x: 220, y: 0 },
                         character_style,
                         text_style,
                     )
-                    .draw(&mut fb).ok();
+                    .draw(&mut fb);
                 }
             } else if unsafe { FLIP % 8 == 3 } {
                 // Number of satelite
                 let sat: &mut [u8] = &mut[ b'0', b'0'];
                 unsafe { cpn(&raw const GPS_DATA.sat as *const u8, sat.as_mut_ptr(), 2) };
                 trail_space( sat );
-                Text::with_text_style(
+                let _ = Text::with_text_style(
                     unsafe { fuu(sat) },
                     Point { x: 220, y: 0 },
                     character_style,
                     text_style,
                 )
-                .draw(&mut fb).ok();
+                .draw(&mut fb);
             } else {
                 //  hdop
                 let hdop: &mut [u8] = &mut[ b'0', b'0', b'0', b'0', b'0'];
                 unsafe { cpn(&raw const GPS_DATA.hdop as *const u8, hdop.as_mut_ptr(), 5) };
                 hdop[2] = hdop[3]; hdop[3] = hdop[4];
                 trail_space( &mut hdop[..4] );
-                Text::with_text_style(
+                let _ = Text::with_text_style(
                     unsafe { fuu(&hdop[..4]) },
                     Point { x: 220, y: 0 },
                     character_style,
                     text_style,
                 )
-                .draw(&mut fb).ok();
+                .draw(&mut fb);
             }
             unsafe { FLIP += 1 };
 
-            display.show_raw_data(
+            let _ = display.show_raw_data(
                 0,
                 190,
                 SLOW_TEXT_WIDTH as u16,
                 SLOW_TEXT_HEIGHT as u16,
                 slow_buffer
-            ).await.ok();
+            ).await;
 
             embassy_time::Timer::after_ticks(1).await;
         }

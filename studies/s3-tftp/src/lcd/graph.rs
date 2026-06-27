@@ -37,18 +37,18 @@ impl GraphScreen {
             DISPLAY_HEIGHT as usize
         );
 
-        fb.clear(Rgb565::BLACK).ok();
+        let _ = fb.clear(Rgb565::BLACK);
 
-        draw_smiley(&mut fb, tick).ok();
+        let _ = draw_smiley(&mut fb, tick);
 
-        display
+        let _ = display
             .show_raw_data(
                 0,
                 0,
                 DISPLAY_WIDTH as u16,
                 DISPLAY_HEIGHT as u16,
                 full_buffer)
-            .await.ok();
+            .await;
     }
 
     pub fn reset(&mut self) { self.initial = true; }

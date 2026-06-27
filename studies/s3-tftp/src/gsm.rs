@@ -1,20 +1,27 @@
 use esp_hal::{
     Async,
-    gpio::{AnyPin, Output, Level},
-    uart::{AnyUart, Config, Uart, UartRx, UartTx},
+    gpio::{AnyPin, Level, Output},
+    uart::{AnyUart, Config, RxError, RxConfig, Uart, UartRx, UartTx},
 };
-use embassy_time::Timer;
+use embassy_time::{Timer, Duration};
+use embassy_futures::select::{select, Either};
+
+use crate::gps::{GPS_DATA, GPS_UPDATED};
 
 #[macro_export]
-macro_rules! create_gsm {
+macro_rules! create_gsm_uart {
     ($peripherals:ident) => {
         {
             // Create a configuration layout setting the driver to open-drain
             let pwk_config = OutputConfig::default()
-                .with_drive_mode(DriveMode::OpenDrain)
-                .with_pull(Pull::None); // A7670C pulls itself up internally
+                // OpenDrain means the active HIGH switch inside the ESP32-S3 stays disabled
+                // When set LOW: The ESP32-S3 actively forces the line to 0V (Ground).
+                // When set HIGH: The active switch turns off, and the weak internal Pull::Up resistor
+                // gently lifts the line to 3.3V.
+                .with_drive_mode(DriveMode::PushPull)
+                .with_pull(Pull::None);
             (
-                crate::gsm::GSM::new(
+                crate::gsm::GsmUart::new(
                     $peripherals.UART1.into(),
                     $peripherals.GPIO7.into(),                              // TX
                     $peripherals.GPIO10.into(),                             // RX
@@ -25,15 +32,21 @@ macro_rules! create_gsm {
     }
 }
 
-pub struct GSM<'a> {
-    pub(crate) rx: UartRx<'a, Async>,
-    pub(crate) tx: UartTx<'a, Async>,
+pub struct GsmUart<'a> {
+    rx: UartRx<'a, Async>,
+    tx: UartTx<'a, Async>,
 }
 
-impl<'a> GSM<'a> {
+impl<'a> GsmUart<'a> {
     pub fn new(uart: AnyUart<'static>, tx_pin: AnyPin<'static>, rx_pin: AnyPin<'static>) -> Self {
         // configure UART
-        let config = Config::default().with_baudrate(115_200);
+        let config = Config::default()
+            //.with_baudrate(115_200)
+            .with_baudrate(9_600)
+            .with_rx(
+                // explicitely disable timeout
+                RxConfig::default().with_timeout_none()
+            );
         let mut uart = unwrap!(Uart::new(uart, config))
             .into_async()
             .with_tx(tx_pin)
@@ -48,26 +61,254 @@ impl<'a> GSM<'a> {
     }
 }
 
-#[embassy_executor::task()]
-pub async fn gsm_task(mut gsm: crate::gsm::GSM<'static>, mut pwk_pin: Output<'static>,) {
-    let mut buf = [0u8; 32];
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(PartialEq)]
+pub enum ModemState {
+    PowerOnReset,       // switch off/on with pwk pin
+    RadioActivating,    // Passively awaiting network initialization
+    Attached,           // Connected to tower, ready to open IP stack
+    SocketConfiguring,  // Opening UDP channel
+    SocketReady,        // Idle state, ready to transmit data payloads
+                        // 5 sec periodic timeout for waiting refreshed GPS data
+    DataTransmitting,   // Payload sent, awaiting confirmation
+}
 
-    // Trigger the hardware startup pulse sequence
-    debug!("Driving A7670C PWK LOW...");
+async fn read<'a>(gsm: &mut GsmUart<'_>, mut buf: &'a mut [u8]) -> Result<&'a [u8], RxError> {
+    gsm.rx.wait_for_buffered_data(5, buf.len(), false).await?;
+    let size = gsm.rx.read(&mut buf)?;
+    trace!("*** gsm {} {:a}", size, buf[2..size - 2 ]);
+
+    // the format of unsolicited messages
+    Ok(&buf[2..size - 2 ])
+}
+
+async fn switch_modem_off(pwk_pin: &mut Output<'static>) {
+    trace!("pwk_pin.set_level(Level::Low)");
     pwk_pin.set_level(Level::Low);
-    Timer::after_millis(1_500).await;
-    debug!("Releasing A7670C PWK HIGH...");
+    Timer::after_millis(2_500).await;
+    trace!("pwk_pin.set_level(Level::High)");
     pwk_pin.set_level(Level::High);
+}
 
-    debug!("Waiting for modem firmware initialization...");
-    Timer::after_millis(3_000).await;
+async fn switch_modem_on(pwk_pin: &mut Output<'static>) {
+    trace!("pwk_pin.set_level(Level::Low)");
+    pwk_pin.set_level(Level::Low);
+    Timer::after_millis(200).await;
+    trace!("pwk_pin.set_level(Level::High)");
+    pwk_pin.set_level(Level::High);
+}
 
-    gsm.tx.write_async(b"ATI\r\n").await.ok();
-    match embassy_time::with_timeout(
-        embassy_time::Duration::from_secs(1),
-        gsm.rx.read_async(&mut buf)
-    ).await {
-        Ok(_) => debug!("gps answer {}", buf),
-        Err(e) => debug!("gps error {}", e)
+#[embassy_executor::task()]
+pub async fn gsm_task(mut gsm: crate::gsm::GsmUart<'static>, mut pwk_pin: Output<'static>) {
+    let mut buf: [u8; 128] = [0; 128];
+    let mut state = ModemState::PowerOnReset;
+    let mut once_active = false;
+    let mut timeout = Duration::from_secs(60);
+    let mut xfer_ok = false;
+    let mut bad_xfer: u32 = 0;
+
+    // get GPS_UPDATES watch receiver
+    let mut gps_updated = unwrap!(GPS_UPDATED.receiver());
+
+    /*
+    // reset
+    let _ = gsm.tx.write_async(b"AT+CRESET\r\n").await;
+    let _ = gsm.tx.write_async(b"ATE0\r\n").await;
+    */
+
+    loop {
+        // State machine
+        match state {
+            ModemState::PowerOnReset => {
+                switch_modem_off(&mut pwk_pin).await;
+                Timer::after_millis(1_000).await;
+                switch_modem_on(&mut pwk_pin).await;
+
+                once_active = false;
+                state = ModemState::RadioActivating;
+                xfer_ok = false;
+                bad_xfer = 0;
+            }
+            ModemState::RadioActivating => {
+                // Passive wait state. Wating for b"+CGEV: NW PDN ACT1"
+            }
+            ModemState::Attached => {
+                if once_active {
+                    trace!("*** Network stable. Sending all initialization commands in sequence...");
+
+                    // Configure the APN
+                    let _ = gsm.tx.write_async(b"AT+CGDCONT=1,\"IP\",\"bicsapn\"\r\n").await;
+                    Timer::after_millis(200).await;
+
+                    // Attach to the GPRS Data Network.
+                    let _ = gsm.tx.write_async(b"AT+CGATT=1\r\n").await;
+                    Timer::after_millis(200).await;
+
+                    // Activate the PDP Context.
+                    let _ = gsm.tx.write_async(b"AT+CGACT=1,1\r\n").await;
+                    Timer::after_millis(200).await;
+
+                    // Open the TCP/IP Network Stack
+                    let _ = gsm.tx.write_async(b"AT+NETOPEN\r\n").await;
+
+                    // Mandatory 2-second stabilization delay to let internal virtual routing maps build
+                    Timer::after_secs(2).await;
+
+                    // Open UDP socket.
+                    let _ = gsm.tx.write_async(b"AT+CIPOPEN=0,\"UDP\",,,1234\r\n").await;
+
+                    state = ModemState::SocketConfiguring;
+                }
+            }
+            ModemState::SocketConfiguring => {
+                // Passive wait state. No outbound writes happen here.
+                // Waiting for success (b"+CIPOPEN: 0,0") or 10 secs timout
+            }
+            ModemState::SocketReady => {
+                // start timer
+            }
+            ModemState::DataTransmitting => {
+                xfer_ok = false;
+
+                unsafe {
+                    let record = core::slice::from_raw_parts(
+                        &raw const GPS_DATA as *const u8,
+                        49,
+                    );
+
+                    trace!("*** gsm SOF Data Transmission");
+                    let _ = gsm.tx.write_async(b"AT+CIPSEND=0,,\"46.139.107.93\",1234\r\n").await;
+                    Timer::after_millis(100).await;
+                    let _ = gsm.tx.write_async(unwrap!(record.try_into())).await;
+                    let _ = gsm.tx.write_async(b"\r\n\x1A").await;
+                }
+
+                state = ModemState::SocketReady;
+            }
+        }
+
+        // Dynamic Timeout Selection
+        match state {
+            // If we caught an ACT message, we want to wait for one 'event free' 2 seconds more.
+            // This needs to handle DEACT -> ... -> ACTACT transient which is typical at power on
+            // in case of a roaming SIM card (before a finally Confirmed Activation)
+            ModemState::Attached if !once_active => {
+                trace!("*** gsm set 2x2 secs timeout");
+                timeout = Duration::from_secs(2)
+            }
+
+            // If we don't have an ACT yet, we wait up to 30 seconds.
+            //
+            // but we don't want to manage the DEACT -> ... -> ACT
+            // situation after a successful activation anymore
+            ModemState::RadioActivating if once_active => {
+                trace!("*** gsm set 30 secs timeout");
+                timeout = Duration::from_secs(30)
+            }
+
+            // timeout if nothing happened during SocketConfiguring
+            // commands, neither any state change nor success
+            ModemState::SocketConfiguring => {
+                trace!("*** gsm set 10 secs timeout");
+                timeout = Duration::from_secs(10)
+            }
+
+            ModemState::SocketReady => {
+                trace!("*** gsm start waiting for gps data");
+                // transmission takes about 230ms in 9600 buad
+                // so we deduct this time from the 5s cycyles
+                timeout = Duration::from_millis(4_770);
+            }
+
+            // Otherwise we set 60 second watchdog timout. But don't
+            // override transients' timeouts before cofirmed activation
+            _ if once_active => {
+                trace!("*** gsm set 60 secs timeout");
+                timeout = Duration::from_secs(60)
+            }
+            _ => {}
+        }
+
+        match select(read(&mut gsm, &mut buf), Timer::after(timeout)).await {
+            Either::First(result) => {
+                if let Ok(msg) = result {
+                    match msg {
+                        b"+CGEV: ME DETACH" | b"+CGEV: NW DETACH" => {
+                            if once_active {
+                                trace!("*** gsm Critical Network Drop. Rewinding to PowerOnReset...");
+                                state = ModemState::PowerOnReset;
+                            };
+                            // else ignore it, since it can happen during power on
+                        }
+                        b"+CGEV: NW PDN DEACT 1" => {
+                            trace!("*** gsm Data Connection Drop. Re-attaching...");
+                            state = ModemState::RadioActivating;
+                        }
+                        b"+CGEV: NW PDN ACT 1" => {
+                            if state == ModemState::RadioActivating {
+                                trace!("*** gsm Network Registration.");
+                                state = ModemState::Attached;
+                            }
+                        }
+                        // here is not leading \r\n so b"+C" was stripped
+                        b"IPOPEN: 0,0" => {
+                            if state == ModemState::SocketConfiguring {
+                                trace!("*** gsm UDP Socket verification confirmed!");
+                                state = ModemState::SocketReady;
+                            }
+                        }
+                        b"+CIPSEND: 0,51,51" => {
+                            trace!("*** gsm EOF Data Transmission");
+                            xfer_ok = true;
+                        }
+                        _ => {
+                            debug!("*** gsm unhandled msg: {:a}", msg);
+                        }
+                    }
+                }
+            }
+            Either::Second(_) => {
+                match state {
+                    ModemState::RadioActivating => {
+                        // If the modem is stuck in this state for more than 30 seconds
+                        // without triggering a clean registration,  break the freeze
+                        // and force a hardware reset.
+                        trace!("*** gsm Modem cannot register. Rewinding to PowerOnReset...");
+                        state = ModemState::PowerOnReset;
+                    }
+                    ModemState::Attached => {
+                        trace!("*** gsm Confirm Network Registration");
+                        once_active = true;
+                    }
+                    ModemState::SocketConfiguring => {
+                        // If the modem is stuck in this state for more than 10 seconds
+                        // without successfuly open an UDP socket, we handle it simply
+                        // and brutally, forcing a hardware reset
+                        trace!("*** gsm Modem cannot open UDP. Rewinding to PowerOnReset...");
+                        state = ModemState::PowerOnReset;
+                    }
+                    ModemState::SocketReady => {
+                        if !xfer_ok {
+                            bad_xfer += 1;
+                        } else {
+                            xfer_ok = false;
+                            bad_xfer = 0;
+                        }
+
+                        if bad_xfer < 10 {
+                            let _ = gps_updated.try_changed().map(|_| state = ModemState::DataTransmitting);
+                        } else {
+                            trace!("gsm Too many unsuccesfull xfer. Rewinding to PowerOnReset...");
+                            state = ModemState::PowerOnReset;
+                        }
+                    }
+
+                    _ => {
+                        // theoretically it cannot be happened
+                        trace!("*** gsm Watchdog timout happened - state is {}", state);
+                    }
+                }
+            }
+        }
     }
 }

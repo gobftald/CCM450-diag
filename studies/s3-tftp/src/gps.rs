@@ -6,9 +6,9 @@ use esp_hal::{
 use core::slice::from_raw_parts;
 
 #[macro_export]
-macro_rules! create_gps {
+macro_rules! create_gps_uart {
     ($peripherals:ident) => {
-        crate::gps::GPS::new(
+        crate::gps::GpsUart::new(
             $peripherals.UART0.into(),
             $peripherals.GPIO43.into(),
             $peripherals.GPIO44.into(),
@@ -16,12 +16,12 @@ macro_rules! create_gps {
     }
 }
 
-pub struct GPS<'a> {
+pub struct GpsUart<'a> {
     pub(crate) rx: UartRx<'a, Async>,
     pub(crate) tx: UartTx<'a, Async>,
 }
 
-impl<'a> GPS<'a> {
+impl<'a> GpsUart<'a> {
     pub fn new(uart: AnyUart<'static>, tx_pin: AnyPin<'static>, rx_pin: AnyPin<'static>) -> Self {
         let config = Config::default()
             //.with_baudrate(115_200)
@@ -87,15 +87,15 @@ pub struct GpsData {
     sep2: u8,
     pub lon: [u8; 13],
     sep3: u8,
-    pub sat: [u8; 2],
-    sep4: u8,
-    pub hdop: [u8;5],
-    sep5: u8,
     pub alt: [u8; 4],
-    sep6: u8,
-    pub cog: [u8; 3],
-    sep7: u8,
+    sep4: u8,
     pub sog: [u8; 3],
+    sep5: u8,
+    pub sat: [u8; 2],
+    sep6: u8,
+    pub hdop: [u8;5],
+    sep7: u8,
+    pub cog: [u8; 3],
 }
 
 pub static mut GPS_DATA: GpsData = GpsData {
@@ -107,19 +107,19 @@ pub static mut GPS_DATA: GpsData = GpsData {
     sep2: b',',
     lon: *b"00000.000000E",
     sep3: b',',
-    sat: *b"00",
-    sep4: b',',
-    hdop: *b"00.00",
-    sep5: b',',
     alt: *b"0000",
-    sep6: b',',
-    cog: *b"000",
-    sep7: b',',
+    sep4: b',',
     sog: *b"000",
+    sep5: b',',
+    sat: *b"00",
+    sep6: b',',
+    hdop: *b"00.00",
+    sep7: b',',
+    cog: *b"000",
 };
 
 #[embassy_executor::task()]
-pub async fn gps_task(mut gps: crate::gps::GPS<'static>) {
+pub async fn gps_task(mut gps: crate::gps::GpsUart<'static>) {
     use core::ptr::{addr_of_mut, copy_nonoverlapping as cpn};
 
     let mut buf = [0u8; 128];
@@ -370,7 +370,7 @@ pub async fn gps_task(mut gps: crate::gps::GPS<'static>) {
                     // most likely after boot
                     RxError::FifoOverflowed => {
                         // this is the only way to call rxfifo_reset()
-                        gps.rx.check_for_errors().ok();
+                        let _ = gps.rx.check_for_errors();
                     },
                     _ => {
                         // skip at least the next gps timestamp

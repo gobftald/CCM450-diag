@@ -431,6 +431,253 @@ os.close(fd)
 "
 
 
+FS-MCore-A7670C module programming
+
+The Cellular Network Hierarchy
+    Cellular standards (3GPP) use specific two-letter acronyms to separate the different parts of a system:
+        MT (Mobile Termination): The core radio module and modem circuitry (the A7670C chip) that handles 
+            network authentication, radio frequencies, and data protocols
+        TE (Terminal Equipment): The device controlling the modem. In your project, your ESP32-S3 or your 
+            computer (via the USB-TTL converter) is the TE.
+        ME (Mobile Equipment): The entire combined physical unit (often used interchangeably with MT in s
+            tatus messages like ME DETACH)
+        
+After PowerOn
+
+    *ATREADY: 1
+    +CPIN: READY
+    SMS DONE
+    +CGEV: NW PDN ACT 1
+    This sequence of responses is excellent news! It means your FS-MCore-A7670C module has successfully 
+        booted up completely, passed its internal hardware checks, and successfully read your SIM card.
+        Here is exactly what each line of that boot log means:
+        *ATREADY: 1: This is an internal hardware interrupt from the SIMCom firmware. It confirms that the modem's 
+            processor has completely finished loading its core operating system and the AT command interpreter 
+            is now open and listening for your commands.
+        +CPIN: READY: This is a critical milestone. It means the module successfully communicated with your 
+            physical SIM card, and the SIM card is unlocked, valid, and ready for network authentication 
+            (it is not blocked by a PIN or PUK code).
+        SMS DONE: The module has finished loading the SMS storage index from the SIM card. The SMS engine is 
+            now fully active and ready to send or receive text messages.
+        +CGEV (General Packet Radio Service Event): This prefix flags a network-initiated event routing through 
+            the Packet Switched (PS) cellular domain.
+        NW (Network): Indicates that this action was pushed and handled natively by the Cellular Base Station 
+            Network (the cell tower), rather than initiated locally by your own code.
+        PDN ACT (Packet Data Network Activation): Confirms that a PDN connection (historically called a 
+            PDP Context) has transitioned to an active state. The network has successfully mapped your SIM 
+            card profile to its gateway infrastructure.
+        1 (Context Identifier / CID): This refers directly to the memory slot profile (cid = 1) configured 
+            inside your modem. By default, slot 1 holds your main internet profile data (the APN, IP 
+            architecture, and carrier routing instructions).
+    
+    
+    AT+CRESET
+    OK
+    Optional: This ensures the module starts in a clean, known state.
+    This command performs a software reset of the module. It's a good practice to start with a clean slate, 
+        especially after previous failed attempts.
+        
+    
+    AT+CREG?
+    +CREG: 0,5
+
+    OK
+    Optional: This response is excellent news! Your A7670C module is fully authenticated, operational, and 
+        connected to the cellular network [U14].
+        Here is exactly what that string means:
+        +CREG: 0,5: The critical parameter is the number 5. This indicates that the module has successfully 
+            registered on the network and is in Roaming status
+        Why Roaming? This is standard behavior for almost all modern IoT, M2M, or virtual network operator 
+            (MVNO) SIM cards. These specialized data SIMs are designed to roam globally across multiple local 
+            carrier infrastructure networks (like Vodafone, Telekom, or Yettel here in Hungary) to guarantee 
+            the strongest possible signal connection.
+        OK: The command completed successfully and the modem's internal firmware state machine is perfectly healthy.
+    
+    
+    AT+CSQ
+    +CSQ: 27,99
+
+    OK
+    +CSQ: 27,99 is an absolute best-case scenario. Your signal health is practically perfect.
+        Here is exactly how to read those two values:
+        27 (Signal Strength / RSSI): This scale runs from 0 (lowest) to 31 (highest). A score of 27 is phenomenal. 
+            It means your module is receiving a very strong, clean radio frequency signal from the cell tower, 
+            which guarantees high-speed, stable data connections and minimizes transmission failures.
+        99 (Channel Bit Error Rate / BER): A reading of 99 is standard for cellular modems operating in idle or 
+            signaling modes. It simply means the parameter is "not detectable" or "not applicable" right now 
+            because the modem isn't actively streaming a large data payload. It will automatically update once 
+            you start transmitting heavy data packets.
+        
+    
+    AT+CPING="8.8.8.8",1,4
+    OK
+
+    +CGEV: ME DETACH
+
+    +CGEV: NW PDN ACT 1
+
+    +CPING: 1,8.8.8.8,92,80,119
+
+    +CPING: 1,8.8.8.8,92,75,119
+
+    +CPING: 1,8.8.8.8,92,65,119
+
+    +CPING: 1,8.8.8.8,92,70,119
+
+    +CPING: 3,4,4,0,65,80,70
+    Optional: this output is an absolute triumph! You have successfully transmitted raw 4G internet packets out 
+        into the public world and received a reply. Your circuit connection, terminal injection, and code 
+        foundations are completely verified.
+        Here is the exact analysis of what just happened in that log:
+        OK: The module successfully validated your AT+CPING syntax.
+        +CGEV: ME DETACH followed by +CGEV: NW PDN ACT 1: This is a critical observation. The exact moment the 
+            ping command was initiated, your module transiently disconnected from the network (ME DETACH) and 
+            instantly reconnected (NW PDN ACT 1). This is proof that your external 2A power supply successfully 
+            caught the sudden, massive current spike of the radio transmission, forcing a quick network level 
+            realignment without causing a hardware brownout reset.
+        +CPING: 1,8.8.8.8,92,80,119: You have successfully pinged Google DNS!
+            92: The packet size in bytes.
+            80: Your live, real-time network latency (80 milliseconds round-trip time).
+            119: The standard Time To Live (TTL) hop limit flag.
+        
+    
+    AT+CGPADDR=1
+    +CGPADDR: 1,100.111.151.194
+
+    OK
+    OPtional: This output means your A7670C module is fully online and has been assigned an internal mobile data 
+        IP address of 100.124.219.103.
+        Here is exactly how to read this successful network response:
+        100.124.219.103: This is your live IPv4 address.
+        
+    
+    AT+CDNSGIP="google.com"
+    +CDNSGIP: 1,"google.com","172.217.23.238"
+    +CDNSGIP: 2,"google.com","2a00:1450:400e:80a::200e"
+
+    OK
+    Optional: This response is a major milestone: your A7670C module has complete, fully functional internet access 
+        and a working DNS resolver. It has successfully reached out to your cellular carrier's domain servers and 
+        resolved google.com into real-world server locations.
+        +CDNSGIP: 1,"google.com","172.217.23.238": This is the resolved IPv4 address for Google. Your module can 
+            now use this numeric address to stream web requests or establish active data sockets.
+        +CDNSGIP: 2,"google.com","2a00:1450:400e:80a::200e": This is an IPv6 address for Google.
+
+    
+    AT+CGDCONT=1,"IP","bicsapn"
+    OK
+    Configure the APN (Access Point Name).
+        The APN tells the network which gateway to use for data.
+        1: The context ID (an identifier for this data profile).
+        "IP": The protocol type (IPv4).
+        "bicsapn": The APN provided by your network operator. For your EIOTCLUB SIM (starting with 893204), 
+            this is the correct APN. Username and password are not required
+    
+
+    AT+CGATT=1
+    OK
+    Attach to the GPRS Data Network. This command tells the module to attach to the packet-switched data network.
+        This command attaches the module to the GPRS/LTE data service. 1 means "attach," while 0 means "detach."
+
+
+    AT+CGACT=1,1
+    OK
+    Activate the PDP Context.
+        This activates the data connection defined in step 3, allowing the module to get an IP address.
+        This activates the PDP context. The parameters are: (context_id, state). state=1 means "activate." 
+            A successful activation means the module is now connected to the data network and should have an 
+            IP address.
+    
+    AT+CIPMODE=0
+    OK
+    Set the Data Transmission Mode
+        This sets the mode for sending and receiving data.
+        0: Normal (or "Direct Push") Mode. In this mode, you use specific AT+CIPSEND commands to send data, 
+            and received data is reported with a +IPD prefix.
+        1: Transparent (or "Pass-through") Mode. In this mode, once a connection is established, any data you 
+            type is sent directly, and received data is output directly. We are using normal mode here.
+    
+
+    AT+NETOPEN
+    OK
+
+    +NETOPEN: 0
+    Open the TCP/IP Network Stack
+        This command initializes the internal TCP/IP stack of the module.
+        This starts the TCP/IP service within the module. The +NETOPEN: 0 response confirms the network stack 
+            is open and ready to manage connections. This is a prerequisite for all subsequent network commands.
+
+
+    AT+CIPOPEN=0,"UDP",,,1234
+    +CIPOPEN: 0,0
+    This opens a UDP socket. The syntax is critical
+        0: The socket ID (you can have up to 9, 0 is the first).
+        ,,,1234: For UDP, the remote IP and port are not specified here, but the local port must be. 
+            1234 is the local port number you chose. The +CIPOPEN: 0,0 response confirms the socket was 
+            opened successfully.
+
+    
+    AT+CIPSEND=0,,"46.139.107.93",1234
+    >asdfasdfasdf
+    OK
+
+    +CIPSEND: 0,12,12
+    This command initiates a data send. The syntax 0,, specifies the socket ID and indicates variable-length data. 
+        The remote server's IP (46.139.107.93) and port (1234) are provided here, as they are not set when opening 
+            the UDP socket
+        Action: Type or paste your raw data. Do not press Enter.
+        Action to Finish: Press CTRL+Z (which sends the hexadecimal byte 0x1A)
+        Expected Final Response: OK followed by +CIPSEND: 0,<bytes_sent>,<bytes_sent>
+        The CTRL+Z signals the end of the data transmission. The final response confirms how many bytes were sent
+    
+
+    AT+CIPSEND=0,5,"46.139.107.93",1234
+    >12345
+    OK
+        Prepare your data: You'll need to know exactly how many bytes you want to send.
+        Send the command: Replace <socket_id> with your socket number (e.g., 0), <length> with the exact number 
+            of bytes, <server_ip> with your destination IP, and <server_port> with the destination port.
+        Wait for the prompt: The module will respond with a > character.
+        Send the raw data: Type or paste your data. Do not press Enter.
+        Automatic send: The module will automatically send the data as soon as it has received exactly <length> 
+            bytes. You do not need to send CTRL+Z.
+    
+
+
+    AT+CIPCLOSE=0
+    +CIPCLOSE: 0,0
+
+    OK
+    Close the UDP Connection
+        This closes the specific UDP socket you opened.
+        This closes the UDP socket identified by ID 0. It's good practice to close connections when you are finished to free up resources.
+
+
+    AT+NETCLOSE
+    OK
+    Close the Network Stack (Optional Cleanup)
+        This shuts down the entire TCP/IP stack.
+        This command closes the TCP/IP network stack. It is a clean way to end all network activity. You would 
+            need to run AT+NETOPEN again before any future data transfers.
+
+    
+
++IPD Notification Mode
+AT+CIPHEAD=1
+AT+CIPOPEN=0,"UDP",,,1234
+> from server > haho
+< on gsm module <
++IPD,4
+haho
+
+Buffering Mode
+AT+CIPRXGET=1
+> from server > haho
+< on gsm module <
++CIPRXGET: 1,0          # only notification, the raw data is buffered
+AT+CIPRXGET=2,0,50      # dumping up to 50 bytes from slot 0
+
+
 
 
 

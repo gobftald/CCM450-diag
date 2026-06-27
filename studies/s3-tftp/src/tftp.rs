@@ -207,7 +207,7 @@ async fn handle_wrq(
     let mut initial_ack = [0u8; 4];
     initial_ack[0..2].copy_from_slice(&ack);
     initial_ack[2..4].copy_from_slice(&b0);
-    socket.send_to(&initial_ack, remote).await.ok();
+    let _ = socket.send_to(&initial_ack, remote).await;
 
     loop {
         let mut data_buf = [0u8; 516];
@@ -231,7 +231,7 @@ async fn handle_wrq(
                     let mut ack_pkt = [0u8; 4];
                     ack_pkt[0..2].copy_from_slice(&(OpCode::Ack as u16).to_be_bytes());
                     ack_pkt[2..4].copy_from_slice(&block_num.to_be_bytes());
-                    socket.send_to(&ack_pkt, remote).await.ok();
+                    let _ = socket.send_to(&ack_pkt, remote).await;
 
                     if payload.len() < 512 {
                         break; // EOF
@@ -262,5 +262,5 @@ async fn send_error(socket: &mut UdpSocket<'_>, remote: embassy_net::IpEndpoint,
     let len = msg_bytes.len().min(512 - 5);
     buf[4..4+len].copy_from_slice(&msg_bytes[..len]);
     buf[4+len] = 0;
-    socket.send_to(&buf[..5+len], remote).await.ok();
+    let _ = socket.send_to(&buf[..5+len], remote).await;
 }
