@@ -94,7 +94,7 @@ macro_rules! create_access_point {
                 seed,
             );
 
-            (controller, ap_runner, ap_stack)
+            (controller, ap_runner, ap_stack, esp_radio_ctrl)
         }
     }
 }

@@ -74,7 +74,7 @@ unsafe impl RawMutex for SyncNoopRawMutex {
 }
 
 // Signal to sd_card and bluetooth
-pub static GPS_UPDATED: Watch<SyncNoopRawMutex, (), 2> = Watch::new();
+pub static GPS_UPDATED: Watch<SyncNoopRawMutex, (), 3> = Watch::new();
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[repr(C, packed)]  // Remove all padding

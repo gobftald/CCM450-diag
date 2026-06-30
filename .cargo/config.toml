@@ -53,12 +53,8 @@ runner = "espflash flash --monitor --log-format defmt"
 # flash only, reset button or power off/on needed to start
 #runner = "espflash flash --non-interactive --no-reset"
 
-
-linker = "ldproxy"
-
 rustflags = [
     "-C", "link-arg=-Tlinkall.x",          # esp-hal master linker script
-    "-C", "linker=xtensa-esp32s3-elf-gcc",
     "-C", "link-arg=-Wl,-Map=esp32s3.map",
 ]
 
@@ -67,7 +63,7 @@ build-std = ["core", "alloc"]
 
 [patch.crates-io]
 #esp-alloc = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
-#sp-backtrace = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
+#esp-backtrace = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 #esp-bootloader-esp-idf = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 #esp-config = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
 #esp-hal = { git = "https://github.com/gobftald/esp-hal.git", branch = "patches" }
@@ -97,6 +93,8 @@ xtensa-lx = { path = "../esp-hal/xtensa-lx" }
 
 #rtos-trace = { path = "../rtos-trace/rtos_trace" }
 #systemview-target = { path = "../rtos-trace/systemview_target" }
+
+btuuid = { path = "/Users/piv/esp/btuuid" }
 
 [env]
 # esp-hal defaults to "quad" but ESP32-S3-Touch-LCD-2 use "octal" PSRAM

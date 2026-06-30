@@ -10,6 +10,7 @@ pub(crate) mod fmt;
 mod macros;
 mod panic;
 
+mod ble;
 mod gps;
 mod gsm;
 mod lcd;
@@ -36,6 +37,7 @@ async fn main(spawner: embassy_executor::Spawner) {
     let peripherals = esp_hal::init(config);
 
     esp_alloc::heap_allocator!(#[esp_hal::ram(reclaimed)] size: 64 * 1024);
+    esp_alloc::heap_allocator!(size: 32 * 1024);
 
     //esp_alloc::psram_allocator!(peripherals.PSRAM, esp_hal::psram);
     // debug version of the original macro
@@ -44,9 +46,10 @@ async fn main(spawner: embassy_executor::Spawner) {
     esp_rtos_start!(peripherals);
 
     let (
-        controller,
+        wifi_controller,
         ap_runner,
-        ap_stack) = create_access_point!(peripherals);
+        ap_stack,
+        radio_controller) = create_access_point!(peripherals);
     
     // We should move out all created type (controller, ap_runner, ap_stack senders and receivers
     // from this main/loader task. Although finally it/we exit(s), spawns below (which finally 
@@ -56,8 +59,11 @@ async fn main(spawner: embassy_executor::Spawner) {
     // Because of the compiler optimisation even we should not only move out but also
     // should use these types handed over by value in the spawned tasks, otherwise they
     // are also staying and increasing the wasted memory footprint of exited main task
-    let _ = spawner.spawn(net_task(controller, ap_runner));
+    let _ = spawner.spawn(net_task(wifi_controller, ap_runner));
     let _ = spawner.spawn(dhcp_server(ap_stack));
+    // Pause for a split second to let the RF locks stabilize
+    embassy_time::Timer::after_millis(100).await;
+    let _ = spawner.spawn(ble::ble_ssp_task(radio_controller, peripherals.BT));
 
     let spi = create_spi_bus!(peripherals);
     let sd_ready = mk_static!(Signal<NoopRawMutex, ()>, Signal::<NoopRawMutex, ()>::new());
