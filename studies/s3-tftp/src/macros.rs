@@ -48,31 +48,44 @@ macro_rules! esp_rtos_start {
 }
 
 #[macro_export]
-macro_rules! create_access_point {
+macro_rules! create_ap_sta {
     ($peripherals:ident) => {
         {
-            const SSID: Option<&'static str> = option_env!("SSID");
-            const GATEWAY_IP: Option<&'static str> = option_env!("GATEWAY_IP");
+            const AP_SSID: Option<&'static str> = option_env!("AP_SSID");
+            const AP_GW_IP: Option<&'static str> = option_env!("AP_GW_IP");
+            const STA_SSID:  Option<&'static str> = option_env!("TETH_SSID");
+            const STA_PWD:  Option<&'static str> = option_env!("TETH_PWD");
 
-            let esp_radio_ctrl = &*mk_static!(esp_radio::Controller<'static>, unwrap!(esp_radio::init()));
+            // controller is shared for both AP and STA
+            let esp_radio_ctrl = &*mk_static!(
+                esp_radio::Controller<'static>,
+                unwrap!(esp_radio::init())
+            );
 
+            // Single wifi::new() call yields both interfaces
             let (mut controller, interfaces) = unwrap!(esp_radio::wifi::new(
-                &esp_radio_ctrl,
+                esp_radio_ctrl,
                 $peripherals.WIFI,
                 Default::default()
             ));
 
-            let client_config =
-                esp_radio::wifi::ModeConfig::AccessPoint(
-                        esp_radio::wifi::AccessPointConfig::default().with_ssid(unwrap!(SSID).into())
-                );
-            unwrap!(controller.set_config(&client_config));
-
             let wifi_ap_device = interfaces.ap;
+            let wifi_sta_device = interfaces.sta;
 
+            // Configure AP+STA combined mode here while constants are in scope
+            let mode_config = esp_radio::wifi::ModeConfig::ApSta(
+                        esp_radio::wifi::ClientConfig::default()
+                            .with_ssid(unwrap!(STA_SSID).try_into().unwrap())
+                            .with_password(unwrap!(STA_PWD).try_into().unwrap()),
+                        esp_radio::wifi::AccessPointConfig::default()
+                            .with_ssid(unwrap!(AP_SSID).into()),
+                );
+            unwrap!(controller.set_config(&mode_config));
+
+            // ── AP stack (static IP) ─────────────────────────────────────────────
             use core::{net::Ipv4Addr, str::FromStr};
             let gw_ip_addr = unwrap!(
-                Ipv4Addr::from_str(GATEWAY_IP.unwrap_or("192.168.2.1")),
+                Ipv4Addr::from_str(AP_GW_IP.unwrap_or("192.168.2.1")),
                 "failed to parse gateway ip"
             );
 
@@ -82,8 +95,14 @@ macro_rules! create_access_point {
                 dns_servers: Default::default(),
             });
 
+            // ── STA stack (DHCP) ─────────────────────────────────────────────────
+            let sta_config = embassy_net::Config::dhcpv4(
+                embassy_net::DhcpConfig::default()
+            );
+
             let rng = esp_hal::rng::Rng::new();
-            let seed = (rng.random() as u64) << 32 | rng.random() as u64;
+            let seed1 = (rng.random() as u64) << 32 | rng.random() as u64;
+            let seed2 = (rng.random() as u64) << 32 | rng.random() as u64;
 
             // Init AP network stack
             use embassy_net::StackResources;
@@ -91,10 +110,19 @@ macro_rules! create_access_point {
                 wifi_ap_device,
                 ap_config,
                 mk_static!(StackResources<3>, StackResources::<3>::new()),
-                seed,
+                seed1,
             );
 
-            (controller, ap_runner, ap_stack, esp_radio_ctrl)
+            // Init STA netwrok task
+            let (sta_stack, sta_runner) = embassy_net::new(
+                wifi_sta_device,
+                sta_config,
+                mk_static!(StackResources<3>, StackResources::<3>::new()),
+                seed2,
+            );
+
+
+            (controller, ap_runner, ap_stack, sta_runner, sta_stack)
         }
     }
 }

@@ -94,8 +94,6 @@ xtensa-lx = { path = "../esp-hal/xtensa-lx" }
 #rtos-trace = { path = "../rtos-trace/rtos_trace" }
 #systemview-target = { path = "../rtos-trace/systemview_target" }
 
-btuuid = { path = "/Users/piv/esp/btuuid" }
-
 [env]
 # esp-hal defaults to "quad" but ESP32-S3-Touch-LCD-2 use "octal" PSRAM
 ESP_HAL_CONFIG_PSRAM_MODE = "octal"
@@ -104,6 +102,9 @@ ESP_HAL_CONFIG_PSRAM_MODE = "octal"
 # SEGGER/SEGGER_SYSVIEW.c needs it.
 CFLAGS = "-march=rv32imc_zicsr"
 
-SSID = "CCM-GP450"
-GATEWAY_IP = "192.168.3.1"
+AP_SSID = "CCM-GP450"
+AP_GW_IP = "192.168.3.1"
 UDP_PORT = "19924"
+
+TETH_SSID = "DK10"
+TETH_PWD = "haho9024"

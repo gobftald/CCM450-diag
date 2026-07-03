@@ -118,6 +118,9 @@ pub static mut GPS_DATA: GpsData = GpsData {
     cog: *b"000",
 };
 
+pub static mut RMC_MSG: [u8; 128] = [0; 128];
+pub static mut RMC_SIZE: usize = 128;
+
 #[embassy_executor::task()]
 pub async fn gps_task(mut gps: crate::gps::GpsUart<'static>) {
     use core::ptr::{addr_of_mut, copy_nonoverlapping as cpn};
@@ -160,7 +163,7 @@ pub async fn gps_task(mut gps: crate::gps::GpsUart<'static>) {
 
                     match &buf[1..6] {
                         b"GNGGA" => {
-                            if let Ok(fld) = field(6, &buf[..size]) {
+                            if let Ok(fld) = field(6, &buf[..size + ofx]) {
                                 if fld.len() > 0 {
                                     if fld[0] == b'0' {
                                         fix = 0;
@@ -171,7 +174,7 @@ pub async fn gps_task(mut gps: crate::gps::GpsUart<'static>) {
                             }
 
                             if fix > 1 {
-                                if let Ok(fld) = field(2, &buf[..size]) {
+                                if let Ok(fld) = field(2, &buf[..size + ofx]) {
                                     if fld.len() == 11 {
                                         unsafe {
                                             cpn(
@@ -183,13 +186,13 @@ pub async fn gps_task(mut gps: crate::gps::GpsUart<'static>) {
                                     }
                                 }
 
-                                if let Ok(fld) = field(3, &buf[..size]) {
+                                if let Ok(fld) = field(3, &buf[..size + ofx]) {
                                     if fld.len() == 1 {
                                         unsafe { *&raw mut GPS_DATA.lat[11] = fld[0]; }
                                     }
                                 }
 
-                                if let Ok(fld) = field(4, &buf[..size]) {
+                                if let Ok(fld) = field(4, &buf[..size + ofx]) {
                                     if fld.len() == 12 {
                                         unsafe {
                                             cpn(
@@ -201,13 +204,13 @@ pub async fn gps_task(mut gps: crate::gps::GpsUart<'static>) {
                                     }
                                 }
 
-                                if let Ok(fld) = field(5, &buf[..size]) {
+                                if let Ok(fld) = field(5, &buf[..size + ofx]) {
                                     if fld.len() == 1 {
                                         unsafe { *&raw mut GPS_DATA.lon[12] = fld[0]; }
                                     }
                                 }
 
-                                if let Ok(fld) = field(7, &buf[..size]) {
+                                if let Ok(fld) = field(7, &buf[..size + ofx]) {
                                     if fld.len() == 2 {
                                         unsafe {
                                             cpn(
@@ -219,7 +222,7 @@ pub async fn gps_task(mut gps: crate::gps::GpsUart<'static>) {
                                     }
                                 }
 
-                                if let Ok(fld) = field(8, &buf[..size]) {
+                                if let Ok(fld) = field(8, &buf[..size + ofx]) {
                                     if fld.len() > 0 {
                                         let mut len = fld.len();
                                         unsafe {
@@ -235,7 +238,7 @@ pub async fn gps_task(mut gps: crate::gps::GpsUart<'static>) {
                                     }
                                 }
 
-                                if let Ok(fld) = field(9, &buf[..size]) {
+                                if let Ok(fld) = field(9, &buf[..size + ofx]) {
                                     if fld.len() > 0 {
                                         for (mut i, p) in fld.iter().enumerate() {
                                             if *p == b'.' {
@@ -259,7 +262,7 @@ pub async fn gps_task(mut gps: crate::gps::GpsUart<'static>) {
 
                         b"GNRMC" => {
                             if fix > 1 {
-                                if let Ok(fld)= field(1, &buf[..size]) {
+                                if let Ok(fld)= field(1, &buf[..size + ofx]) {
                                     if fld.len() == 10 {
                                         unsafe {
                                             cpn(
@@ -274,7 +277,7 @@ pub async fn gps_task(mut gps: crate::gps::GpsUart<'static>) {
                                     }
                                 }
 
-                                if let Ok(fld) = field(9, &buf[..size]) {
+                                if let Ok(fld) = field(9, &buf[..size + ofx]) {
                                     if fld.len() == 6 {
                                         let mut swap: [u8; 6] = [0; 6];
                                         swap[0] = fld[4]; swap[1] = fld[5];
@@ -290,12 +293,20 @@ pub async fn gps_task(mut gps: crate::gps::GpsUart<'static>) {
                                         }
                                     }
                                 }
+                                unsafe {
+                                    cpn(
+                                        buf.as_ptr(),
+                                    addr_of_mut!(RMC_MSG) as *mut u8,
+                                        size + ofx,
+                                    );
+                                    RMC_SIZE = size  + ofx;
+                                }
                             }
                         }
 
                         b"GNVTG" => {
                             if fix > 1 {
-                                if let Ok(fld)= field(1, &buf[..size]) {
+                                if let Ok(fld)= field(1, &buf[..size + ofx]) {
                                     if fld.len() == 6 {
                                         unsafe {
                                             cpn(
@@ -307,7 +318,7 @@ pub async fn gps_task(mut gps: crate::gps::GpsUart<'static>) {
                                     }
                                 }
 
-                                if let Ok(fld) = field(7, &buf[..size]){
+                                if let Ok(fld) = field(7, &buf[..size + ofx]){
                                     if fld.len() > 0 {
                                         for (mut i, p) in fld.iter().enumerate() {
                                             if *p == b'.' {

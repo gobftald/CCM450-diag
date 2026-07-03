@@ -10,11 +10,11 @@ pub(crate) mod fmt;
 mod macros;
 mod panic;
 
-mod ble;
 mod gps;
 mod gsm;
 mod lcd;
 mod sd_card;
+mod tcp;
 
 use esp_hal::gpio::{Input, Output, InputConfig, OutputConfig, DriveMode, Level, Pull};
 use embassy_time::Timer;
@@ -46,10 +46,12 @@ async fn main(spawner: embassy_executor::Spawner) {
     esp_rtos_start!(peripherals);
 
     let (
-        wifi_controller,
+        controller,
         ap_runner,
         ap_stack,
-        radio_controller) = create_access_point!(peripherals);
+        sta_runner,
+        sta_stack,
+    ) = create_ap_sta!(peripherals);
     
     // We should move out all created type (controller, ap_runner, ap_stack senders and receivers
     // from this main/loader task. Although finally it/we exit(s), spawns below (which finally 
@@ -59,11 +61,12 @@ async fn main(spawner: embassy_executor::Spawner) {
     // Because of the compiler optimisation even we should not only move out but also
     // should use these types handed over by value in the spawned tasks, otherwise they
     // are also staying and increasing the wasted memory footprint of exited main task
-    let _ = spawner.spawn(net_task(wifi_controller, ap_runner));
-    let _ = spawner.spawn(dhcp_server(ap_stack));
-    // Pause for a split second to let the RF locks stabilize
-    embassy_time::Timer::after_millis(100).await;
-    let _ = spawner.spawn(ble::ble_ssp_task(radio_controller, peripherals.BT));
+    let _ = spawner.spawn(connection_task(controller));
+    let _ = spawner.spawn(ap_net_task(ap_runner));
+    let _ = spawner.spawn(sta_net_task(sta_runner));
+    let _ = spawner.spawn(dhcp_task(ap_stack));
+    
+    unwrap!(spawner.spawn(tcp::tcp_task(sta_stack)));
 
     let spi = create_spi_bus!(peripherals);
     let sd_ready = mk_static!(Signal<NoopRawMutex, ()>, Signal::<NoopRawMutex, ()>::new());
@@ -155,22 +158,46 @@ async fn system_stats() {
     }
 }
 
-#[embassy_executor::task()]
-async fn net_task(
-    mut controller: esp_radio::wifi::WifiController<'static>,
+#[embassy_executor::task]
+pub async fn connection_task(mut controller: esp_radio::wifi::WifiController<'static>) {
+    use esp_radio::wifi::{WifiEvent, WifiStaState};
+
+    unwrap!(controller.start_async().await);
+    trace!("*** WiFi: AP+STA started");
+
+    loop {
+        trace!("*** WiFi STA: Connecting...");
+        match controller.connect_async().await {
+            Ok(()) => {
+                trace!("*** WiFi STA: Connected!");
+                controller.wait_for_event(WifiEvent::StaDisconnected).await;
+                trace!("*** WiFi STA: Disconnected, retrying in 5s...");
+                embassy_time::Timer::after_secs(5).await;
+            }
+            Err(e) => {
+                warn!("*** WiFi STA: Connect failed: {:?}", defmt::Debug2Format(&e));
+                embassy_time::Timer::after_secs(5).await;
+            }
+        }
+    }
+}
+
+#[embassy_executor::task]
+pub async fn ap_net_task(
     mut runner: embassy_net::Runner<'static, esp_radio::wifi::WifiDevice<'static>>,
 ) {
-    // we should bring and use controller here
-    // see comments above at spawing net_task
-    debug!("Starting wifi");
-    unwrap!(controller.start_async().await);
-    debug!("AP started");
-
     runner.run().await
 }
 
 #[embassy_executor::task]
-async fn dhcp_server(ap_stack: embassy_net::Stack<'static>) {
+pub async fn sta_net_task(
+    mut runner: embassy_net::Runner<'static, esp_radio::wifi::WifiDevice<'static>>,
+) {
+    runner.run().await
+}
+
+#[embassy_executor::task]
+async fn dhcp_task(ap_stack: embassy_net::Stack<'static>) {
     use core::net::Ipv4Addr;
     use leasehund::DhcpServer;
 
