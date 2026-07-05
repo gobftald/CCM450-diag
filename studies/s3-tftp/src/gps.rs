@@ -1,9 +1,13 @@
+use core::{
+    slice::from_raw_parts,
+    ptr::{addr_of_mut, copy_nonoverlapping as cpn},
+};
+
 use esp_hal::{
     Async,
     gpio::AnyPin,
     uart::{AnyUart, Config, RxConfig, RxError, Uart, UartRx, UartTx},
 };
-use core::slice::from_raw_parts;
 
 #[macro_export]
 macro_rules! create_gps_uart {
@@ -118,13 +122,13 @@ pub static mut GPS_DATA: GpsData = GpsData {
     cog: *b"000",
 };
 
-pub static mut RMC_MSG: [u8; 128] = [0; 128];
-pub static mut RMC_SIZE: usize = 128;
+pub static mut GGA_MSG: [u8; 96] = [0; 96];
+pub static mut GGA_SIZE: usize = 96;
+pub static mut RMC_MSG: [u8; 96] = [0; 96];
+pub static mut RMC_SIZE: usize = 96;
 
 #[embassy_executor::task()]
 pub async fn gps_task(mut gps: crate::gps::GpsUart<'static>) {
-    use core::ptr::{addr_of_mut, copy_nonoverlapping as cpn};
-
     let mut buf = [0u8; 128];
     let mut fix: usize = 0;             // gps fix status
     let mut ofx: usize = 0;             // overflow index
@@ -257,6 +261,17 @@ pub async fn gps_task(mut gps: crate::gps::GpsUart<'static>) {
                                         }
                                     }
                                 }
+
+                                unsafe {
+                                    cpn(
+                                        buf.as_ptr(),
+                                    addr_of_mut!(GGA_MSG) as *mut u8,
+                                        size + ofx,
+                                    );
+                                    let new_ofx = handle_overflow(&mut buf[..size + ofx]);
+                                    GGA_SIZE = size + ofx - new_ofx;
+                                    ofx = new_ofx;
+                                }
                             }
                         }
 
@@ -293,14 +308,18 @@ pub async fn gps_task(mut gps: crate::gps::GpsUart<'static>) {
                                         }
                                     }
                                 }
+                                
                                 unsafe {
                                     cpn(
                                         buf.as_ptr(),
                                     addr_of_mut!(RMC_MSG) as *mut u8,
                                         size + ofx,
                                     );
-                                    RMC_SIZE = size  + ofx;
+                                    let new_ofx = handle_overflow(&mut buf[..size + ofx]);
+                                    RMC_SIZE = size  + ofx - new_ofx;
+                                    ofx = new_ofx;
                                 }
+
                             }
                         }
 
@@ -338,6 +357,8 @@ pub async fn gps_task(mut gps: crate::gps::GpsUart<'static>) {
                                     }
                                 }
 
+                                ofx = handle_overflow(&mut buf[..size + ofx]);
+
                                 // send update signal only from the 3rd sentence
                                 if update {
                                     //unsafe { debug!("{:a}", *&raw const GPS_DATA); }
@@ -350,27 +371,8 @@ pub async fn gps_task(mut gps: crate::gps::GpsUart<'static>) {
                                 }
                             }
                         }
-
                         // drop all other sentence (like. PAIR)
                         _ => {}
-                    }
-
-                    // handle overflow
-                    if buf[size + ofx - 1] != b'\n' {
-                        if let Some(i) =  buf[..size + ofx].iter().rev().position(|c| *c == b'$' ) {
-                            ofx = i + 1;
-                            unsafe {
-                                cpn(
-                                    buf.as_ptr().add(size - ofx),
-                                    buf.as_mut_ptr().add(0),
-                                    ofx
-                                );
-                            }
-                        } else {
-                            ofx = 0;
-                        }
-                    } else {
-                        ofx = 0;
                     }
                 }
             },
@@ -426,4 +428,25 @@ fn field(mut field_num: usize, buf: &[u8]) -> Result<&[u8], ()> {
     };
 
     Ok(&rbuf[..size])
+}
+
+fn handle_overflow(buf: &mut [u8]) -> usize {
+    let size = buf.iter().len();
+    if buf[size - 1] != b'\n' {
+        if let Some(i) =  buf[..size].iter().rev().position(|c| *c == b'$' ) {
+            let ofx = i + 1;
+            unsafe {
+                cpn(
+                    buf.as_ptr().add(size - ofx),
+                    buf.as_mut_ptr().add(0),
+                    ofx
+                );
+            }
+            ofx
+        } else {
+            0
+        }
+    } else {
+        0
+    }
 }

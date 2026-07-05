@@ -1,3 +1,5 @@
+#![allow(static_mut_refs)]
+
 #![no_std]
 #![no_main]
 // for 'task' embassy-executor-macro, when embassy-executor/nightly
@@ -160,7 +162,7 @@ async fn system_stats() {
 
 #[embassy_executor::task]
 pub async fn connection_task(mut controller: esp_radio::wifi::WifiController<'static>) {
-    use esp_radio::wifi::{WifiEvent, WifiStaState};
+    use esp_radio::wifi::WifiEvent;
 
     unwrap!(controller.start_async().await);
     trace!("*** WiFi: AP+STA started");

@@ -441,6 +441,8 @@ The Cellular Network Hierarchy
             computer (via the USB-TTL converter) is the TE.
         ME (Mobile Equipment): The entire combined physical unit (often used interchangeably with MT in s
             tatus messages like ME DETACH)
+
+picocom /dev/cu.usbserial-1120 -b 9600 --omap lfcrlf
         
 After PowerOn
 

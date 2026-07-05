@@ -1,7 +1,9 @@
 use embassy_net::tcp::TcpSocket;
 use embedded_io_async::Write;
 
-use crate::gps::{GPS_UPDATED, RMC_MSG, RMC_SIZE};
+const NMEA_PORT: u16 = 10110;
+
+use crate::gps::{GPS_UPDATED, GGA_MSG, GGA_SIZE, RMC_MSG, RMC_SIZE};
 
 #[embassy_executor::task]
 pub async fn tcp_task(sta_stack: embassy_net::Stack<'static>) {
@@ -31,7 +33,7 @@ pub async fn tcp_task(sta_stack: embassy_net::Stack<'static>) {
         match socket.accept(
             embassy_net::IpListenEndpoint {
                 addr: None,
-                port: 10110 
+                port: NMEA_PORT, 
             }
         ).await {
             Ok(()) => info!("*** TCP NMEA: Client connected from {:?}", socket.remote_endpoint()),
@@ -46,6 +48,14 @@ pub async fn tcp_task(sta_stack: embassy_net::Stack<'static>) {
             gps_updated.changed().await;
 
             unsafe {
+                match socket.write_all(&GGA_MSG[..GGA_SIZE]).await {
+                    Ok(()) => trace!("*** TCP NMEA: Sent: {:a}", &GGA_MSG[..GGA_SIZE]),
+                    Err(e) => {
+                        warn!("*** TCP NMEA: Write error: {:?}", e);
+                        break;
+                    }
+                }
+
                 match socket.write_all(&RMC_MSG[..RMC_SIZE]).await {
                     Ok(()) => trace!("*** TCP NMEA: Sent: {:a}", &RMC_MSG[..RMC_SIZE]),
                     Err(e) => {
