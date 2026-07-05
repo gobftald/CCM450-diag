@@ -134,7 +134,11 @@ pub async fn gsm_task(mut gsm: crate::gsm::GsmUart<'static>, mut pwk_pin: Output
             }
             ModemState::Attached => {
                 if once_active {
-                    trace!("*** Network stable. Sending all initialization commands in sequence...");
+                    debug!("*** Network stable. Sending all initialization commands in sequence...");
+
+                    // Echo off
+                    let _ = gsm.tx.write_async(b"ATE0\r\n").await;
+                    Timer::after_millis(200).await;
 
                     // Configure the APN
                     let _ = gsm.tx.write_async(b"AT+CGDCONT=1,\"IP\",\"bicsapn\"\r\n").await;
@@ -176,11 +180,11 @@ pub async fn gsm_task(mut gsm: crate::gsm::GsmUart<'static>, mut pwk_pin: Output
                         49,
                     );
 
-                    trace!("*** gsm SOF Data Transmission");
                     let _ = gsm.tx.write_async(b"AT+CIPSEND=0,,\"46.139.107.93\",1234\r\n").await;
                     Timer::after_millis(100).await;
                     let _ = gsm.tx.write_async(unwrap!(record.try_into())).await;
                     let _ = gsm.tx.write_async(b"\r\n\x1A").await;
+                    debug!("*** gsm sending {:a}", record);
                 }
 
                 state = ModemState::SocketReady;
@@ -235,34 +239,34 @@ pub async fn gsm_task(mut gsm: crate::gsm::GsmUart<'static>, mut pwk_pin: Output
                     match msg {
                         b"+CGEV: ME DETACH" | b"+CGEV: NW DETACH" => {
                             if once_active {
-                                trace!("*** gsm Critical Network Drop. Rewinding to PowerOnReset...");
+                                debug!("*** gsm Critical Network Drop. Rewinding to PowerOnReset...");
                                 state = ModemState::PowerOnReset;
                             };
                             // else ignore it, since it can happen during power on
                         }
                         b"+CGEV: NW PDN DEACT 1" => {
-                            trace!("*** gsm Data Connection Drop. Re-attaching...");
+                            debug!("*** gsm Data Connection Drop. Re-attaching...");
                             state = ModemState::RadioActivating;
                         }
                         b"+CGEV: NW PDN ACT 1" => {
                             if state == ModemState::RadioActivating {
-                                trace!("*** gsm Network Registration.");
+                                debug!("*** gsm Network Registration.");
                                 state = ModemState::Attached;
                             }
                         }
-                        // here is not leading \r\n so b"+C" was stripped
-                        b"IPOPEN: 0,0" => {
+                        b"+CIPOPEN: 0,0" => {
                             if state == ModemState::SocketConfiguring {
-                                trace!("*** gsm UDP Socket verification confirmed!");
+                                debug!("*** gsm UDP Socket verification confirmed!");
                                 state = ModemState::SocketReady;
                             }
                         }
-                        b"+CIPSEND: 0,51,51" => {
-                            trace!("*** gsm EOF Data Transmission");
+                        // here is not leading \r\n so b"+C" was stripped
+                        b"IPSEND: 0,51,51" => {
+                            debug!("*** gsm EOF Data Transmission");
                             xfer_ok = true;
                         }
                         _ => {
-                            debug!("*** gsm unhandled msg: {:a}", msg);
+                            trace!("*** gsm unhandled msg: {:a}", msg);
                         }
                     }
                 }
@@ -273,18 +277,18 @@ pub async fn gsm_task(mut gsm: crate::gsm::GsmUart<'static>, mut pwk_pin: Output
                         // If the modem is stuck in this state for more than 30 seconds
                         // without triggering a clean registration,  break the freeze
                         // and force a hardware reset.
-                        trace!("*** gsm Modem cannot register. Rewinding to PowerOnReset...");
+                        debug!("*** gsm Modem cannot register. Rewinding to PowerOnReset...");
                         state = ModemState::PowerOnReset;
                     }
                     ModemState::Attached => {
-                        trace!("*** gsm Confirm Network Registration");
+                        debug!("*** gsm Confirm Network Registration");
                         once_active = true;
                     }
                     ModemState::SocketConfiguring => {
                         // If the modem is stuck in this state for more than 10 seconds
                         // without successfuly open an UDP socket, we handle it simply
                         // and brutally, forcing a hardware reset
-                        trace!("*** gsm Modem cannot open UDP. Rewinding to PowerOnReset...");
+                        debug!("*** gsm Modem cannot open UDP. Rewinding to PowerOnReset...");
                         state = ModemState::PowerOnReset;
                     }
                     ModemState::SocketReady => {
@@ -298,14 +302,14 @@ pub async fn gsm_task(mut gsm: crate::gsm::GsmUart<'static>, mut pwk_pin: Output
                         if bad_xfer < 10 {
                             let _ = gps_updated.try_changed().map(|_| state = ModemState::DataTransmitting);
                         } else {
-                            trace!("gsm Too many unsuccesfull xfer. Rewinding to PowerOnReset...");
+                            debug!("gsm Too many unsuccesfull xfer. Rewinding to PowerOnReset...");
                             state = ModemState::PowerOnReset;
                         }
                     }
 
                     _ => {
                         // theoretically it cannot be happened
-                        trace!("*** gsm Watchdog timout happened - state is {}", state);
+                        debug!("*** gsm Watchdog timout happened - state is {}", state);
                     }
                 }
             }

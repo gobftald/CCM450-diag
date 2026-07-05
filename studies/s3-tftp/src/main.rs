@@ -39,7 +39,7 @@ async fn main(spawner: embassy_executor::Spawner) {
     let peripherals = esp_hal::init(config);
 
     esp_alloc::heap_allocator!(#[esp_hal::ram(reclaimed)] size: 64 * 1024);
-    esp_alloc::heap_allocator!(size: 32 * 1024);
+    //esp_alloc::heap_allocator!(size: 32 * 1024);
 
     //esp_alloc::psram_allocator!(peripherals.PSRAM, esp_hal::psram);
     // debug version of the original macro
@@ -57,7 +57,7 @@ async fn main(spawner: embassy_executor::Spawner) {
     
     // We should move out all created type (controller, ap_runner, ap_stack senders and receivers
     // from this main/loader task. Although finally it/we exit(s), spawns below (which finally 
-    // conclude to 'await's) will force task's state machine to keep these value in its memory,
+    // conclude to 'await's) would force task's state machine to keep these value in its memory,
     // increasing the wasted memory footprint of this exited so practically zombie task.
     //
     // Because of the compiler optimisation even we should not only move out but also
@@ -67,18 +67,23 @@ async fn main(spawner: embassy_executor::Spawner) {
     let _ = spawner.spawn(ap_net_task(ap_runner));
     let _ = spawner.spawn(sta_net_task(sta_runner));
     let _ = spawner.spawn(dhcp_task(ap_stack));
-    
-    unwrap!(spawner.spawn(tcp::tcp_task(sta_stack)));
+    let _ = spawner.spawn(tcp::tcp_task(sta_stack));
 
     let spi = create_spi_bus!(peripherals);
-    let sd_ready = mk_static!(Signal<NoopRawMutex, ()>, Signal::<NoopRawMutex, ()>::new());
     let i2c = create_i2c_bus!(peripherals);
+    let sd_ready = mk_static!(Signal<NoopRawMutex, ()>, Signal::<NoopRawMutex, ()>::new());
 
     // pins based on WaveShare ESP32-S3-Touch-LCD-2 schematic
+
+    // chip select pins of all spi periherals should be initialized before creating shared spi bus
+    let sd_cs = Output::new(peripherals.GPIO41, Level::High, OutputConfig::default());
+    let lcd_cs = Output::new(peripherals.GPIO45, Level::High, OutputConfig::default());
+
     let _ = spawner.spawn(sd_card::sd_task(
         spi, sd_ready,
-        peripherals.GPIO41.into()   // SD CS
+        sd_cs
     ));
+
     let _ = spawner.spawn(lcd::lcd_task(
         i2c,
         Input::new(
@@ -86,7 +91,7 @@ async fn main(spawner: embassy_executor::Spawner) {
             InputConfig::default().with_pull(Pull::Up),  // TP INT
         ),
         spi, sd_ready,
-        peripherals.GPIO45.into(),  // LCD CS
+        lcd_cs,
         peripherals.GPIO42.into(),  // LCD DC
         peripherals.GPIO0.into(),   // LCD RST
         peripherals.GPIO1.into(),   // LCD BL

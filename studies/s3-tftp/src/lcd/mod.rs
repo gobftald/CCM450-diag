@@ -41,7 +41,7 @@ pub(crate) async fn lcd_task(
     mut tp_int: Input<'static>,
     spi_bus: &'static crate::SharedSpiBus,
     sd_ready: &'static Signal<NoopRawMutex, ()>,
-    cs_pin: AnyPin<'static>,
+    cs_pin: Output<'static>,
     dc_pin: AnyPin<'static>,
     reset_pin: AnyPin<'static>,
     backlight_pin: AnyPin<'static>,
@@ -52,7 +52,7 @@ pub(crate) async fn lcd_task(
     // Initialize lcd display
     let mut display =
         lcd_init!(spi_bus, cs_pin, dc_pin, reset_pin);
-    
+
     // Initialize touch controller
     create_no_input_pin!();
     let mut touch = CST816S::new(
@@ -79,13 +79,13 @@ pub(crate) async fn lcd_task(
 
     loop {
         if refresh {
-            debug!("SOF lcd refresh");
+            trace!("SOF lcd refresh");
             match current {
                 Screen::Home  => home.update(&mut display, display_frame_buffer, tick).await,
                 Screen::Graph => graph.update(&mut display, display_frame_buffer, tick).await,
                 Screen::Log => log.update(&mut display, display_frame_buffer).await,
             }
-            debug!("EOF lcdrefresh");
+            trace!("EOF lcdrefresh");
         } else {
             refresh = true;
         }

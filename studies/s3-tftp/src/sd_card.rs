@@ -1,7 +1,9 @@
 use core::mem::size_of;
+use core::cell::{Cell, RefCell};
+
 use embassy_time::Instant;
 use esp_hal::{
-    gpio::{Level, Output, AnyPin, OutputConfig},
+    gpio::Output,
     delay::Delay,
     spi::master::{SpiDmaBus, Config as SpiConfig},
 };
@@ -37,24 +39,24 @@ type BusGuard<'a> = embassy_sync::mutex::MutexGuard<
 
 pub struct SdSpiBlockingProxy<'a> {
     pub bus: &'a SharedSpiBus,
-    pub cs_pin: &'a mut esp_hal::gpio::Output<'static>,
+    pub cs_pin: RefCell<&'a mut esp_hal::gpio::Output<'static>>,
     // UnsafeCell lets us modify the guard using a shared reference (&self)
     pub active_guard: core::cell::UnsafeCell<Option<BusGuard<'a>>>,
     // Controls when it is safe to jump to 16 MHz
-    pub use_fast_speed: core::cell::Cell<bool>,
+    pub use_fast_speed: Cell<bool>,
 }
 
 impl<'a> SdSpiBlockingProxy<'a> {
     pub fn new(bus: &'a SharedSpiBus, cs_pin: &'a mut esp_hal::gpio::Output<'static>) -> Self {
         Self {
             bus,
-            cs_pin,
+            cs_pin: RefCell::new(cs_pin),
             active_guard: core::cell::UnsafeCell::new(None),
-            use_fast_speed: core::cell::Cell::new(false)
+            use_fast_speed: Cell::new(false),
         }
     }
 
-    pub async fn lock_bus_master(&mut self) {
+    pub async fn lock_bus_master(&self) {
         let guard = self.bus.lock().await;
         unsafe { *self.active_guard.get() = Some(guard); }
     }
@@ -63,14 +65,8 @@ impl<'a> SdSpiBlockingProxy<'a> {
     pub fn unlock_bus_master(&self) {
         unsafe { *self.active_guard.get() = None; }
     }
-}
 
-impl<'a> embedded_hal::spi::ErrorType for SdSpiBlockingProxy<'a> {
-    type Error = esp_hal::spi::Error;
-}
-
-impl<'a> SyncSpiDevice<u8> for SdSpiBlockingProxy<'a> {
-    fn transaction(&mut self, operations: &mut [SyncOp<'_, u8>]) -> Result<(), Self::Error> {
+    fn do_transaction(&self, operations: &mut [SyncOp<'_, u8>]) -> Result<(), esp_hal::spi::Error> {
         // we need a master lock for the entire sd card operation
         // not only for its atomic spi bus operations
         let guard_slot = unsafe { &mut *self.active_guard.get() };
@@ -97,7 +93,7 @@ impl<'a> SyncSpiDevice<u8> for SdSpiBlockingProxy<'a> {
             .with_mode(esp_hal::spi::Mode::_0)
         );
 
-        self.cs_pin.set_low();
+        self.cs_pin.borrow_mut().set_low();
 
         for op in operations {
             match op {
@@ -120,9 +116,19 @@ impl<'a> SyncSpiDevice<u8> for SdSpiBlockingProxy<'a> {
         }
 
         // Release Chip Select
-        self.cs_pin.set_high();
+        self.cs_pin.borrow_mut().set_high();
 
         Ok(())
+    }
+}
+
+impl<'a> embedded_hal::spi::ErrorType for &SdSpiBlockingProxy<'a> {
+    type Error = esp_hal::spi::Error;
+}
+
+impl<'a> SyncSpiDevice<u8> for &SdSpiBlockingProxy<'a> {
+    fn transaction(&mut self, operations: &mut [SyncOp<'_, u8>]) -> Result<(), Self::Error> {
+        (**self).do_transaction(operations)   // self: &mut &SdSpiBlockingProxy — no aliasing issue
     }
 }
 
@@ -595,29 +601,20 @@ where
 pub(crate) async fn sd_task(
     spi_bus: &'static SharedSpiBus,
     sd_ready: &'static Signal<NoopRawMutex, ()>,
-    cs_pin: AnyPin<'static>) {
-
-    //  Initialize the CS Pin once outside the loop so it lives forever
-    let mut cs = Output::new(cs_pin, Level::High, OutputConfig::default());
+    mut cs_pin: Output<'static>) {
 
     // Create the proxy instance
-    let mut proxy = SdSpiBlockingProxy::new(spi_bus, &mut cs);
+    let proxy = SdSpiBlockingProxy::new(spi_bus, &mut cs_pin);
     
-    // Turn it into a long-lived raw pointer reference that can safely bypass the loop boundaries
-    let proxy_ptr = &mut proxy as *mut SdSpiBlockingProxy<'_>;
-
     proxy.lock_bus_master().await;
 
     let mut storage = 'init: loop {
         for attempt in 0..16 {
-            let long_lived_proxy_ref = unsafe { &mut *proxy_ptr };
-
             // Ensure proxy starts at 400 kHz for this handshake attempt
             proxy.use_fast_speed.set(false);
 
             let card = embedded_sdmmc::SdCard::new(
-                // Pass the permanent reference instead of the temporary loop one
-                long_lived_proxy_ref, // Pass proxy via mutable reference
+                &proxy,
             Delay::new(),
             );
 

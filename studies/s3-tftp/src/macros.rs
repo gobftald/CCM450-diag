@@ -130,33 +130,18 @@ macro_rules! create_ap_sta {
 #[macro_export]
 macro_rules! create_spi_bus {
     ($peripherals:ident) => {{
-        use esp_hal::dma::{DmaDescriptor, DmaRxBuf, DmaTxBuf};
+        use esp_hal::dma::{DmaRxBuf, DmaTxBuf};
+        use esp_hal::dma_buffers;
         use static_cell::StaticCell;
 
         const DMA_RX_BUFFER_SIZE: usize = 512;          // SD card block size
         const DMA_TX_BUFFER_SIZE: usize = 32 * 128;     // large for LCD transfers
 
-        const DMA_RX_TX_DESCRIPTORS_SIZE: usize = 2;    // 1 for every 4092 (not 4096, it is HW limitation)
+        let (rx_buffer, rx_descriptors, tx_buffer, tx_descriptors) =
+            dma_buffers!(DMA_RX_BUFFER_SIZE, DMA_TX_BUFFER_SIZE);
 
-        static RX_DATA: StaticCell<[u8; DMA_RX_BUFFER_SIZE]> = StaticCell::new();
-        static TX_DATA: StaticCell<[u8; DMA_TX_BUFFER_SIZE]> = StaticCell::new();
-
-        #[repr(align(32))]
-        struct AlignedDmaDescriptors([DmaDescriptor; DMA_RX_TX_DESCRIPTORS_SIZE]);
-        static RX_DESCRIPTORS: static_cell::StaticCell<AlignedDmaDescriptors> = static_cell::StaticCell::new();
-        static TX_DESCRIPTORS: static_cell::StaticCell<AlignedDmaDescriptors> = static_cell::StaticCell::new();
-
-        let rx_descriptors = RX_DESCRIPTORS.init(AlignedDmaDescriptors([esp_hal::dma::DmaDescriptor::EMPTY; DMA_RX_TX_DESCRIPTORS_SIZE]));
-        let tx_descriptors = TX_DESCRIPTORS.init(AlignedDmaDescriptors([esp_hal::dma::DmaDescriptor::EMPTY; DMA_RX_TX_DESCRIPTORS_SIZE]));
-
-        let rx_buf = unwrap!(DmaRxBuf::new(
-            &mut rx_descriptors.0,
-            RX_DATA.init([0u8; DMA_RX_BUFFER_SIZE])
-        ));
-        let tx_buf = unwrap!(DmaTxBuf::new(
-            &mut tx_descriptors.0,
-            TX_DATA.init([0u8; DMA_TX_BUFFER_SIZE])
-        ));
+        let rx_buf = unwrap!(DmaRxBuf::new(rx_descriptors, rx_buffer));
+        let tx_buf = unwrap!(DmaTxBuf::new(tx_descriptors, tx_buffer));
 
         let spi = unwrap!(
             esp_hal::spi::master::Spi::new(
