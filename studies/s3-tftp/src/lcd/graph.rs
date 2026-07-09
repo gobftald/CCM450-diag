@@ -23,7 +23,7 @@ impl GraphScreen {
     pub async fn update<DI, MODEL, RST>(
         &mut self,
         display: &mut Display<DI, MODEL, RST>,
-        full_buffer: &mut [u8],
+        chunk_buffer: &mut [u8],
         tick: usize,
     )
     where
@@ -31,59 +31,93 @@ impl GraphScreen {
         MODEL: lcd_async::models::Model<ColorFormat = Rgb565>,
         RST:   embedded_hal::digital::OutputPin,
     {
+        // if screen changed to here, clear the whole display
+        if self.initial {
+            crate::lcd::clear_screen(display, chunk_buffer).await;
+            self.initial = false;
+        }
+
+        let tick = tick * 2;
+
+        {
+            if tick % 80 == 0 {
+                let mut fb = RawFrameBuf::<Rgb565, _>::new(
+                    &mut chunk_buffer[16000..],
+                    80, 100,
+                );
+
+                let _ = fb.clear(Rgb565::BLACK);
+
+                let _ = display
+                    .show_raw_data(
+                        80 + 78, 80,
+                        80, 100,
+                        &chunk_buffer[16000..])
+                    .await;
+            } else {
+                let mut fb = RawFrameBuf::<Rgb565, _>::new(
+                    &mut chunk_buffer[16000..],
+                    1, 100,
+                );
+                let _ = fb.clear(Rgb565::BLACK);
+
+                let _ = display
+                .show_raw_data(
+                    78 + (tick % 80) as u16, 80,
+                    2, 100,
+                    &chunk_buffer[16000..16000 + 400])
+                .await;
+            }
+        }
+
         let mut fb = RawFrameBuf::<Rgb565, _>::new(
-            &mut *full_buffer,
-            DISPLAY_WIDTH as usize,
-            DISPLAY_HEIGHT as usize
+            &mut *chunk_buffer,
+            80, 100,
         );
 
         let _ = fb.clear(Rgb565::BLACK);
 
-        let _ = draw_smiley(&mut fb, tick);
+        let _ = draw_smiley(&mut fb);
 
         let _ = display
             .show_raw_data(
-                0,
-                0,
-                DISPLAY_WIDTH as u16,
-                DISPLAY_HEIGHT as u16,
-                full_buffer)
+                80 + (tick % 80) as u16, 80,
+                80, 100,
+                &chunk_buffer[..16000])
             .await;
     }
 
     pub fn reset(&mut self) { self.initial = true; }
 }
 
-fn draw_smiley<T>(raw_fb: &mut T, tick: usize) -> Result<(), T::Error>
+fn draw_smiley<T>(raw_fb: &mut T) -> Result<(), T::Error>
 where
     T: DrawTarget<Color = Rgb565>,
 {
-    const SLIDE: usize = 80;
-
     // Draw the left eye as a circle located at (80, 80), with a diameter of 30, filled with white
-    Circle::new(Point::new(80 + (tick % SLIDE) as i32, 80), 30)
+    Circle::new(Point::new(0, 0), 30)
         .into_styled(PrimitiveStyle::with_fill(Rgb565::WHITE))
         .draw(raw_fb)?;
 
     // Draw the right eye as a circle located at (130, 80), with a diameter of 30, filled with white
-    Circle::new(Point::new(130 + (tick % SLIDE) as i32, 80), 30)
+    Circle::new(Point::new(50, 0), 30)
         .into_styled(PrimitiveStyle::with_fill(Rgb565::WHITE))
         .draw(raw_fb)?;
 
     // Draw an upside down triangle to represent a smiling mouth
     Triangle::new(
-        Point::new(80 + (tick % SLIDE) as i32, 140),  // Left point
-        Point::new(160 + (tick % SLIDE) as i32, 140), // Right point
-        Point::new(120 + (tick % SLIDE) as i32, 180), // Bottom point
+        Point::new(0, 60),  // Left point
+        Point::new(80, 60), // Right point
+        Point::new(40, 100), // Bottom point
     )
     .into_styled(PrimitiveStyle::with_fill(Rgb565::RED))
     .draw(raw_fb)?;
 
     // Cover the top part of the mouth with a black triangle so it looks like a smile
     Triangle::new(
-        Point::new(90 + (tick % SLIDE) as i32, 150),  // Left point
-        Point::new(150 + (tick % SLIDE) as i32, 150), // Right point
-        Point::new(120 + (tick % SLIDE) as i32, 170), // Bottom point
+        Point::new(10, 70), // Left point
+        Point::new(70, 70), // Right point
+        Point::new(40, 90), // Bottom point
     )
     .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
     .draw(raw_fb)?;

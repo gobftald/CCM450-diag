@@ -6,7 +6,7 @@ use lcd_async::{raw_framebuf::RawFrameBuf, Display};
 use embedded_graphics::{
     image::ImageRaw,
     mono_font::{DecorationDimensions, MonoFont, MonoTextStyle, ascii::FONT_10X20, mapping::StrGlyphMapping},
-    pixelcolor::{Rgb565, RgbColor}, prelude::Point, text::{Baseline, Text, TextStyleBuilder}
+    pixelcolor::{Rgb565, RgbColor}, prelude::Point, text::{Text, Baseline, TextStyleBuilder}
 };
 use embedded_graphics_core::{
     Drawable,
@@ -15,11 +15,10 @@ use embedded_graphics_core::{
 };
 
 use crate::gps::GPS_DATA;
-
-use super::{DISPLAY_WIDTH, DISPLAY_HEIGHT};
+use super::DISPLAY_WIDTH;
 
 const BIG_FONT_WIDTH: usize = 54;
-const BIG_FONT_HEIGHT: usize = 100;
+pub const BIG_FONT_HEIGHT: usize = 100;
 const BIG_FONT_SPACE: usize = 10;
 
 const RPM_CHAR_NUM: usize = 4;
@@ -58,20 +57,23 @@ const BIG_FONT: MonoFont = MonoFont {
 };
 
 pub struct HomeScreen {
-    initial: bool
+    initial: bool,
+    flip: u32,
 }
 
 impl HomeScreen {
     pub fn new() -> Self {
         Self {
-            initial:    true,
+            initial: true,
+            flip: 0,
         }
     }
 
+    #[allow(unused_assignments)]
     pub async fn update<DI, MODEL, RST>(
         &mut self,
         display: &mut Display<DI, MODEL, RST>,
-        full_buffer: &mut [u8],
+        chunk_buffer: &mut [u8],
         mut tick: usize
     )
     where
@@ -81,22 +83,7 @@ impl HomeScreen {
     {
         // if screen changed to here, clear the whole display
         if self.initial {
-            let mut fb = RawFrameBuf::<Rgb565, _>::new(
-                &mut *full_buffer,
-                DISPLAY_WIDTH as usize, DISPLAY_HEIGHT as usize
-            );
-
-            let _ = fb.clear(Rgb565::BLACK);
-
-            let _ = display.show_raw_data(
-                0,
-                0,
-                DISPLAY_WIDTH as u16, DISPLAY_HEIGHT as u16,
-                full_buffer
-            ).await;
-
-            self.initial = false;
-            tick = 0; // to refresh both slow regions
+            crate::lcd::clear_screen(display, chunk_buffer).await;
         }
 
         // draw rpm value
@@ -108,19 +95,19 @@ impl HomeScreen {
         // const function
         let text_style = TextStyleBuilder::new().build();
 
-        let rpm_buffer = &mut full_buffer[..RPM_FRAME_SIZE];
+        let rpm_buffer = &mut chunk_buffer[..RPM_FRAME_SIZE / 2];
 
         let mut fb = RawFrameBuf::<Rgb565, _>::new(
             &mut *rpm_buffer,
-            RPM_TEXT_WIDTH,
+            RPM_TEXT_WIDTH / 2,
             BIG_FONT_HEIGHT
         );
         let _ = fb.clear(Rgb565::BLACK);
 
         // shifting digits test text
         let mut digits = *b"0123456789012345678";
-        let rpm = &mut digits[((tick / 4) % 10)..(((tick / 4) % 10) + RPM_CHAR_NUM)];
-        rpm[RPM_CHAR_NUM -1 ] = b'0'; rpm[RPM_CHAR_NUM -2 ] = b'0';
+        let rpm = &mut digits[tick % 10..tick % 10 + RPM_CHAR_NUM / 2];
+        //rpm[RPM_CHAR_NUM -1 ] = b'0'; rpm[RPM_CHAR_NUM -2 ] = b'0';
         trail_space( rpm );
         let _ = Text::with_text_style(
             unsafe { fuu(rpm) },
@@ -133,21 +120,49 @@ impl HomeScreen {
         let _ = display.show_raw_data(
             ((DISPLAY_WIDTH - RPM_TEXT_WIDTH) / 2) as u16,
             0,
-            RPM_TEXT_WIDTH as u16,
+            (RPM_TEXT_WIDTH / 2) as u16,
             BIG_FONT_HEIGHT as u16,
             rpm_buffer,
         ).await;
+
+        // draw RPM second fix half only if screen changed
+        if self.initial {
+            let mut fb = RawFrameBuf::<Rgb565, _>::new(
+                &mut *rpm_buffer,
+                RPM_TEXT_WIDTH / 2,
+                BIG_FONT_HEIGHT
+            );
+
+            let _ = fb.clear(Rgb565::BLACK);
+
+            let _ = Text::with_text_style(
+                unsafe { fuu(b"00") },
+                Point { x: 0, y: 0 },
+                character_style,
+                text_style,
+            )
+            .draw(&mut fb);
+
+            let _ = display.show_raw_data(
+                (DISPLAY_WIDTH / 2 + BIG_FONT_SPACE / 2) as u16,
+                0,
+                (RPM_TEXT_WIDTH / 2) as u16,
+                BIG_FONT_HEIGHT as u16,
+                rpm_buffer,
+            ).await;
+
+            self.initial = false;
+            tick = 0; // to refresh both slow regions
+        }
 
         // Force a voluntary yield point to let the async executor process the scheduler queue
         embassy_time::Timer::after_ticks(1).await;
 
         // coolant tmp, battery, air tmp
         
-        let slow_buffer = &mut full_buffer[..SLOW_FRAME_SIZE];
+        let slow_buffer = &mut chunk_buffer[..SLOW_FRAME_SIZE];
         let character_style =
                 MonoTextStyle::new(&SMALL_FONT, Rgb565::WHITE);
-
-        static mut FLIP: u32 = 0;
 
         if tick % REFRESH_10_SEC == 0 {
             let mut fb = RawFrameBuf::<Rgb565, _>::new(
@@ -256,8 +271,9 @@ impl HomeScreen {
             )
             .draw(&mut fb);
 
-            if unsafe { FLIP % 8 == 0 || FLIP % 8 == 1 || FLIP % 8 == 2
-                        || FLIP % 8 == 4 || FLIP % 8 == 5 || FLIP % 8 == 6 } {
+            // Rotate through time / satellite count / hdop using self.flip
+            if self.flip % 8 == 0 || self.flip % 8 == 1 || self.flip % 8 == 2
+                || self.flip % 8 == 4 || self.flip % 8 == 5 || self.flip % 8 == 6 {
                 // Time
                 let time: &mut [u8] = &mut[ b'0', b'0', b'0', b'0'];
                 unsafe { cpn(&raw const GPS_DATA.time as *const u8, time.as_mut_ptr(), 4) };
@@ -270,7 +286,7 @@ impl HomeScreen {
                     )
                     .draw(&mut fb);
                 }
-            } else if unsafe { FLIP % 8 == 3 } {
+            } else if self.flip % 8 == 3 {
                 // Number of satelite
                 let sat: &mut [u8] = &mut[ b'0', b'0'];
                 unsafe { cpn(&raw const GPS_DATA.sat as *const u8, sat.as_mut_ptr(), 2) };
@@ -296,7 +312,7 @@ impl HomeScreen {
                 )
                 .draw(&mut fb);
             }
-            unsafe { FLIP += 1 };
+            self.flip += 1;
 
             let _ = display.show_raw_data(
                 0,

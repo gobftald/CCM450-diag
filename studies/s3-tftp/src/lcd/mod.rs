@@ -23,17 +23,19 @@ pub const SCREEN_TICK: usize = 200; // ms
 // Display parameters
 pub const DISPLAY_WIDTH: usize = 320;
 pub const DISPLAY_HEIGHT: usize = 240;
-const PIXEL_SIZE: usize = 2; // RGB565 = 2 bytes per pixel
-const DISPLAY_FRAME_SIZE: usize = DISPLAY_WIDTH * DISPLAY_HEIGHT * PIXEL_SIZE;
+pub const PIXEL_SIZE: usize = 2; // RGB565 = 2 bytes per pixel
+
+pub const CHUNK_FRAME_SIZE: usize = home::BIG_FONT_HEIGHT * DISPLAY_WIDTH * PIXEL_SIZE / 2;
+pub const INIT_BAND_HEIGHT: usize = CHUNK_FRAME_SIZE / PIXEL_SIZE / DISPLAY_WIDTH;
 
 // Force the compiler to bind the starting address to 32 bytes block of cache lines
 // The CPU accesses PSRAM through this cache.
 #[repr(align(32))]
-struct AlignedBuffer([u8; DISPLAY_FRAME_SIZE]);
+struct AlignedBuffer([u8; CHUNK_FRAME_SIZE]);
 
 // it is a large buffer, so put it into PSRAM
 #[unsafe(link_section = ".ext_ram.bss")]
-static DISPLAY_FRAME_BUFFER: StaticCell<AlignedBuffer> = StaticCell::new();
+static CHUNK_FRAME_BUFFER: StaticCell<AlignedBuffer> = StaticCell::new();
 
 #[embassy_executor::task]
 pub(crate) async fn lcd_task(
@@ -63,8 +65,8 @@ pub(crate) async fn lcd_task(
 
     info!("Display initialized!");
 
-    let display_frame_buffer =
-    &mut DISPLAY_FRAME_BUFFER.init_with(|| AlignedBuffer([0; DISPLAY_FRAME_SIZE])).0;
+    let chunk_frame_buffer =
+        &mut CHUNK_FRAME_BUFFER.init_with(|| AlignedBuffer([0; CHUNK_FRAME_SIZE])).0;
 
     let mut home = home::HomeScreen::new();
     let mut graph = graph::GraphScreen::new();
@@ -74,16 +76,16 @@ pub(crate) async fn lcd_task(
     let mut refresh = true;
     let mut tick = 0;
 
-    home.update(&mut display, display_frame_buffer, tick).await;
+    home.update(&mut display, chunk_frame_buffer, tick).await;
     Output::new(backlight_pin, Level::High, OutputConfig::default());
 
     loop {
         if refresh {
             trace!("SOF lcd refresh");
             match current {
-                Screen::Home  => home.update(&mut display, display_frame_buffer, tick).await,
-                Screen::Graph => graph.update(&mut display, display_frame_buffer, tick).await,
-                Screen::Log => log.update(&mut display, display_frame_buffer).await,
+                Screen::Home  => home.update(&mut display, chunk_frame_buffer, tick).await,
+                Screen::Graph => graph.update(&mut display, chunk_frame_buffer, tick).await,
+                Screen::Log => log.update(&mut display, chunk_frame_buffer).await,
             }
             trace!("EOF lcdrefresh");
         } else {
@@ -144,7 +146,7 @@ pub(crate) async fn lcd_task(
                 }
             }
             Err(_) => {
-                tick += 4;
+                tick += 1;
             }
         }
     }
@@ -171,5 +173,42 @@ impl Screen {
             Screen::Graph => Screen::Home,
             Screen::Log => Screen::Graph,
         }
+    }
+}
+
+use lcd_async::{raw_framebuf::RawFrameBuf, Display};
+use embedded_graphics::{
+    pixelcolor::{Rgb565, RgbColor},
+    draw_target::DrawTarget,
+};
+
+pub async fn clear_screen<DI, MODEL, RST>(
+    display: &mut Display<DI, MODEL, RST>,
+    chunk_buffer: &mut [u8],
+) 
+where
+        DI:    lcd_async::interface::Interface<Word = u8>,
+        MODEL: lcd_async::models::Model<ColorFormat = Rgb565>,
+        RST:   embedded_hal::digital::OutputPin,
+{
+    let mut y = 0usize;
+    while y < DISPLAY_HEIGHT {
+        let h = INIT_BAND_HEIGHT.min(DISPLAY_HEIGHT - y);
+        
+        let mut fb = RawFrameBuf::<Rgb565, _>::new(
+            &mut *chunk_buffer,
+            DISPLAY_WIDTH, h,
+        );
+        
+        let _ = fb.clear(Rgb565::BLACK);
+
+        let _ = display.show_raw_data(
+            0,
+            y as u16,
+            DISPLAY_WIDTH as u16, h as u16,
+            chunk_buffer
+        ).await;
+
+        y += h;
     }
 }

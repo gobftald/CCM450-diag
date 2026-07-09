@@ -1,12 +1,5 @@
-use lcd_async::{raw_framebuf::RawFrameBuf, Display};
-
-use embedded_graphics::{
-    draw_target::DrawTarget,
-    pixelcolor::Rgb565,
-    prelude::RgbColor,
-};
-
-use super::{DISPLAY_WIDTH, DISPLAY_HEIGHT};
+use lcd_async::Display;
+use embedded_graphics::pixelcolor::Rgb565;
 
 pub struct LogScreen {
     initial: bool
@@ -22,28 +15,18 @@ impl LogScreen {
     pub async fn update<DI, MODEL, RST>(
         &mut self,
         display: &mut Display<DI, MODEL, RST>,
-        full_buffer: &mut [u8],
+        chunk_buffer: &mut [u8],
     )
     where
         DI:    lcd_async::interface::Interface<Word = u8>,
         MODEL: lcd_async::models::Model<ColorFormat = Rgb565>,
         RST:   embedded_hal::digital::OutputPin,
     {
-        let mut fb = RawFrameBuf::<Rgb565, _>::new(
-            &mut *full_buffer,
-            DISPLAY_WIDTH as usize,
-            DISPLAY_HEIGHT as usize
-        );
-        let _ = fb.clear(Rgb565::BLACK);
-        
-        let _ = display
-        .show_raw_data(
-            0,
-            0,
-            DISPLAY_WIDTH as u16,
-            DISPLAY_HEIGHT as u16,
-            full_buffer)
-        .await;
+        // if screen changed to here, clear the whole display
+        if self.initial {
+            crate::lcd::clear_screen(display, chunk_buffer).await;
+            self.initial = false;
+        }
     }
 
     pub fn reset(&mut self) { self.initial = true; }
