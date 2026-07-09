@@ -37,6 +37,8 @@ type BusGuard<'a> = embassy_sync::mutex::MutexGuard<
     'a, NoopRawMutex, SpiDmaBus<'static, esp_hal::Async>
 >;
 
+pub static mut SD_TOOK: [u8; 1] = [b'-',];
+
 pub struct SdSpiBlockingProxy<'a> {
     pub bus: &'a SharedSpiBus,
     pub cs_pin: RefCell<&'a mut esp_hal::gpio::Output<'static>>,
@@ -471,8 +473,18 @@ where
         // physical writes (for logs) happen only here (buffered)
         let start = Instant::now();
         let write_result =self.write_block(self.current_sector, &block);
+        let took = (Instant::now() - start).as_millis();
+
         // it's typically 2 ms, if it need to wait its Mutex or other tasks, it's max 5ms
-        debug!("write took {}ms", (Instant::now() - start).as_millis());
+        debug!("write took {}ms", took);
+
+        unsafe {
+            if took < 10 {
+                SD_TOOK[0] = took as u8 + b'0';
+            } else {
+                SD_TOOK[0] = b'E';
+            }
+        }
 
         self.current_sector   += 1;
         self.current_sequence += 1;
@@ -710,7 +722,10 @@ pub(crate) async fn sd_task(
             );
             proxy.lock_bus_master().await;
             storage.write_record(unwrap!(record.try_into())).unwrap_or_else(
-                |error| debug!("*** write error {} ***", error)
+                |error| {
+                    debug!("*** write error {} ***", error);
+                    SD_TOOK[0] = b'E';
+                }
             );
             proxy.unlock_bus_master();
         }

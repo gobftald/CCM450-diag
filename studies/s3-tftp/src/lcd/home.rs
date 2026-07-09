@@ -14,7 +14,7 @@ use embedded_graphics_core::{
     geometry::Size,
 };
 
-use crate::{gps::GPS_DATA, gsm::GSM_OK};
+use crate::{gps::GPS_DATA, gsm::GSM_OK, sd_card::SD_TOOK};
 use super::DISPLAY_WIDTH;
 
 const BIG_FONT_WIDTH: usize = 54;
@@ -23,7 +23,6 @@ const BIG_FONT_SPACE: usize = 10;
 
 const RPM_CHAR_NUM: usize = 4;
 const RPM_TEXT_WIDTH: usize = RPM_CHAR_NUM * BIG_FONT_WIDTH + 3 * BIG_FONT_SPACE;
-const RPM_FRAME_SIZE: usize = RPM_TEXT_WIDTH * BIG_FONT_HEIGHT * super::PIXEL_SIZE;
 
 const SMALL_FONT_WIDTH: usize = 22;
 const SMALL_FONT_HEIGHT: usize = 40;
@@ -99,7 +98,15 @@ impl HomeScreen {
         // draw status flags
         let _ = Text::with_baseline(
                 unsafe { fuu(&GSM_OK) },
-                Point::new(0, 40),
+                Point::new(0, 30),
+                MonoTextStyle::new(&FONT_10X20, Rgb565::WHITE),
+                Baseline::Bottom,
+            )
+            .draw(&mut fb);
+
+        let _ = Text::with_baseline(
+                unsafe { fuu(&SD_TOOK) },
+                Point::new(0, 60),
                 MonoTextStyle::new(&FONT_10X20, Rgb565::WHITE),
                 Baseline::Bottom,
             )
