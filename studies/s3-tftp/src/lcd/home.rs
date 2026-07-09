@@ -14,7 +14,7 @@ use embedded_graphics_core::{
     geometry::Size,
 };
 
-use crate::gps::GPS_DATA;
+use crate::{gps::GPS_DATA, gsm::GSM_OK};
 use super::DISPLAY_WIDTH;
 
 const BIG_FONT_WIDTH: usize = 54;
@@ -86,24 +86,30 @@ impl HomeScreen {
             crate::lcd::clear_screen(display, chunk_buffer).await;
         }
 
-        // draw rpm value
-
-        let character_style =
-            // const function
-            MonoTextStyle::new(&BIG_FONT, Rgb565::WHITE);
-
         // const function
         let text_style = TextStyleBuilder::new().build();
 
-        let rpm_buffer = &mut chunk_buffer[..RPM_FRAME_SIZE / 2];
-
         let mut fb = RawFrameBuf::<Rgb565, _>::new(
-            &mut *rpm_buffer,
-            RPM_TEXT_WIDTH / 2,
+            &mut *chunk_buffer,
+            DISPLAY_WIDTH / 2,
             BIG_FONT_HEIGHT
         );
         let _ = fb.clear(Rgb565::BLACK);
 
+        // draw status flags
+        let _ = Text::with_baseline(
+                unsafe { fuu(&GSM_OK) },
+                Point::new(0, 40),
+                MonoTextStyle::new(&FONT_10X20, Rgb565::WHITE),
+                Baseline::Bottom,
+            )
+            .draw(&mut fb);
+    
+        // draw rpm value
+        let character_style =
+            // const function
+            MonoTextStyle::new(&BIG_FONT, Rgb565::WHITE);
+        
         // shifting digits test text
         let mut digits = *b"0123456789012345678";
         let rpm = &mut digits[tick % 10..tick % 10 + RPM_CHAR_NUM / 2];
@@ -111,25 +117,24 @@ impl HomeScreen {
         trail_space( rpm );
         let _ = Text::with_text_style(
             unsafe { fuu(rpm) },
-            Point { x: 0, y: 0 },
+            Point { x: ((DISPLAY_WIDTH - RPM_TEXT_WIDTH) / 2) as i32, y: 0 },
             character_style,
             text_style,
         )
         .draw(&mut fb);
 
         let _ = display.show_raw_data(
-            ((DISPLAY_WIDTH - RPM_TEXT_WIDTH) / 2) as u16,
-            0,
-            (RPM_TEXT_WIDTH / 2) as u16,
+            0, 0,
+            (DISPLAY_WIDTH / 2) as u16,
             BIG_FONT_HEIGHT as u16,
-            rpm_buffer,
+            chunk_buffer,
         ).await;
 
         // draw RPM second fix half only if screen changed
         if self.initial {
             let mut fb = RawFrameBuf::<Rgb565, _>::new(
-                &mut *rpm_buffer,
-                RPM_TEXT_WIDTH / 2,
+                &mut *chunk_buffer,
+                DISPLAY_WIDTH / 2,
                 BIG_FONT_HEIGHT
             );
 
@@ -137,18 +142,18 @@ impl HomeScreen {
 
             let _ = Text::with_text_style(
                 unsafe { fuu(b"00") },
-                Point { x: 0, y: 0 },
+                Point { x: (BIG_FONT_SPACE / 2) as i32, y: 0 },
                 character_style,
                 text_style,
             )
             .draw(&mut fb);
 
             let _ = display.show_raw_data(
-                (DISPLAY_WIDTH / 2 + BIG_FONT_SPACE / 2) as u16,
+                (DISPLAY_WIDTH / 2) as u16,
                 0,
-                (RPM_TEXT_WIDTH / 2) as u16,
+                (DISPLAY_WIDTH / 2) as u16,
                 BIG_FONT_HEIGHT as u16,
-                rpm_buffer,
+                chunk_buffer,
             ).await;
 
             self.initial = false;

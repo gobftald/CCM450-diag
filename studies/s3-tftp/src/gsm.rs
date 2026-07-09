@@ -8,6 +8,8 @@ use embassy_futures::select::{select, Either};
 
 use crate::gps::{GPS_DATA, GPS_UPDATED};
 
+pub static mut GSM_OK: [u8; 1] = [b' '];
+
 #[macro_export]
 macro_rules! create_gsm_uart {
     ($peripherals:ident) => {
@@ -264,6 +266,7 @@ pub async fn gsm_task(mut gsm: crate::gsm::GsmUart<'static>, mut pwk_pin: Output
                         b"IPSEND: 0,51,51" => {
                             debug!("*** gsm EOF Data Transmission");
                             xfer_ok = true;
+                            unsafe { GSM_OK[0] = b'G'; }
                         }
                         _ => {
                             trace!("*** gsm unhandled msg: {:a}", msg);
@@ -294,6 +297,7 @@ pub async fn gsm_task(mut gsm: crate::gsm::GsmUart<'static>, mut pwk_pin: Output
                     ModemState::SocketReady => {
                         if !xfer_ok {
                             bad_xfer += 1;
+                            unsafe { GSM_OK[0] = b' '; }
                         } else {
                             xfer_ok = false;
                             bad_xfer = 0;
