@@ -1,3 +1,5 @@
+use core::ptr::copy_nonoverlapping as cpn;
+
 use esp_hal::{
     Async,
     gpio::{AnyPin, Level, Output},
@@ -8,6 +10,7 @@ use embassy_futures::select::{select, Either};
 
 use crate::gps::{GPS_DATA, GPS_UPDATED};
 
+const UDP_PORT: Option<&'static str> = option_env!("UDP_PORT");
 pub static mut GSM_OK: [u8; 1] = [b' '];
 
 #[macro_export]
@@ -103,6 +106,9 @@ async fn switch_modem_on(pwk_pin: &mut Output<'static>) {
 #[embassy_executor::task()]
 pub async fn gsm_task(mut gsm: crate::gsm::GsmUart<'static>, mut pwk_pin: Output<'static>) {
     let mut buf: [u8; 128] = [0; 128];
+    let mut udp_send_literal = *b"AT+CIPSEND=0,,\"000.000.000.000\",19924\r\n";
+    let udp_send = &mut udp_send_literal;
+    let mut udp_send_len: usize = 0;
     let mut state = ModemState::PowerOnReset;
     let mut once_active = false;
     let mut timeout = Duration::from_secs(60);
@@ -160,8 +166,13 @@ pub async fn gsm_task(mut gsm: crate::gsm::GsmUart<'static>, mut pwk_pin: Output
                     // Mandatory 2-second stabilization delay to let internal virtual routing maps build
                     Timer::after_secs(2).await;
 
+                    // Get IP address.
+                    //let _ = gsm.tx.write_async(b"AT+CDNSGIP=\"ivancsics.hu\"\r\n").await;
+                    let _ = gsm.tx.write_async(b"AT+CDNSGIP=\"gobftald.ddns.net\"\r\n").await;
+
                     // Open UDP socket.
                     let _ = gsm.tx.write_async(b"AT+CIPOPEN=0,\"UDP\",,,1234\r\n").await;
+                    Timer::after_millis(200).await;
 
                     state = ModemState::SocketConfiguring;
                 }
@@ -182,7 +193,8 @@ pub async fn gsm_task(mut gsm: crate::gsm::GsmUart<'static>, mut pwk_pin: Output
                         49,
                     );
 
-                    let _ = gsm.tx.write_async(b"AT+CIPSEND=0,,\"46.139.107.93\",1234\r\n").await;
+                    //let _ = gsm.tx.write_async(b"AT+CIPSEND=0,,\"46.139.107.93\",1234\r\n").await;
+                    let _ = gsm.tx.write_async(&udp_send[..udp_send_len]).await;
                     Timer::after_millis(100).await;
                     let _ = gsm.tx.write_async(unwrap!(record.try_into())).await;
                     let _ = gsm.tx.write_async(b"\r\n\x1A").await;
@@ -238,6 +250,36 @@ pub async fn gsm_task(mut gsm: crate::gsm::GsmUart<'static>, mut pwk_pin: Output
         match select(read(&mut gsm, &mut buf), Timer::after(timeout)).await {
             Either::First(result) => {
                 if let Ok(msg) = result {
+                    // Get DNS for ivancsics.hu
+                    if msg.len() > 7 && &msg[..8] == b"+CDNSGIP" {
+                        debug!("*** gsm DNS resolution {:a}", msg);
+                        unsafe {
+                            let a = &raw mut udp_send[15];
+                            cpn(
+                                &msg[33] as *const u8,
+                                &raw mut udp_send[15],
+                                msg.len() - 34
+                            );
+                        }
+                        udp_send_len = 15 + msg.len() - 34;
+                        udp_send[udp_send_len] = b'\"';
+                        udp_send[udp_send_len + 1] = b',';
+                        let port = UDP_PORT.unwrap_or("19924").as_bytes();
+                        unsafe {
+                            cpn(
+                                port.as_ptr(),
+                                &raw mut udp_send[udp_send_len + 2],
+                                port.len()
+                            );
+                        }
+
+                        udp_send_len += port.len() + 2;
+                        udp_send[udp_send_len] = b'\r';
+                        udp_send[udp_send_len + 1] = b'\n';
+                        udp_send_len += 2;
+
+                        debug!("*** gsm udp_send {:a}", &udp_send[..udp_send_len]);
+                    }
                     match msg {
                         b"+CGEV: ME DETACH" | b"+CGEV: NW DETACH" => {
                             if once_active {
