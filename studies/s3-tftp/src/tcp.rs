@@ -1,9 +1,11 @@
 use embassy_net::tcp::TcpSocket;
 use embedded_io_async::Write;
 
+use crate::gps::{GPS_UPDATED, GGA_MSG, GGA_SIZE, RMC_MSG, RMC_SIZE};
+
 const NMEA_PORT: u16 = 10110;
 
-use crate::gps::{GPS_UPDATED, GGA_MSG, GGA_SIZE, RMC_MSG, RMC_SIZE};
+pub static mut TCP_STAT: [u8; 1] = [b'D'];
 
 #[embassy_executor::task]
 pub async fn tcp_task(sta_stack: embassy_net::Stack<'static>) {
@@ -11,7 +13,8 @@ pub async fn tcp_task(sta_stack: embassy_net::Stack<'static>) {
     // Wait for DHCP
     loop {
         if sta_stack.is_link_up() { break; }
-        embassy_time::Timer::after_millis(500).await;
+        embassy_time::Timer::after_millis(1000).await;
+        debug!("link is not up");
     }
     sta_stack.wait_config_up().await;
     if let Some(cfg) = sta_stack.config_v4() {
@@ -36,9 +39,14 @@ pub async fn tcp_task(sta_stack: embassy_net::Stack<'static>) {
                 port: NMEA_PORT, 
             }
         ).await {
-            Ok(()) => info!("*** TCP NMEA: Client connected from {:?}", socket.remote_endpoint()),
+            Ok(()) => {
+                info!("*** TCP NMEA: Client connected from {:?}", socket.remote_endpoint());
+                unsafe { TCP_STAT[0] = b'C'; }
+            }
             Err(e) => {
                 warn!("*** TCP NMEA: Accept error: {:?}", e);
+                unsafe { TCP_STAT[0] = b'D'; }
+
                 embassy_time::Timer::after_secs(1).await;
                 continue;
             }
@@ -72,6 +80,8 @@ pub async fn tcp_task(sta_stack: embassy_net::Stack<'static>) {
         }
 
         socket.close();
+        unsafe { TCP_STAT[0] = b'D'; }
+
         embassy_time::Timer::after_millis(100).await;
         trace!("*** TCP NMEA: Connection closed, back to listening.");
     }

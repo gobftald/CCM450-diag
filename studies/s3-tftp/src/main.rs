@@ -165,6 +165,8 @@ async fn system_stats() {
     }
 }
 
+use crate::tcp::TCP_STAT;
+
 #[embassy_executor::task]
 pub async fn connection_task(mut controller: esp_radio::wifi::WifiController<'static>) {
     use esp_radio::wifi::WifiEvent;
@@ -177,8 +179,12 @@ pub async fn connection_task(mut controller: esp_radio::wifi::WifiController<'st
         match controller.connect_async().await {
             Ok(()) => {
                 trace!("*** WiFi STA: Connected!");
+                unsafe { TCP_STAT[0] = b'U'; }
+
                 controller.wait_for_event(WifiEvent::StaDisconnected).await;
                 trace!("*** WiFi STA: Disconnected, retrying in 5s...");
+                unsafe { TCP_STAT[0] = b'D'; }
+
                 embassy_time::Timer::after_secs(5).await;
             }
             Err(e) => {

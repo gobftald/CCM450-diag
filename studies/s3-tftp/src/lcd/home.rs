@@ -14,7 +14,7 @@ use embedded_graphics_core::{
     geometry::Size,
 };
 
-use crate::{gps::GPS_DATA, gsm::GSM_OK, sd_card::SD_TOOK};
+use crate::{gps::GPS_DATA, gsm::GSM_OK, sd_card::SD_TOOK, tcp::TCP_STAT};
 use super::DISPLAY_WIDTH;
 
 const BIG_FONT_WIDTH: usize = 54;
@@ -107,6 +107,14 @@ impl HomeScreen {
         let _ = Text::with_baseline(
                 unsafe { fuu(&SD_TOOK) },
                 Point::new(0, 60),
+                MonoTextStyle::new(&FONT_10X20, Rgb565::WHITE),
+                Baseline::Bottom,
+            )
+            .draw(&mut fb);
+
+        let _ = Text::with_baseline(
+                unsafe { fuu(&TCP_STAT) },
+                Point::new(0, 90),
                 MonoTextStyle::new(&FONT_10X20, Rgb565::WHITE),
                 Baseline::Bottom,
             )
