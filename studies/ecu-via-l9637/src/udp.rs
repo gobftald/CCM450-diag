@@ -9,7 +9,7 @@ use embassy_sync::{
     zerocopy_channel::{Receiver, Sender},
 };
 
-const UDP_PORT: Option<&'static str> = option_env!("UDP_PORT");
+const GSM_PORT: Option<&'static str> = option_env!("GSM_PORT");
 
 pub const UDP_BUFFER_SIZE: usize = crate::CHANNEL_ITEM_SIZE;
 const UDP_PACKET_MAX: usize = 4;
@@ -97,7 +97,7 @@ pub async fn server(
     );
 
     let port = unwrap!(
-        UDP_PORT.unwrap_or("19924").parse::<u16>(),
+        GSM_PORT.unwrap_or("19924").parse::<u16>(),
         "failed to parse UDP socket"
     );
     unwrap!(socket.bind(port));

@@ -1,11 +1,14 @@
+use core::net::Ipv4Addr;
+
 use embassy_net::tcp::TcpSocket;
 use embedded_io_async::Write;
 
 use crate::gps::{GPS_UPDATED, GGA_MSG, GGA_SIZE, RMC_MSG, RMC_SIZE};
 
-const NMEA_PORT: u16 = 10110;
+const NMEA_PORT: Option<&'static str> = option_env!("NMEA_PORT");
 
 pub static mut TCP_STAT: [u8; 1] = [b'D'];
+pub static mut TCP_ADDR: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
 
 #[embassy_executor::task]
 pub async fn tcp_task(sta_stack: embassy_net::Stack<'static>) {
@@ -19,6 +22,7 @@ pub async fn tcp_task(sta_stack: embassy_net::Stack<'static>) {
     sta_stack.wait_config_up().await;
     if let Some(cfg) = sta_stack.config_v4() {
         info!("*** TCP NMEA: IP: {}", cfg.address);
+        unsafe { TCP_ADDR = cfg.address.address(); }
     }
 
     let mut rx_buf = [0u8; 4];  // we only send
@@ -33,10 +37,15 @@ pub async fn tcp_task(sta_stack: embassy_net::Stack<'static>) {
 
         trace!("*** TCP NMEA: Waiting for GNSS Master connection...");
 
+        let port = match env!("NMEA_PORT").parse::<u16>() {
+            Ok(port) => port,
+            Err(_) => 0
+        };
+
         match socket.accept(
             embassy_net::IpListenEndpoint {
                 addr: None,
-                port: NMEA_PORT, 
+                port: port,
             }
         ).await {
             Ok(()) => {

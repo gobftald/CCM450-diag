@@ -51,11 +51,6 @@ macro_rules! esp_rtos_start {
 macro_rules! create_ap_sta {
     ($peripherals:ident) => {
         {
-            const AP_SSID: Option<&'static str> = option_env!("AP_SSID");
-            const AP_GW_IP: Option<&'static str> = option_env!("AP_GW_IP");
-            const STA_SSID:  Option<&'static str> = option_env!("TETH_SSID");
-            const STA_PWD:  Option<&'static str> = option_env!("TETH_PWD");
-
             // controller is shared for both AP and STA
             let esp_radio_ctrl = &*mk_static!(
                 esp_radio::Controller<'static>,
@@ -75,17 +70,17 @@ macro_rules! create_ap_sta {
             // Configure AP+STA combined mode here while constants are in scope
             let mode_config = esp_radio::wifi::ModeConfig::ApSta(
                         esp_radio::wifi::ClientConfig::default()
-                            .with_ssid(unwrap!(STA_SSID).try_into().unwrap())
-                            .with_password(unwrap!(STA_PWD).try_into().unwrap()),
+                            .with_ssid(env!("TETH_SSID").into())
+                            .with_password(env!("TETH_PWD").into()),
                         esp_radio::wifi::AccessPointConfig::default()
-                            .with_ssid(unwrap!(AP_SSID).into()),
+                            .with_ssid(env!("AP_SSID").into()),
                 );
             unwrap!(controller.set_config(&mode_config));
 
             // ── AP stack (static IP) ─────────────────────────────────────────────
             use core::{net::Ipv4Addr, str::FromStr};
             let gw_ip_addr = unwrap!(
-                Ipv4Addr::from_str(AP_GW_IP.unwrap_or("192.168.2.1")),
+                Ipv4Addr::from_str(env!("AP_GW_IP")),
                 "failed to parse gateway ip"
             );
 
@@ -96,8 +91,11 @@ macro_rules! create_ap_sta {
             });
 
             // ── STA stack (DHCP) ─────────────────────────────────────────────────
+            let mut dhcp_config = embassy_net::DhcpConfig::default();
+            dhcp_config.retry_config.discover_timeout = core::time::Duration::from_secs(1).into();
             let sta_config = embassy_net::Config::dhcpv4(
-                embassy_net::DhcpConfig::default()
+                //embassy_net::DhcpConfig::default()
+                dhcp_config
             );
 
             let rng = esp_hal::rng::Rng::new();

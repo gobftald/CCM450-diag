@@ -10,7 +10,6 @@ use embassy_futures::select::{select, Either};
 
 use crate::gps::{GPS_DATA, GPS_UPDATED};
 
-const UDP_PORT: Option<&'static str> = option_env!("UDP_PORT");
 pub static mut GSM_OK: [u8; 1] = [b' '];
 
 #[macro_export]
@@ -254,7 +253,6 @@ pub async fn gsm_task(mut gsm: crate::gsm::GsmUart<'static>, mut pwk_pin: Output
                     if msg.len() > 7 && &msg[..8] == b"+CDNSGIP" {
                         debug!("*** gsm DNS resolution {:a}", msg);
                         unsafe {
-                            let a = &raw mut udp_send[15];
                             cpn(
                                 &msg[33] as *const u8,
                                 &raw mut udp_send[15],
@@ -264,7 +262,7 @@ pub async fn gsm_task(mut gsm: crate::gsm::GsmUart<'static>, mut pwk_pin: Output
                         udp_send_len = 15 + msg.len() - 34;
                         udp_send[udp_send_len] = b'\"';
                         udp_send[udp_send_len + 1] = b',';
-                        let port = UDP_PORT.unwrap_or("19924").as_bytes();
+                        let port = env!("GSM_PORT").as_bytes();
                         unsafe {
                             cpn(
                                 port.as_ptr(),

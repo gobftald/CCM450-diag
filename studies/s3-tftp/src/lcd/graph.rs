@@ -7,8 +7,6 @@ use embedded_graphics::{
     primitives::{Circle, Triangle, PrimitiveStyle},
 };
 
-use super::{DISPLAY_WIDTH, DISPLAY_HEIGHT};
-
 pub struct GraphScreen {
     initial: bool
 }

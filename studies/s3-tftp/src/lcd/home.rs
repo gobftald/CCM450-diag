@@ -24,18 +24,18 @@ const BIG_FONT_SPACE: usize = 10;
 const RPM_CHAR_NUM: usize = 4;
 const RPM_TEXT_WIDTH: usize = RPM_CHAR_NUM * BIG_FONT_WIDTH + 3 * BIG_FONT_SPACE;
 
-const SMALL_FONT_WIDTH: usize = 22;
+pub const SMALL_FONT_WIDTH: usize = 22;
 const SMALL_FONT_HEIGHT: usize = 40;
-const SMALL_FONT_SPACE: usize = 4;
+pub const SMALL_FONT_SPACE: usize = 4;
 
-const SLOW_TEXT_WIDTH: usize = 320;
-const SLOW_TEXT_HEIGHT: usize = 40;
-const SLOW_FRAME_SIZE: usize = SLOW_TEXT_WIDTH * SLOW_TEXT_HEIGHT * super::PIXEL_SIZE;
+pub const SLOW_TEXT_WIDTH: usize = DISPLAY_WIDTH;
+pub const SLOW_TEXT_HEIGHT: usize = SMALL_FONT_HEIGHT;
+pub const SLOW_FRAME_SIZE: usize = SLOW_TEXT_WIDTH * SLOW_TEXT_HEIGHT * super::PIXEL_SIZE;
 
 const REFRESH_10_SEC: usize = 10000 / super::SCREEN_TICK;
 const REFRESH_1_SEC: usize = 1000 / super::SCREEN_TICK;
 
-const SMALL_FONT: MonoFont = MonoFont {
+pub const SMALL_FONT: MonoFont = MonoFont {
     image: ImageRaw::new(include_bytes!("small_font.raw"), 248),
     glyph_mapping: &StrGlyphMapping::new("0123456789a", 0),
     character_size: Size::new(SMALL_FONT_WIDTH as u32, SMALL_FONT_HEIGHT as u32),

@@ -16,7 +16,7 @@ mod macros;
 
 mod home;
 mod graph;
-mod log;
+mod status;
 
 pub const SCREEN_TICK: usize = 200; // ms
 
@@ -70,7 +70,7 @@ pub(crate) async fn lcd_task(
 
     let mut home = home::HomeScreen::new();
     let mut graph = graph::GraphScreen::new();
-    let mut log = log::LogScreen::new();
+    let mut status = status::StatusScreen::new();
 
     let mut current = Screen::Home;
     let mut refresh = true;
@@ -85,7 +85,7 @@ pub(crate) async fn lcd_task(
             match current {
                 Screen::Home  => home.update(&mut display, chunk_frame_buffer, tick).await,
                 Screen::Graph => graph.update(&mut display, chunk_frame_buffer, tick).await,
-                Screen::Log => log.update(&mut display, chunk_frame_buffer).await,
+                Screen::Status => status.update(&mut display, chunk_frame_buffer).await,
             }
             trace!("EOF lcdrefresh");
         } else {
@@ -137,7 +137,7 @@ pub(crate) async fn lcd_task(
                         match current {
                             Screen::Home  => home.reset(),
                             Screen::Graph => graph.reset(),
-                            Screen::Log => log.reset(),
+                            Screen::Status => status.reset(),
                         }
                     }
                     None => {
@@ -155,23 +155,23 @@ pub(crate) async fn lcd_task(
 pub enum Screen {
     Home,
     Graph,
-    Log,
+    Status,
 }
 
 impl Screen {
     pub fn next(self) -> Self {
         match self {
             Screen::Home => Screen::Graph,
-            Screen::Graph => Screen::Log,
-            Screen::Log => Screen::Home,   // wrap around
+            Screen::Graph => Screen::Status,
+            Screen::Status => Screen::Home,   // wrap around
         }
     }
 
     pub fn prev(self) -> Self {
         match self {
-            Screen::Home => Screen::Log,
+            Screen::Home => Screen::Status,
             Screen::Graph => Screen::Home,
-            Screen::Log => Screen::Graph,
+            Screen::Status => Screen::Graph,
         }
     }
 }

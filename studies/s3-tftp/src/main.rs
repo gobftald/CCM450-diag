@@ -63,10 +63,11 @@ async fn main(spawner: embassy_executor::Spawner) {
     // Because of the compiler optimisation even we should not only move out but also
     // should use these types handed over by value in the spawned tasks, otherwise they
     // are also staying and increasing the wasted memory footprint of exited main task
-    let _ = spawner.spawn(connection_task(controller));
     let _ = spawner.spawn(ap_net_task(ap_runner));
-    let _ = spawner.spawn(sta_net_task(sta_runner));
     let _ = spawner.spawn(dhcp_task(ap_stack));
+
+    let _ = spawner.spawn(sta_net_task(sta_runner));
+    let _ = spawner.spawn(connection_task(controller));
     let _ = spawner.spawn(tcp::tcp_task(sta_stack));
 
     let spi = create_spi_bus!(peripherals);
