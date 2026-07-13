@@ -67,13 +67,20 @@ macro_rules! create_ap_sta {
             let wifi_ap_device = interfaces.ap;
             let wifi_sta_device = interfaces.sta;
 
-            // Configure AP+STA combined mode here while constants are in scope
+            // AP config in a separate variable so that connection_task can
+            // reuse it in each connection cycle when compiling ModeConfig::ApSta
+            let ap_config_static = esp_radio::wifi::AccessPointConfig::default()
+                .with_ssid(env!("AP_SSID").into());
+
+            // Initial mode config -- placeholder with STA client config, this will
+            // be overwritten by connection_task immediately after the first scan
             let mode_config = esp_radio::wifi::ModeConfig::ApSta(
-                        esp_radio::wifi::ClientConfig::default()
-                            .with_ssid(env!("TETH_SSID").into())
-                            .with_password(env!("TETH_PWD").into()),
-                        esp_radio::wifi::AccessPointConfig::default()
-                            .with_ssid(env!("AP_SSID").into()),
+                        esp_radio::wifi::ClientConfig::default(),
+                            //.with_ssid(env!("TETH_SSID").into())
+                            //.with_password(env!("TETH_PWD").into()),
+                        //esp_radio::wifi::AccessPointConfig::default()
+                            //.with_ssid(env!("AP_SSID").into()),
+                        ap_config_static.clone(),
                 );
             unwrap!(controller.set_config(&mode_config));
 
@@ -91,12 +98,7 @@ macro_rules! create_ap_sta {
             });
 
             // ── STA stack (DHCP) ─────────────────────────────────────────────────
-            let mut dhcp_config = embassy_net::DhcpConfig::default();
-            dhcp_config.retry_config.discover_timeout = core::time::Duration::from_secs(1).into();
-            let sta_config = embassy_net::Config::dhcpv4(
-                //embassy_net::DhcpConfig::default()
-                dhcp_config
-            );
+            let sta_config = embassy_net::Config::dhcpv4(embassy_net::DhcpConfig::default());
 
             let rng = esp_hal::rng::Rng::new();
             let seed1 = (rng.random() as u64) << 32 | rng.random() as u64;
@@ -120,7 +122,7 @@ macro_rules! create_ap_sta {
             );
 
 
-            (controller, ap_runner, ap_stack, sta_runner, sta_stack)
+            (controller, ap_runner, ap_stack, sta_runner, sta_stack, ap_config_static)
         }
     }
 }

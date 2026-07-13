@@ -2,8 +2,7 @@ use static_cell::StaticCell;
 
 use esp_hal::gpio::{AnyPin, Input, Level, Output, OutputConfig};
 
-use embassy_sync::signal::Signal;
-use embassy_sync::blocking_mutex::raw::NoopRawMutex;
+use embassy_sync::{blocking_mutex::raw::NoopRawMutex, signal::Signal};
 
 use lcd_async::{
     interface::SpiInterface,
@@ -18,6 +17,7 @@ mod home;
 mod graph;
 mod status;
 
+// it is a delta after screen refresh finished - so refresh time (typical 30 - 50 ms) is added
 pub const SCREEN_TICK: usize = 200; // ms
 
 // Display parameters
@@ -43,6 +43,7 @@ pub(crate) async fn lcd_task(
     mut tp_int: Input<'static>,
     spi_bus: &'static crate::SharedSpiBus,
     sd_ready: &'static Signal<NoopRawMutex, ()>,
+    wifi_rescan_request: &'static Signal<NoopRawMutex, ()>,
     cs_pin: Output<'static>,
     dc_pin: AnyPin<'static>,
     reset_pin: AnyPin<'static>,
@@ -73,6 +74,7 @@ pub(crate) async fn lcd_task(
     let mut status = status::StatusScreen::new();
 
     let mut current = Screen::Home;
+    let mut long_press_handled = false;
     let mut refresh = true;
     let mut tick = 0;
 
@@ -94,7 +96,6 @@ pub(crate) async fn lcd_task(
 
         // wait for either touch interrupt OR 200ms timeout
         match embassy_time::with_timeout(
-            // it is relaunched after screen refresh - so refresh time (30 - 50 ms) is added
             embassy_time::Duration::from_millis(SCREEN_TICK as u64),
             tp_int.wait_for_falling_edge()
         ).await {
@@ -119,6 +120,15 @@ pub(crate) async fn lcd_task(
                                 debug!("Gesture: Slide Down");
                                 current.next()
                             }
+                            TouchGesture::LongPress => {
+                                debug!("Gesture: LongPress");
+                                if current == Screen::Status && !long_press_handled {
+                                    wifi_rescan_request.signal(());
+                                    long_press_handled = true;
+                                    debug!("wifi_rescan_request.signal(())");
+                                }
+                                current
+                            }
                             /*
                             TouchGesture::SlideLeft => debug!("Gesture: Slide Left"),
                             TouchGesture::SlideRight => debug!("Gesture: Slide Right"),
@@ -128,6 +138,7 @@ pub(crate) async fn lcd_task(
                             TouchGesture::None => {}
                             */
                             _ => {
+                                long_press_handled = false;
                                 refresh = false;
                                 current
                             }
@@ -152,6 +163,7 @@ pub(crate) async fn lcd_task(
     }
 }
 
+#[derive(PartialEq)]
 pub enum Screen {
     Home,
     Graph,

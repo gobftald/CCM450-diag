@@ -9,6 +9,12 @@
 
 pub(crate) mod fmt;
 
+use core::{net::Ipv4Addr, str::FromStr};
+
+use esp_hal::gpio::{Input, Output, InputConfig, OutputConfig, DriveMode, Level, Pull};
+use embassy_time::Timer;
+use embassy_sync::{blocking_mutex::raw::NoopRawMutex, signal::Signal};
+
 mod macros;
 mod panic;
 
@@ -17,11 +23,6 @@ mod gsm;
 mod lcd;
 mod sd_card;
 mod tcp;
-
-use esp_hal::gpio::{Input, Output, InputConfig, OutputConfig, DriveMode, Level, Pull};
-use embassy_time::Timer;
-use embassy_sync::{blocking_mutex::raw::NoopRawMutex, signal::Signal};
-
 
 type SharedSpiBus = embassy_sync::mutex::Mutex<
     NoopRawMutex, esp_hal::spi::master::SpiDmaBus<'static, esp_hal::Async>
@@ -53,8 +54,18 @@ async fn main(spawner: embassy_executor::Spawner) {
         ap_stack,
         sta_runner,
         sta_stack,
+        ap_config,
     ) = create_ap_sta!(peripherals);
-    
+
+    let wifi_rescan_request = mk_static!(
+        Signal<NoopRawMutex, ()>,
+        Signal::<NoopRawMutex, ()>::new()
+    );
+    let sta_state_changed = mk_static!(
+        Signal<NoopRawMutex, ()>,
+        Signal::<NoopRawMutex, ()>::new()
+    );
+
     // We should move out all created type (controller, ap_runner, ap_stack senders and receivers
     // from this main/loader task. Although finally it/we exit(s), spawns below (which finally 
     // conclude to 'await's) would force task's state machine to keep these value in its memory,
@@ -67,11 +78,15 @@ async fn main(spawner: embassy_executor::Spawner) {
     let _ = spawner.spawn(dhcp_task(ap_stack));
 
     let _ = spawner.spawn(sta_net_task(sta_runner));
-    let _ = spawner.spawn(connection_task(controller));
-    let _ = spawner.spawn(tcp::tcp_task(sta_stack));
+    let _ = spawner.spawn(tcp::connection_task(
+        controller, ap_config, sta_stack, wifi_rescan_request, sta_state_changed
+    ));
+    let _ = spawner.spawn(tcp::tcp_task(sta_stack, sta_state_changed));
 
     let spi = create_spi_bus!(peripherals);
     let i2c = create_i2c_bus!(peripherals);
+    // it cannot be simple static, since NoopRawMutex does not Sync
+    // but StaticCell<T> defined as Sync even if T is not Sync
     let sd_ready = mk_static!(Signal<NoopRawMutex, ()>, Signal::<NoopRawMutex, ()>::new());
 
     // pins based on WaveShare ESP32-S3-Touch-LCD-2 schematic
@@ -91,7 +106,7 @@ async fn main(spawner: embassy_executor::Spawner) {
             peripherals.GPIO46,
             InputConfig::default().with_pull(Pull::Up),  // TP INT
         ),
-        spi, sd_ready,
+        spi, sd_ready, wifi_rescan_request,
         lcd_cs,
         peripherals.GPIO42.into(),  // LCD DC
         peripherals.GPIO0.into(),   // LCD RST
@@ -166,36 +181,6 @@ async fn system_stats() {
     }
 }
 
-use crate::tcp::TCP_STAT;
-
-#[embassy_executor::task]
-pub async fn connection_task(mut controller: esp_radio::wifi::WifiController<'static>) {
-    use esp_radio::wifi::WifiEvent;
-
-    unwrap!(controller.start_async().await);
-    trace!("*** WiFi: AP+STA started");
-
-    loop {
-        trace!("*** WiFi STA: Connecting...");
-        match controller.connect_async().await {
-            Ok(()) => {
-                trace!("*** WiFi STA: Connected!");
-                unsafe { TCP_STAT[0] = b'U'; }
-
-                controller.wait_for_event(WifiEvent::StaDisconnected).await;
-                trace!("*** WiFi STA: Disconnected, retrying in 5s...");
-                unsafe { TCP_STAT[0] = b'D'; }
-
-                embassy_time::Timer::after_secs(5).await;
-            }
-            Err(e) => {
-                warn!("*** WiFi STA: Connect failed: {:?}", defmt::Debug2Format(&e));
-                embassy_time::Timer::after_secs(5).await;
-            }
-        }
-    }
-}
-
 #[embassy_executor::task]
 pub async fn ap_net_task(
     mut runner: embassy_net::Runner<'static, esp_radio::wifi::WifiDevice<'static>>,
@@ -212,16 +197,15 @@ pub async fn sta_net_task(
 
 #[embassy_executor::task]
 async fn dhcp_task(ap_stack: embassy_net::Stack<'static>) {
-    use core::net::Ipv4Addr;
     use leasehund::DhcpServer;
 
     let mut server: DhcpServer<4, 1> = DhcpServer::new(
-        Ipv4Addr::new(192, 168, 3, 1),
-        Ipv4Addr::new(255, 255, 255, 0),
-        Ipv4Addr::new(192, 168, 3, 1),
-        Ipv4Addr::new(8, 8, 8, 8),
-        Ipv4Addr::new(192, 168, 3, 2),
-        Ipv4Addr::new(192, 168, 3, 5),
+        unwrap!(Ipv4Addr::from_str(env!("AP_GW_IP"))),
+        unwrap!(Ipv4Addr::from_str(env!("AP_DHCP_SUBNET"))),
+        unwrap!(Ipv4Addr::from_str(env!("AP_GW_IP"))),
+        unwrap!(Ipv4Addr::from_str(env!("AP_GW_IP"))),
+        unwrap!(Ipv4Addr::from_str(env!("AP_DHCP_POOL_START"))),
+        unwrap!(Ipv4Addr::from_str(env!("AP_DHCP_POOL_END"))),
     );
     server.run(ap_stack).await;
 }

@@ -250,7 +250,10 @@ pub async fn gsm_task(mut gsm: crate::gsm::GsmUart<'static>, mut pwk_pin: Output
             Either::First(result) => {
                 if let Ok(msg) = result {
                     // Get DNS for ivancsics.hu
-                    if msg.len() > 7 && &msg[..8] == b"+CDNSGIP" {
+                    if msg.len() > 7 &&
+                       &msg[..8] == b"+CDNSGIP" &&
+                       msg.len() > 33 &&
+                       &msg[..33] == b"+CDNSGIP: 1,\"gobftald.ddns.net\",\"" {
                         debug!("*** gsm DNS resolution {:a}", msg);
                         unsafe {
                             cpn(

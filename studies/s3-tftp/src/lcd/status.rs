@@ -16,18 +16,16 @@ use crate::lcd::home::{
     SLOW_FRAME_SIZE,
 };
 
-const DOT_SPACE: usize = 3;
+const DOT_SPACE: usize = 5;
 
 pub struct StatusScreen {
     initial: bool,
-    valid: bool,
 }
 
 impl StatusScreen {
     pub fn new() -> Self {
         Self {
             initial: true,
-            valid: false,
         }
     }
 
@@ -49,7 +47,7 @@ impl StatusScreen {
 
         let bytes = unsafe { crate::tcp::TCP_ADDR.octets() };
 
-        if bytes[0] != 0 && self.valid == false {
+        if bytes[0] != 0 {
             let text_style = TextStyleBuilder::new().build();
             let character_style =
                 MonoTextStyle::new(&crate::lcd::home::SMALL_FONT, Rgb565::WHITE);
@@ -65,7 +63,6 @@ impl StatusScreen {
             for byte in unsafe { crate::tcp::TCP_ADDR.octets() } {
                 let (buf, size) = byte_to_ascii_bytes(byte);
 
-                trace!("*** status tcp bytes {:a} pos {}", &buf[..size], pos);
                 let _ = Text::with_text_style(
                     unsafe { fuu(&buf[..size]) },
                     Point { x: pos as i32, y: 0 },
@@ -84,17 +81,15 @@ impl StatusScreen {
                 SLOW_TEXT_HEIGHT as u16,
                 &chunk_buffer[..SLOW_FRAME_SIZE],
             ).await;
-        
-            self.valid = true;
         }
     }
 
-    pub fn reset(&mut self) { self.initial = true; self.valid = false }
+    pub fn reset(&mut self) { self.initial = true; }
 }
 
 pub fn byte_to_ascii_bytes(byte: u8) -> ([u8; 3], usize) {
     let mut buf = [0u8; 3];
-    let mut cursor = 0;
+    let cursor;
     
     if byte >= 100 {
         buf[0] = b'0' + (byte / 100);
