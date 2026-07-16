@@ -1,266 +1,339 @@
-use embassy_net::udp::{UdpSocket, PacketMetadata};
-use embassy_net::Stack;
-use crate::sd_card::{SD_VOLUME_MGR, SharedVolumeManager};
-use embedded_sdmmc::{Mode, VolumeIdx, Error as SdError};
-use embassy_time::{Duration, Timer};
+//! Minimal read-only TFTP server (RFC 1350 subset) built directly on
+//! `embassy-net`, with no dependency on `smoltcp` types or the `smolapps`
+//! crate. This avoids the version-drift / type-mismatch problems that come
+//! from mixing a raw-smoltcp-oriented crate with embassy-net's own wrapper
+//! types.
+//!
+//! Scope (deliberately minimal, matching a log-retrieval use case):
+//! - RRQ (read) only. WRQ is rejected with an ERROR packet.
+//! - `octet` (binary) transfer mode only — no netascii translation.
+//! - Standard 512-byte blocks, no RFC 2347 option negotiation (blksize etc).
+//! - One transfer served to completion at a time, on a single socket bound
+//!   to port 69. This departs from strict RFC 1350 (which has the server
+//!   reply from a fresh ephemeral port per transfer) but is far simpler and
+//!   is fine for "pull the logs off the device" flow.
+//! - A virtual `index` file (exact lowercase name, no extension): lists
+//!   every calendar day that has data, one `YYMMDD` per line, nothing
+//!   else — via `FileSource::list`. Fetch a specific day's data with
+//!   `YYMMDD.raw` (real file, via `open`/`read_at`) or `YYMMDD.gpx`
+//!   (generated on the fly, via `FileSource::start_gpx`/`next_gpx_chunk`
+//!   — see the companion `gpx` module).
 
-pub(crate) mod protocol {
-    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-    pub enum OpCode {
-        Rrq = 1,
-        Wrq = 2,
-        Data = 3,
-        Ack = 4,
-        Error = 5,
+use embassy_net::{Stack, udp::{PacketMetadata, UdpMetadata, UdpSocket}};
+use embassy_time::{with_timeout, Duration};
+use embassy_sync::{blocking_mutex::raw::NoopRawMutex, mutex::Mutex};
+use crate::sd_card::{SdCardSource, Storage, SdBlockDevice, SdSpiBlockingProxy};
+
+/// Requesting this exact (lowercase) filename triggers a generated
+/// listing of every day with data, one `YYMMDD` per line — via
+/// `FileSource::list`.
+pub const INDEX_FILENAME: &str = "index";
+
+const BLOCK_SIZE: usize = 512;
+const MAX_RETRIES: u8 = 5;
+const ACK_TIMEOUT: Duration = Duration::from_secs(2);
+
+// Opcodes (RFC 1350 section 5)
+const OP_RRQ: u16 = 1;
+const OP_WRQ: u16 = 2;
+const OP_DATA: u16 = 3;
+const OP_ACK: u16 = 4;
+const OP_ERROR: u16 = 5;
+
+// Error codes (subset we actually use)
+const ERR_NOT_FOUND: u16 = 1;
+const ERR_ILLEGAL_OP: u16 = 4;
+
+/// Abstraction over your storage backend. Implement this for
+/// your SD-card / log-storage layer.
+pub trait FileSource {
+    /// Attempt to open a file by the name sent in the RRQ 
+    /// Return `false` if it doesn't exist / can't be opened.
+    async fn open(&mut self, filename: &str) -> bool;
+
+    /// Read up to `buf.len()` bytes starting at byte offset `offset` from
+    /// the currently open file. Return the number of bytes actually read
+    /// (0 means end-of-file reached exactly at `offset`).
+    async fn read_at(&mut self, offset: u32, buf: &mut [u8]) -> usize;
+
+    /// Write every calendar day that has data into `writer`,
+    /// one `YYMMDD` per line via `writer.write_date`.
+    async fn list(&mut self, writer: &mut IndexWriter<'_>);
+}
+
+/// Helper passed to `FileSource::list` so implementers don't have to
+/// hand-roll formatting or worry about buffer overflow.
+pub struct IndexWriter<'a> {
+    buf: &'a mut [u8],
+    pos: usize,
+    truncated: bool,
+}
+
+impl<'a> IndexWriter<'a> {
+    fn new(buf: &'a mut [u8]) -> Self {
+        Self {
+            buf,
+            pos: 0,
+            truncated: false,
+        }
     }
 
-    impl From<u16> for OpCode {
-        fn from(val: u16) -> Self {
-            match val {
-                1 => OpCode::Rrq,
-                2 => OpCode::Wrq,
-                3 => OpCode::Data,
-                4 => OpCode::Ack,
-                5 => OpCode::Error,
-                _ => OpCode::Error, 
-            }
+    /// Appends a single `YYMMDD\r\n` line — nothing else. Silently stops
+    /// writing (and marks the listing as truncated) if the buffer is
+    /// full — never panics or overflows.
+    pub fn write_date(&mut self, date: [u8; 6]) {
+        if self.truncated {
+            return;
         }
+        let needed = date.len() + 2;
+        if self.pos + needed >= self.buf.len() {
+            self.truncated = true;
+            // ...... is the same size as date
+            self.buf[self.pos..self.pos + date.len()].copy_from_slice(b"......");
+        } else {
+            self.buf[self.pos..self.pos + date.len()].copy_from_slice(&date);
+        }
+        self.pos += date.len();
+        self.buf[self.pos] = b'\r';
+        self.buf[self.pos + 1] = b'\n';
+        self.pos += 2;
+    }
+
+    fn finish(self) -> usize {
+        self.pos
     }
 }
 
-use protocol::OpCode;
-
+/// Serves TFTP forever using the already-mounted storage. Spawn this
+/// after calling `sd_card::init(...)` in `main`, passing its two return
+/// values straight through:
+/// ```ignore
+/// let (proxy, storage) = sd_card::init(spi_bus, cs_pin).await;
+/// spawner.spawn(sd_card::sd_task(proxy, storage, sd_ready)).unwrap();
+/// spawner.spawn(sd_card::tftp_task(stack, storage, proxy)).unwrap();
 #[embassy_executor::task]
-pub async fn tftp_task(stack: Stack<'static>) {
-    let mut rx_meta = [PacketMetadata::EMPTY; 2];
-    let mut rx_buffer = [0u8; 1024];
-    let mut tx_buffer = [0u8; 1024];
+pub async fn tftp_task(
+    stack: embassy_net::Stack<'static>,
+    storage: &'static Mutex<NoopRawMutex, Storage<SdBlockDevice>>,
+    proxy: &'static SdSpiBlockingProxy,
+) {
+    let source = SdCardSource::new(storage, proxy);
+    crate::tftp::serve(stack, source).await;
+}
+
+pub async fn serve<F: FileSource>(stack: Stack<'static>, mut source: F) -> ! {
+    // to track exactly 1 incoming package
+    let mut rx_meta = [PacketMetadata::EMPTY; 1];
+    // TFTP ACK: 4B (opcode + block#)
+    // Ethernet header: 14B, IPv4 header: 20B, UDP header: 8B
+    let mut rx_buffer = [0u8; 64];
+
+    // Exactly 1 512-byte TFTP data packet + network headers
+    let mut tx_meta = [PacketMetadata::EMPTY; 1];
+    // TFTP Data Payload: 512B
+    // TFTP Data Header: 4B (opcode + block#)
+    // Ethernet header: 14B, IPv4 header: 20B, UDP header: 8B
+    let mut tx_buffer = [0u8; 576];
 
     let mut socket = UdpSocket::new(
         stack,
         &mut rx_meta,
         &mut rx_buffer,
-        &mut [PacketMetadata::EMPTY; 2],
+        &mut tx_meta,
         &mut tx_buffer,
     );
 
-    socket.bind(69).unwrap();
+    let port = match env!("TFTP_PORT").parse::<u16>() {
+        Ok(port) => port,
+        Err(_) => 69
+    };
+    unwrap!(socket.bind(port),"failed to bind TFTP port");
 
-    let volume_mgr = SD_VOLUME_MGR.wait().await;
+    let mut req_buf = [0u8; 32];
+    let mut data_buf = [0u8; 4 + BLOCK_SIZE]; // opcode(2) + block#(2) + data
+    let mut ack_buf = [0u8; 32];
+    let mut index_buf = [0u8; BLOCK_SIZE];
 
     loop {
-        let mut buf = [0u8; 516];
-        match socket.recv_from(&mut buf).await {
-            Ok((n, remote_endpoint)) => {
-                if n < 2 { continue; }
-                let opcode = OpCode::from(u16::from_be_bytes([buf[0], buf[1]]));
-                match opcode {
-                    OpCode::Rrq => {
-                        handle_rrq(&mut socket, remote_endpoint, &buf[2..n], volume_mgr).await;
-                    }
-                    OpCode::Wrq => {
-                        handle_wrq(&mut socket, remote_endpoint, &buf[2..n], volume_mgr).await;
-                    }
-                    _ => {
-                        send_error(&mut socket, remote_endpoint, 4, "Illegal TFTP operation").await;
-                    }
-                }
-            }
-            Err(e) => {
-                error!("UDP recv error: {:?}", e);
-            }
-        }
-    }
-}
-
-async fn handle_rrq(
-    socket: &mut UdpSocket<'_>,
-    remote: embassy_net::IpEndpoint,
-    data: &[u8],
-    volume_mgr: &'static SharedVolumeManager,
-) {
-    let (filename, _mode) = parse_request(data);
-    info!("RRQ: {}", filename);
-
-    let mut volume_mgr = volume_mgr.lock().await;
-    let mut volume = match volume_mgr.open_volume(VolumeIdx(0)) {
-        Ok(v) => v,
-        Err(e) => {
-            send_error(socket, remote, 1, "Volume error").await;
-            return;
-        }
-    };
-
-    let mut root_dir = match volume.open_root_dir() {
-        Ok(d) => d,
-        Err(e) => {
-            send_error(socket, remote, 1, "Root dir error").await;
-            return;
-        }
-    };
-
-    let mut file = match root_dir.open_file_in_dir(filename, Mode::ReadOnly) {
-        Ok(f) => f,
-        Err(e) => {
-            send_error(socket, remote, 1, "File not found").await;
-            return;
-        }
-    };
-
-    let mut block_num = 1u16;
-    let mut data_buf = [0u8; 512];
-    
-    loop {
-        let n = match file.read(&mut data_buf) {
-            Ok(n) => n,
-            Err(e) => {
-                send_error(socket, remote, 2, "Read error").await;
-                return;
-            }
+        let (n, client) = match socket.recv_from(&mut req_buf).await {
+            Ok(v) => v,
+            Err(_) => continue,
         };
 
-        let mut packet = [0u8; 516];
-        packet[0..2].copy_from_slice(&(OpCode::Data as u16).to_be_bytes());
-        packet[2..4].copy_from_slice(&block_num.to_be_bytes());
-        packet[4..4+n].copy_from_slice(&data_buf[..n]);
+        if n < 4 {
+            continue;
+        }
 
-        // Send and wait for ACK
-        let mut retry = 0;
-        loop {
-            if let Err(e) = socket.send_to(&packet[..4+n], remote).await {
-                error!("UDP send error: {:?}", e);
-                return;
+        let opcode = u16::from_be_bytes([req_buf[0], req_buf[1]]);
+
+        debug!("*** tftp socket.recv_from opcode {} buf {:a}", opcode, req_buf[2..n]);
+
+        match opcode {
+            OP_RRQ => {
+                handle_rrq(
+                    &mut socket,
+                    client,
+                    &req_buf[2..n],
+                    &mut source,
+                    &mut data_buf,
+                    &mut ack_buf,
+                    &mut index_buf,
+                )
+                .await;
             }
-
-            let mut ack_buf = [0u8; 4];
-            match embassy_futures::select::select(
-                socket.recv_from(&mut ack_buf),
-                Timer::after(Duration::from_secs(2))
-            ).await {
-                embassy_futures::select::Either::First(Ok((an, _))) => {
-                    if an >= 4 {
-                        let op = OpCode::from(u16::from_be_bytes([ack_buf[0], ack_buf[1]]));
-                        let b = u16::from_be_bytes([ack_buf[2], ack_buf[3]]);
-                        if op == OpCode::Ack && b == block_num {
-                            break; // Got correct ACK
-                        }
-                    }
-                }
-                _ => {
-                    retry += 1;
-                    if retry > 3 {
-                        error!("TFTP timeout");
-                        return;
-                    }
-                    info!("TFTP retry {}", retry);
-                }
-            }
-        }
-
-        block_num = block_num.wrapping_add(1);
-        if n < 512 {
-            break; // EOF
-        }
-    }
-    info!("RRQ finished: {}", filename);
-}
-
-async fn handle_wrq(
-    socket: &mut UdpSocket<'_>,
-    remote: embassy_net::IpEndpoint,
-    data: &[u8],
-    volume_mgr: &'static SharedVolumeManager,
-) {
-    let (filename, _mode) = parse_request(data);
-    info!("WRQ: {}", filename);
-
-    let mut volume_mgr = volume_mgr.lock().await;
-    let mut volume = match volume_mgr.open_volume(VolumeIdx(0)) {
-        Ok(v) => v,
-        Err(e) => {
-            send_error(socket, remote, 1, "Volume error").await;
-            return;
-        }
-    };
-
-    let mut root_dir = match volume.open_root_dir() {
-        Ok(d) => d,
-        Err(e) => {
-            send_error(socket, remote, 1, "Root dir error").await;
-            return;
-        }
-    };
-
-    let mut file = match root_dir.open_file_in_dir(filename, Mode::ReadWriteCreateOrOverwrite) {
-        Ok(f) => f,
-        Err(e) => {
-            send_error(socket, remote, 1, "File create error").await;
-            return;
-        }
-    };
-
-    let mut block_num = 0u16;
-    
-    // Send initial ACK for WRQ
-    let ack = (OpCode::Ack as u16).to_be_bytes();
-    let b0 = block_num.to_be_bytes();
-    let mut initial_ack = [0u8; 4];
-    initial_ack[0..2].copy_from_slice(&ack);
-    initial_ack[2..4].copy_from_slice(&b0);
-    let _ = socket.send_to(&initial_ack, remote).await;
-
-    loop {
-        let mut data_buf = [0u8; 516];
-        match embassy_futures::select::select(
-            socket.recv_from(&mut data_buf),
-            Timer::after(Duration::from_secs(5))
-        ).await {
-            embassy_futures::select::Either::First(Ok((n, _))) => {
-                if n < 4 { continue; }
-                let op = OpCode::from(u16::from_be_bytes([data_buf[0], data_buf[1]]));
-                let b = u16::from_be_bytes([data_buf[2], data_buf[3]]);
-                
-                if op == OpCode::Data && b == block_num.wrapping_add(1) {
-                    block_num = b;
-                    let payload = &data_buf[4..n];
-                    if let Err(_) = file.write(payload) {
-                        send_error(socket, remote, 3, "Write failed").await;
-                        return;
-                    }
-                    
-                    let mut ack_pkt = [0u8; 4];
-                    ack_pkt[0..2].copy_from_slice(&(OpCode::Ack as u16).to_be_bytes());
-                    ack_pkt[2..4].copy_from_slice(&block_num.to_be_bytes());
-                    let _ = socket.send_to(&ack_pkt, remote).await;
-
-                    if payload.len() < 512 {
-                        break; // EOF
-                    }
-                }
+            OP_ACK => {}
+            OP_WRQ => {
+                send_error(&mut socket, client, ERR_ILLEGAL_OP, "write not supported", &mut ack_buf).await;
             }
             _ => {
-                error!("WRQ timeout");
-                return;
+                send_error(&mut socket, client, ERR_ILLEGAL_OP, "unexpected opcode", &mut ack_buf).await;
             }
         }
     }
-    info!("WRQ finished: {}", filename);
 }
 
-fn parse_request(data: &[u8]) -> (&str, &str) {
-    let mut parts = data.split(|&b| b == 0);
-    let filename = core::str::from_utf8(parts.next().unwrap_or(&[])).unwrap_or("");
-    let mode = core::str::from_utf8(parts.next().unwrap_or(&[])).unwrap_or("");
-    (filename, mode)
+/// What `send_blocks` should pull bytes from for this transfer.
+enum ReadKind<'a> {
+    /// Stream from the currently `open`-ed real file via `read_at`.
+    RealFile,
+    /// Stream from an active GPX generation session via `next_gpx_chunk`.
+    Gpx,
+    /// Serve a pre-rendered in-memory buffer (used for INDEX/GPXINDEX
+    /// listings, already fully generated before the transfer starts).
+    Buffer(&'a [u8]),
 }
 
-async fn send_error(socket: &mut UdpSocket<'_>, remote: embassy_net::IpEndpoint, code: u16, msg: &str) {
-    let mut buf = [0u8; 512];
-    buf[0..2].copy_from_slice(&(OpCode::Error as u16).to_be_bytes());
+/// Parses the RRQ payload, then dispatches to either the virtual
+/// index listing or a real file, and drives the DATA/ACK exchange
+/// via `send_blocks` either way.
+async fn handle_rrq<F: FileSource>(
+    socket: &mut UdpSocket<'_>,
+    client: UdpMetadata,
+    payload: &[u8],
+    source: &mut F,
+    data_buf: &mut [u8],
+    ack_buf: &mut [u8],
+    index_buf: &mut [u8],
+) {
+    let Some((filename, mode)) = parse_rrq(payload) else {
+        send_error(socket, client, ERR_ILLEGAL_OP, "malformed request", ack_buf).await;
+        return;
+    };
+
+    if mode != "octet" {
+        send_error(socket, client, ERR_ILLEGAL_OP, "only octet mode supported", ack_buf).await;
+        return;
+    }
+
+    if filename == INDEX_FILENAME {
+        let mut writer = IndexWriter::new(index_buf);
+        source.list(&mut writer).await;
+        let len = writer.finish();
+        send_blocks(socket, client, source, ReadKind::Buffer(&index_buf[..len]), data_buf, ack_buf).await;
+        return;
+    }
+
+    if !source.open(filename).await {
+        send_error(socket, client, ERR_NOT_FOUND, "file not found", ack_buf).await;
+        return;
+    }
+
+    send_blocks(socket, client, source, ReadKind::RealFile, data_buf, ack_buf).await;
+}
+
+/// Shared DATA/ACK block-transfer loop, used for real files, the GPX
+/// stream, and pre-rendered listing buffers alike — see `ReadKind`.
+async fn send_blocks<F: FileSource>(
+    socket: &mut UdpSocket<'_>,
+    client: UdpMetadata,
+    source: &mut F,
+    kind: ReadKind<'_>,
+    data_buf: &mut [u8],
+    ack_buf: &mut [u8],
+) {
+    let mut block_num: u16 = 1;
+    let mut offset: u32 = 0;
+
+    loop {
+        let payload_len = match &kind {
+            ReadKind::RealFile => source.read_at(offset, &mut data_buf[4..]).await,
+            ReadKind::Gpx => {0}
+            ReadKind::Buffer(data) => {
+                let start = offset as usize;
+                if start >= data.len() {
+                    0
+                } else {
+                    let cap = data_buf.len() - 4;
+                    let end = (start + cap).min(data.len());
+                    let n = end - start;
+                    data_buf[4..4 + n].copy_from_slice(&data[start..end]);
+                    n
+                }
+            }
+        };
+        let is_last = payload_len < BLOCK_SIZE;
+
+        data_buf[0..2].copy_from_slice(&OP_DATA.to_be_bytes());
+        data_buf[2..4].copy_from_slice(&block_num.to_be_bytes());
+        let packet = &data_buf[..4 + payload_len];
+
+        let mut acked = false;
+        for _attempt in 0..MAX_RETRIES {
+            if socket.send_to(packet, client).await.is_err() {
+                continue;
+            }
+
+            match with_timeout(ACK_TIMEOUT, socket.recv_from(ack_buf)).await {
+                Ok(Ok((n, from))) if from.endpoint == client.endpoint && n >= 4 => {
+                    let ack_op = u16::from_be_bytes([ack_buf[0], ack_buf[1]]);
+                    let ack_block = u16::from_be_bytes([ack_buf[2], ack_buf[3]]);
+                    if ack_op == OP_ACK && ack_block == block_num {
+                        acked = true;
+                        break;
+                    }
+                }
+                Ok(Ok(_)) => { /* not from our client, or malformed; retry */ }
+                Ok(Err(_)) => { /* socket error; retry */ }
+                Err(_) => { /* timed out waiting for ACK; retry send */ }
+            }
+        }
+
+        if !acked {
+            return; // client vanished or link dropped; abandon transfer
+        }
+        if is_last {
+            return; // transfer complete
+        }
+
+        offset += BLOCK_SIZE as u32;
+        block_num = block_num.wrapping_add(1);
+    }
+}
+
+/// Parses `filename\0mode\0[option\0value\0]...` — trailing RFC 2347
+/// options are ignored since we don't negotiate them.
+fn parse_rrq(payload: &[u8]) -> Option<(&str, &str)> {
+    let mut parts = payload.split(|&b| b == 0);
+    let filename = core::str::from_utf8(parts.next()?).ok()?;
+    let mode = core::str::from_utf8(parts.next()?).ok()?;
+    if filename.is_empty() {
+        return None;
+    }
+    Some((filename, mode))
+}
+
+async fn send_error(
+    socket: &mut UdpSocket<'_>,
+    client: UdpMetadata,
+    code: u16,
+    msg: &str,
+    buf: &mut [u8],
+) {
+    buf[0..2].copy_from_slice(&OP_ERROR.to_be_bytes());
     buf[2..4].copy_from_slice(&code.to_be_bytes());
     let msg_bytes = msg.as_bytes();
-    let len = msg_bytes.len().min(512 - 5);
-    buf[4..4+len].copy_from_slice(&msg_bytes[..len]);
-    buf[4+len] = 0;
-    let _ = socket.send_to(&buf[..5+len], remote).await;
+    let end = 4 + msg_bytes.len().min(buf.len() - 5);
+    buf[4..end].copy_from_slice(&msg_bytes[..end - 4]);
+    buf[end] = 0;
+    let _ = socket.send_to(&buf[..=end], client).await;
 }
