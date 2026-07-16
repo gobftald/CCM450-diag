@@ -23,6 +23,7 @@ mod gsm;
 mod lcd;
 mod sd_card;
 mod tcp;
+mod tftp;
 
 type SharedSpiBus = embassy_sync::mutex::Mutex<
     NoopRawMutex, esp_hal::spi::master::SpiDmaBus<'static, esp_hal::Async>
@@ -57,6 +58,8 @@ async fn main(spawner: embassy_executor::Spawner) {
         ap_config,
     ) = create_ap_sta!(peripherals);
 
+    // they cannot be simple static, since NoopRawMutex does not Sync
+    // but StaticCell<T> defined as Sync even if T is not Sync
     let wifi_rescan_request = mk_static!(
         Signal<NoopRawMutex, ()>,
         Signal::<NoopRawMutex, ()>::new()
@@ -85,20 +88,17 @@ async fn main(spawner: embassy_executor::Spawner) {
 
     let spi = create_spi_bus!(peripherals);
     let i2c = create_i2c_bus!(peripherals);
-    // it cannot be simple static, since NoopRawMutex does not Sync
-    // but StaticCell<T> defined as Sync even if T is not Sync
-    let sd_ready = mk_static!(Signal<NoopRawMutex, ()>, Signal::<NoopRawMutex, ()>::new());
 
-    // pins based on WaveShare ESP32-S3-Touch-LCD-2 schematic
+    // pin# based on WaveShare ESP32-S3-Touch-LCD-2 schematic
 
     // chip select pins of all spi periherals should be initialized before creating shared spi bus
     let sd_cs = Output::new(peripherals.GPIO41, Level::High, OutputConfig::default());
     let lcd_cs = Output::new(peripherals.GPIO45, Level::High, OutputConfig::default());
 
-    let _ = spawner.spawn(sd_card::sd_task(
-        spi, sd_ready,
-        sd_cs
-    ));
+    let (proxy, storage) = sd_card::init(spi, sd_cs).await;
+    let _ = spawner.spawn(sd_card::sd_task(proxy, storage));
+
+    let _ = spawner.spawn(tftp::tftp_task(sta_stack, storage, proxy));
 
     let _ = spawner.spawn(lcd::lcd_task(
         i2c,
@@ -106,7 +106,8 @@ async fn main(spawner: embassy_executor::Spawner) {
             peripherals.GPIO46,
             InputConfig::default().with_pull(Pull::Up),  // TP INT
         ),
-        spi, sd_ready, wifi_rescan_request,
+        spi,
+        wifi_rescan_request,
         lcd_cs,
         peripherals.GPIO42.into(),  // LCD DC
         peripherals.GPIO0.into(),   // LCD RST

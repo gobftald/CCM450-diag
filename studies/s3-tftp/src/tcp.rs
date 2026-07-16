@@ -9,7 +9,6 @@ use crate::gps::{GPS_UPDATED, GGA_MSG, GGA_SIZE, RMC_MSG, RMC_SIZE};
 
 pub static mut TCP_STAT: [u8; 1] = [b'D'];
 pub static mut TCP_ADDR: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
-pub static mut STA_GENERATION: u32 = 0;
 
 struct WifiCandidate {
     ssid: &'static str,
@@ -92,30 +91,43 @@ pub async fn connection_task(
             continue;
         }
 
+        match target.static_ip {
+            Some((addr, prefix_len, gateway)) => {
+                // Clear the stack and force Static config
+                sta_stack.set_config_v4(embassy_net::ConfigV4::None);
+                sta_stack.set_config_v4(
+                    embassy_net::ConfigV4::Static(
+                        embassy_net::StaticConfigV4 {
+                            address: embassy_net::Ipv4Cidr::new(addr, prefix_len),
+                            gateway: Some(gateway),
+                            dns_servers: Default::default(),
+                        }
+                    )
+                );
+            }
+            None => {
+                // Clear the stack and force DHCP mode BEFORE the hardware connects
+                sta_stack.set_config_v4(embassy_net::ConfigV4::None);
+                let mut dhcp_config = embassy_net::DhcpConfig::default();
+                dhcp_config.retry_config.discover_timeout =
+                    core::time::Duration::from_secs(target.discover_timeout).into();
+                sta_stack.set_config_v4(embassy_net::ConfigV4::Dhcp(dhcp_config));
+            }
+        }
+
         trace!("*** WiFi STA: Connecting...");
         match controller.connect_async().await {
             Ok(()) => {
                 trace!("*** WiFi STA: Connected!");
                 unsafe { TCP_STAT[0] = b'U'; }
 
+                // Wait for Layer-3 configuration to settle.
                 match target.static_ip {
-                    Some((addr, prefix_len, gateway)) => {
-                        sta_stack.set_config_v4(embassy_net::ConfigV4::None);
-                        sta_stack.set_config_v4(
-                            embassy_net::ConfigV4::Static(
-                                embassy_net::StaticConfigV4 {
-                                    address: embassy_net::Ipv4Cidr::new(addr, prefix_len),
-                                    gateway: Some(gateway),
-                                    dns_servers: Default::default(),
-                                }
-                            )
-                        );
-
-                        // With static config, there is no actual negotiation, so we don't wait
-                        // for an event -- we simply read it, ensuring security with a short poll.
+                    Some(_) => {
+                        // With static config, poll briefly until the stack updates
                         loop {
                             if let Some(cfg) = sta_stack.config_v4() {
-                                info!("*** WiFi STA: IP: {}", cfg.address);
+                                info!("*** WiFi STA: Static IP: {}", cfg.address);
                                 unsafe { TCP_ADDR = cfg.address.address(); }
                                 break;
                             }
@@ -123,44 +135,66 @@ pub async fn connection_task(
                         }
                     }
                     None => {
-                        // Forced DHCP restart -- delete the old configuration and then
-                        // immediately revert to DHCP mode to start a fresh DISCOVER
-                        sta_stack.set_config_v4(embassy_net::ConfigV4::None);
-
-                        let mut dhcp_config = embassy_net::DhcpConfig::default();
-                        dhcp_config.retry_config.discover_timeout =
-                            core::time::Duration::from_secs(target.discover_timeout).into();
-                        sta_stack.set_config_v4(
-                            embassy_net::ConfigV4::Dhcp(dhcp_config));
-
-                        // Here, immediately after the reset, we read the fresh config
-                        sta_stack.wait_config_down().await;
+                        // DHCP Mode: Wait cleanly for the events.
+                        sta_stack.wait_link_up().await; 
                         sta_stack.wait_config_up().await;
+
                         if let Some(cfg) = sta_stack.config_v4() {
-                            info!("*** WiFi STA: IP: {}", cfg.address);
+                            info!("*** WiFi STA: DHCP IP: {}", cfg.address);
                             unsafe { TCP_ADDR = cfg.address.address(); }
                         }
                     }
                 }
-                unsafe { STA_GENERATION = STA_GENERATION.wrapping_add(1); }
 
-                match select(
+                let was_forced = match select(
                     controller.wait_for_event(WifiEvent::StaDisconnected),
                     wifi_rescan_request.wait(),
                 ).await {
                     Either::First(()) => {
                         trace!("*** WiFi STA: Disconnected, rescanning...");
                         sta_state_changed.signal(());
+                        false
                     }
                     Either::Second(()) => {
-                        trace!("*** WiFi STA: Manual rescan requested, disconnecting...");
-                        let _ = controller.disconnect_async().await;
-                        sta_state_changed.signal(());
+                        trace!("*** WiFi: Manual rescan requested, power-cycling radio...");
+                        true
                     }
-                }
+                };
+
+                // Force clear the embassy-net interface state
+                let empty_static = embassy_net::ConfigV4::Static(embassy_net::StaticConfigV4 {
+                    address: embassy_net::Ipv4Cidr::new(
+                        embassy_net::Ipv4Address::from_octets([0, 0, 0, 0]),
+                        0
+                    ),
+                    gateway: None,
+                    dns_servers: Default::default(),
+                });
+                debug!("after let empty_static");
+                sta_stack.set_config_v4(empty_static);
+                debug!("after sta_stack.set_config_v4(empty_static);");
+
+                // Complete hardware shutdown of the co-processor radio (AP + STA)
+                let _ = controller.stop_async().await;
+                debug!("after let _ = controller.stop_async().await;");
+
+                // Clear transient hardware energy
+                embassy_time::Timer::after_millis(300).await;
                 unsafe { TCP_STAT[0] = b'D'; }
 
-                embassy_time::Timer::after_secs(2).await;
+                // Cold-reboot the radio module
+                trace!("*** WiFi: Hardware radio rebooting...");
+                unwrap!(controller.start_async().await);
+                trace!("*** WiFi: Radio recovered and freshly re-initialized!");
+
+                // Signal TFTP server to drop its current sockets
+                sta_state_changed.signal(());
+
+                // When range or other issue, don't aggressively spin the CPU
+                // in a continuous high-power scanning loop 
+                if was_forced == false {
+                    embassy_time::Timer::after_secs(5).await;
+                }
             }
             Err(e) => {
                 warn!("*** WiFi STA: Connect failed: {:?}", &e);
@@ -178,29 +212,14 @@ pub async fn tcp_task(
     let mut rx_buf = [0u8; 4];  // we only send
     let mut tx_buf = [0u8; 512];
     let mut gps_updated = unwrap!(GPS_UPDATED.receiver());
-    let mut last_generation = 0u32;
-    let mut need_new_dhcp = false;
 
     loop {
         loop {
             if sta_stack.is_link_up() { break; }
-            embassy_time::Timer::after_millis(1000).await;
-            debug!("link is not up");
+            embassy_time::Timer::after_millis(200).await;
+            trace!("link is not up");
         }
 
-        if need_new_dhcp { 
-            loop {
-                let current_gen = unsafe { STA_GENERATION };
-                if current_gen != last_generation {
-                    last_generation = current_gen;
-                    break;
-                }
-                embassy_time::Timer::after_millis(200).await;
-            }
-            need_new_dhcp = false;
-        }
-
-        unsafe { TCP_STAT[0] = b'U'; }
         // make sure that no peding signal
         let _ = sta_state_changed.try_take();
 
@@ -226,7 +245,6 @@ pub async fn tcp_task(
             }
             Either::First(Err(e)) => {
                 warn!("*** TCP NMEA: Accept error: {:?}", e);
-                unsafe { TCP_STAT[0] = b'D'; }
 
                 embassy_time::Timer::after_secs(1).await;
                 continue;
@@ -234,7 +252,6 @@ pub async fn tcp_task(
             Either::Second(()) => {
                 trace!("*** TCP NMEA: STA state changed while waiting, restarting listen");
                 socket.close();
-                need_new_dhcp = true;   // wait for new DHCP address
                 continue;
             }
         }
@@ -268,14 +285,12 @@ pub async fn tcp_task(
                 }
                 Either::Second(()) => {
                     trace!("*** TCP NMEA: STA state changed, closing socket");
-                    need_new_dhcp = true;   // wait for new DHCP address
                     break;
                 }
             }
         }
 
         socket.close();
-        unsafe { TCP_STAT[0] = b'D'; }
 
         embassy_time::Timer::after_millis(100).await;
         trace!("*** TCP NMEA: Connection closed, back to listening.");

@@ -133,7 +133,7 @@ pub async fn gps_task(mut gps: crate::gps::GpsUart<'static>) {
     let mut fix: usize = 0;             // gps fix status
     let mut ofx: usize = 0;             // overflow index
 
-    let mut update: bool = false;       // send update signal
+    let mut update: u8 = 0;             // send update signal
     let gps_updated = GPS_UPDATED.sender();
 
     //let mut tc0 = 0;
@@ -285,10 +285,10 @@ pub async fn gps_task(mut gps: crate::gps::GpsUart<'static>) {
                                                 addr_of_mut!((*(&raw mut GPS_DATA)).time) as *mut u8,
                                                 6
                                             );
-
-                                            // update if we have got at least a new timestamp
-                                            update = true;
                                         }
+                                        // update if we have got at least a new timestamp
+                                        update += 1;
+
                                     }
                                 }
 
@@ -306,6 +306,8 @@ pub async fn gps_task(mut gps: crate::gps::GpsUart<'static>) {
                                                 6
                                             );
                                         }
+                                        // update if we have got at least a new timestamp
+                                        update += 10;
                                     }
                                 }
                                 
@@ -360,15 +362,14 @@ pub async fn gps_task(mut gps: crate::gps::GpsUart<'static>) {
                                 ofx = handle_overflow(&mut buf[..size + ofx]);
 
                                 // send update signal only from the 3rd sentence
-                                if update {
+                                if update == 11 {
                                     //unsafe { debug!("{:a}", *&raw const GPS_DATA); }
                                     //debug!("gps_updated.send");
 
                                     // Signal that GPS_DATA were updated 
                                     gps_updated.send(());
-
-                                    update = false;
                                 }
+                                update = 0;
                             }
                         }
                         // drop all other sentence (like. PAIR)
@@ -402,7 +403,7 @@ fn field(mut field_num: usize, buf: &[u8]) -> Result<&[u8], ()> {
     while field_num > 0 {
         for (i, p) in rbuf.iter().enumerate() {
             if *p == b',' {
-                len -= i as i32  + 1;
+                len -= i as i32 + 1;
                 if len > 0 {
                     unsafe { rbuf = from_raw_parts((p as *const u8).add(1) , len as usize); }
                     break

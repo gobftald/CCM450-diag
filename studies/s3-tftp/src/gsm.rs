@@ -135,6 +135,7 @@ pub async fn gsm_task(mut gsm: crate::gsm::GsmUart<'static>, mut pwk_pin: Output
                 state = ModemState::RadioActivating;
                 xfer_ok = false;
                 bad_xfer = 0;
+                unsafe { GSM_OK[0] = b' '; }
             }
             ModemState::RadioActivating => {
                 // Passive wait state. Wating for b"+CGEV: NW PDN ACT1"

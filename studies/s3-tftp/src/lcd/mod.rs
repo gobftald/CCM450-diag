@@ -42,16 +42,12 @@ pub(crate) async fn lcd_task(
     i2c_bus: esp_hal::i2c::master::I2c<'static, esp_hal::Blocking>,
     mut tp_int: Input<'static>,
     spi_bus: &'static crate::SharedSpiBus,
-    sd_ready: &'static Signal<NoopRawMutex, ()>,
     wifi_rescan_request: &'static Signal<NoopRawMutex, ()>,
     cs_pin: Output<'static>,
     dc_pin: AnyPin<'static>,
     reset_pin: AnyPin<'static>,
     backlight_pin: AnyPin<'static>,
 ) {
-    // WAIT for the SD card to finish its handshake
-    sd_ready.wait().await;
-
     // Initialize lcd display
     let mut display =
         lcd_init!(spi_bus, cs_pin, dc_pin, reset_pin);
