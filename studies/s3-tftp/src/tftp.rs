@@ -59,6 +59,18 @@ pub trait FileSource {
     /// Write every calendar day that has data into `writer`,
     /// one `YYMMDD` per line via `writer.write_date`.
     async fn list(&mut self, writer: &mut IndexWriter<'_>);
+
+    /// Called once when the request comes in, with the requested day's
+    /// raw `"YYMMDD"` date bytes.
+    /// Return `false` if there's nothing to stream (e.g. no records fall
+    /// on that day) to make the server reply with a "not found" error
+    /// instead of an empty file.
+    async fn start_gpx(&mut self, _date: [u8; 6]) -> bool;
+
+    /// Pulls the next chunk of already-rendered GPX bytes.
+    /// Called repeatedly (once per TFTP block) after a successful
+    /// `start_gpx`. Return 0 once the stream is exhausted.
+    async fn next_gpx_chunk(&mut self, _buf: &mut [u8]) -> usize;
 }
 
 /// Helper passed to `FileSource::list` so implementers don't have to
@@ -233,6 +245,15 @@ async fn handle_rrq<F: FileSource>(
         return;
     }
 
+    if let Some(date) = crate::gpx::parse_gpx_filename(filename) {
+        if !source.start_gpx(date).await {
+            send_error(socket, client, ERR_NOT_FOUND, "no records for that day", ack_buf).await;
+            return;
+        }
+        send_blocks(socket, client, source, ReadKind::Gpx, data_buf, ack_buf).await;
+        return;
+    }
+
     if !source.open(filename).await {
         send_error(socket, client, ERR_NOT_FOUND, "file not found", ack_buf).await;
         return;
@@ -257,7 +278,7 @@ async fn send_blocks<F: FileSource>(
     loop {
         let payload_len = match &kind {
             ReadKind::RealFile => source.read_at(offset, &mut data_buf[4..]).await,
-            ReadKind::Gpx => {0}
+            ReadKind::Gpx => source.next_gpx_chunk(&mut data_buf[4..]).await,
             ReadKind::Buffer(data) => {
                 let start = offset as usize;
                 if start >= data.len() {

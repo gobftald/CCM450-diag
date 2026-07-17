@@ -19,6 +19,7 @@ mod macros;
 mod panic;
 
 mod gps;
+mod gpx;
 mod gsm;
 mod lcd;
 mod sd_card;

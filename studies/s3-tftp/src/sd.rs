@@ -10,6 +10,7 @@ use esp_hal::{
 use embedded_hal::spi::{SpiBus, SpiDevice as SyncSpiDevice, Operation as SyncOp};
 use embassy_sync::{
     blocking_mutex::raw::NoopRawMutex,
+    signal::Signal,
     mutex::Mutex,
 };
 use embedded_sdmmc::{BlockDevice, BlockIdx, Block};
@@ -17,14 +18,13 @@ use embedded_sdmmc::{BlockDevice, BlockIdx, Block};
 use crate::{
     SharedSpiBus,
     gps::{GPS_DATA, GPS_UPDATED},
-    tftp::{FileSource, IndexWriter},
     gpx,
+    tftp::{FileSource, IndexWriter},
 };
 
-pub const FORMAT_ENABLED:       bool      = true;
+pub const FORMAT_NEEDED:       bool      = true;
 //pub const MASTER_OFFSET:       u32     = 0;
-//pub const MASTER_OFFSET:       u32     = 15 * 1024 / 512 * 1024 * 1024;
-pub const MASTER_OFFSET:       u32     = 17 * 1024 / 512 * 1024 * 1024;
+pub const MASTER_OFFSET:       u32     = 15 * 1024 / 512 * 1024 * 1024;
 
 pub const MAGIC:               [u8; 4] = *b"CCMG";
 pub const VERSION:             u8      = 1;
@@ -36,6 +36,15 @@ pub const DATA_START:          u32     = 257 + MASTER_OFFSET;
 pub const ENTRIES_PER_SECTOR:  u32     = 32;    // 512 / 16
 // 256 * 32 = 8192 days -> ~22 years
 
+// ============================================================================
+// CHANGED: SdSpiBlockingProxy no longer has a lifetime parameter. It now
+// owns `cs_pin` directly (instead of borrowing it) and expects `bus` to be
+// `&'static`, so a single instance can live in a StaticCell and be shared
+// by reference between `sd_task` and the TFTP task. This is the only
+// reason for the change: nothing about the SPI/locking logic itself is
+// different.
+// ============================================================================
+
 type BusGuard = embassy_sync::mutex::MutexGuard<
     'static, NoopRawMutex, SpiDmaBus<'static, esp_hal::Async>
 >;
@@ -44,7 +53,7 @@ pub static mut SD_TOOK: [u8; 1] = [b'-',];
 
 pub struct SdSpiBlockingProxy {
     pub bus: &'static SharedSpiBus,
-    pub cs_pin: RefCell<esp_hal::gpio::Output<'static>>,
+    pub cs_pin: RefCell<Output<'static>>,
     // UnsafeCell lets us modify the guard using a shared reference (&self)
     pub active_guard: core::cell::UnsafeCell<Option<BusGuard>>,
     // Controls when it is safe to jump to 16 MHz
@@ -52,7 +61,7 @@ pub struct SdSpiBlockingProxy {
 }
 
 impl SdSpiBlockingProxy {
-    pub fn new(bus: &'static SharedSpiBus, cs_pin: esp_hal::gpio::Output<'static>) -> Self {
+    pub fn new(bus: &'static SharedSpiBus, cs_pin: Output<'static>) -> Self {
         Self {
             bus,
             cs_pin: RefCell::new(cs_pin),
@@ -127,7 +136,7 @@ impl SdSpiBlockingProxy {
     }
 }
 
-impl<'a> embedded_hal::spi::ErrorType for &SdSpiBlockingProxy {
+impl embedded_hal::spi::ErrorType for &SdSpiBlockingProxy {
     type Error = esp_hal::spi::Error;
 }
 
@@ -153,38 +162,16 @@ pub struct FormatHeader {
 
 #[repr(C, packed)]
 pub struct DayEntry {   
-    //pub date:         [u8; 6],  // "260516" YYMMDD
-    pub date:         [u8; 6],  // "260715" YYMMDD
+    pub date:         [u8; 6],  // "260516" YYMMDD
     pub _pad:         [u8; 2],
     pub start_sector: u32,      // absolute sector of first data sector
     pub _pad2:        [u8; 4],  // = 16 bytes total
 }
 
-#[cfg(feature = "defmt")]
-impl defmt::Format for DayEntry {
-    fn format(&self, fmt: defmt::Formatter) {
-        // Fix for unaligned references:
-        // We use core::ptr::addr_of! and read_unaligned to safely copy 
-        // the 4 bytes of start_sector onto the CPU stack by value.
-        let safe_start_sector = unsafe { 
-            core::ptr::addr_of!(self.start_sector).read_unaligned() 
-        };
-
-        // We can pass self.date directly because arrays of u8 are always 
-        // 1-byte aligned, but safe_start_sector must be passed by value.
-        defmt::write!(
-            fmt, 
-            "DayEntry {{ date: {=[u8; 6]:a}, start_sector: {} }}", 
-            self.date, 
-            safe_start_sector
-        );
-    }
-}
-
 #[repr(C, packed)]
 pub struct DataSector {
-    pub sequence:     u32,              // 0xFFFFFFFF = empty
-    //pub sequence:     u32,              // 0x00000000 = empty
+    //pub sequence:     u32,              // 0xFFFFFFFF = empty
+    pub sequence:     u32,              // 0x00000000 = empty
     pub day_index:    u16,              // index into DayEntry array
     pub record_count: u8,               // valid records in this sector (0-8)
     pub _pad:         [u8; 9],          // pad header to 16 bytes
@@ -300,7 +287,7 @@ where
             .unwrap_or(false);
 
         if !magic_ok {
-            if FORMAT_ENABLED {
+            if FORMAT_NEEDED {
                 warn!("Invalid magic, formatting...");
                 return Self::format(storage.dev);
             } else {
@@ -310,6 +297,7 @@ where
 
         // scan index to find last day entry
         'outer: for idx_sector in 0..INDEX_SECTORS as u32 {
+            debug!("storage.read_block({})", INDEX_START + idx_sector);
             let block = storage.read_block(INDEX_START + idx_sector)?;
             // copy contents to avoid borrow issues
             let contents = block.contents;
@@ -518,6 +506,42 @@ where
         Ok(())
     }
 
+    pub fn dump_data_sectors(&mut self, count: u32) -> Result<(), D::Error> {
+        for sector in DATA_START..DATA_START + count {
+            let block = self.read_block(sector)?;
+            let contents = block.contents;
+            
+            // interpret as DataSector
+            let seq = u32::from_le_bytes(unwrap!(contents[0..4].try_into()));
+            let day = u16::from_le_bytes(unwrap!(contents[4..6].try_into()));
+            let rec_count = contents[6];
+            
+            //if seq == 0xFFFFFFFF {
+            if seq == 0x00000000 {
+                info!("sector {}: [empty]", sector);
+                continue;
+            }
+            
+            info!(
+                "sector {}: seq={} day={} records={}",
+                sector, seq, day, rec_count
+            );
+            
+            // dump each record as hex
+            for r in 0..rec_count.min(RECORDS_PER_SECTOR) as usize {
+                let offset = 16 + r * RECORD_SIZE as usize;
+                let record = &contents[offset..offset + RECORD_SIZE as usize];
+                // log in 16-byte chunks (defmt can't do long slices)
+                info!("  rec {}: {:x}", r, record[0..16]);
+                info!("         {:x}", record[16..32]);
+                info!("         {:x}", record[32..48]);
+                info!("         {:x}", record[48..62]);
+            }
+        }
+        Ok(())
+    }
+
+
     // tftp: find day by date
     pub fn find_day(&mut self, date: &[u8; 6]) -> Result<Option<(u16, u32)>, D::Error> {
         for idx_sector in 0..INDEX_SECTORS as u32 {
@@ -568,10 +592,15 @@ where
     }
 
     // tftp: ls like function generating an INDEX file
+    //
+    // CHANGED: callback now also receives the day_index (needed by the
+    // caller to look up start_sector/size via day_sector_range without a
+    // second, redundant find_day scan).
     pub fn list_days<F>(&mut self, mut callback: F) -> Result<(), D::Error>
     where
-        F: FnMut(&[u8; 6]),
+        F: FnMut(u16, &[u8; 6]),
     {
+        let mut idx: u16 = 0;
         for idx_sector in 0..INDEX_SECTORS as u32 {
             let block = self.read_block(INDEX_START + idx_sector)?;
             let contents = block.contents;
@@ -590,18 +619,25 @@ where
                 let date = unsafe {
                     core::ptr::read_unaligned(core::ptr::addr_of!(entry.date))
                 };
-                callback(&date);
+                callback(idx, &date);
+                idx += 1;
             }
         }
         Ok(())
     }
+
+    // ========================================================================
+    // NEW: TFTP support helpers. Neither of these existed before — they're
+    // additions needed to serve real per-day raw files (INDEX.TXT /
+    // "YYMMDD.RAW") and to report accurate sizes.
+    // ========================================================================
 
     /// Returns the `[start, end)` sector range for a day, given the
     /// `(day_index, start_sector)` pair `find_day` already gave you. If
     /// this is the most recent (still-open) day, scans forward from
     /// `start_sector` to find the first empty sector — same scan `mount()`
     /// already does, just exposed as a reusable, non-mutating-state query.
-    fn day_sector_range(&mut self, day_index: u16, start_sector: u32) -> Result<(u32, u32), D::Error> {
+    pub fn day_sector_range(&mut self, day_index: u16, start_sector: u32) -> Result<(u32, u32), D::Error> {
         if day_index < self.day_index {
             // Not the last day: the next day's start_sector is our end.
             let end = self.read_day_start_sector(day_index + 1)?;
@@ -621,19 +657,29 @@ where
             }
         }
     }
+
+    /// Total valid record count across `[start_sector, end_sector)`. Every
+    /// sector in a day's range is full (8 records) except possibly the
+    /// last, whose true count lives in its `record_count` field.
+    pub fn day_record_count(&mut self, start_sector: u32, end_sector: u32) -> Result<u32, D::Error> {
+        if end_sector <= start_sector {
+            return Ok(0);
+        }
+        let full_sectors = end_sector - start_sector - 1;
+        let last = self.read_day_sector(end_sector - 1)?;
+        let last_count = last.map_or(0, |s| s.record_count as u32);
+        Ok(full_sectors * RECORDS_PER_SECTOR as u32 + last_count)
+    }
 }
 
-// ===============================================================
-// shared-state wiring + SdCardSource, needed for the TFTP server.
-// ===============================================================
-
-/// storage device type, matching exactly what `sd_task` builds.
+#[embassy_executor::task]
+/// Concrete storage device type, matching exactly what this returns.
 pub type SdBlockDevice = embedded_sdmmc::SdCard<&'static SdSpiBlockingProxy, Delay>;
 
 /// Performs the SD card handshake + mount (with retries), and wires up
-// the shared static proxy + storage mutex via `mk_static!` macro.
-// Call this once from `main`, *before* spawning `sd_task`/`tftp_task`,
-// and pass its two return values as plain parameters to both.
+/// the shared static proxy + storage mutex via your `mk_static!` macro.
+/// Call this once from `main`, *before* spawning `sd_task`/`tftp_task`,
+/// and pass its two return values as plain parameters to both.
 pub async fn init(
     spi_bus: &'static SharedSpiBus,
     cs_pin: Output<'static>,
@@ -652,7 +698,6 @@ pub async fn init(
                 proxy,
                 Delay::new(),
             );
-
 
             match card.num_bytes() {
                 Ok(size) => {
@@ -681,7 +726,6 @@ pub async fn init(
                     panic!("SD init failed: {:?}", e);
                 }
             }
-
         }
     };
 
@@ -694,12 +738,17 @@ pub async fn init(
 }
 
 /// Ongoing SD-writer task. Mounting already happened in `init()` before
-/// this was spawned — this task keeps writing incoming GPS records.
+/// this was spawned — this task just signals readiness and keeps writing
+/// incoming GPS records.
 #[embassy_executor::task]
 pub(crate) async fn sd_task(
     proxy: &'static SdSpiBlockingProxy,
     storage_mutex: &'static Mutex<NoopRawMutex, Storage<SdBlockDevice>>,
-){
+    sd_ready: &'static Signal<NoopRawMutex, ()>,
+) {
+    // signaling handshake finised to LCD task
+    sd_ready.signal(());
+    
     // get GPS_UPDATES watch receiver
     let mut gps_updated = unwrap!(GPS_UPDATED.receiver());
 
@@ -779,6 +828,28 @@ pub(crate) async fn sd_task(
     }
 }
 
+// ============================================================================
+// NEW: SdCardSource, needed for the TFTP server.
+// ============================================================================
+
+/// Serves TFTP forever using the already-mounted storage. Spawn this
+/// after calling `sd_card::init(...)` in `main`, passing its two return
+/// values straight through:
+/// ```ignore
+/// let (proxy, storage) = sd_card::init(spi_bus, cs_pin).await;
+/// spawner.spawn(sd_card::sd_task(proxy, storage, sd_ready)).unwrap();
+/// spawner.spawn(sd_card::tftp_task(stack, storage, proxy)).unwrap();
+/// ```
+#[embassy_executor::task]
+pub(crate) async fn tftp_task(
+    stack: embassy_net::Stack<'static>,
+    storage: &'static Mutex<NoopRawMutex, Storage<SdBlockDevice>>,
+    proxy: &'static SdSpiBlockingProxy,
+) {
+    let source = SdCardSource::new(storage, proxy);
+    crate::tftp::serve(stack, source).await;
+}
+
 /// Real per-day raw filename convention, parallel to `gpx::parse_day_filename`
 /// but for the untouched raw bytes: exactly `YYMMDD.raw` (lowercase).
 fn parse_raw_filename(filename: &str) -> Option<[u8; 6]> {
@@ -800,6 +871,7 @@ pub struct SdCardSource {
     storage: &'static Mutex<NoopRawMutex, Storage<SdBlockDevice>>,
     proxy: &'static SdSpiBlockingProxy,
 
+    // --- cursor for `open`/`read_at` (real "YYMMDD.RAW" file) ---
     open_start_sector: u32,
     open_end_sector: u32, // exclusive
 
@@ -830,7 +902,8 @@ impl SdCardSource {
     }
 
     /// Locks both the bus and the storage mutex, runs `f`, unlocks both.
-    /// Kept short, so `sd_task` is never blocked from writing a new GPS
+    /// Kept as a short critical section on purpose — never held across a
+    /// network wait — so `sd_task` is never blocked from writing a new GPS
     /// record for longer than a single sector read/write takes.
     async fn with_storage<R>(
         &self,
@@ -857,7 +930,6 @@ impl FileSource for SdCardSource {
                 storage.day_sector_range(day_index, start_sector).ok()
             })
             .await;
-        debug!("*** tftp storage.find_day -> range {}", range);
 
         match range {
             Some((start, end)) if end > start => {
@@ -878,45 +950,35 @@ impl FileSource for SdCardSource {
         let mut cur_offset = offset;
 
         while written < buf.len() {
-            //let record_index = cur_offset / RECORD_SIZE as u32;
-            let record_index = cur_offset / (RECORD_SIZE + 2) as u32;
+            let record_index = cur_offset / RECORD_SIZE as u32;
             let sector_index = record_index / RECORDS_PER_SECTOR as u32;
             let sector = self.open_start_sector + sector_index;
             if sector >= self.open_end_sector {
                 break;
             }
             let record_in_sector = (record_index % RECORDS_PER_SECTOR as u32) as usize;
-            //let byte_in_record = (cur_offset % RECORD_SIZE as u32) as usize;
-            let byte_in_record = (cur_offset % (RECORD_SIZE + 2) as u32) as usize;
+            let byte_in_record = (cur_offset % RECORD_SIZE as u32) as usize;
 
-            let data = self.with_storage(
-                |storage| storage.read_day_sector(sector
-            ).ok().flatten()).await;
+            let data = self.with_storage(|storage| storage.read_day_sector(sector).ok().flatten()).await;
             let Some(data_sector) = data else { break };
             if record_in_sector >= data_sector.record_count as usize {
                 break;
             }
 
             let record = &data_sector.records[record_in_sector];
-            //let avail = RECORD_SIZE as usize - byte_in_record;
-            let avail = (RECORD_SIZE + 2) as usize - byte_in_record;
+            let avail = RECORD_SIZE as usize - byte_in_record;
             let want = (buf.len() - written).min(avail);
-            //buf[written..written + want].copy_from_slice(&record[byte_in_record..byte_in_record + want]);
-            buf[written..written + want - 2].copy_from_slice(&record[byte_in_record..byte_in_record + want - 2]);
-            
-            buf[written + want - 2] = b'\r';
-            buf[written + want - 1] = b'\n';
-            
+            buf[written..written + want].copy_from_slice(&record[byte_in_record..byte_in_record + want]);
             written += want;
             cur_offset += want as u32;
         }
-        
+
         written
     }
 
     async fn list(&mut self, writer: &mut IndexWriter<'_>) {
         self.with_storage(|storage| {
-            let _ = storage.list_days(|date| writer.write_date(*date));
+            let _ = storage.list_days(|_day_index, date| writer.write_date(*date));
         })
         .await;
     }
@@ -974,7 +1036,7 @@ impl gpx::RecordSource for SdCardSource {
                 }
             }
 
-            let sector = unwrap!(self.gpx_sector_data.as_ref());
+            let sector = self.gpx_sector_data.as_ref().unwrap();
             if self.gpx_record_idx >= sector.record_count as usize {
                 self.gpx_sector_data = None;
                 self.gpx_sector += 1;
@@ -984,7 +1046,7 @@ impl gpx::RecordSource for SdCardSource {
             let raw = sector.records[self.gpx_record_idx];
             self.gpx_record_idx += 1;
 
-             match gpx::RawRecord::parse(&raw) {
+            match gpx::RawRecord::parse(&raw) {
                 Some(rec) if rec.date == date => {
                     return Some(rec);
                 }
