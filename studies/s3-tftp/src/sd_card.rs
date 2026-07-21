@@ -914,9 +914,13 @@ impl FileSource for SdCardSource {
         written
     }
 
-    async fn list(&mut self, writer: &mut IndexWriter<'_>) {
+    async fn list(&mut self, since: [u8; 6], writer: &mut IndexWriter<'_>) {
         self.with_storage(|storage| {
-            let _ = storage.list_days(|date| writer.write_date(*date));
+            let _ = storage.list_days(|date| {
+                if *date >= since {
+                    writer.write_date(*date);
+                }
+            });
         })
         .await;
     }

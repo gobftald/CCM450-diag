@@ -679,11 +679,35 @@ AT+CIPRXGET=1
 +CIPRXGET: 1,0          # only notification, the raw data is buffered
 AT+CIPRXGET=2,0,50      # dumping up to 50 bytes from slot 0
 
+#################
+Slint 
 
+Standalone viewer
+cargo install slint-viewer
+slint-viewer ui/app.slint
 
+VsCode plugin
+slint-viewer ui/app.slint or in VsCode inside
+but this is not working Yettel
 
+so manipulate in Vscode, but after save the changes appears in slint-viewer immediately
 
-
+Android 
+1 https://developer.android.com/studio (Download and Standard install)
+2 Inside Android Studio: SDK Manager → SDK Tools tab → check "NDK (Side by side)" → Apply
+3 Once installed, set the env vars (adjust NDK version folder to match what got installed)
+in .config/fish/config.fish
+    # Android Studio
+    function android
+    set -gx ANDROID_HOME $HOME/Library/Android/sdk
+    set -gx ANDROID_NDK_ROOT $ANDROID_HOME/ndk/30.0.15729638
+    set -gx JAVA_HOME /Applications/Android\ Studio.app/Contents/jbr/Contents/Home 
+    end
+4 Rust target + cargo-apk
+rustup target add aarch64-linux-android
+cargo install cargo-apk
+5 build command
+cargo apk build --target aarch64-linux-android --lib --release
 
 
 ##########################################
@@ -842,3 +866,53 @@ This is a bit more involved but gives you a smooth real-time experience with no 
 Recommendation
 For a hobby project, Approach 1 is perfect — it's maybe 80 lines of Rust total, no dependencies beyond std, and the 5-second meta-refresh is totally fine for vehicle tracking. Only reach for Approach 2 if the refresh flicker bothers you or you want sub-second updates.
 The one thing to keep in mind: store your API key in an environment variable, never hardcode it, even for personal projects.
+
+
+###############################
+Here's the full stack, layer by layer, for each target — same .slint files and Rust business logic at the top, diverging as you go down.
+macOS native app
+Your .slint UI files + Rust business logic (ECU UDP polling, etc.)
+        ↓
+Slint compiler (slint-build, Rust) — .slint → generated Rust structs/bindings
+        ↓
+Slint runtime (Rust) — property bindings, reactivity, layout engine
+        ↓
+Slint's renderer — FemtoVG (Rust) or Skia (C++), your choice of backend
+        ↓
+winit (Rust) — cross-platform windowing/event abstraction
+        ↓
+Cocoa / AppKit (Objective-C, Apple frameworks) — actual window, event loop, input
+        ↓
+Metal (Apple's GPU API, C/Objective-C/Swift) — or OpenGL depending on renderer config
+        ↓
+GPU driver (Apple, closed-source) → Apple Silicon/Intel GPU hardware
+Android APK
+Your .slint UI files + Rust business logic (ECU UDP polling, etc.)
+        ↓
+Slint compiler (slint-build, Rust) — .slint → generated Rust structs/bindings
+        ↓
+Slint runtime (Rust) — property bindings, reactivity, layout engine
+        ↓
+Slint's renderer — Skia (C++, Google) is the typical default on Android
+        ↓
+android-activity (Rust) — binding layer over Android's native windowing
+        ↓
+Android NDK (C/C++, Google) — native surface/window/input APIs
+        ↓
+Android system services — SurfaceFlinger (compositor, C++), Java-based
+   Activity Manager/lifecycle (even in a "pure Rust" app, native-activity
+   still runs inside a minimal Android Activity container under the hood)
+        ↓
+Vulkan / OpenGL ES (via Skia) — GPU API
+        ↓
+GPU driver (vendor-specific, e.g. Qualcomm/Mali, closed-source) → SoC GPU hardware
+What's identical across both: everything above the renderer line — your .slint files, 
+your Rust ECU/networking logic, Slint's compiler, and Slint's own runtime/layout/reactivity 
+code. That's the part that's genuinely "write once, run on both."
+
+What diverges, and why it has to: the renderer backend choice (FemtoVG vs Skia — 
+configurable, but Skia's more common on Android for feature completeness), the 
+windowing binding (winit/Cocoa vs android-activity/NDK), and the OS compositor + 
+GPU driver stack, none of which any app-level framework in any language reimplements — 
+this is the shared floor every GUI framework on these platforms stands on, as we just 
+discussed.

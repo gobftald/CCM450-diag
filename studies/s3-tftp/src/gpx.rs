@@ -1,3 +1,16 @@
+//! Streaming GPX 1.1 track generator.
+//!
+//! Renders raw 62-byte GPS log records into GPX `<trkpt>` elements one at
+//! a time, driven by the TFTP server's block-transfer loop. The whole GPX
+//! file is never materialized in memory or on the SD card, only generated
+//! on the fly as bytes are requested.
+//!
+//! ```text
+//! date(6) sep0(1) time(6) sep1(1) lat(12) sep2(1) lon(13) sep3(1)
+//! alt(4) sep4(1) sog(3) sep5(1) sat(2) sep6(1) hdop(5) sep7(1) cog(3)
+//! ```
+//!
+
 /// Exact size of one raw GPS log record (the on-device `GpsData` struct).
 pub const RECORD_SIZE: usize = crate::sd_card::RECORD_SIZE as usize;
 
@@ -160,10 +173,21 @@ pub fn parse_gpx_filename(filename: &str) -> Option<[u8; 6]> {
     if ext != EXT {
         return None;
     }
-    if !digits.bytes().all(|b| b.is_ascii_digit()) {
+    parse_yymmdd(digits)
+}
+
+/// Validates a plain 6-digit `"YYMMDD"` string and returns it as raw
+/// bytes, ready for direct comparison against `RawRecord::date` or
+/// `parse_day_filename`'s output — since every date is zero-padded and
+/// within 2000-2099, plain byte/array comparison (`==`, `>=`) is exactly
+/// chronological ordering; no epoch conversion is needed anywhere. Used
+/// both by `parse_day_filename` and for the `GPXINDEX_<YYMMDD>.TXT`
+/// "since this date" filter.
+pub fn parse_yymmdd(digits: &str) -> Option<[u8; 6]> {
+    if digits.len() != 6 || !digits.bytes().all(|b| b.is_ascii_digit()) {
         return None;
     }
-    Some(digits.as_bytes().try_into().ok()?)
+    digits.as_bytes().try_into().ok()
 }
 
 pub const GPX_HEADER: &[u8; 374] =

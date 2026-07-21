@@ -12,12 +12,16 @@
 //!   to port 69. This departs from strict RFC 1350 (which has the server
 //!   reply from a fresh ephemeral port per transfer) but is far simpler and
 //!   is fine for "pull the logs off the device" flow.
-//! - A virtual `index` file (exact lowercase name, no extension): lists
-//!   every calendar day that has data, one `YYMMDD` per line, nothing
-//!   else — via `FileSource::list`. Fetch a specific day's data with
+//! - A virtual index file requested as a bare `YYMMDD` (six digits, no
+//!   extension, e.g. `260701`): lists every calendar day with data whose
+//!   date is strictly after the requested one, one `YYMMDD` per line,
+//!   nothing else — via `FileSource::list`. Use an early date (e.g.
+//!   `000101`) to list everything. Fetch a specific day's data with
 //!   `YYMMDD.raw` (real file, via `open`/`read_at`) or `YYMMDD.gpx`
 //!   (generated on the fly, via `FileSource::start_gpx`/`next_gpx_chunk`
 //!   — see the companion `gpx` module).
+//! - Filenames are matched case-sensitively (lowercase only)
+//!
 
 use embassy_net::{Stack, udp::{PacketMetadata, UdpMetadata, UdpSocket}};
 use embassy_time::{with_timeout, Duration};
@@ -58,7 +62,7 @@ pub trait FileSource {
 
     /// Write every calendar day that has data into `writer`,
     /// one `YYMMDD` per line via `writer.write_date`.
-    async fn list(&mut self, writer: &mut IndexWriter<'_>);
+    async fn list(&mut self, since: [u8; 6], writer: &mut IndexWriter<'_>);
 
     /// Called once when the request comes in, with the requested day's
     /// raw `"YYMMDD"` date bytes.
@@ -133,6 +137,9 @@ pub async fn tftp_task(
     crate::tftp::serve(stack, source).await;
 }
 
+/// Runs the TFTP server loop forever. Intended to be spawned as its own
+/// embassy task:
+///
 pub async fn serve<F: FileSource>(stack: Stack<'static>, mut source: F) -> ! {
     // to track exactly 1 incoming package
     let mut rx_meta = [PacketMetadata::EMPTY; 1];
@@ -237,9 +244,9 @@ async fn handle_rrq<F: FileSource>(
         return;
     }
 
-    if filename == INDEX_FILENAME {
+    if let Some(since) = crate::gpx::parse_yymmdd(filename) {
         let mut writer = IndexWriter::new(index_buf);
-        source.list(&mut writer).await;
+        source.list(since, &mut writer).await;
         let len = writer.finish();
         send_blocks(socket, client, source, ReadKind::Buffer(&index_buf[..len]), data_buf, ack_buf).await;
         return;
