@@ -39,7 +39,7 @@ static CHUNK_FRAME_BUFFER: StaticCell<AlignedBuffer> = StaticCell::new();
 
 #[embassy_executor::task]
 pub(crate) async fn lcd_task(
-    i2c_bus: esp_hal::i2c::master::I2c<'static, esp_hal::Blocking>,
+    //i2c_bus: esp_hal::i2c::master::I2c<'static, esp_hal::Blocking>,
     mut tp_int: Input<'static>,
     spi_bus: &'static crate::SharedSpiBus,
     wifi_rescan_request: &'static Signal<NoopRawMutex, ()>,
@@ -54,11 +54,13 @@ pub(crate) async fn lcd_task(
 
     // Initialize touch controller
     create_no_input_pin!();
+    /*
     let mut touch = CST816S::new(
         i2c_bus,
         NoInputPin, // so we can further use it for wait_for_falling_edge()
         esp_hal::gpio::NoPin
     );
+    */
 
     info!("Display initialized!");
 
@@ -96,6 +98,7 @@ pub(crate) async fn lcd_task(
             tp_int.wait_for_falling_edge()
         ).await {
             Ok(_) => {
+                /*
                 // interrupt fired — touch event ready
                 match touch.read_one_touch_event(false) {  // false = don't check pin, we know it fired
                     Some(event) => {
@@ -151,6 +154,7 @@ pub(crate) async fn lcd_task(
                         refresh = false;
                     }
                 }
+                */
             }
             Err(_) => {
                 tick += 1;

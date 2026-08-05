@@ -21,6 +21,7 @@ mod panic;
 mod gps;
 mod gpx;
 mod gsm;
+mod imu;
 mod lcd;
 mod sd_card;
 mod tcp;
@@ -88,7 +89,7 @@ async fn main(spawner: embassy_executor::Spawner) {
     let _ = spawner.spawn(tcp::tcp_task(sta_stack, sta_state_changed));
 
     let spi = create_spi_bus!(peripherals);
-    let i2c = create_i2c_bus!(peripherals);
+    let mut i2c = create_i2c_bus!(peripherals);
 
     // pin# based on WaveShare ESP32-S3-Touch-LCD-2 schematic
 
@@ -102,7 +103,7 @@ async fn main(spawner: embassy_executor::Spawner) {
     let _ = spawner.spawn(tftp::tftp_task(sta_stack, storage, proxy));
 
     let _ = spawner.spawn(lcd::lcd_task(
-        i2c,
+        //i2c,
         Input::new(
             peripherals.GPIO46,
             InputConfig::default().with_pull(Pull::Up),  // TP INT
@@ -121,6 +122,14 @@ async fn main(spawner: embassy_executor::Spawner) {
     let _ = spawner.spawn(gsm::gsm_task(gsm_uart, pwk));
 
     let _ = spawner.spawn(system_stats());
+
+    let _ = spawner.spawn(imu::imu_task(
+        i2c,
+        Input::new(
+            peripherals.GPIO3,
+            InputConfig::default().with_pull(Pull::Down) // IMU INT
+        )
+    ));
 }
 
 #[embassy_executor::task]

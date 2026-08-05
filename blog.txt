@@ -679,6 +679,12 @@ AT+CIPRXGET=1
 +CIPRXGET: 1,0          # only notification, the raw data is buffered
 AT+CIPRXGET=2,0,50      # dumping up to 50 bytes from slot 0
 
+server side udp dumps:
+nc -ul 1994 # connect to a socket
+tcpdump -i any -nn -v udp port 1994 # all udp on this port
+socat - UDP-RECV:1994
+
+
 #################
 Slint 
 
