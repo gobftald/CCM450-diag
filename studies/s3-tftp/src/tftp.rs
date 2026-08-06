@@ -28,11 +28,6 @@ use embassy_time::{with_timeout, Duration};
 use embassy_sync::{blocking_mutex::raw::NoopRawMutex, mutex::Mutex};
 use crate::sd_card::{SdCardSource, Storage, SdBlockDevice, SdSpiBlockingProxy};
 
-/// Requesting this exact (lowercase) filename triggers a generated
-/// listing of every day with data, one `YYMMDD` per line — via
-/// `FileSource::list`.
-pub const INDEX_FILENAME: &str = "index";
-
 const BLOCK_SIZE: usize = 512;
 const MAX_RETRIES: u8 = 5;
 const ACK_TIMEOUT: Duration = Duration::from_secs(2);

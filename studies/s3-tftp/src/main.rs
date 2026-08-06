@@ -11,9 +11,14 @@ pub(crate) mod fmt;
 
 use core::{net::Ipv4Addr, str::FromStr};
 
-use esp_hal::gpio::{Input, Output, InputConfig, OutputConfig, DriveMode, Level, Pull};
+use esp_hal::{
+    gpio::{Input, Output, InputConfig, OutputConfig, DriveMode, Level, Pull},
+    rtc_cntl::{Rtc, sleep::{TimerWakeupSource, Ext0WakeupSource, WakeupLevel}, reset_reason, wakeup_cause},
+    system::SleepSource,
+};
 use embassy_time::Timer;
 use embassy_sync::{blocking_mutex::raw::NoopRawMutex, signal::Signal};
+
 
 mod macros;
 mod panic;
@@ -27,15 +32,15 @@ mod sd_card;
 mod tcp;
 mod tftp;
 
-type SharedSpiBus = embassy_sync::mutex::Mutex<
-    NoopRawMutex, esp_hal::spi::master::SpiDmaBus<'static, esp_hal::Async>
->;
-
 #[cfg(not(feature = "rtt"))]
 use esp_println as _;           // if no "rtt-target/defmt" we need "esp-println/defmt-espflash" in "dfmt"
 
 // for consuming bootlader RAM segment for heap
 esp_bootloader_esp_idf::esp_app_desc!();
+
+type SharedSpiBus = embassy_sync::mutex::Mutex<
+    NoopRawMutex, esp_hal::spi::master::SpiDmaBus<'static, esp_hal::Async>
+>;
 
 #[esp_rtos::main]
 async fn main(spawner: embassy_executor::Spawner) {
@@ -51,6 +56,18 @@ async fn main(spawner: embassy_executor::Spawner) {
 
     esp_rtos_start!(peripherals);
 
+    match wakeup_cause() {
+        SleepSource::Ext0 => {
+            Timer::after_millis(2_000).await;
+            debug!("awakening from deep sleep caused by motion");
+        }
+        SleepSource::Timer => {
+            Timer::after_millis(2_000).await;
+            debug!("awakening from deep sleep casued by timer");
+        }
+        _ => {}
+    }
+
     let (
         controller,
         ap_runner,
@@ -62,6 +79,7 @@ async fn main(spawner: embassy_executor::Spawner) {
 
     // they cannot be simple static, since NoopRawMutex does not Sync
     // but StaticCell<T> defined as Sync even if T is not Sync
+    // we can use my SyncNoopRawMutex from gps.rs but this way is simpler
     let wifi_rescan_request = mk_static!(
         Signal<NoopRawMutex, ()>,
         Signal::<NoopRawMutex, ()>::new()
@@ -102,20 +120,6 @@ async fn main(spawner: embassy_executor::Spawner) {
 
     let _ = spawner.spawn(tftp::tftp_task(sta_stack, storage, proxy));
 
-    let _ = spawner.spawn(lcd::lcd_task(
-        //i2c,
-        Input::new(
-            peripherals.GPIO46,
-            InputConfig::default().with_pull(Pull::Up),  // TP INT
-        ),
-        spi,
-        wifi_rescan_request,
-        lcd_cs,
-        peripherals.GPIO42.into(),  // LCD DC
-        peripherals.GPIO0.into(),   // LCD RST
-        peripherals.GPIO1.into(),   // LCD BL
-    ));
-
     let _ = spawner.spawn(gps::gps_task(create_gps_uart!(peripherals)));
 
     let (gsm_uart, pwk) = create_gsm_uart!(peripherals);
@@ -123,13 +127,36 @@ async fn main(spawner: embassy_executor::Spawner) {
 
     let _ = spawner.spawn(system_stats());
 
-    let _ = spawner.spawn(imu::imu_task(
-        i2c,
+    lcd::lcd_task(
+        &mut i2c,
         Input::new(
-            peripherals.GPIO3,
-            InputConfig::default().with_pull(Pull::Down) // IMU INT
-        )
-    ));
+            peripherals.GPIO46,
+            InputConfig::default().with_pull(Pull::None),  // TP INT
+        ),
+        spi,
+        wifi_rescan_request,
+        lcd_cs,
+        peripherals.GPIO42.into(),  // LCD DC
+        peripherals.GPIO0.into(),   // LCD RST
+        peripherals.GPIO1.into(),   // LCD BL
+    ).await;
+
+    // init motion detector then go to deep sleep
+
+    let mut imu_int = peripherals.GPIO3;
+    let imu_int_input = Input::new(
+            imu_int.reborrow(),
+            InputConfig::default().with_pull(Pull::None) // IMU INT
+    );
+
+    let _ = imu::imu_init(&mut i2c);
+
+    let mut rtc = Rtc::new(peripherals.LPWR);
+    let timer = TimerWakeupSource::new(core::time::Duration::from_secs(30));
+    core::mem::drop(imu_int_input);
+    let ext0 = Ext0WakeupSource::new(imu_int, WakeupLevel::High);
+
+    rtc.sleep_deep(&[&timer, &ext0]);
 }
 
 #[embassy_executor::task]

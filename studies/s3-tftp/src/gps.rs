@@ -22,7 +22,7 @@ macro_rules! create_gps_uart {
 
 pub struct GpsUart<'a> {
     pub(crate) rx: UartRx<'a, Async>,
-    pub(crate) tx: UartTx<'a, Async>,
+    pub(crate) _tx: UartTx<'a, Async>,
 }
 
 impl<'a> GpsUart<'a> {
@@ -44,7 +44,7 @@ impl<'a> GpsUart<'a> {
             .with_cmd_char(b'\n'));
         let (rx, tx) = uart.split();
 
-        Self { rx, tx }
+        Self { rx, _tx: tx }
     }
 }
 
